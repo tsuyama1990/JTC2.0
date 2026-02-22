@@ -1,12 +1,23 @@
-import os
+from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from dotenv import load_dotenv
 
-load_dotenv()
+class Settings(BaseSettings):
+    """Configuration settings for the application."""
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-if not OPENAI_API_KEY:
-    # Log warning instead of crashing, as it might be set in env already
-    pass
+    openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")
+    tavily_api_key: SecretStr | None = Field(default=None, alias="TAVILY_API_KEY")
+
+    # Validation for critical keys
+    def validate_keys(self) -> None:
+        """Validate that critical keys are present."""
+        if not self.openai_api_key:
+            # We don't crash here to allow for testing or partial usage,
+            # but specific components will raise errors if they need it.
+            pass
+
+
+# Global settings instance
+settings = Settings()

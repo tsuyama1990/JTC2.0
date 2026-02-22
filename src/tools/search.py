@@ -1,15 +1,21 @@
+import logging
+
 from tavily import TavilyClient
 
-from src.core.config import TAVILY_API_KEY
+from src.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class TavilySearch:
     """Wrapper for Tavily Search API."""
 
     def __init__(self, api_key: str | None = None) -> None:
-        self.api_key = api_key or TAVILY_API_KEY
+        self.api_key = api_key or (
+            settings.tavily_api_key.get_secret_value() if settings.tavily_api_key else None
+        )
         if not self.api_key:
-            msg = "TAVILY_API_KEY not set in environment variables."
+            msg = "Search configuration error: API key is missing. Please check your .env file."
             raise ValueError(msg)
         self.client = TavilyClient(api_key=self.api_key)
 
@@ -44,5 +50,7 @@ class TavilySearch:
                 summary.append(f"Title: {title}\nURL: {url}\nContent: {content}\n")
 
             return "\n".join(summary)
-        except Exception as e:
-            return f"Search failed: {e!s}"
+        except Exception:
+            # Log the full error securely
+            logger.exception("Tavily search failed")
+            return "Search service unavailable."

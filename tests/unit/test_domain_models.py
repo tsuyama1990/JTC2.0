@@ -10,10 +10,10 @@ def test_lean_canvas_valid() -> None:
     canvas = LeanCanvas(
         id=1,
         title="Test Idea",
-        problem="Test Problem",
+        problem="Test Problem Problem Problem",  # > 3 words
         customer_segments="Test Segment",
-        unique_value_prop="Test UVP",
-        solution="Test Solution",
+        unique_value_prop="Test UVP UVP UVP",  # > 3 words
+        solution="Test Solution Solution Solution",  # > 3 words
     )
     assert canvas.id == 1
     assert canvas.title == "Test Idea"
@@ -45,6 +45,32 @@ def test_lean_canvas_extra_field() -> None:
             solution="Test Solution",
             extra_field="Should fail",  # Extra field
         )  # type: ignore[call-arg]
+
+
+def test_lean_canvas_short_title() -> None:
+    """Test validation for short title."""
+    with pytest.raises(ValidationError):
+        LeanCanvas(
+            id=1,
+            title="Hi",  # Too short
+            problem="Test Problem Problem",
+            customer_segments="Test Segment",
+            unique_value_prop="Test UVP UVP UVP",
+            solution="Test Solution Solution",
+        )
+
+
+def test_lean_canvas_short_content() -> None:
+    """Test validation for short content."""
+    with pytest.raises(ValidationError):
+        LeanCanvas(
+            id=1,
+            title="Test Idea",
+            problem="Short",  # Too short
+            customer_segments="Test Segment",
+            unique_value_prop="Test UVP UVP UVP",
+            solution="Test Solution Solution",
+        )
 
 
 def test_global_state_defaults() -> None:

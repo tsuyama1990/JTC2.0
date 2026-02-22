@@ -1,27 +1,31 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import SecretStr
 
 from src.tools.search import TavilySearch
 
 
 @patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.TAVILY_API_KEY", "test-key")
-def test_tavily_search_init(mock_client_cls: MagicMock) -> None:
+@patch("src.tools.search.settings")
+def test_tavily_search_init(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+    mock_settings.tavily_api_key = SecretStr("test-key")
     search = TavilySearch()
     mock_client_cls.assert_called_with(api_key="test-key")
     assert search.api_key == "test-key"
 
 
-@patch("src.tools.search.TAVILY_API_KEY", None)
-def test_tavily_search_missing_key() -> None:
-    with pytest.raises(ValueError, match="TAVILY_API_KEY not set"):
+@patch("src.tools.search.settings")
+def test_tavily_search_missing_key(mock_settings: MagicMock) -> None:
+    mock_settings.tavily_api_key = None
+    with pytest.raises(ValueError, match="Search configuration error"):
         TavilySearch()
 
 
 @patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.TAVILY_API_KEY", "test-key")
-def test_tavily_search_success(mock_client_cls: MagicMock) -> None:
+@patch("src.tools.search.settings")
+def test_tavily_search_success(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+    mock_settings.tavily_api_key = SecretStr("test-key")
     mock_client = mock_client_cls.return_value
     mock_client.search.return_value = {
         "results": [
@@ -40,8 +44,9 @@ def test_tavily_search_success(mock_client_cls: MagicMock) -> None:
 
 
 @patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.TAVILY_API_KEY", "test-key")
-def test_tavily_search_empty(mock_client_cls: MagicMock) -> None:
+@patch("src.tools.search.settings")
+def test_tavily_search_empty(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+    mock_settings.tavily_api_key = SecretStr("test-key")
     mock_client = mock_client_cls.return_value
     mock_client.search.return_value = {"results": []}
 
@@ -51,11 +56,12 @@ def test_tavily_search_empty(mock_client_cls: MagicMock) -> None:
 
 
 @patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.TAVILY_API_KEY", "test-key")
-def test_tavily_search_error(mock_client_cls: MagicMock) -> None:
+@patch("src.tools.search.settings")
+def test_tavily_search_error(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+    mock_settings.tavily_api_key = SecretStr("test-key")
     mock_client = mock_client_cls.return_value
     mock_client.search.side_effect = Exception("Search error")
 
     search = TavilySearch()
     result = search.search("query")
-    assert "Search failed: Search error" in result
+    assert "Search service unavailable." in result

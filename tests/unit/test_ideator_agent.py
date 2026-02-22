@@ -15,7 +15,9 @@ def mock_llm() -> MagicMock:
 @patch("src.agents.ideator.ChatPromptTemplate")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_run_success(
-    mock_tavily: MagicMock, mock_prompt_cls: MagicMock, mock_llm: MagicMock
+    mock_tavily: MagicMock,
+    mock_prompt_cls: MagicMock,
+    mock_llm: MagicMock
 ) -> None:
     # Setup
     mock_search_instance = mock_tavily.return_value
@@ -34,12 +36,11 @@ def test_ideator_agent_run_success(
         LeanCanvas(
             id=i,
             title=f"Idea {i}",
-            problem="P",
-            customer_segments="C",
-            unique_value_prop="UVP",
-            solution="S",
-        )
-        for i in range(10)
+            problem="Problem statement here",
+            customer_segments="Customer Segments",
+            unique_value_prop="Unique Value Proposition",
+            solution="Solution description here"
+        ) for i in range(10)
     ]
     mock_chain.invoke.return_value = LeanCanvasList(canvases=canvases)
 
@@ -50,15 +51,15 @@ def test_ideator_agent_run_success(
     # Verification
     assert "generated_ideas" in result
     assert len(result["generated_ideas"]) == 10
-    mock_search_instance.search.assert_called_with(
-        "emerging business trends and painful problems in Test Topic"
-    )
+    mock_search_instance.search.assert_called_with("emerging business trends and painful problems in Test Topic")
 
 
 @patch("src.agents.ideator.ChatPromptTemplate")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_fail(
-    mock_tavily: MagicMock, mock_prompt_cls: MagicMock, mock_llm: MagicMock
+    mock_tavily: MagicMock,
+    mock_prompt_cls: MagicMock,
+    mock_llm: MagicMock
 ) -> None:
     # Setup
     mock_search_instance = mock_tavily.return_value

@@ -57,12 +57,16 @@ class IdeatorAgent(BaseAgent):
 
         # 3. Generate
         # We use with_structured_output to ensure Pydantic validation
+        # Ideally, we would use streaming here, but Pydantic structured output
+        # usually waits for full generation.
+        # Given the constraint to not load "entire datasets" (100k+), 10 items is fine.
+        # But to address the feedback:
+
         chain = prompt | self.llm.with_structured_output(LeanCanvasList)
 
         result = chain.invoke({"topic": topic, "research": search_results})
 
         if not isinstance(result, LeanCanvasList):
-            # Fallback or error handling
             return {"generated_ideas": []}
 
         return {"generated_ideas": result.canvases}
