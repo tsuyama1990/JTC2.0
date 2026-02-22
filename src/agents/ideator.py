@@ -2,7 +2,7 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from src.agents.base import BaseAgent
 from src.core.config import settings
@@ -12,9 +12,23 @@ from src.tools.search import TavilySearch
 
 
 class LeanCanvasList(BaseModel):
-    """Wrapper for list of Lean Canvases for structured output."""
+    """
+    Wrapper for list of Lean Canvases for structured output.
+
+    Ensures that generated ideas have unique IDs.
+    """
 
     canvases: list[LeanCanvas]
+
+    @field_validator("canvases")
+    @classmethod
+    def validate_unique_ids(cls, v: list[LeanCanvas]) -> list[LeanCanvas]:
+        """Ensure all generated canvases have unique IDs."""
+        ids = [canvas.id for canvas in v]
+        if len(ids) != len(set(ids)):
+            msg = "Generated ideas must have unique IDs."
+            raise ValueError(msg)
+        return v
 
 
 class IdeatorAgent(BaseAgent):
@@ -54,7 +68,8 @@ class IdeatorAgent(BaseAgent):
         # 1. Research
         # Use configurable template
         query = settings.search_query_template.format(topic=topic)
-        search_results = self.search_tool.search(query)
+        # Use safe_search for robustness
+        search_results = self.search_tool.safe_search(query)
 
         # 2. Ideation Prompt
         system_prompt = (
@@ -74,9 +89,6 @@ class IdeatorAgent(BaseAgent):
 
         # 3. Generate
         # We use with_structured_output to ensure Pydantic validation.
-        # Note on Scalability: While generating 10 items is small enough to fit in memory,
-        # for larger datasets we would use streaming. Here we adhere to the contract
-        # but acknowledge the constraint. The LLM response for 10 items is < 4k tokens.
 
         chain = prompt | self.llm.with_structured_output(LeanCanvasList)
 
@@ -84,6 +96,7 @@ class IdeatorAgent(BaseAgent):
             result = chain.invoke({"topic": topic, "research": search_results})
         except Exception:
             # Fallback if LLM fails or structure is invalid
+            # Return empty list to degrade gracefully rather than crashing
             return {"generated_ideas": []}
 
         if not isinstance(result, LeanCanvasList):

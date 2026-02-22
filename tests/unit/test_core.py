@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, patch
+
 import pytest
 from pydantic import SecretStr
 
@@ -10,8 +11,6 @@ def test_config_values() -> None:
     """Test that default settings are loaded correctly."""
     from src.core.config import Settings
     # Use environment variable naming for Pydantic BaseSettings init
-    # _env_file is handled by BaseSettings but mypy might complain if strict
-    # We can use fields directly
     s = Settings(OPENAI_API_KEY=SecretStr("sk-test"), TAVILY_API_KEY=SecretStr("tvly-test"))
     assert s.llm_model == "gpt-4o"
     assert s.search_max_results == 5

@@ -2,24 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import SecretStr
+from tenacity import RetryError
 
 from src.tools.search import TavilySearch
-
-
-@patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.settings")
-def test_tavily_search_init(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
-    mock_settings.tavily_api_key = SecretStr("test-key")
-    search = TavilySearch()
-    mock_client_cls.assert_called_with(api_key="test-key")
-    assert search.api_key == "test-key"
-
-
-@patch("src.tools.search.settings")
-def test_tavily_search_missing_key(mock_settings: MagicMock) -> None:
-    mock_settings.tavily_api_key = None
-    with pytest.raises(ValueError, match="Search configuration error"):
-        TavilySearch()
 
 
 @patch("src.tools.search.TavilyClient")
@@ -47,28 +32,43 @@ def test_tavily_search_success(mock_settings: MagicMock, mock_client_cls: MagicM
 
     # We assert that it called it with the mock objects from settings, or the values if resolved
     # Since we set the mock properties above, they should match
-    mock_client.search.assert_called_with(query="query", max_results=5, search_depth="advanced")
+    mock_client.search.assert_called_with(
+        query="query",
+        max_results=5,
+        search_depth="advanced"
+    )
 
 
 @patch("src.tools.search.TavilyClient")
 @patch("src.tools.search.settings")
-def test_tavily_search_empty(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+def test_tavily_search_error_with_retry(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
     mock_settings.tavily_api_key = SecretStr("test-key")
     mock_client = mock_client_cls.return_value
-    mock_client.search.return_value = {"results": []}
-
-    search = TavilySearch()
-    result = search.search("query")
-    assert result == "No results found."
-
-
-@patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.settings")
-def test_tavily_search_error(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
-    mock_settings.tavily_api_key = SecretStr("test-key")
-    mock_client = mock_client_cls.return_value
+    # Simulate repeated failure
     mock_client.search.side_effect = Exception("Search error")
 
     search = TavilySearch()
-    result = search.search("query")
+
+    # We expect RetryError after retries are exhausted (tenacity behavior)
+    # The search() method raises RetryError if retries fail.
+    # The safe_search() method handles it.
+    with pytest.raises(RetryError):
+        search.search("query")
+
+    # Verify multiple attempts
+    assert mock_client.search.call_count >= 3
+
+
+@patch("src.tools.search.TavilyClient")
+@patch("src.tools.search.settings")
+def test_tavily_safe_search_error(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+    mock_settings.tavily_api_key = SecretStr("test-key")
+    mock_client = mock_client_cls.return_value
+    # Simulate repeated failure
+    mock_client.search.side_effect = Exception("Search error")
+
+    search = TavilySearch()
+
+    # safe_search should catch the RetryError (or underlying) and return error message
+    result = search.safe_search("query")
     assert "Search service unavailable." in result

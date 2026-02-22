@@ -12,14 +12,21 @@ def mock_llm() -> MagicMock:
     return MagicMock()
 
 
+@patch("src.agents.ideator.settings")
 @patch("src.agents.ideator.ChatPromptTemplate")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_run_success(
-    mock_tavily: MagicMock, mock_prompt_cls: MagicMock, mock_llm: MagicMock
+    mock_tavily: MagicMock,
+    mock_prompt_cls: MagicMock,
+    mock_settings: MagicMock,
+    mock_llm: MagicMock
 ) -> None:
-    # Setup
+    # Setup settings
+    mock_settings.search_query_template = "Trends in {topic}"
+
+    # Setup Search
     mock_search_instance = mock_tavily.return_value
-    mock_search_instance.search.return_value = "Research data"
+    mock_search_instance.safe_search.return_value = "Research data"
 
     agent = IdeatorAgent(llm=mock_llm)
 
@@ -50,19 +57,24 @@ def test_ideator_agent_run_success(
     # Verification
     assert "generated_ideas" in result
     assert len(result["generated_ideas"]) == 10
-    mock_search_instance.search.assert_called_with(
-        "emerging business trends and painful problems in Test Topic"
-    )
+    mock_search_instance.safe_search.assert_called_with("Trends in Test Topic")
 
 
+@patch("src.agents.ideator.settings")
 @patch("src.agents.ideator.ChatPromptTemplate")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_fail(
-    mock_tavily: MagicMock, mock_prompt_cls: MagicMock, mock_llm: MagicMock
+    mock_tavily: MagicMock,
+    mock_prompt_cls: MagicMock,
+    mock_settings: MagicMock,
+    mock_llm: MagicMock
 ) -> None:
-    # Setup
+    # Setup settings
+    mock_settings.search_query_template = "Trends in {topic}"
+
+    # Setup Search
     mock_search_instance = mock_tavily.return_value
-    mock_search_instance.search.return_value = "Research data"
+    mock_search_instance.safe_search.return_value = "Research data"
 
     agent = IdeatorAgent(llm=mock_llm)
 
@@ -71,12 +83,12 @@ def test_ideator_agent_fail(
     mock_chain = MagicMock()
     mock_prompt.__or__.return_value = mock_chain
 
-    # Mock invoke result
-    mock_chain.invoke.return_value = None
+    # Mock invoke result - Simulate generic Exception from LLM
+    mock_chain.invoke.side_effect = Exception("LLM Error")
 
     # Execution
     state = GlobalState(topic="Test Topic")
     result = agent.run(state)
 
-    # Verification
+    # Verification - Should return empty list gracefully
     assert result["generated_ideas"] == []

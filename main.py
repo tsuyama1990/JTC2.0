@@ -1,12 +1,12 @@
 import argparse
 import sys
-from typing import Any
 
 # Add src to path if running from root
 sys.path.append(".")
 
 from src.core.config import settings
 from src.core.graph import create_app
+from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
 
 
@@ -15,15 +15,14 @@ def echo(msg: str) -> None:
     print(msg)  # noqa: T201
 
 
-def get_idea_property(idea: Any, prop: str, default: Any = "N/A") -> Any:
-    """Helper to get property from dict or object safely."""
-    if isinstance(idea, dict):
-        return idea.get(prop, default)
-    return getattr(idea, prop, default)
+def display_ideas_paginated(ideas: list[LeanCanvas], page_size: int = 5) -> None:
+    """
+    Display generated ideas with pagination using a generator-like approach.
 
-
-def display_ideas_paginated(ideas: list[Any], page_size: int = 5) -> None:
-    """Display generated ideas with pagination."""
+    Args:
+        ideas: List of LeanCanvas objects.
+        page_size: Number of items per page.
+    """
     if not ideas:
         echo("\nNo ideas generated. Please try again or check logs.")
         return
@@ -31,35 +30,44 @@ def display_ideas_paginated(ideas: list[Any], page_size: int = 5) -> None:
     total_ideas = len(ideas)
     echo(f"\n=== Generated {total_ideas} Ideas ===")
 
-    for i in range(0, total_ideas, page_size):
-        chunk = ideas[i : i + page_size]
-        for idea in chunk:
-            idx = get_idea_property(idea, "id", -1)
-            title = get_idea_property(idea, "title")
-            problem = get_idea_property(idea, "problem")
-            solution = get_idea_property(idea, "solution")
+    # Use iterator to process chunks without loading everything into memory (if it were a stream)
+    # Since 'ideas' is a list, we are already in memory, but this structure supports future streaming.
+    iterator = iter(ideas)
 
-            echo(f"\n[{idx}] {title}")
-            echo(f"    Problem: {problem}")
-            echo(f"    Solution: {solution}")
+    shown_count = 0
+    while shown_count < total_ideas:
+        # Consume chunk
+        chunk = []
+        try:
+            for _ in range(page_size):
+                chunk.append(next(iterator))
+        except StopIteration:
+            pass
+
+        if not chunk:
+            break
+
+        for idea in chunk:
+            echo(f"\n[{idea.id}] {idea.title}")
+            echo(f"    Problem: {idea.problem}")
+            echo(f"    Solution: {idea.solution}")
             echo("-" * 50)
 
-        if i + page_size < total_ideas:
+        shown_count += len(chunk)
+
+        if shown_count < total_ideas:
             input("\nPress Enter to see more...")
 
 
-def select_idea(ideas: list[Any]) -> Any:
+def select_idea(ideas: list[LeanCanvas]) -> LeanCanvas | None:
     """
     Prompt user to select an idea.
 
     Optimized for O(N) lookup once, then O(1) selection logic.
     """
     # Create lookup map for O(1) access
-    idea_map = {}
-    for idea in ideas:
-        idx = get_idea_property(idea, "id", -1)
-        if idx != -1:
-            idea_map[idx] = idea
+    # Given N=10, memory overhead is negligible.
+    idea_map = {idea.id: idea for idea in ideas}
 
     while True:
         try:
@@ -103,16 +111,24 @@ def main() -> None:
         return
 
     generated_ideas = final_state.get("generated_ideas", [])
-    display_ideas_paginated(generated_ideas, page_size=settings.ui_page_size)
 
-    if not generated_ideas:
+    # Ensure strict typing
+    typed_ideas: list[LeanCanvas] = []
+    if generated_ideas and isinstance(generated_ideas[0], LeanCanvas):
+        typed_ideas = generated_ideas
+    elif generated_ideas and isinstance(generated_ideas[0], dict):
+        # Convert dicts to models if necessary (LangGraph serialization)
+        typed_ideas = [LeanCanvas(**g) for g in generated_ideas]
+
+    display_ideas_paginated(typed_ideas, page_size=settings.ui_page_size)
+
+    if not typed_ideas:
         return
 
-    selected_idea = select_idea(generated_ideas)
-    title = get_idea_property(selected_idea, "title")
-
-    echo(f"\n✓ Selected Plan: {title}")
-    echo("Cycle 1 Complete. State updated.")
+    selected_idea = select_idea(typed_ideas)
+    if selected_idea:
+        echo(f"\n✓ Selected Plan: {selected_idea.title}")
+        echo("Cycle 1 Complete. State updated.")
 
 
 if __name__ == "__main__":
