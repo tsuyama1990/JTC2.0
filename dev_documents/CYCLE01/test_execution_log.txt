@@ -1,0 +1,37 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
+collected 16 items
+
+tests/uat/test_uat_cycle01.py .                                          [  6%]
+tests/unit/test_core.py ...                                              [ 25%]
+tests/unit/test_domain_models.py .....                                   [ 56%]
+tests/unit/test_ideator_agent.py ..                                      [ 68%]
+tests/unit/test_tools.py ...../app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
+  self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")
+                                           [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.12-final-0 _______________
+
+Name                               Stmts   Miss  Cover   Missing
+----------------------------------------------------------------
+src/__init__.py                        0      0   100%
+src/agents/__init__.py                 0      0   100%
+src/agents/base.py                     6      0   100%
+src/agents/ideator.py                 25      0   100%
+src/core/__init__.py                   0      0   100%
+src/core/config.py                     7      0   100%
+src/core/graph.py                     13     13     0%   1-23
+src/core/llm.py                        8      0   100%
+src/domain_models/__init__.py          3      0   100%
+src/domain_models/lean_canvas.py      10      0   100%
+src/domain_models/state.py            15      0   100%
+src/tools/__init__.py                  0      0   100%
+src/tools/search.py                   24      0   100%
+----------------------------------------------------------------
+TOTAL                                111     13    88%
+============================== 16 passed in 5.03s ==============================
