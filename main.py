@@ -5,6 +5,7 @@ from typing import Any
 # Add src to path if running from root
 sys.path.append(".")
 
+from src.core.config import settings
 from src.core.graph import create_app
 from src.domain_models.state import GlobalState, Phase
 
@@ -48,16 +49,25 @@ def display_ideas_paginated(ideas: list[Any], page_size: int = 5) -> None:
 
 
 def select_idea(ideas: list[Any]) -> Any:
-    """Prompt user to select an idea."""
+    """
+    Prompt user to select an idea.
+
+    Optimized for O(N) lookup once, then O(1) selection logic.
+    """
+    # Create lookup map for O(1) access
+    idea_map = {}
+    for idea in ideas:
+        idx = get_idea_property(idea, "id", -1)
+        if idx != -1:
+            idea_map[idx] = idea
+
     while True:
         try:
             choice = input("\n[GATE 1] Select an Idea ID (0-9) to proceed: ")
             idx = int(choice)
 
-            for idea in ideas:
-                idea_id = get_idea_property(idea, "id", -1)
-                if idea_id == idx:
-                    return idea
+            if idx in idea_map:
+                return idea_map[idx]
 
             echo(f"ID {idx} not found. Please try again.")
         except ValueError:
@@ -93,7 +103,7 @@ def main() -> None:
         return
 
     generated_ideas = final_state.get("generated_ideas", [])
-    display_ideas_paginated(generated_ideas)
+    display_ideas_paginated(generated_ideas, page_size=settings.ui_page_size)
 
     if not generated_ideas:
         return

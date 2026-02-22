@@ -1,11 +1,13 @@
-import pytest
 from unittest.mock import MagicMock
 
-from src.domain_models.state import GlobalState, Phase
+import pytest
+
 from src.domain_models.lean_canvas import LeanCanvas
+from src.domain_models.state import GlobalState, Phase
 
 # Mock imports for things that don't exist yet
 # from src.core.graph import create_app # noqa: ERA001
+
 
 @pytest.fixture
 def mock_app() -> MagicMock:
@@ -36,8 +38,9 @@ def test_uat_cycle01_ideation_and_selection(mock_app: MagicMock) -> None:
             problem="Problem statement text",
             customer_segments="Customer Segments",
             unique_value_prop="Unique Value Proposition",
-            solution="Solution description text"
-        ) for i in range(10)
+            solution="Solution description text",
+        )
+        for i in range(10)
     ]
 
     state_after_ideation = initial_state.model_copy()
@@ -49,7 +52,9 @@ def test_uat_cycle01_ideation_and_selection(mock_app: MagicMock) -> None:
 
     # 3. User Selects Idea #2
     selected_id = 2
-    selected_canvas = next(idea for idea in state_after_ideation.generated_ideas if idea.id == selected_id)
+    selected_canvas = next(
+        idea for idea in state_after_ideation.generated_ideas if idea.id == selected_id
+    )
 
     # Simulate State Update
     final_state = state_after_ideation.model_copy()

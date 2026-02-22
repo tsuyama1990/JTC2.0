@@ -25,7 +25,11 @@ def test_tavily_search_missing_key(mock_settings: MagicMock) -> None:
 @patch("src.tools.search.TavilyClient")
 @patch("src.tools.search.settings")
 def test_tavily_search_success(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+    # Setup settings with explicit values
     mock_settings.tavily_api_key = SecretStr("test-key")
+    mock_settings.search_max_results = 5
+    mock_settings.search_depth = "advanced"
+
     mock_client = mock_client_cls.return_value
     mock_client.search.return_value = {
         "results": [
@@ -40,6 +44,9 @@ def test_tavily_search_success(mock_settings: MagicMock, mock_client_cls: MagicM
     assert "Title 1" in result
     assert "Content 1" in result
     assert "http://example.com/1" in result
+
+    # We assert that it called it with the mock objects from settings, or the values if resolved
+    # Since we set the mock properties above, they should match
     mock_client.search.assert_called_with(query="query", max_results=5, search_depth="advanced")
 
 

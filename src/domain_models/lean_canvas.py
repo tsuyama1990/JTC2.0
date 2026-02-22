@@ -26,6 +26,6 @@ class LeanCanvas(BaseModel):
     def validate_content_length(cls, v: str) -> str:
         """Ensure content is substantive."""
         if len(v.split()) < 3:
-             msg = "Content must contain at least 3 words"
-             raise ValueError(msg)
+            msg = "Content must contain at least 3 words"
+            raise ValueError(msg)
         return v

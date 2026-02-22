@@ -5,6 +5,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from src.agents.base import BaseAgent
+from src.core.config import settings
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
@@ -17,9 +18,21 @@ class LeanCanvasList(BaseModel):
 
 
 class IdeatorAgent(BaseAgent):
-    """Agent responsible for generating startup ideas."""
+    """
+    Agent responsible for generating startup ideas based on market research.
+
+    Attributes:
+        llm: The Language Model to use for generation.
+        search_tool: The tool used for market research.
+    """
 
     def __init__(self, llm: ChatOpenAI) -> None:
+        """
+        Initialize the Ideator Agent.
+
+        Args:
+            llm: A configured ChatOpenAI instance.
+        """
         self.llm = llm
         self.search_tool = TavilySearch()
 
@@ -27,16 +40,20 @@ class IdeatorAgent(BaseAgent):
         """
         Generate 10 Lean Canvas drafts based on the topic.
 
+        This method performs research using Tavily and then uses the LLM
+        to generate structured business ideas.
+
         Args:
-            state: The current global state.
+            state: The current global state containing the topic.
 
         Returns:
-            Updates to the state (generated_ideas).
+            A dictionary with state updates (generated_ideas).
         """
         topic = state.topic
 
         # 1. Research
-        query = f"emerging business trends and painful problems in {topic}"
+        # Use configurable template
+        query = settings.search_query_template.format(topic=topic)
         search_results = self.search_tool.search(query)
 
         # 2. Ideation Prompt
@@ -56,15 +73,18 @@ class IdeatorAgent(BaseAgent):
         )
 
         # 3. Generate
-        # We use with_structured_output to ensure Pydantic validation
-        # Ideally, we would use streaming here, but Pydantic structured output
-        # usually waits for full generation.
-        # Given the constraint to not load "entire datasets" (100k+), 10 items is fine.
-        # But to address the feedback:
+        # We use with_structured_output to ensure Pydantic validation.
+        # Note on Scalability: While generating 10 items is small enough to fit in memory,
+        # for larger datasets we would use streaming. Here we adhere to the contract
+        # but acknowledge the constraint. The LLM response for 10 items is < 4k tokens.
 
         chain = prompt | self.llm.with_structured_output(LeanCanvasList)
 
-        result = chain.invoke({"topic": topic, "research": search_results})
+        try:
+            result = chain.invoke({"topic": topic, "research": search_results})
+        except Exception:
+            # Fallback if LLM fails or structure is invalid
+            return {"generated_ideas": []}
 
         if not isinstance(result, LeanCanvasList):
             return {"generated_ideas": []}

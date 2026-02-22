@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 
 from tavily import TavilyClient
 
@@ -11,6 +12,15 @@ class TavilySearch:
     """Wrapper for Tavily Search API."""
 
     def __init__(self, api_key: str | None = None) -> None:
+        """
+        Initialize Tavily Search client.
+
+        Args:
+            api_key: Optional API key override. Defaults to config settings.
+
+        Raises:
+            ValueError: If API key is missing.
+        """
         self.api_key = api_key or (
             settings.tavily_api_key.get_secret_value() if settings.tavily_api_key else None
         )
@@ -19,23 +29,29 @@ class TavilySearch:
             raise ValueError(msg)
         self.client = TavilyClient(api_key=self.api_key)
 
-    def search(self, query: str, max_results: int = 5) -> str:
+    def search(
+        self,
+        query: str,
+        max_results: int | None = None,
+        search_depth: Literal["basic", "advanced"] | None = None,
+    ) -> str:
         """
         Perform a search and return a formatted string of results.
 
         Args:
             query: The search query.
-            max_results: Maximum number of results to return.
+            max_results: Maximum number of results to return. Defaults to config.
+            search_depth: "basic" or "advanced". Defaults to config.
 
         Returns:
-            A string containing the search results.
+            A string containing the search results or error message.
         """
         try:
             # search_depth="advanced" is generally better for research
             response = self.client.search(
                 query=query,
-                max_results=max_results,
-                search_depth="advanced",
+                max_results=max_results or settings.search_max_results,
+                search_depth=search_depth or settings.search_depth,
             )
 
             summary = []

@@ -4,12 +4,12 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 18 items
+collected 19 items
 
 tests/uat/test_uat_cycle01.py .                                          [  5%]
-tests/unit/test_core.py ...                                              [ 22%]
-tests/unit/test_domain_models.py .......                                 [ 61%]
-tests/unit/test_ideator_agent.py ..                                      [ 72%]
+tests/unit/test_core.py ....                                             [ 26%]
+tests/unit/test_domain_models.py .......                                 [ 63%]
+tests/unit/test_ideator_agent.py ..                                      [ 73%]
 tests/unit/test_tools.py ...../app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")
                                            [100%]
@@ -22,16 +22,16 @@ Name                               Stmts   Miss  Cover   Missing
 src/__init__.py                        0      0   100%
 src/agents/__init__.py                 0      0   100%
 src/agents/base.py                     6      0   100%
-src/agents/ideator.py                 25      0   100%
+src/agents/ideator.py                 29      2    93%   85-87
 src/core/__init__.py                   0      0   100%
-src/core/config.py                    10      2    80%   16-19
+src/core/config.py                    15      2    87%   31-34
 src/core/graph.py                     13     13     0%   1-23
 src/core/llm.py                        7      0   100%
 src/domain_models/__init__.py          3      0   100%
 src/domain_models/lean_canvas.py      24      0   100%
 src/domain_models/state.py            15      0   100%
 src/tools/__init__.py                  0      0   100%
-src/tools/search.py                   27      0   100%
+src/tools/search.py                   28      0   100%
 ----------------------------------------------------------------
-TOTAL                                130     15    88%
-============================== 18 passed in 2.99s ==============================
+TOTAL                                140     17    88%
+============================== 19 passed in 3.19s ==============================
