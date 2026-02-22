@@ -1,62 +1,74 @@
-「The JTC 2.0」のファーストステップ（MVP版）のスコープとして、**「10個のアイデア出し → 複数選択 → 稟議（激詰め）シミュレーション → 顧客インタビュー（一次情報）の注入 → MVP（プロトタイプ）の自動生成」**という一連のパイプラインに絞り込むのは、システムのコア価値を最速で証明するための完璧なアプローチです。
+# User Test Scenarios & Tutorial Plan
 
-従来のシステム開発におけるUAT（受入テスト）は「特定の入力に対して常に同じ出力が返るか（決定論的）」をテストしますが、LLMを用いたマルチエージェントシステムのUATは、**「エージェントがビジネス上の制約を守り、正しいツールを選択し、不確実性の中で安全に振る舞えるか（非決定論的システムの行動評価）」**へとパラダイムをシフトさせる必要があります。
+## 1. Tutorial Strategy
 
-ご提示いただいたファーストステップの仕様に基づき、システムが本番環境で実用に耐えうるかを検証するためのUATシナリオを策定しました。
+The "The JTC 2.0" is a complex system involving multiple AI agents, mathematical models, and external API calls. To ensure that new users (and potential investors) can understand and verify the system's capabilities without incurring massive API costs or setting up complex environments, we will implement a **Unified Tutorial & UAT Strategy** using **Marimo**.
 
-### The JTC 2.0 (フェーズ1) UATシナリオ定義
+### 1.1. Marimo as the Interface
+We will use `marimo` (a reactive Python notebook) as the primary interface for both:
+1.  **User Acceptance Testing (UAT)**: Developers use it to verify features during the cycle.
+2.  **Interactive Tutorials**: Users use it to learn the system step-by-step.
 
-LLMの確率的な揺らぎを許容しつつ、プロセスが「起業の科学」の原則から逸脱しないことを検証するための4つの主要シナリオです。
+### 1.2. Mock Mode vs. Real Mode
+To make the tutorial accessible:
+-   **Real Mode**: Connects to actual OpenAI, Tavily, and v0.dev APIs. Requires `.env` keys.
+-   **Mock Mode**: Uses pre-recorded responses for all agents. This allows the tutorial to run in CI/CD environments and for users without API keys to see the "Happy Path."
 
-#### シナリオ1：初期仮説の生成と「複数選択」のハンドリング
+## 2. Tutorial Plan
 
-ユーザーが提示された10個のアイデアから複数を選択し、システムがそれぞれのコンテキストを混同せずに後続のプロセスへ引き継げるかを検証します。
+We will create a **SINGLE** master file: `tutorials/UAT_AND_TUTORIAL.py`.
+This file will contain sections corresponding to the 4 Critical User Journeys defined below.
 
-| テスト項目 | 操作手順 | 期待される結果（受入基準） | 留意点（AI特有の検証） |
-| --- | --- | --- | --- |
-| **リーンキャンバス10案生成** | 初期プロンプト（市場領域など）を入力する。 | 起業の科学のフォーマットに従った10個の異なるリーンキャンバスが出力されること。 | 各案が「Nice to have（あったらいいな）」ではなく「課題」にフォーカスした内容に分岐していること。 |
-| **複数選択と並列処理の開始** | 10案の中から、例えば「案A」と「案C」の2つを選択し、次へ進む。 | システムがLangGraphのワークフローを分岐させ、案Aと案Cそれぞれ独立した状態（State）を保持してプロセスを開始すること。 | 選択されなかった8案のコンテキストが完全に破棄され、後続のエージェントのハルシネーション（情報の混入）を引き起こさないこと。 |
+### Section 1: Ideation (The Spark)
+-   **Goal**: Demonstrate how the system generates Lean Canvases.
+-   **Interaction**: User inputs a topic -> System shows 3 ideas -> User selects 1.
 
-#### シナリオ2：稟議シミュレーションと状態の永続化（HITL検証）
+### Section 2: The Meeting (The Grill)
+-   **Goal**: Demonstrate the "Gekizume" simulation.
+-   **Interaction**: User watches a turn-based debate between "New Employee" and "Finance Manager".
 
-JTC特有の「激詰め」会議において、エージェントが適切なロールプレイを行い、かつ人間の介入（Human-in-the-Loop）を待つ間、システムが安全に待機できるかを検証します。
+### Section 3: Reality Check (The Pivot)
+-   **Goal**: Demonstrate RAG and CPO intervention.
+-   **Interaction**: User "uploads" a mock transcript -> CPO points out a contradiction.
 
-| テスト項目 | 操作手順 | 期待される結果（受入基準） | 留意点（AI特有の検証） |
-| --- | --- | --- | --- |
-| **敵対的評価（激詰め）の実行** | 選ばれた案に対して「会議プロセス」を実行する。 | 財務・営業エージェントが、外部検索（Tavily）のデータを用いて、ROIやリソースの観点から案の脆弱性を指摘すること。 | エージェントの指摘が単なる誹謗中傷ではなく、論理的かつビジネスロジックに基づいた「敵対的コーチング」の範囲に収まっていること。 |
-| **ワークフローの意図的停止（Interrupt）** | 会議後、CPOエージェントからのアドバイスが提示された段階で操作を止める。 | ユーザーの入力を待つ間、LangGraphのステートがチェックポイントとして正確に保存され、システムが一時停止状態（Interrupt）に入ること 。
+### Section 4: Execution (The Build)
+-   **Goal**: Demonstrate MVP Generation.
+-   **Interaction**: System generates a v0.dev URL (mocked or real).
 
- | 数時間〜数日後にユーザーがピボットの指示を入力して再開（Resume）した際、直前の文脈を一切失わずに処理が継続されること。 |
+## 3. Critical Test Scenarios (UAT)
 
-#### シナリオ3：一次情報（顧客インタビュー）のRAG注入と自己補正
+These scenarios define the acceptance criteria for the project.
 
-外部の非構造化データ（トランスクリプト等）をシステムに強制注入し、机上の空論からファクトベースへと仮説が動的に修正されるかを検証します。
+### Scenario 1: Idea Verification (Cycle 1)
+-   **User Story**: As an entrepreneur, I want to generate multiple business models from a vague idea so that I can choose the best starting point.
+-   **Acceptance Criteria**:
+    -   System generates 10 distinct Lean Canvases.
+    -   Each canvas has a unique "Unique Value Proposition".
+    -   User selection is correctly stored in the state.
 
-| テスト項目 | 操作手順 | 期待される結果（受入基準） | 留意点（AI特有の検証） |
-| --- | --- | --- | --- |
-| **外部ファクトの優先適用** | 「出撃命令」に対し、顧客が価格や機能に不満を示している実際のインタビューテキスト（または議事録データ）を入力する。 | システムがテキストから顧客の「生の感情」や「インサイト」を抽出し、エンパシーマップや前提条件を書き換えること。 | LLMの内部知識（一般的な市場の常識）よりも、**注入された一次情報（RAGデータ）が絶対的に優先**され、ペルソナが上書きされること。 |
-| **Riskiest Assumptionの評価** | 注入されたデータに基づき、最もリスクの高い前提条件をシステムに再評価させる。 | データによって「課題の深刻度（Burning Needs）」が否定された場合、システムが忖度なく「この案はピボットすべき」と判定すること。 | ユーザーに都合の良い解釈をシステムが許容せず、「起業の科学」の基準に基づいて厳格なジャッジを下すこと。 |
+### Scenario 2: Simulation & De-identification (Cycle 2)
+-   **User Story**: As a timid employee, I want to see my idea criticized by AI agents so that I can find flaws without feeling personally attacked.
+-   **Acceptance Criteria**:
+    -   Finance Manager Agent asks at least 1 quantitative question (ROI, Cost).
+    -   Sales Manager Agent asks at least 1 market-fit question.
+    -   The "New Employee" proxy agent attempts to defend the idea.
 
-#### シナリオ4：MVPスコープの強制縮小とv0.dev連携
+### Scenario 3: The "Mom Test" (Cycle 3)
+-   **User Story**: As a product manager, I want to validate my plan against real customer interviews so that I don't build something nobody wants.
+-   **Acceptance Criteria**:
+    -   System ingests a text file containing "Negative Feedback" (e.g., "Too expensive").
+    -   CPO Agent detects the conflict between "Plan Price" and "Customer Budget".
+    -   CPO Agent explicitly recommends a Pivot.
 
-「機能の詰め込み」というアンチパターンを防止し、外部ツール（v0.dev）を呼び出して実際に動作するフロントエンドを生成できるかを検証します。
+### Scenario 4: MVP Construction (Cycle 5)
+-   **User Story**: As a non-coder, I want to see a working prototype of my solution immediately so that I can show it to stakeholders.
+-   **Acceptance Criteria**:
+    -   System accepts a finalized feature list.
+    -   Builder Agent constructs a valid prompt for v0.dev.
+    -   System returns a valid URL (or a mocked success message with a placeholder URL).
 
-| テスト項目 | 操作手順 | 期待される結果（受入基準） | 留意点（AI特有の検証） |
-| --- | --- | --- | --- |
-| **ワン機能への絞り込み** | 解決策（ソリューション）の提案フェーズにおいて、複数のMust-have機能をユーザーが選択しようとする。 | システムが「ワン機能・ワンバリュー」の原則を適用し、最重要の1機能以外を強制的に削ぎ落とすよう警告・制御すること。 | ユーザーが複数の要件をプロンプトに詰め込んでも、エージェントがそれを分解し、MVPの原則に沿って再構成できること。 |
-| **v0 APIの自律的呼び出し** | 絞り込まれた1機能に基づき、MVPの生成をシステムに指示する。 | LangGraph上のエージェントがv0.devのAPI（Tool Calling）を適切なパラメータで正確に呼び出すこと。 | 出力として、実際にブラウザで閲覧・操作可能なUIプロトタイプのURL（Demo URL）がUI上に提示されること 。
+## 4. Tutorial Validation
 
- |
-
-### UATを成功させるためのシステム要件（隠れた落とし穴）
-
-このUATを実施するにあたり、アーキテクチャ上で事前に担保しておくべき「技術的な落とし穴」が2点あります。
-
-1. **複数ワーカーのバッチ承認（Batch Human Review）:**
-シナリオ1でユーザーが「複数（例：3つ）のリーンキャンバス」を選択した場合、バックエンドでは3つのワーカーエージェントが並列で動くことになります。LangGraphにおいて、これらが個別にユーザーの入力を待つ（Interruptする）とUXが崩壊するため、オーケストレーターが3つの割り込み要求を束ねて、一度のUI画面でユーザーに判断を仰ぐ（そして一度にResumeさせる）設計にしておく必要があります 。
-
-
-2. **安全性とガードレールの検証:**
-「稟議シミュレーション（激詰め）」において、プロンプトの揺らぎによってAIの口調が過度に攻撃的になりすぎるリスクがあります。UATでは、出力の有用性だけでなく「システムが設定されたビジネス上の境界線を越えていないか（セーフティ）」をLangSmith等のトレースで確認することが必須となります。
-
-まずはこの4つのシナリオをハッピーパス（正常系）として通すことができれば、The JTC 2.0は「世界初のJTC特化型・自律AIアクセラレーター」として、経営陣にデモを見せられる圧倒的な完成度に到達します。
+To validate the tutorial itself:
+1.  Run `marimo edit tutorials/UAT_AND_TUTORIAL.py --headless` in the CI pipeline.
+2.  Ensure it executes from top to bottom without error in "Mock Mode".
