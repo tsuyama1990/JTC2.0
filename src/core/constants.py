@@ -13,6 +13,13 @@ ERR_SEARCH_FAILED: Final[str] = "Search service unavailable."
 ERR_LLM_FAILURE: Final[str] = "LLM generation failed."
 ERR_UNIQUE_ID_VIOLATION: Final[str] = "Generated ideas must have unique IDs."
 
+# Validation Constraints
+VAL_MIN_TITLE_LENGTH: Final[int] = 3
+VAL_MAX_TITLE_LENGTH: Final[int] = 100
+VAL_MIN_CONTENT_LENGTH: Final[int] = 3
+VAL_MAX_CONTENT_LENGTH: Final[int] = 1000
+VAL_MAX_CUSTOM_METRICS: Final[int] = 50
+
 # UI Messages
 MSG_NO_IDEAS: Final[str] = "\nNo ideas generated. Please try again or check logs."
 MSG_GENERATED_HEADER: Final[str] = "\n=== Generated {count} Ideas ==="
@@ -27,3 +34,25 @@ MSG_PHASE_START: Final[str] = "\nPhase: {phase}"
 MSG_RESEARCHING: Final[str] = "Researching and Ideating for: '{topic}'..."
 MSG_WAIT: Final[str] = "(This may take 30-60 seconds due to search and LLM generation)..."
 MSG_EXECUTION_ERROR: Final[str] = "\nError during execution: {e}"
+
+# Domain Model Descriptions
+DESC_MVP_TYPE: Final[str] = "Type of MVP (e.g., Landing Page, Wizard of Oz)"
+DESC_FEATURE_NAME: Final[str] = "Short name of the feature"
+DESC_FEATURE_DESC: Final[str] = "Detailed description of what the feature does"
+DESC_FEATURE_PRIORITY: Final[str] = "Priority level (Must-have, Should-have, etc.)"
+DESC_MVP_CORE_FEATURES: Final[str] = "List of core features included in the MVP"
+DESC_MVP_SUCCESS_CRITERIA: Final[str] = "Quantifiable criteria for MVP success"
+
+DESC_PERSONA_NAME: Final[str] = "Name of the target persona"
+DESC_PERSONA_OCCUPATION: Final[str] = "Job title or role"
+DESC_PERSONA_DEMOGRAPHICS: Final[str] = "Age, gender, location, and other demographic details"
+DESC_PERSONA_GOALS: Final[str] = "What the persona wants to achieve"
+DESC_PERSONA_FRUSTRATIONS: Final[str] = "Pain points and obstacles preventing success"
+DESC_PERSONA_BIO: Final[str] = "Short biography describing the persona's background"
+DESC_EMPATHY_SAYS: Final[str] = "Quotes or statements from the customer"
+DESC_EMPATHY_THINKS: Final[str] = "Internal thoughts and beliefs"
+DESC_EMPATHY_DOES: Final[str] = "Actions and behaviors"
+DESC_EMPATHY_FEELS: Final[str] = "Emotional state and feelings"
+
+DESC_METRICS_AARRR: Final[str] = "Standard AARRR metrics (Acquisition, Activation, Retention, Revenue, Referral)"
+DESC_METRICS_CUSTOM: Final[str] = "Additional custom metrics specific to the business model"

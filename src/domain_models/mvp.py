@@ -2,6 +2,15 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.constants import (
+    DESC_FEATURE_DESC,
+    DESC_FEATURE_NAME,
+    DESC_FEATURE_PRIORITY,
+    DESC_MVP_CORE_FEATURES,
+    DESC_MVP_SUCCESS_CRITERIA,
+    DESC_MVP_TYPE,
+)
+
 
 class MVPType(StrEnum):
     LANDING_PAGE = "landing_page"
@@ -10,17 +19,26 @@ class MVPType(StrEnum):
     SINGLE_FEATURE = "single_feature"
 
 
+class Priority(StrEnum):
+    MUST_HAVE = "must_have"
+    SHOULD_HAVE = "should_have"
+    COULD_HAVE = "could_have"
+    WONT_HAVE = "wont_have"
+
+
 class Feature(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., description="Feature name")
-    description: str = Field(..., description="Feature description")
-    priority: str = Field(..., description="Must-have, Nice-to-have, etc.")
+    name: str = Field(..., description=DESC_FEATURE_NAME, min_length=3, max_length=50)
+    description: str = Field(..., description=DESC_FEATURE_DESC, min_length=10, max_length=200)
+    priority: Priority = Field(..., description=DESC_FEATURE_PRIORITY)
 
 
 class MVP(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    type: MVPType = Field(..., description="Type of MVP")
-    core_features: list[Feature] = Field(..., description="List of core features")
-    success_criteria: str = Field(..., description="Definition of success")
+    type: MVPType = Field(..., description=DESC_MVP_TYPE)
+    core_features: list[Feature] = Field(..., description=DESC_MVP_CORE_FEATURES, min_length=1)
+    success_criteria: str = Field(
+        ..., description=DESC_MVP_SUCCESS_CRITERIA, min_length=10, max_length=500
+    )
