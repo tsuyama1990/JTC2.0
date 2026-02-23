@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.simulation import create_simulation_graph, _get_cached_agent
+from src.core.simulation import _get_cached_agent, create_simulation_graph
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState

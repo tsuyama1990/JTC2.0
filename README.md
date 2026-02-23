@@ -17,6 +17,7 @@
 -   **JTC Simulation Engine ("The Meeting")**: Watch your "New Employee" proxy defend your idea against skeptical "Finance Manager" and aggressive "Sales Manager" agents in a realistic debate.
 -   **Real-World Data Ingestion (RAG)**: Ingest customer interview transcripts (via `--ingest`) to ground the simulation in primary data.
 -   **CPO Mentor Agent**: A silent observer who provides fact-based, data-driven advice ("The Mom Test") using ingested transcripts to validate or pivot your idea.
+-   **Consensus Building (Nemawashi)**: Mathematically models organizational politics (French-DeGroot) to identify key influencers and simulate "Nomikai" (social engineering) strategies.
 -   **Pyxel Retro UI**: A gamified RPG-style interface for observing the simulation without personal emotional attachment ("De-identification").
 -   **Strict Schema Validation**: All ideas are guaranteed to follow the Lean Canvas structure using Pydantic models.
 
@@ -94,7 +95,7 @@ The system will:
 -   **Cycle 1: Foundation & Ideation (Completed)**
 -   **Cycle 2: JTC Simulation (Completed)**
 -   **Cycle 3: Real World Connection (RAG) (Completed)**
--   **Cycle 4**: Consensus Building (Nemawashi)
+-   **Cycle 4: Consensus Building (Nemawashi) (Completed)**
 -   **Cycle 5**: MVP Generation
 -   **Cycle 6**: Governance & Finalization
 
