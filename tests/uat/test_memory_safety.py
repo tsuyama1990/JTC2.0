@@ -4,7 +4,6 @@ UAT for Memory Safety and Scalability (Cycle 3 Check).
 
 import itertools
 import os
-import shutil
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -12,11 +11,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.core.config import get_settings
-from src.core.graph import create_app
 from src.data.rag import RAG
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.state import GlobalState
 from tests.conftest import DUMMY_ENV_VARS
 
 

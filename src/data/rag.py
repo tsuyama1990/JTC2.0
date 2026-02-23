@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 from pathlib import Path
 
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
