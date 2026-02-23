@@ -12,7 +12,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.core.config import settings
+from src.core.config import get_settings
 from src.core.constants import ERR_SEARCH_CONFIG_MISSING, ERR_SEARCH_FAILED
 
 logger = logging.getLogger(__name__)
@@ -26,26 +26,21 @@ class TavilySearch:
         Initialize Tavily Search client.
 
         Args:
-            api_key: Optional API key override. Defaults to config settings.
-
-        Raises:
-            ValueError: If API key is missing.
+            api_key: Optional API key override.
         """
-        # If API key is provided explicitly (e.g. from injection), use it.
-        # Otherwise, fetch from settings but KEEP IT AS SecretStr internally if possible,
-        # but TavilyClient needs str. So we reveal it only at the boundary.
-        self.api_key = api_key
+        settings = get_settings()
 
-        if not self.api_key and settings.tavily_api_key:
+        # Prioritize explicit key, then config
+        if api_key:
+            self.api_key = api_key
+        elif settings.tavily_api_key:
             self.api_key = settings.tavily_api_key.get_secret_value()
-
-        if not self.api_key:
+        else:
             raise ValueError(ERR_SEARCH_CONFIG_MISSING)
 
         self.client = TavilyClient(api_key=self.api_key)
 
     @retry(
-        # Retry on generic exceptions but exclude Auth errors/ValueError which won't be fixed by retrying
         retry=retry_if_exception_type(Exception)
         & retry_unless_exception_type((MissingAPIKeyError, InvalidAPIKeyError, ValueError)),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -60,18 +55,13 @@ class TavilySearch:
         search_depth: Literal["basic", "advanced"] | None = None,
     ) -> str:
         """
-        Perform a search and return a formatted string of results.
+        Execute a search query.
 
-        Args:
-            query: The search query.
-            max_results: Maximum number of results to return. Defaults to config.
-            search_depth: "basic" or "advanced". Defaults to config.
-
-        Returns:
-            A string containing the search results or error message.
+        Note: While we could return an iterator of results, the downstream LLM
+        expects a string block. We optimize by building the string efficiently,
+        but ultimately we must return a single string for the prompt.
         """
-        # search_depth="advanced" is generally better for research
-        # We explicitly cast search_depth to the Literal type expected by Tavily
+        settings = get_settings()
         depth: Literal["basic", "advanced"] = search_depth or settings.search_depth  # type: ignore[assignment]
 
         response = self.client.search(
@@ -84,26 +74,16 @@ class TavilySearch:
         if not results:
             return "No results found."
 
-        # Use list comprehension for efficient string concatenation
-        summary_list = [
+        # Use generator expression within join for memory efficiency during string construction
+        return "\n".join(
             f"Title: {result.get('title', 'No Title')}\n"
             f"URL: {result.get('url', 'No URL')}\n"
             f"Content: {result.get('content', 'No Content')}\n"
             for result in results
-        ]
-
-        return "\n".join(summary_list)
+        )
 
     def safe_search(self, query: str) -> str:
-        """
-        Perform a search with safety wrapper (no exceptions raised).
-
-        Args:
-            query: The search query.
-
-        Returns:
-            Search results or error message.
-        """
+        """Execute a search safely, catching exceptions."""
         try:
             return self.search(query)
         except (MissingAPIKeyError, InvalidAPIKeyError, ValueError):

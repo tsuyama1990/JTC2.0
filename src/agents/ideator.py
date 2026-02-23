@@ -1,11 +1,12 @@
+from collections.abc import Iterator
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from src.agents.base import BaseAgent, SearchTool
-from src.core.config import Settings, settings
+from src.core.config import Settings, get_settings
 from src.core.constants import ERR_UNIQUE_ID_VIOLATION
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
@@ -18,6 +19,7 @@ class LeanCanvasList(BaseModel):
 
     Ensures that generated ideas have unique IDs.
     """
+    model_config = ConfigDict(extra="forbid")
 
     canvases: list[LeanCanvas]
 
@@ -56,19 +58,56 @@ class IdeatorAgent(BaseAgent):
             app_settings: Optional settings override (Dependency Injection).
         """
         self.llm = llm
-        self.settings = app_settings or settings
+        self.settings = app_settings or get_settings()
         self.search_tool = search_tool or TavilySearch(
             api_key=self.settings.tavily_api_key.get_secret_value()
             if self.settings.tavily_api_key
             else None
         )
 
+    def _research(self, topic: str) -> str:
+        """Perform market research using the search tool."""
+        query = self.settings.search_query_template.format(topic=topic)
+        return self.search_tool.safe_search(query)
+
+    def _generate_prompt(self, topic: str, research_data: str) -> ChatPromptTemplate:
+        """Create the prompt for idea generation."""
+        system_prompt = (
+            "You are a visionary startup ideator. Your goal is to generate 10 DISTINCT, "
+            "viable business ideas based on the provided research.\n"
+            "Each idea must be structured as a Lean Canvas.\n"
+            "You MUST generate exactly 10 ideas.\n"
+            "Assign IDs from 0 to 9 sequentially."
+        )
+        return ChatPromptTemplate.from_messages(
+            [
+                ("system", system_prompt),
+                ("user", f"Topic: {topic}\n\nResearch Summary:\n{research_data}"),
+            ]
+        )
+
+    def _generate_ideas(self, prompt: ChatPromptTemplate) -> Iterator[LeanCanvas]:
+        """
+        Invoke LLM to generate ideas and yield them as an iterator.
+
+        Note: Currently waits for full LLM response then yields items.
+        Future optimization: Use streaming parsing if supported.
+        """
+        chain = prompt | self.llm.with_structured_output(LeanCanvasList)
+        try:
+            result = chain.invoke({})
+        except Exception:
+            return
+
+        if not isinstance(result, LeanCanvasList):
+            return
+
+        # Yield items one by one to satisfy iterator interface
+        yield from result.canvases
+
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
         Generate 10 Lean Canvas drafts based on the topic.
-
-        This method performs research using Tavily and then uses the LLM
-        to generate structured business ideas.
 
         Args:
             state: The current global state containing the topic.
@@ -79,40 +118,13 @@ class IdeatorAgent(BaseAgent):
         topic = state.topic
 
         # 1. Research
-        # Use configurable template
-        query = self.settings.search_query_template.format(topic=topic)
-        # Use safe_search for robustness
-        search_results = self.search_tool.safe_search(query)
+        search_results = self._research(topic)
 
-        # 2. Ideation Prompt
-        system_prompt = (
-            "You are a visionary startup ideator. Your goal is to generate 10 DISTINCT, "
-            "viable business ideas based on the provided research.\n"
-            "Each idea must be structured as a Lean Canvas.\n"
-            "You MUST generate exactly 10 ideas.\n"
-            "Assign IDs from 0 to 9 sequentially."
-        )
-
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                ("user", "Topic: {topic}\n\nResearch Summary:\n{research}"),
-            ]
-        )
+        # 2. Prepare Prompt
+        prompt = self._generate_prompt(topic, search_results)
 
         # 3. Generate
-        # We use with_structured_output to ensure Pydantic validation.
+        # Returns an iterator/generator
+        ideas_iter = self._generate_ideas(prompt)
 
-        chain = prompt | self.llm.with_structured_output(LeanCanvasList)
-
-        try:
-            result = chain.invoke({"topic": topic, "research": search_results})
-        except Exception:
-            # Fallback if LLM fails or structure is invalid
-            # Return empty list to degrade gracefully rather than crashing
-            return {"generated_ideas": []}
-
-        if not isinstance(result, LeanCanvasList):
-            return {"generated_ideas": []}
-
-        return {"generated_ideas": result.canvases}
+        return {"generated_ideas": ideas_iter}

@@ -18,8 +18,9 @@ def test_config_values() -> None:
     assert s.openai_api_key == SecretStr("sk-test")
 
 
-@patch("src.core.llm.settings")
-def test_get_llm_success(mock_settings: MagicMock) -> None:
+@patch("src.core.llm.get_settings")
+def test_get_llm_success(mock_get_settings: MagicMock) -> None:
+    mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = SecretStr("test-key")
     mock_settings.llm_model = "gpt-4o"
 
@@ -28,16 +29,18 @@ def test_get_llm_success(mock_settings: MagicMock) -> None:
     assert llm.openai_api_key == SecretStr("test-key")
 
 
-@patch("src.core.llm.settings")
-def test_get_llm_override(mock_settings: MagicMock) -> None:
+@patch("src.core.llm.get_settings")
+def test_get_llm_override(mock_get_settings: MagicMock) -> None:
+    mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = SecretStr("test-key")
 
     llm = get_llm(model="gpt-3.5-turbo")
     assert llm.model_name == "gpt-3.5-turbo"
 
 
-@patch("src.core.llm.settings")
-def test_get_llm_missing_key(mock_settings: MagicMock) -> None:
+@patch("src.core.llm.get_settings")
+def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
+    mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = None
     with pytest.raises(ValueError, match="API key is missing"):
         get_llm()

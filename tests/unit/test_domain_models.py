@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.domain_models.lean_canvas import LeanCanvas
+from src.domain_models.persona import EmpathyMap, Persona
 from src.domain_models.state import GlobalState, Phase
 
 
@@ -83,6 +84,16 @@ def test_global_state_defaults() -> None:
 
 def test_global_state_phase_enum() -> None:
     """Test GlobalState uses Phase enum."""
-    state = GlobalState(phase=Phase.VERIFICATION)
+    # Note: VERIFICATION phase requires a target_persona
+    persona = Persona(
+        name="Test",
+        occupation="Tester",
+        demographics="30, Testland, Test City, 12345",
+        goals=["Test"],
+        frustrations=["Bugs"],
+        bio="A tester.",
+        empathy_map=EmpathyMap(says=["Hi"], thinks=["Hmm"], does=["Test"], feels=["Good"]),
+    )
+    state = GlobalState(phase=Phase.VERIFICATION, target_persona=persona)
     assert state.phase == "verification"
     assert isinstance(state.phase, Phase)
