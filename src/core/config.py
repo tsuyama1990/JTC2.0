@@ -54,6 +54,13 @@ from src.core.theme import (
 )
 
 
+def _validate_color_value(v: int) -> int:
+    """Ensure color is within Pyxel palette (0-15)."""
+    if not (0 <= v <= 15):
+        raise ValueError(ERR_INVALID_COLOR)
+    return v
+
+
 class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
@@ -130,9 +137,7 @@ class AgentConfig(BaseModel):
     @classmethod
     def validate_color(cls, v: int) -> int:
         """Ensure color is within Pyxel palette (0-15)."""
-        if not (0 <= v <= 15):
-            raise ValueError(ERR_INVALID_COLOR)
-        return v
+        return _validate_color_value(v)
 
     @field_validator("w", "h")
     @classmethod
@@ -177,10 +182,10 @@ def _load_default_agents_config() -> dict[str, AgentConfig]:
 class NemawashiConfig(BaseSettings):
     """Configuration for Nemawashi Consensus Building."""
 
-    max_steps: int = 10
-    tolerance: float = 1e-6
-    nomikai_boost: float = 0.3
-    nomikai_reduction: float = 0.1
+    max_steps: int = Field(alias="NEMAWASHI_MAX_STEPS", default=10)
+    tolerance: float = Field(alias="NEMAWASHI_TOLERANCE", default=1e-6)
+    nomikai_boost: float = Field(alias="NEMAWASHI_NOMIKAI_BOOST", default=0.3)
+    nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=0.1)
 
 
 class SimulationConfig(BaseSettings):
@@ -227,9 +232,7 @@ class SimulationConfig(BaseSettings):
     @field_validator("bg_color", "text_color")
     @classmethod
     def validate_color(cls, v: int) -> int:
-        if not (0 <= v <= 15):
-            raise ValueError(ERR_INVALID_COLOR)
-        return v
+        return _validate_color_value(v)
 
 
 class Settings(BaseSettings):

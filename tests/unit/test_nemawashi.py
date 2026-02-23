@@ -77,3 +77,21 @@ def test_large_network_safety() -> None:
 
     engine = NemawashiEngine()
     engine.calculate_consensus(net)
+
+
+def test_validation_stochasticity() -> None:
+    """Test validation fails if rows don't sum to 1.0."""
+    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.1)
+    s2 = Stakeholder(name="B", initial_support=0.5, stubbornness=0.1)
+
+    # Invalid matrix: row 0 sums to 0.9, row 1 sums to 1.1
+    matrix = [
+        [0.8, 0.1],
+        [0.6, 0.5]
+    ]
+    net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
+
+    engine = NemawashiEngine()
+
+    with pytest.raises(ValueError, match="Influence matrix rows must sum to 1.0"):
+        engine.calculate_consensus(net)

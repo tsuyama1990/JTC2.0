@@ -1,6 +1,8 @@
 
 import pytest
+import re
 
+from src.core.constants import ERR_PATH_TRAVERSAL
 from src.data.rag import RAG
 
 
@@ -12,9 +14,6 @@ def test_rag_path_traversal() -> None:
     unsafe_path = "/etc/passwd"
 
     # We assume _validate_path is called in __init__
-    # The current RAG implementation raises ValueError with a specific message.
-    # Once refactored, it should match ERR_PATH_TRAVERSAL.
-    # For now, we just check ValueError.
-
-    with pytest.raises(ValueError, match="Path traversal"):
+    # We use re.escape to ensure the constant string is treated literally in regex match
+    with pytest.raises(ValueError, match=re.escape(ERR_PATH_TRAVERSAL)):
         RAG(persist_dir=unsafe_path)

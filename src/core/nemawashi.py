@@ -1,13 +1,12 @@
 import logging
 import typing
-from typing import List
 
 import numpy as np
 from scipy.sparse import csgraph
 
 from src.core.config import get_settings
 from src.core.constants import ERR_DISCONNECTED_GRAPH
-from src.core.exceptions import NetworkError
+from src.core.exceptions import CalculationError, NetworkError
 from src.domain_models.politics import InfluenceNetwork
 
 logger = logging.getLogger(__name__)
@@ -27,6 +26,9 @@ class NemawashiEngine:
         matrix = np.array(network.matrix)
         opinions = np.array([s.initial_support for s in network.stakeholders])
 
+        # Validate Stochasticity
+        self._validate_stochasticity(matrix)
+
         # Check connectivity
         if not self._is_connected(matrix):
             logger.warning(ERR_DISCONNECTED_GRAPH)
@@ -42,10 +44,10 @@ class NemawashiEngine:
             next_ops = self._chunked_dot(matrix, current_ops)
             if np.allclose(current_ops, next_ops, atol=tolerance):
                 logger.info("Consensus converged.")
-                return typing.cast(List[float], next_ops.tolist())
+                return typing.cast(list[float], next_ops.tolist())
             current_ops = next_ops
 
-        return typing.cast(List[float], current_ops.tolist())
+        return typing.cast(list[float], current_ops.tolist())
 
     def identify_influencers(self, network: InfluenceNetwork) -> list[str]:
         """
@@ -70,10 +72,11 @@ class NemawashiEngine:
             indices = np.argsort(centrality)[::-1]  # Descending
             return [network.stakeholders[i].name for i in indices]
 
-        except np.linalg.LinAlgError:
-            logger.exception("Eigenvector calculation failed")
-            # Fallback: Just return names in original order
-            return [s.name for s in network.stakeholders]
+        except np.linalg.LinAlgError as e:
+            msg = "Eigenvector calculation failed"
+            logger.exception(msg)
+            error_msg = f"{msg}: {e}"
+            raise CalculationError(error_msg) from e
 
     def run_nomikai(self, network: InfluenceNetwork, target_name: str) -> InfluenceNetwork:
         """
@@ -94,16 +97,26 @@ class NemawashiEngine:
             raise ValueError(msg)
 
         # 1. Boost Support
-        current_supp = new_network.stakeholders[target_idx].initial_support
-        boost = self.settings.nomikai_boost
-        new_supp = min(1.0, current_supp + (1.0 - current_supp) * boost)
-        new_network.stakeholders[target_idx].initial_support = new_supp
+        self._boost_support(new_network, target_idx)
 
         # 2. Reduce Stubbornness (Self-weight)
+        self._redistribute_stubbornness(new_network, target_idx)
+
+        return new_network
+
+    def _boost_support(self, network: InfluenceNetwork, idx: int) -> None:
+        """Increase the initial support of the stakeholder."""
+        current_supp = network.stakeholders[idx].initial_support
+        boost = self.settings.nomikai_boost
+        new_supp = min(1.0, current_supp + (1.0 - current_supp) * boost)
+        network.stakeholders[idx].initial_support = new_supp
+
+    def _redistribute_stubbornness(self, network: InfluenceNetwork, idx: int) -> None:
+        """Reduce self-weight and redistribute to others."""
         reduction = self.settings.nomikai_reduction
-        matrix = new_network.matrix
-        row = matrix[target_idx]
-        old_self = row[target_idx]
+        matrix = network.matrix
+        row = matrix[idx]
+        old_self = row[idx]
 
         new_self = max(0.0, old_self - reduction)
         diff = old_self - new_self
@@ -114,15 +127,20 @@ class NemawashiEngine:
             others_count = n - 1
             add_per_person = diff / others_count
             for j in range(n):
-                if j == target_idx:
+                if j == idx:
                     row[j] = new_self
                 else:
                     row[j] += add_per_person
 
         # Update stakeholder stubborness field too for consistency
-        new_network.stakeholders[target_idx].stubbornness = new_self
+        network.stakeholders[idx].stubbornness = new_self
 
-        return new_network
+    def _validate_stochasticity(self, matrix: np.ndarray) -> None:
+        """Ensure rows sum to 1.0."""
+        row_sums = matrix.sum(axis=1)
+        if not np.allclose(row_sums, 1.0, atol=1e-5):
+            msg = "Influence matrix rows must sum to 1.0"
+            raise ValueError(msg)
 
     def _chunked_dot(
         self, matrix: np.ndarray, vector: np.ndarray, chunk_size: int = 1000

@@ -28,45 +28,26 @@ def initial_state() -> GlobalState:
     )
 
 
-@patch("src.core.simulation.SalesAgent")
-@patch("src.core.simulation.FinanceAgent")
-@patch("src.core.simulation.NewEmployeeAgent")
 @patch("src.core.simulation.get_llm")
 def test_simulation_turn_sequence(
     mock_get_llm: MagicMock,
-    mock_new_emp_cls: MagicMock,
-    mock_finance_cls: MagicMock,
-    mock_sales_cls: MagicMock,
     initial_state: GlobalState,
 ) -> None:
     """
     Verify that the simulation graph executes the correct sequence of turns:
     Pitch -> Finance -> Defense 1 -> Sales -> Defense 2 -> END.
+
+    We use REAL agent classes but mock the LLM inside them.
     """
     _get_cached_agent.cache_clear()
 
-    # Create Mock Instances
-    mock_new_emp = MagicMock()
-    mock_finance = MagicMock()
-    mock_sales = MagicMock()
+    # Mock the LLM to return a predictable response based on input prompts (optional)
+    # or just generic response
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value.content = "Mocked Response"
+    mock_get_llm.return_value = mock_llm
 
-    mock_new_emp_cls.return_value = mock_new_emp
-    mock_finance_cls.return_value = mock_finance
-    mock_sales_cls.return_value = mock_sales
-
-    def agent_run_side_effect(role: Role):
-        def _run(state: GlobalState):
-            msg = DialogueMessage(role=role, content=f"Message from {role}", timestamp=0.0)
-            # Simulating what PersonaAgent does: return full updated list
-            new_history = [*state.debate_history, msg]
-            return {"debate_history": new_history}
-        return _run
-
-    mock_new_emp.run.side_effect = agent_run_side_effect(Role.NEW_EMPLOYEE)
-    mock_finance.run.side_effect = agent_run_side_effect(Role.FINANCE)
-    mock_sales.run.side_effect = agent_run_side_effect(Role.SALES)
-
-    # Create the graph
+    # Create the graph (it will instantiate real agents which use the mocked LLM)
     app = create_simulation_graph()
 
     # Run the graph
@@ -86,8 +67,6 @@ def test_simulation_turn_sequence(
     ]
 
     assert roles == expected_roles
-    assert debate_history[0].content == f"Message from {Role.NEW_EMPLOYEE}"
-    assert debate_history[1].content == f"Message from {Role.FINANCE}"
 
 
 @patch("src.core.simulation.NewEmployeeAgent")

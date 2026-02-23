@@ -52,7 +52,7 @@ def test_lazy_iterator_safety_limit() -> None:
     list(itertools.islice(lazy_iter, 100))
 
     # Next call should fail
-    with pytest.raises(StopIteration, match="Safety limit reached"):
+    with pytest.raises(StopIteration, match="Safety limit of 100 reached"):
         next(lazy_iter)
 
 

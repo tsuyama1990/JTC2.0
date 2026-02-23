@@ -15,3 +15,8 @@ class NetworkError(AppError):
 
 class ValidationError(AppError):
     """Raised when data validation fails."""
+
+
+
+class CalculationError(AppError):
+    """Raised when a mathematical calculation fails."""
