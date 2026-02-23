@@ -26,6 +26,8 @@ def mock_settings() -> Generator[MagicMock, None, None]:
         mock.return_value.circuit_breaker_fail_max = 5
         mock.return_value.circuit_breaker_reset_timeout = 60
         mock.return_value.rag_allowed_paths = ["data", "vector_store", "tests"]
+        mock.return_value.rag_rate_limit_interval = 0.1
+        mock.return_value.rag_scan_depth_limit = 10
         yield mock
 
 

@@ -1,5 +1,6 @@
 import logging
-from typing import cast
+import typing
+from typing import cast, List
 
 import numpy as np
 from scipy.sparse import coo_matrix, csr_matrix, spmatrix
@@ -17,12 +18,28 @@ class ConsensusEngine:
     """
 
     def __init__(self, settings: NemawashiConfig | None = None) -> None:
+        """
+        Initialize the Consensus Engine.
+
+        Args:
+            settings: Configuration settings for Nemawashi. If None, loads from global settings.
+        """
         self.settings = settings or get_settings().nemawashi
 
     def _build_sparse_matrix(self, network: InfluenceNetwork, n: int) -> csr_matrix:
         """
         Construct a CSR matrix from the network data efficiently.
         Uses generators to avoid large intermediate lists.
+
+        Args:
+            network: The influence network domain model.
+            n: Number of stakeholders (dimension).
+
+        Returns:
+            A sparse CSR matrix representing the influence graph.
+
+        Raises:
+            ValidationError: If matrix construction fails.
         """
         if not network.matrix:
             return csr_matrix((n, n), dtype=float)
@@ -64,6 +81,13 @@ class ConsensusEngine:
     def _validate_stochasticity(self, matrix: spmatrix) -> None:
         """
         Validate that matrix rows sum to approximately 1.0.
+        Uses sparse operations where possible.
+
+        Args:
+            matrix: The sparse influence matrix.
+
+        Raises:
+            ValidationError: If any row sum deviates from 1.0 beyond tolerance.
         """
         try:
             # Calculate row sums
@@ -86,10 +110,16 @@ class ConsensusEngine:
             msg = f"Stochasticity check failed: {e}"
             raise ValidationError(msg) from e
 
-    def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
+    def calculate_consensus(self, network: InfluenceNetwork) -> List[float]:
         """
         Run the DeGroot model to calculate final opinion distribution.
         Always uses sparse matrices (CSR) for memory efficiency.
+
+        Args:
+            network: The influence network containing stakeholders and weights.
+
+        Returns:
+            A list of final opinion values (0.0 to 1.0) for each stakeholder.
         """
         n = len(network.stakeholders)
         if n == 0:
@@ -102,7 +132,6 @@ class ConsensusEngine:
         try:
             matrix_op = self._build_sparse_matrix(network, n)
         except Exception as e:
-             # Re-raise nicely formatted
              if isinstance(e, ValidationError):
                  raise
              raise ValidationError(str(e)) from e
@@ -122,7 +151,7 @@ class ConsensusEngine:
 
             if np.allclose(current_ops, next_ops, atol=tolerance):
                 logger.info("Consensus converged.")
-                return cast(list[float], next_ops.tolist())
+                return cast(List[float], next_ops.tolist())
             current_ops = next_ops
 
-        return cast(list[float], current_ops.tolist())
+        return cast(List[float], current_ops.tolist())

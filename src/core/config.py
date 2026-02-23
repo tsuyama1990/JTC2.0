@@ -222,6 +222,8 @@ class Settings(BaseSettings):
     rag_max_query_length: int = Field(alias="RAG_MAX_QUERY_LENGTH", default=DEFAULT_RAG_MAX_QUERY_LENGTH, description="Max query length")
     rag_max_index_size_mb: int = Field(alias="RAG_MAX_INDEX_SIZE_MB", default=DEFAULT_RAG_MAX_INDEX_SIZE_MB, description="Max index size in MB")
     rag_allowed_paths: list[str] = Field(default_factory=lambda: ["data", "vector_store", "tests"], description="Allowed directories for RAG")
+    rag_rate_limit_interval: float = Field(alias="RAG_RATE_LIMIT_INTERVAL", default=0.1, description="Min interval between RAG calls in seconds")
+    rag_scan_depth_limit: int = Field(alias="RAG_SCAN_DEPTH_LIMIT", default=10, description="Max recursion depth for directory scanning")
 
     circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold")
     circuit_breaker_reset_timeout: int = Field(alias="CB_RESET_TIMEOUT", default=DEFAULT_CB_RESET_TIMEOUT, description="Circuit breaker reset timeout")

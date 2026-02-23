@@ -80,11 +80,14 @@ class InfluenceNetwork(BaseModel):
         """Ensure rows sum to 1.0 (approximately)."""
         n = len(self.stakeholders)
 
+        # Use tighter tolerance for strict data integrity
+        TOLERANCE = 1e-6
+
         if isinstance(self.matrix, list) and self.matrix and isinstance(self.matrix[0], list):
             # Dense matrix
             for row in self.matrix:  # type: ignore
                 row_sum = sum(row)
-                if not (0.99 <= row_sum <= 1.01):
+                if not (1.0 - TOLERANCE <= row_sum <= 1.0 + TOLERANCE):
                     raise ValueError(ERR_MATRIX_STOCHASTICITY)
         else:
             # Sparse matrix
@@ -95,11 +98,7 @@ class InfluenceNetwork(BaseModel):
                     row_sums[entry.row] += entry.val
 
             for s in row_sums:
-                if not (0.99 <= s <= 1.01):
-                    # For sparse matrices, strict stochasticity might be harder to enforce if intended to be sparse?
-                    # But DeGroot requires stochastic matrix.
-                    # Usually sparse matrix implies many zeros, but row sum must be 1.
-                    # This means typical node influences few others but sums to 1.
+                if not (1.0 - TOLERANCE <= s <= 1.0 + TOLERANCE):
                     raise ValueError(ERR_MATRIX_STOCHASTICITY)
 
         return self
