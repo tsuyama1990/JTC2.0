@@ -1,6 +1,5 @@
 import logging
-import typing
-from typing import cast, List
+from typing import cast
 
 import numpy as np
 from scipy.sparse import coo_matrix, csr_matrix, spmatrix
@@ -41,6 +40,12 @@ class ConsensusEngine:
         Raises:
             ValidationError: If matrix construction fails.
         """
+        # Memory Safety: Check dimension limit
+        if n > 10000:
+            msg = f"Network size {n} exceeds limit of 10,000 stakeholders."
+            logger.error(msg)
+            raise ValueError(msg)
+
         if not network.matrix:
             return csr_matrix((n, n), dtype=float)
 
@@ -110,7 +115,7 @@ class ConsensusEngine:
             msg = f"Stochasticity check failed: {e}"
             raise ValidationError(msg) from e
 
-    def calculate_consensus(self, network: InfluenceNetwork) -> List[float]:
+    def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """
         Run the DeGroot model to calculate final opinion distribution.
         Always uses sparse matrices (CSR) for memory efficiency.
@@ -139,6 +144,7 @@ class ConsensusEngine:
         # Validate
         self._validate_stochasticity(matrix_op)
 
+        # Use settings for max_steps, no hardcoded default in logic
         max_steps = self.settings.max_steps
         tolerance = self.settings.tolerance
 
@@ -151,7 +157,7 @@ class ConsensusEngine:
 
             if np.allclose(current_ops, next_ops, atol=tolerance):
                 logger.info("Consensus converged.")
-                return cast(List[float], next_ops.tolist())
+                return cast(list[float], next_ops.tolist())
             current_ops = next_ops
 
-        return cast(List[float], current_ops.tolist())
+        return cast(list[float], current_ops.tolist())

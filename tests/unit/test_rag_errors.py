@@ -1,13 +1,13 @@
+import re
 from unittest.mock import MagicMock, patch
 
 import pybreaker
 import pytest
 
-from src.core.constants import ERR_CIRCUIT_OPEN, ERR_RAG_TEXT_TOO_LARGE, ERR_RAG_INDEX_SIZE
+from src.core.constants import ERR_CIRCUIT_OPEN, ERR_RAG_INDEX_SIZE, ERR_RAG_TEXT_TOO_LARGE
 from src.core.exceptions import NetworkError, ValidationError
 from src.data.rag import RAG
 from tests.conftest import DUMMY_ENV_VARS
-import re
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)

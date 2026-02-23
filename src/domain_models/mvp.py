@@ -7,7 +7,7 @@ and success criteria, following the 'Lean Startup' methodology.
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -18,6 +18,7 @@ from src.core.constants import (
     DESC_MVP_SUCCESS_CRITERIA,
     DESC_MVP_TYPE,
 )
+import re
 
 
 class MVPType(StrEnum):
@@ -93,3 +94,30 @@ class MVP(BaseModel):
         default=DeploymentStatus.PENDING,
         description="Status of the MVP deployment (e.g., pending, deployed, failed)",
     )
+
+
+class MVPSpec(BaseModel):
+    """
+    Specification for generating a UI via v0.dev.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    app_name: str = Field(..., description="Name of the application", min_length=1, max_length=50)
+    core_feature: str = Field(..., description="The single core feature to implement", min_length=10)
+    ui_style: str = Field(default="Modern, Clean, Corporate", description="Visual style of the UI")
+    components: list[str] = Field(
+        default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
+        description="Key UI components to include",
+    )
+
+    @field_validator("components")
+    @classmethod
+    def validate_components(cls, v: list[str]) -> list[str]:
+        """Validate component names to prevent injection/malformed input."""
+        # Allow alphanumeric, spaces, hyphens
+        pattern = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+        for comp in v:
+            if not pattern.match(comp):
+                raise ValueError(f"Invalid component name: {comp}. Must be alphanumeric.")
+        return v

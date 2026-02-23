@@ -36,6 +36,12 @@ ERR_RAG_QUERY_TOO_LARGE: Final[str] = "Query too large ({size} chars)."
 ERR_CIRCUIT_OPEN: Final[str] = "Circuit breaker is open. External service unavailable."
 ERR_RATE_LIMIT: Final[str] = "Rate limit exceeded for external API."
 
+# V0 Generation Errors
+ERR_V0_API_KEY_MISSING: Final[str] = "V0_API_KEY is not configured."
+ERR_V0_GENERATION_FAILED: Final[str] = "v0.dev generation failed: {status_code}"
+ERR_V0_NO_URL: Final[str] = "No URL found in v0 response: {keys}"
+ERR_V0_NETWORK_ERROR: Final[str] = "Network error calling v0.dev: {e}"
+
 # UI Messages
 MSG_NO_IDEAS: Final[str] = "\nNo ideas generated. Please try again or check logs."
 MSG_GENERATED_HEADER: Final[str] = "\n=== Generated Ideas ==="
@@ -106,6 +112,9 @@ DEFAULT_CB_RESET_TIMEOUT: Final[int] = 60
 DEFAULT_MIN_TITLE_LENGTH: Final[int] = 3
 DEFAULT_MAX_TITLE_LENGTH: Final[int] = 100
 DEFAULT_ITERATOR_SAFETY_LIMIT: Final[int] = 10000
+
+# Configuration Defaults (API)
+DEFAULT_V0_API_URL: Final[str] = "https://api.v0.dev/chat/completions"
 
 # UI Defaults
 DEFAULT_PAGE_SIZE: Final[int] = 5

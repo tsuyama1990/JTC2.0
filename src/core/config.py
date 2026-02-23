@@ -9,6 +9,7 @@ from src.core.constants import (
     DEFAULT_CB_RESET_TIMEOUT,
     DEFAULT_CHARS_PER_LINE,
     DEFAULT_CONSOLE_SLEEP,
+    DEFAULT_V0_API_URL,
     DEFAULT_DIALOGUE_X,
     DEFAULT_DIALOGUE_Y,
     DEFAULT_FPS,
@@ -213,6 +214,7 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = Field(alias="OPENAI_API_KEY", default=None, description="OpenAI API Key")
     tavily_api_key: SecretStr | None = Field(alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key")
     v0_api_key: SecretStr | None = Field(alias="V0_API_KEY", default=None, description="V0.dev API Key")
+    v0_api_url: str = Field(alias="V0_API_URL", default=DEFAULT_V0_API_URL, description="V0.dev API URL")
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
 

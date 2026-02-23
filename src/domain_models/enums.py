@@ -1,5 +1,6 @@
 from enum import StrEnum
 
+
 class Phase(StrEnum):
     IDEATION = "ideation"
     VERIFICATION = "verification"

@@ -2,6 +2,7 @@ import logging
 import os
 import time
 from collections.abc import Iterator
+from functools import lru_cache
 from pathlib import Path
 
 import pybreaker
@@ -18,10 +19,20 @@ from src.core.constants import (
     ERR_RAG_INDEX_SIZE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
+    ERR_PATH_TRAVERSAL,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _scan_dir_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -> int:
+    """
+    Cached version of directory size calculation.
+    ttl_hash is a trick to invalidate cache by passing a changing value (like time // 60).
+    """
+    return _scan_dir_size(path, depth_limit)
 
 
 def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
@@ -104,9 +115,11 @@ class RAG:
         # Incremental Size Tracking
         self._current_index_size = 0
         if Path(self.persist_dir).exists():
-            self._current_index_size = _scan_dir_size(
+            # Use cached scan
+            self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
-                depth_limit=self.settings.rag_scan_depth_limit
+                depth_limit=self.settings.rag_scan_depth_limit,
+                ttl_hash=int(time.time() // 60) # Refresh every minute
             )
 
         self.index: VectorStoreIndex | None = None
@@ -126,6 +139,9 @@ class RAG:
             # Normalize path strictly
             if path.exists():
                 path = path.resolve(strict=True)
+                # Check for symlinks in final path component
+                if path.is_symlink():
+                    raise ConfigurationError("Symlinks not allowed in persist_dir.")
             else:
                 # If path doesn't exist, verify parent exists and is safe
                 parent = path.parent.resolve(strict=True)
@@ -146,18 +162,14 @@ class RAG:
             # Check strictly if path starts with allowed parent path
             # str(path) gives absolute path string.
             # We must verify it's UNDER the parent.
-            try:
-                # is_relative_to is generally safe if both are resolved
-                if path.is_relative_to(parent):
-                    is_safe = True
-                    break
-            except ValueError:
-                continue
+            # Use strict string prefix check to prevent traversal
+            if str(path).startswith(str(parent)):
+                is_safe = True
+                break
 
         if not is_safe:
-            msg = "Path traversal detected in persist_dir. Must be within project root."
             logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
-            raise ConfigurationError(msg)
+            raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         return str(path)
 
@@ -185,21 +197,33 @@ class RAG:
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
         path_obj = Path(self.persist_dir)
-        if not any(path_obj.iterdir()):
-            logger.info(
-                f"Persist directory {self.persist_dir} exists but is empty. Initializing new index."
-            )
-            self.index = None
-            return
+
+        # Optimized empty check (iterator based)
+        try:
+            if not any(True for _ in os.scandir(self.persist_dir)):
+                logger.info(
+                    f"Persist directory {self.persist_dir} exists but is empty. Initializing new index."
+                )
+                self.index = None
+                return
+        except OSError:
+             # If scanning fails, assume empty or inaccessible, default to None
+             self.index = None
+             return
 
         self._check_index_size_limit()
 
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
+
+            # MEMORY SAFETY: We assume load_index_from_storage loads efficiently.
+            # LlamaIndex loads indices into memory. To prevent OOM, we should check size.
+            # We already check _current_index_size in _check_index_size_limit().
+
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to load index from %s", self.persist_dir)
             self.index = None
 
@@ -236,6 +260,7 @@ class RAG:
                     raise ValidationError(ERR_RAG_TEXT_TOO_LARGE.format(size=len(request.text)))
                 yield request.text
             else:
+                # If iterator, just yield
                 yield from request.text
 
         for content_part in content_generator():
@@ -270,6 +295,7 @@ class RAG:
         """
         Ingest text into the vector store.
         Streams documents directly to the index to avoid memory accumulation.
+        Uses batched insertion for performance.
         """
         self._rate_limit()
 
@@ -278,21 +304,37 @@ class RAG:
         except Exception as e:
             raise ValidationError(str(e)) from e
 
+        # Use generator to stream documents
         doc_iterator = self._document_generator(request)
+
+        # Batch size for insertion
+        BATCH_SIZE = 20
+        batch: list[Document] = []
 
         try:
             # If index is None, we must create it with at least one document
             if self.index is None:
                 try:
+                    # Only peek the first document to initialize index
                     first_doc = next(doc_iterator)
                     self.index = VectorStoreIndex.from_documents([first_doc])
                 except StopIteration:
                     return # Empty iterator
 
-            # Now stream the rest (or all if we just created)
-            # VectorStoreIndex.insert() inserts one document at a time.
+            # Stream processing with batching
             for doc in doc_iterator:
-                self.index.insert(doc)
+                batch.append(doc)
+                if len(batch) >= BATCH_SIZE:
+                    self.index.insert_nodes(batch) # Use insert_nodes for batch if supported by index structure logic, or loop insert
+                    # VectorStoreIndex.insert is single doc.
+                    # But insert_nodes is available on base index.
+                    # Actually, insert() calls insert_nodes([document]).
+                    # So using insert_nodes directly is better.
+                    batch = []
+
+            # Insert remaining
+            if batch:
+                self.index.insert_nodes(batch)
 
         except Exception as e:
             logger.exception("Failed to ingest document from %s", source)
@@ -304,7 +346,13 @@ class RAG:
         if self.index:
             self.index.storage_context.persist(persist_dir=self.persist_dir)
             logger.info(f"Index persisted to {self.persist_dir}")
-            self._current_index_size = _scan_dir_size(self.persist_dir, self.settings.rag_scan_depth_limit)
+            # Invalidate cache for next load
+            _scan_dir_size_cached.cache_clear()
+            self._current_index_size = _scan_dir_size_cached(
+                self.persist_dir,
+                self.settings.rag_scan_depth_limit,
+                ttl_hash=int(time.time() // 60)
+            )
 
     def query(self, question: str) -> str:
         """

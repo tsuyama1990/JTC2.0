@@ -1,5 +1,6 @@
 from typing import Any
 
+from src.agents.builder import BuilderAgent
 from src.agents.cpo import CPOAgent
 from src.agents.ideator import IdeatorAgent
 from src.agents.personas import FinanceAgent, NewEmployeeAgent, SalesAgent
@@ -16,6 +17,11 @@ class AgentFactory:
     def get_ideator_agent() -> IdeatorAgent:
         llm = get_llm()
         return IdeatorAgent(llm)
+
+    @staticmethod
+    def get_builder_agent() -> BuilderAgent:
+        llm = get_llm()
+        return BuilderAgent(llm)
 
     @staticmethod
     def get_persona_agent(role: Role, state: GlobalState | None = None) -> Any:
