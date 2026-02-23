@@ -36,11 +36,19 @@ def temp_vector_store() -> Generator[str, None, None]:
     # RAG enforce stricter path validation (must be relative to CWD)
     base_dir = Path.cwd() / "tests" / "temp_rag_data"
     base_dir.mkdir(parents=True, exist_ok=True)
-    temp_dir = tempfile.mkdtemp(dir=str(base_dir))
-    yield temp_dir
-    # Cleanup
-    if Path(temp_dir).exists():
-        shutil.rmtree(temp_dir)
+    try:
+        temp_dir = tempfile.mkdtemp(dir=str(base_dir))
+        yield temp_dir
+    finally:
+        # Cleanup
+        if 'temp_dir' in locals() and Path(temp_dir).exists():
+            shutil.rmtree(temp_dir)
+
+        # Try to remove the base dir if empty to keep project clean
+        try:
+            base_dir.rmdir()
+        except OSError:
+            pass  # Directory not empty or busy
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)

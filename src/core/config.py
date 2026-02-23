@@ -113,6 +113,8 @@ class UIConfig(BaseSettings):
 class AgentConfig(BaseModel):
     """Configuration for a single agent in the UI."""
 
+    model_config = SettingsConfigDict(frozen=True)
+
     role: str
     label: str
     color: int

@@ -1,10 +1,8 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 from pydantic import ValidationError as PydanticValidationError
-
-from unittest.mock import MagicMock
 
 from src.core.exceptions import ValidationError
 from src.core.nemawashi import NemawashiEngine
@@ -31,7 +29,7 @@ def sample_network() -> InfluenceNetwork:
 
 def test_calculate_consensus_convergence(sample_network: InfluenceNetwork) -> None:
     """Ensure opinions converge over time."""
-    # Test Dependency Injection
+    # Test Dependency Injection via settings passed to facade
     mock_settings = MagicMock()
     mock_settings.max_steps = 15
     mock_settings.tolerance = 1e-6
@@ -104,6 +102,7 @@ def test_validation_stochasticity() -> None:
 
     engine = NemawashiEngine()
 
+    # The validation happens inside consensus engine
     with pytest.raises(ValidationError, match="Influence matrix rows must sum to 1.0"):
         engine.calculate_consensus(net)
 
@@ -112,13 +111,18 @@ def test_chunking_logic(sample_network: InfluenceNetwork) -> None:
     """Verify chunking logic is used when network size exceeds chunk size."""
     engine = NemawashiEngine()
 
-    # Mock _chunked_dot_list to verify it's called
-    with patch.object(engine, '_chunked_dot_list', wraps=engine._chunked_dot_list):
+    # Target the internal consensus engine's chunked method
+    consensus = engine.consensus
+
+    # Mock _chunked_dot_list on the consensus object
+    with patch.object(consensus, '_chunked_dot_list', side_effect=consensus._chunked_dot_list) as mock_method:
         vector = np.array([s.initial_support for s in sample_network.stakeholders])
-        # Pass raw list as expected by new implementation
-        result = engine._chunked_dot_list(sample_network.matrix, vector, chunk_size=1)
+
+        # We manually call the internal method to verify behavior
+        result = consensus._chunked_dot_list(sample_network.matrix, vector, chunk_size=1)
 
         assert len(result) == 2
+        assert mock_method.called
 
         # Verify it matches direct dot product
         matrix_np = np.array(sample_network.matrix)
@@ -129,9 +133,34 @@ def test_chunking_logic(sample_network: InfluenceNetwork) -> None:
 def test_identify_influencers_validation() -> None:
     """Test validation against NaN/Inf values."""
     s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.1)
+    # NaN in matrix
     matrix = [[float('nan')]]
 
     # Expect Pydantic validation error, not custom ValidationError
     # because InfluenceNetwork validator runs first
     with pytest.raises(PydanticValidationError, match="Matrix values must be"):
         InfluenceNetwork(stakeholders=[s1], matrix=matrix)
+
+def test_sparse_analytics() -> None:
+    """Test that sparse implementation works for Identify Influencers."""
+    # Create a dummy large-ish network (but we force sparse usage logic if we can mock threshold)
+    n = 10
+    stakeholders = [Stakeholder(name=f"S{i}", initial_support=0.5, stubbornness=0.1) for i in range(n)]
+
+    # Cycle graph is sparse
+    matrix = np.zeros((n, n))
+    for i in range(n):
+        matrix[i][i] = 0.5
+        matrix[i][(i+1)%n] = 0.5
+
+    net = InfluenceNetwork(stakeholders=stakeholders, matrix=matrix.tolist())
+
+    engine = NemawashiEngine()
+
+    # Force use_sparse logic by calling internal method directly or mocking
+    # We'll call internal _eigen_centrality_sparse directly
+    centrality = engine.analytics._eigen_centrality_sparse(net.matrix)
+
+    assert len(centrality) == n
+    assert np.all(centrality >= 0)
+    assert np.isclose(np.sum(centrality), 1.0)

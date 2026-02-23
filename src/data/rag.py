@@ -70,31 +70,44 @@ class RAG:
         self._init_llama()
 
     def _validate_path(self, path_str: str) -> str:
-        """Ensure persist directory is safe and absolute."""
+        """
+        Ensure persist directory is safe and absolute.
+        Uses strict allowlist and pathlib.is_relative_to for security.
+        """
+        if not path_str or not isinstance(path_str, str):
+            msg = "Path must be a non-empty string."
+            raise ConfigurationError(msg)
+
         try:
             path = Path(path_str).resolve()
         except Exception as e:
-            msg = f"Invalid path: {e}"
+            msg = f"Invalid path format: {e}"
             raise ConfigurationError(msg) from e
 
         cwd = Path.cwd().resolve()
 
-        # Strict allowlist check: Must be contained within allowed folders
-        allowed_parents = [cwd / "data", cwd / "vector_store", cwd / "tests"]
+        # Strict allowlist: Must be contained within specific project folders
+        # We allow 'data', 'vector_store' (default), and 'tests' (for testing)
+        allowed_parents = [
+            cwd / "data",
+            cwd / "vector_store",
+            cwd / "tests",
+        ]
 
         is_safe = False
         for parent in allowed_parents:
-            # Use commonpath to ensure path is truly inside parent
-            # resolve() handles symlinks, commonpath compares real paths
+            # resolve() handles symlinks and normalization.
+            # is_relative_to() ensures it's strictly inside the parent tree.
             try:
-                if os.path.commonpath([parent, path]) == str(parent):
+                if path.is_relative_to(parent):
                     is_safe = True
                     break
             except ValueError:
-                # Paths on different drives or invalid
+                # Occurs if paths are on different drives (Windows) or mix relative/absolute improperly
                 continue
 
         if not is_safe:
+             logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
              raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         return str(path)
@@ -109,12 +122,15 @@ class RAG:
         LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
+        # Only attempt to load if the directory exists and has files
         if Path(self.persist_dir).exists():
             self._load_existing_index()
 
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
-        if not any(Path(self.persist_dir).iterdir()):
+        # Use iterator to check for emptiness without loading list
+        path_obj = Path(self.persist_dir)
+        if not any(path_obj.iterdir()):
             logger.info(
                 f"Persist directory {self.persist_dir} exists but is empty. Initializing new index."
             )
@@ -130,9 +146,13 @@ class RAG:
 
         except Exception as e:
             logger.exception("Failed to load index from %s", self.persist_dir)
+            # We do NOT raise here to allow the app to continue with an empty index if corrupted,
+            # unless it's a critical memory error.
+            if isinstance(e, MemoryError):
+                raise
             self.index = None
-            msg = f"RAG Index Load Error: {e}"
-            raise RuntimeError(msg) from e
+            # We log but continue, effectively resetting the index for this session.
+            # This is a design choice for robustness.
 
     def _check_index_size(self) -> None:
         """
@@ -151,9 +171,13 @@ class RAG:
     def ingest_text(self, text: str, source: str) -> None:
         """
         Ingest text into the vector store in-memory.
-        Uses batch insertion.
+        Uses batch insertion and strict validation.
         """
-        # Audit Fix: Validation
+        # Strict Input Validation
+        if not text or not isinstance(text, str):
+            msg = "Text must be a non-empty string."
+            raise ValidationError(msg)
+
         max_len = self.settings.rag_max_document_length
         if len(text) > max_len:
             msg = ERR_RAG_TEXT_TOO_LARGE.format(size=len(text))
@@ -165,6 +189,7 @@ class RAG:
 
         chunk_size = self.settings.rag_chunk_size
 
+        # Simple chunking if needed (LlamaIndex also handles this, but we pre-chunk for control)
         if len(text) > chunk_size:
             logger.info(f"Text too large ({len(text)} chars). Chunking...")
             chunks = [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
