@@ -56,51 +56,52 @@ class RAG:
         # We assign directly as recommended in docs, suppressing assignment error if needed.
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
-        # Scalability: Check index size before loading?
-        # LlamaIndex local storage is files (docstore.json, index_store.json, etc).
-        # We can check file sizes.
-
         if Path(self.persist_dir).exists():
-            # Check if directory is empty
-            if not any(Path(self.persist_dir).iterdir()):
-                logger.info(f"Persist directory {self.persist_dir} exists but is empty. Initializing new index.")
-                self.index = None
-                return
+            self._load_existing_index()
 
+    def _load_existing_index(self) -> None:
+        """Load the index from storage if it exists and is valid."""
+        # Check if directory is empty
+        if not any(Path(self.persist_dir).iterdir()):
+            logger.info(f"Persist directory {self.persist_dir} exists but is empty. Initializing new index.")
+            self.index = None
+            return
+
+        try:
+            self._check_index_size()
+            storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
+            self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
+        except Exception as e:
+            logger.exception("Failed to load index from %s", self.persist_dir)
+            self.index = None
+            # User notification via exception message
+            msg = (
+                f"CRITICAL: Failed to load RAG index from '{self.persist_dir}'. "
+                "The index may be corrupted or incompatible. "
+                "Please check the logs or try re-ingesting data."
+            )
+            raise RuntimeError(msg) from e
+
+    def _check_index_size(self) -> None:
+        """Check if the index is too large and warn."""
+        total_size = 0
+        stack = [self.persist_dir]
+        while stack:
+            current_dir = stack.pop()
             try:
-                # Basic OOM protection: Warn if index seems huge (e.g. > 500MB)
-                total_size = 0
-                # Use os.scandir for better performance on large directories
-                stack = [self.persist_dir]
-                while stack:
-                    current_dir = stack.pop()
-                    try:
-                        with os.scandir(current_dir) as it:
-                            for entry in it:
-                                if entry.is_file():
-                                    total_size += entry.stat().st_size
-                                elif entry.is_dir():
-                                    stack.append(entry.path)
-                    except PermissionError:
-                        logger.warning(f"Permission denied scanning {current_dir}")
+                with os.scandir(current_dir) as it:
+                    for entry in it:
+                        if entry.is_file():
+                            total_size += entry.stat().st_size
+                        elif entry.is_dir():
+                            stack.append(entry.path)
+            except PermissionError:
+                logger.warning(f"Permission denied scanning {current_dir}")
 
-                if total_size > 500 * 1024 * 1024:
-                    logger.warning(
-                        f"Vector store at {self.persist_dir} is large ({total_size / 1024 / 1024:.1f} MB). Loading may impact memory."
-                    )
-
-                storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
-                self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
-            except Exception as e:
-                logger.exception("Failed to load index from %s", self.persist_dir)
-                self.index = None
-                # User notification via exception message
-                msg = (
-                    f"CRITICAL: Failed to load RAG index from '{self.persist_dir}'. "
-                    "The index may be corrupted or incompatible. "
-                    "Please check the logs or try re-ingesting data."
-                )
-                raise RuntimeError(msg) from e
+        if total_size > 500 * 1024 * 1024:
+            logger.warning(
+                f"Vector store at {self.persist_dir} is large ({total_size / 1024 / 1024:.1f} MB). Loading may impact memory."
+            )
 
     def ingest_text(self, text: str, source: str) -> None:
         """

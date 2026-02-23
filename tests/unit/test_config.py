@@ -30,7 +30,7 @@ def test_config_missing_openai_key() -> None:
         get_settings.cache_clear()
 
         # Validation happens on init
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=".*"):
             get_settings()
 
 
@@ -40,7 +40,7 @@ def test_config_missing_tavily_key() -> None:
         os.environ["OPENAI_API_KEY"] = "sk-123"
         get_settings.cache_clear()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=".*"):
              get_settings()
 
 

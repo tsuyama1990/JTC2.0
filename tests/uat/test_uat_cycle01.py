@@ -8,10 +8,11 @@ import pytest
 # We import create_app but we will mock the LLM and Tools inside it
 from src.core.config import get_settings
 from src.core.graph import create_app
+from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
-from src.domain_models.state import GlobalState, LazyIdeaIterator, Phase
+from src.domain_models.state import GlobalState, Phase
 from tests.conftest import DUMMY_ENV_VARS
 
 

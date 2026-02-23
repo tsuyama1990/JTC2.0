@@ -1,3 +1,16 @@
+"""
+Implements the turn-based simulation logic for the 'JTC 2.0' architecture.
+
+This module defines the 'Battle' subgraph where:
+- The New Employee pitches their idea.
+- The Finance Manager critiques it (Turn 2).
+- The New Employee defends (Turn 3).
+- The Sales Manager critiques it (Turn 4).
+- The New Employee defends again (Turn 5).
+
+This subgraph is invoked by the main application graph during the 'simulation_round' node.
+"""
+
 import logging
 
 from langgraph.graph import END, StateGraph
@@ -12,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
     """Create the simulation sub-graph."""
+    # Ensure dependencies are available
     llm = get_llm()
 
     # Initialize agents

@@ -5,6 +5,7 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.config import get_settings
+from src.domain_models.common import LazyIdeaIterator
 
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics
@@ -33,30 +34,6 @@ class GlobalStateValidators:
         if state.phase == Phase.SOLUTION and state.mvp_definition is None:
             raise ValueError(settings.errors.missing_mvp)
         return state
-
-
-class LazyIdeaIterator(Iterator[LeanCanvas]):
-    """
-    Wrapper for Idea Iterator to enforce single-use consumption and safety.
-
-    This class is not a Pydantic model but used as a field type.
-    """
-
-    def __init__(self, iterator: Iterator[LeanCanvas]) -> None:
-        self._iterator = iterator
-        self._consumed = False
-
-    def __iter__(self) -> Iterator[LeanCanvas]:
-        # Return self as the iterator
-        return self
-
-    def __next__(self) -> LeanCanvas:
-        # Delegate to the wrapped iterator
-        if self._consumed:
-            # Already marked as started
-            pass
-        self._consumed = True
-        return next(self._iterator)
 
 
 class GlobalState(BaseModel):

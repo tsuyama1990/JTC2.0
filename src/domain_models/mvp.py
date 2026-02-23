@@ -1,3 +1,10 @@
+"""
+Defines the Minimum Viable Product (MVP) domain models.
+
+This module encapsulates the structure of the MVP, including its type, core features,
+and success criteria, following the 'Lean Startup' methodology.
+"""
+
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
@@ -28,6 +35,10 @@ class Priority(StrEnum):
 
 
 class Feature(BaseModel):
+    """
+    Represents a single feature of the MVP.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., description=DESC_FEATURE_NAME, min_length=3, max_length=50)
@@ -41,6 +52,16 @@ class Feature(BaseModel):
 
 
 class MVP(BaseModel):
+    """
+    Represents the MVP definition.
+
+    Attributes:
+        type: The type of MVP (e.g. Landing Page).
+        core_features: List of must-have features.
+        success_criteria: How success is measured.
+        v0_url: Integration with v0.dev for UI generation.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     type: MVPType = Field(..., description=DESC_MVP_TYPE)
