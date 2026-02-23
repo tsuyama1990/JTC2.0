@@ -18,6 +18,10 @@ def mock_settings() -> Generator[MagicMock, None, None]:
         mock.return_value.rag_persist_dir = "./mock_vector_store"
         # Errors
         mock.return_value.errors.config_missing_openai = "Missing API Key"
+        # New Config fields
+        mock.return_value.rag_chunk_size = 4000
+        mock.return_value.rag_max_query_length = 500
+        mock.return_value.rag_max_index_size_mb = 500
         yield mock
 
 
@@ -56,11 +60,6 @@ def test_rag_ingest_text(mock_settings: MagicMock, mock_llama_index: dict[str, M
     mock_llama_index["doc"].assert_called()
     # Ensure it creates an index
     mock_llama_index["index"].from_documents.assert_called()
-
-    # Ensure it does NOT auto persist
-    # We need to check if persist() was called on storage_context
-    # But storage_context is inside the index mock which is complex to check perfectly here without deeper mocks
-    # However, we changed the code to NOT persist in ingest_text.
 
 
 def test_rag_persist_index(

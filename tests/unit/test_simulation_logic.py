@@ -146,3 +146,30 @@ def test_metrics_boundary_conditions() -> None:
     with pytest.raises(ValidationError) as exc:
         AARRR(retention=100.1)
     assert any(e["loc"] == ("retention",) for e in exc.value.errors())
+
+
+@patch("src.core.graph.create_simulation_graph")
+def test_safe_simulation_run_integration(
+    mock_create_sim: MagicMock, mock_state: GlobalState
+) -> None:
+    """Test that safe_simulation_run invokes the subgraph correctly."""
+    from src.core.graph import safe_simulation_run
+
+    # Mock the compiled graph returned by create_simulation_graph
+    mock_graph_app = MagicMock()
+    mock_create_sim.return_value = mock_graph_app
+
+    # Mock the result of invoking the subgraph
+    # It should return a dict or object with debate_history
+    mock_graph_app.invoke.return_value = {"debate_history": ["msg1", "msg2"]}
+
+    result = safe_simulation_run(mock_state)
+
+    # Verify create_simulation_graph was called
+    mock_create_sim.assert_called_once()
+
+    # Verify invoke was called with the state
+    mock_graph_app.invoke.assert_called_once_with(mock_state)
+
+    # Verify the return value extraction
+    assert result == {"debate_history": ["msg1", "msg2"]}

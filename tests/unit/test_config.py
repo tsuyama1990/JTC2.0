@@ -10,43 +10,50 @@ from src.core.config import AgentConfig, SimulationConfig, get_settings
 def test_config_loading_success() -> None:
     """Test successful configuration loading."""
     with patch.dict(
-        os.environ, {"OPENAI_API_KEY": "sk-123", "TAVILY_API_KEY": "tvly-123", "V0_API_KEY": "v0-123"}
+        os.environ, {
+            "OPENAI_API_KEY": "sk-12345678901234567890",
+            "TAVILY_API_KEY": "tvly-12345678901234567890",
+            "V0_API_KEY": "v0-12345678901234567890"
+        }
     ):
         get_settings.cache_clear()
         settings = get_settings()
         assert settings.openai_api_key is not None
-        assert settings.openai_api_key.get_secret_value() == "sk-123"
+        assert settings.openai_api_key.get_secret_value() == "sk-12345678901234567890"
         assert settings.tavily_api_key is not None
-        assert settings.tavily_api_key.get_secret_value() == "tvly-123"
+        assert settings.tavily_api_key.get_secret_value() == "tvly-12345678901234567890"
         assert settings.v0_api_key is not None
-        assert settings.v0_api_key.get_secret_value() == "v0-123"
+        assert settings.v0_api_key.get_secret_value() == "v0-12345678901234567890"
 
 
 def test_config_missing_openai_key() -> None:
     """Test validation error when OpenAI key is missing."""
     with patch.dict(os.environ, {}, clear=True):
         # We need to set TAVILY_API_KEY to isolate the OPENAI_API_KEY check
-        os.environ["TAVILY_API_KEY"] = "tvly-123"
+        os.environ["TAVILY_API_KEY"] = "tvly-12345678901234567890"
         get_settings.cache_clear()
 
         # Validation happens on init
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=".*"):
             get_settings()
 
 
 def test_config_missing_tavily_key() -> None:
     """Test validation error when Tavily key is missing."""
     with patch.dict(os.environ, {}, clear=True):
-        os.environ["OPENAI_API_KEY"] = "sk-123"
+        os.environ["OPENAI_API_KEY"] = "sk-12345678901234567890"
         get_settings.cache_clear()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=".*"):
              get_settings()
 
 
 def test_config_caching() -> None:
     """Test that configuration is cached."""
-    with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-123", "TAVILY_API_KEY": "tvly-123"}):
+    with patch.dict(os.environ, {
+        "OPENAI_API_KEY": "sk-12345678901234567890",
+        "TAVILY_API_KEY": "tvly-12345678901234567890"
+    }):
         get_settings.cache_clear()
         s1 = get_settings()
         s2 = get_settings()
@@ -55,11 +62,13 @@ def test_config_caching() -> None:
 
 def test_invalid_log_level() -> None:
     """Test loading with invalid log level (although Pydantic might coerce it)."""
-    # Assuming standard logging levels, but pydantic might just accept string unless Enum used.
-    # BaseSettings allows extra fields to be ignored by default in our config.
     with patch.dict(
         os.environ,
-        {"OPENAI_API_KEY": "sk-123", "TAVILY_API_KEY": "tvly-123", "LOG_LEVEL": "INVALID"},
+        {
+            "OPENAI_API_KEY": "sk-12345678901234567890",
+            "TAVILY_API_KEY": "tvly-12345678901234567890",
+            "LOG_LEVEL": "INVALID"
+        },
     ):
         get_settings.cache_clear()
         s = get_settings()
