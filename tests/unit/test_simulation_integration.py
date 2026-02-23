@@ -55,13 +55,14 @@ def test_simulation_turn_sequence(
         # But we can inspect the call args of get_persona_agent?
         # Actually, get_persona_agent is called, returns mock_agent, then .run(state) is called.
         # We can just return a dummy update and verify the sequence of calls to factory.
-        return {"debate_history": state.debate_history + [DialogueMessage(role=Role.NEW_EMPLOYEE, content="Msg", timestamp=time.time())]}
+        new_msg = DialogueMessage(role=Role.NEW_EMPLOYEE, content="Msg", timestamp=time.time())
+        return {"debate_history": [*state.debate_history, new_msg]}
 
     mock_agent.run.side_effect = side_effect
     mock_get_persona.return_value = mock_agent
 
     app = create_simulation_graph()
-    final_state = app.invoke(initial_state)
+    app.invoke(initial_state)
 
     # Verify sequence of calls to factory
     assert mock_get_persona.call_count == 5

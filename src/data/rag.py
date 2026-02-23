@@ -40,6 +40,7 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
     """
     Calculate directory size iteratively with depth limit.
     Optimized to use os.scandir which yields DirEntry objects containing cached stat info.
+    Includes a safety limit on file count to prevent infinite loops or excessive blocking.
 
     Args:
         path: Path to scan.
@@ -49,6 +50,9 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
         Total size in bytes.
     """
     total = 0
+    file_count = 0
+    MAX_FILES = 10000 # Safety limit to prevent hanging on massive directories
+
     # Stack stores (path, current_depth)
     stack = [(path, 0)]
 
@@ -64,6 +68,10 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
                 for entry in it:
                     if entry.is_file(follow_symlinks=False):
                         total += entry.stat().st_size
+                        file_count += 1
+                        if file_count > MAX_FILES:
+                            logger.warning(f"Scan file limit ({MAX_FILES}) reached at {current_path}. Returning partial size.")
+                            return total
                     elif entry.is_dir(follow_symlinks=False):
                         stack.append((entry.path, depth + 1))
         except OSError as e:

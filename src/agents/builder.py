@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -39,16 +40,15 @@ class BuilderAgent(BaseAgent):
             logger.warning("Solution description too short for feature extraction.")
             return []
 
-        # Chunking logic for memory safety
+        # Chunking logic for memory safety using generator
         CHUNK_SIZE = 2000
         all_features: list[str] = []
 
-        chunks = [
-            solution_description[i : i + CHUNK_SIZE]
-            for i in range(0, len(solution_description), CHUNK_SIZE)
-        ]
+        def chunk_generator() -> Iterator[str]:
+            for i in range(0, len(solution_description), CHUNK_SIZE):
+                yield solution_description[i : i + CHUNK_SIZE]
 
-        for chunk in chunks:
+        for chunk in chunk_generator():
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", "You are a product manager. Extract distinct features from the solution description."),

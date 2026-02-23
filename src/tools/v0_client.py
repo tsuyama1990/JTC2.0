@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 
 import httpx
@@ -50,6 +51,13 @@ class V0Client:
         if not self.api_key:
             logger.error(ERR_V0_API_KEY_MISSING)
             raise V0GenerationError(ERR_V0_API_KEY_MISSING)
+
+        # Basic validation for API key format to prevent header injection or malformed keys
+        # Assuming typical bearer token format (alphanumeric, dashes, underscores, dots)
+        if not re.match(r"^[A-Za-z0-9\-\._]+$", self.api_key):
+            msg = "Invalid API key format"
+            logger.error(msg)
+            raise V0GenerationError(msg)
 
         return self.breaker.call(self._generate_ui_impl, prompt)
 

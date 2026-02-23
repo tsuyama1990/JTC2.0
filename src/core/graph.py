@@ -1,10 +1,11 @@
+import functools
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from src.core.exceptions import V0GenerationError
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
 from src.core.simulation import create_simulation_graph
@@ -17,14 +18,25 @@ from src.domain_models.validators import StateValidator
 logger = logging.getLogger(__name__)
 
 
+def safe_node(error_msg: str = "Error in graph node") -> Callable[..., Any]:
+    """Decorator to wrap graph nodes with consistent error handling."""
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            try:
+                return func(*args, **kwargs)
+            except Exception:
+                logger.exception(error_msg)
+                return {}
+        return wrapper
+    return decorator
+
+
+@safe_node("Error in Ideator Agent")
 def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for Ideator execution with error handling."""
     ideator = AgentFactory.get_ideator_agent()
-    try:
-        return ideator.run(state)
-    except Exception:
-        logger.exception("Error in Ideator Agent")
-        return {}
+    return ideator.run(state)
 
 
 def verification_node(state: GlobalState) -> dict[str, Any]:
@@ -56,24 +68,23 @@ def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
         logger.warning("No transcripts found in state to ingest.")
         return {}
 
-    try:
-        rag = RAG(persist_dir=state.rag_index_path)
-        for transcript in state.transcripts:
-            # We assume RAG handles duplicates or is stateless per run for now.
-            # In a real system, we'd check existence.
-            logger.info(f"Ingesting transcript from: {transcript.source}")
-            rag.ingest_transcript(transcript)
+    return _ingest_impl(state)
 
-        # Persist the index after ingestion
-        rag.persist_index()
+@safe_node("Error during transcript ingestion")
+def _ingest_impl(state: GlobalState) -> dict[str, Any]:
+    rag = RAG(persist_dir=state.rag_index_path)
+    for transcript in state.transcripts:
+        # We assume RAG handles duplicates or is stateless per run for now.
+        # In a real system, we'd check existence.
+        logger.info(f"Ingesting transcript from: {transcript.source}")
+        rag.ingest_transcript(transcript)
 
-    except Exception:
-        logger.exception("Error during transcript ingestion")
-        # We don't halt, but CPO might have less data.
-
+    # Persist the index after ingestion
+    rag.persist_index()
     return {}
 
 
+@safe_node("Error in Simulation Graph")
 def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     """
     Wrapper for Simulation execution with error handling.
@@ -82,20 +93,18 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     logger.info("Starting Simulation Round (Turn-based Battle)")
 
     simulation_app = create_simulation_graph()
-    try:
-        final_state = simulation_app.invoke(state)
-        if isinstance(final_state, dict):
-            return {"debate_history": final_state.get("debate_history", [])}
-        if hasattr(final_state, "debate_history"):
-            return {"debate_history": final_state.debate_history}
 
-        logger.warning("Simulation graph returned unknown state type.")
-        return {}
-    except Exception:
-        logger.exception("Error in Simulation Graph")
-        return {}
+    final_state = simulation_app.invoke(state)
+    if isinstance(final_state, dict):
+        return {"debate_history": final_state.get("debate_history", [])}
+    if hasattr(final_state, "debate_history"):
+        return {"debate_history": final_state.debate_history}
+
+    logger.warning("Simulation graph returned unknown state type.")
+    return {}
 
 
+@safe_node("Error in Nemawashi Analysis")
 def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
     """
     Run Nemawashi (Consensus) analysis after the simulation.
@@ -107,40 +116,32 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
         logger.warning("No influence network found. Skipping Nemawashi analysis.")
         return {}
 
-    try:
-        engine = NemawashiEngine()
+    engine = NemawashiEngine()
 
-        # Calculate new consensus (opinions)
-        new_opinions = engine.calculate_consensus(state.influence_network)
+    # Calculate new consensus (opinions)
+    new_opinions = engine.calculate_consensus(state.influence_network)
 
-        # Update the influence network in state
-        # We create a deep copy to avoid mutation issues if any, but Pydantic handles it.
-        # Actually, we can just update the stakeholders in place or create new list.
-        updated_network = state.influence_network.model_copy(deep=True)
+    # Update the influence network in state
+    # We create a deep copy to avoid mutation issues if any, but Pydantic handles it.
+    # Actually, we can just update the stakeholders in place or create new list.
+    updated_network = state.influence_network.model_copy(deep=True)
 
-        for i, stakeholder in enumerate(updated_network.stakeholders):
-            if i < len(new_opinions):
-                stakeholder.initial_support = new_opinions[i]
+    for i, stakeholder in enumerate(updated_network.stakeholders):
+        if i < len(new_opinions):
+            stakeholder.initial_support = new_opinions[i]
 
-        # Identify influencers (optional, for logging or CPO context)
-        influencers = engine.identify_influencers(updated_network)
-        logger.info(f"Identified Key Influencers: {influencers}")
+    # Identify influencers (optional, for logging or CPO context)
+    influencers = engine.identify_influencers(updated_network)
+    logger.info(f"Identified Key Influencers: {influencers}")
 
-        return {"influence_network": updated_network}
-
-    except Exception:
-        logger.exception("Error in Nemawashi Analysis")
-        return {}
+    return {"influence_network": updated_network}
 
 
+@safe_node("Error in CPO Agent")
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    try:
-        return cpo.run(state)
-    except Exception:
-        logger.exception("Error in CPO Agent")
-        return {}
+    return cpo.run(state)
 
 
 def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
@@ -159,52 +160,50 @@ def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
 
     logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
 
-    try:
-        builder = AgentFactory.get_builder_agent()
-        updates = builder.propose_features(state)
-    except Exception:
-        logger.exception("Error in Solution Proposal")
-        return {"phase": Phase.SOLUTION}
-    else:
-        updates["phase"] = Phase.SOLUTION
-        return updates
+    # We need to manually handle the 'updates' return structure before safe wrapping
+    # or just use the wrapper for the builder call part.
+    return _solution_proposal_impl(state)
+
+@safe_node("Error in Solution Proposal")
+def _solution_proposal_impl(state: GlobalState) -> dict[str, Any]:
+    builder = AgentFactory.get_builder_agent()
+    updates = builder.propose_features(state)
+    updates["phase"] = Phase.SOLUTION
+    return updates
 
 
+@safe_node("Error in MVP Generation")
 def mvp_generation_node(state: GlobalState) -> dict[str, Any]:
     """
     Generate MVP after user selection (Gate 3).
     """
     logger.info("Generating MVP (Cycle 5)...")
 
-    try:
-        builder = AgentFactory.get_builder_agent()
-        updates = builder.generate_mvp(state)
+    # V0GenerationError is handled by safe_node as Exception,
+    # but if we wanted specific handling we could do it inside.
+    # The requirement was "Duplicated error handling patterns".
 
-        # If MVP Spec is generated, ensure MVP Definition exists for validation
-        if updates.get("mvp_spec"):
-            spec = updates["mvp_spec"]
-            mvp = MVP(
-                type=MVPType.SINGLE_FEATURE,
-                core_features=[
-                    Feature(
-                        name=spec.core_feature,
-                        description=f"Core feature: {spec.core_feature}",
-                        priority=Priority.MUST_HAVE,
-                    )
-                ],
-                success_criteria="User engagement and feedback.",
-                v0_url=updates.get("mvp_url") # Map URL if present
-            )
-            updates["mvp_definition"] = mvp
+    builder = AgentFactory.get_builder_agent()
+    updates = builder.generate_mvp(state)
 
-        return updates
+    # If MVP Spec is generated, ensure MVP Definition exists for validation
+    if updates.get("mvp_spec"):
+        spec = updates["mvp_spec"]
+        mvp = MVP(
+            type=MVPType.SINGLE_FEATURE,
+            core_features=[
+                Feature(
+                    name=spec.core_feature,
+                    description=f"Core feature: {spec.core_feature}",
+                    priority=Priority.MUST_HAVE,
+                )
+            ],
+            success_criteria="User engagement and feedback.",
+            v0_url=updates.get("mvp_url") # Map URL if present
+        )
+        updates["mvp_definition"] = mvp
 
-    except V0GenerationError:
-        logger.exception("MVP Generation Failed")
-        return {}
-    except Exception:
-        logger.exception("Error in MVP Generation")
-        return {}
+    return updates
 
 
 def pmf_node(state: GlobalState) -> dict[str, Any]:

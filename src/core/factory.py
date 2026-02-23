@@ -1,4 +1,3 @@
-from functools import lru_cache
 from typing import Any
 
 from src.agents.builder import BuilderAgent
@@ -44,10 +43,10 @@ class AgentFactory:
         return AgentFactory._get_cached_persona(role)
 
     @staticmethod
-    @lru_cache(maxsize=10)
     def _get_cached_persona(role: Role) -> Any:
         """
-        Cached factory for stateless persona agents.
+        Factory for stateless persona agents.
+        No caching to ensure fresh configuration usage (e.g. LLM model changes).
         """
         llm = get_llm()
         settings = get_settings()

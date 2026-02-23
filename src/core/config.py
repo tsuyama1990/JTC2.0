@@ -150,15 +150,6 @@ class AgentConfig(BaseModel):
         return ConfigValidators.validate_dimension(v)
 
 
-def _default_agents() -> dict[str, AgentConfig]:
-    return {
-        "New Employee": AgentConfig(role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP),
-        "Finance Manager": AgentConfig(role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE),
-        "Sales Manager": AgentConfig(role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES),
-        "CPO": AgentConfig(role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO),
-    }
-
-
 class NemawashiConfig(BaseSettings):
     """Configuration for Nemawashi Consensus Building."""
 
@@ -188,7 +179,42 @@ class SimulationConfig(BaseSettings):
     console_sleep: float = Field(default=DEFAULT_CONSOLE_SLEEP, description="Sleep time for console fallback")
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
-    agents: dict[str, AgentConfig] = Field(default_factory=_default_agents, description="Configuration for agents")
+    # Explicit fields for individual agents to allow env var overrides
+    # e.g. SIMULATION__AGENT_NEW_EMP__X=50
+    agent_new_emp: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP
+        ),
+        description="Configuration for New Employee Agent"
+    )
+    agent_finance: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE
+        ),
+        description="Configuration for Finance Agent"
+    )
+    agent_sales: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES
+        ),
+        description="Configuration for Sales Agent"
+    )
+    agent_cpo: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO
+        ),
+        description="Configuration for CPO Agent"
+    )
+
+    @property
+    def agents(self) -> dict[str, AgentConfig]:
+        """Backwards compatibility accessor for agents dict."""
+        return {
+            "New Employee": self.agent_new_emp,
+            "Finance Manager": self.agent_finance,
+            "Sales Manager": self.agent_sales,
+            "CPO": self.agent_cpo,
+        }
 
     @field_validator("width", "height")
     @classmethod

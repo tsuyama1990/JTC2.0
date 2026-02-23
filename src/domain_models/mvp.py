@@ -20,6 +20,9 @@ from src.core.constants import (
     DESC_MVP_TYPE,
 )
 
+# Pre-compiled regex pattern at module level
+COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+
 
 class MVPType(StrEnum):
     LANDING_PAGE = "landing_page"
@@ -119,10 +122,10 @@ class MVPSpec(BaseModel):
     @classmethod
     def validate_components(cls, v: list[str]) -> list[str]:
         """Validate component names to prevent injection/malformed input."""
-        # Allow alphanumeric, spaces, hyphens
-        pattern = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+        # Using pre-compiled pattern constant could be better, but re.compile here is locally cached by Python's re module.
+        # However, to be explicit about optimization:
         for comp in v:
-            if not pattern.match(comp):
+            if not COMPONENT_PATTERN.match(comp):
                 msg = f"Invalid component name: {comp}. Must be alphanumeric."
                 raise ValueError(msg)
         return v
