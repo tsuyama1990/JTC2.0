@@ -12,24 +12,40 @@ from src.domain_models.state import GlobalState, GlobalStateValidators, Phase
 logger = logging.getLogger(__name__)
 
 
+def _handle_error(msg: str) -> dict[str, Any]:
+    """Standardized error handling for graph nodes."""
+    logger.exception(msg)
+    # In a real app, we might return a specific error state or flag
+    return {}
+
+
+def _validate_transition(state: GlobalState, phase: Phase) -> bool:
+    """
+    Common validation logic for phase transitions.
+    Returns True if valid, False otherwise (and logs error).
+    """
+    try:
+        GlobalStateValidators.validate_phase_requirements(state)
+    except ValueError:
+        logger.exception(f"Validation failed for {phase} transition")
+        return False
+    else:
+        return True
+
+
 def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for Ideator execution with error handling."""
     ideator = AgentFactory.get_ideator_agent()
     try:
         return ideator.run(state)
     except Exception:
-        logger.exception("Error in Ideator Agent")
-        return {}
+        return _handle_error("Error in Ideator Agent")
 
 
 def verification_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Verification Phase."""
-    # Explicit validation before transition
-    try:
-        GlobalStateValidators.validate_phase_requirements(state)
-    except ValueError:
-        logger.exception("Validation failed for Verification transition")
-        return {} # Or handle error state
+    if not _validate_transition(state, Phase.VERIFICATION):
+        return {}
 
     if not state.selected_idea:
         logger.error("Attempted to enter Verification Phase without a selected idea.")
@@ -53,8 +69,7 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
         # invoke returns the final state dict/object
         final_state = simulation_app.invoke(state)
     except Exception:
-        logger.exception("Error in Simulation Graph")
-        return {}
+        return _handle_error("Error in Simulation Graph")
 
     # Extract the updated debate history
     # Depending on invoke return type (dict if input was dict, likely dict)
@@ -74,21 +89,14 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     try:
         res: dict[str, Any] = cpo.run(state)
     except Exception:
-        logger.exception("Error in CPO Agent")
-        return {}
+        return _handle_error("Error in CPO Agent")
     else:
         return res
 
 
 def solution_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Solution Phase."""
-    try:
-        GlobalStateValidators.validate_phase_requirements(state)
-    except ValueError:
-        logger.exception("Validation failed for Solution transition")
-        # In a real app we might route to an error node or retry.
-        # For now, we log and proceed (or stay in current phase implicitly if we return empty?)
-        # Returning empty means no state update, effectively halting or looping.
+    if not _validate_transition(state, Phase.SOLUTION):
         return {}
 
     if not state.target_persona:
@@ -100,10 +108,7 @@ def solution_node(state: GlobalState) -> dict[str, Any]:
 
 def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
-    try:
-        GlobalStateValidators.validate_phase_requirements(state)
-    except ValueError:
-        logger.exception("Validation failed for PMF transition")
+    if not _validate_transition(state, Phase.PMF):
         return {}
 
     if not state.mvp_definition:

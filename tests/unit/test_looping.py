@@ -1,9 +1,9 @@
 from langgraph.graph import END
 
 from src.core.graph import route_after_pmf
-from src.domain_models.state import GlobalState, Phase
+from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import Persona
-from src.domain_models.mvp import MVP, MVPType, Feature, Priority
+from src.domain_models.state import GlobalState, Phase
 
 
 def test_route_after_pmf_ideator():
@@ -33,4 +33,16 @@ def test_route_after_pmf_end():
         success_criteria="Test"
     )
     state = GlobalState(phase=Phase.PMF, mvp_definition=mvp)
+    assert route_after_pmf(state) == END
+
+def test_route_after_pmf_invalid_phase():
+    # Test case: Phase is not one of the explicitly handled ones (e.g., SOLUTION)
+    # The current logic defaults to END for any unknown phase.
+    # We verify this behavior.
+    mvp = MVP(
+        type=MVPType.LANDING_PAGE,
+        core_features=[Feature(name="Test", description="Test", priority=Priority.MUST_HAVE)],
+        success_criteria="Test"
+    )
+    state = GlobalState(phase=Phase.SOLUTION, mvp_definition=mvp)
     assert route_after_pmf(state) == END

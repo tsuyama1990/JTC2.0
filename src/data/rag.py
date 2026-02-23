@@ -70,7 +70,7 @@ class RAG:
 
         # Simple Rate Limiting State
         self._last_call_time = 0.0
-        self._min_interval = 0.1 # 10 requests/second max locally initiated
+        self._min_interval = self.settings.rag_rate_limit_interval
 
         self.index: VectorStoreIndex | None = None
         self._init_llama()
@@ -79,10 +79,15 @@ class RAG:
         """
         Ensure persist directory is safe and absolute.
         Uses strict allowlist and pathlib.is_relative_to for security.
+        Also validates that the path does not traverse using '..' before resolution.
         """
         if not path_str or not isinstance(path_str, str):
             msg = "Path must be a non-empty string."
             raise ConfigurationError(msg)
+
+        if ".." in path_str:
+             msg = "Relative paths using '..' are not allowed."
+             raise ConfigurationError(msg)
 
         try:
             path = Path(path_str).resolve()
@@ -103,6 +108,7 @@ class RAG:
         is_safe = False
         for parent in allowed_parents:
             try:
+                # Check if it is relative to parent
                 if path.is_relative_to(parent):
                     is_safe = True
                     break

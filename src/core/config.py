@@ -187,6 +187,7 @@ class NemawashiConfig(BaseSettings):
     tolerance: float = Field(alias="NEMAWASHI_TOLERANCE", default=DEFAULT_NEMAWASHI_TOLERANCE)
     nomikai_boost: float = Field(alias="NEMAWASHI_NOMIKAI_BOOST", default=DEFAULT_NEMAWASHI_BOOST)
     nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=DEFAULT_NEMAWASHI_REDUCTION)
+    sparse_threshold: int = Field(alias="NEMAWASHI_SPARSE_THRESHOLD", default=1000)
 
 
 class SimulationConfig(BaseSettings):
@@ -251,6 +252,7 @@ class Settings(BaseSettings):
     rag_max_document_length: int = Field(alias="RAG_MAX_DOC_LENGTH", default=DEFAULT_RAG_MAX_DOC_LENGTH)
     rag_max_query_length: int = Field(alias="RAG_MAX_QUERY_LENGTH", default=DEFAULT_RAG_MAX_QUERY_LENGTH)
     rag_max_index_size_mb: int = Field(alias="RAG_MAX_INDEX_SIZE_MB", default=DEFAULT_RAG_MAX_INDEX_SIZE_MB)
+    rag_rate_limit_interval: float = Field(alias="RAG_RATE_LIMIT_INTERVAL", default=0.1)
 
     # Circuit Breaker
     circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=DEFAULT_CB_FAIL_MAX)

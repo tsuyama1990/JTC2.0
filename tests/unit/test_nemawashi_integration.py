@@ -1,10 +1,10 @@
-import os
-import pytest
 from unittest.mock import MagicMock, patch
+
 from src.agents.cpo import CPOAgent
+from src.domain_models.simulation import AgentState, Role
 from src.domain_models.state import GlobalState
-from src.domain_models.simulation import Role, AgentState
 from tests.conftest import DUMMY_ENV_VARS
+
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 @patch("src.agents.cpo.NemawashiEngine")

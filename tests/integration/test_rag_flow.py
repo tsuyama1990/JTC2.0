@@ -54,15 +54,12 @@ def temp_vector_store() -> Generator[str, None, None]:
 def test_rag_integration_flow(temp_vector_store: str) -> None:
     """
     Integration test for RAG: Ingest -> Persist -> Query.
-    Uses real LlamaIndex components (mocked LLM/Embeddings to avoid API calls).
+    Uses real LlamaIndex components with MockLLM/MockEmbedding to simulate logic without API calls.
     """
     get_settings.cache_clear()
-    # Mocking secret value getter for Pydantic SecretStr (via cached settings is hard,
-    # but DUMMY_ENV_VARS ensures keys exist)
 
-    # We mock OpenAI and OpenAIEmbedding to avoid real API calls.
-    # We patch them where they are used in src.data.rag to ensure RAG uses the mocks
-    # even if already imported.
+    # We patch the models at the point of instantiation inside RAG
+    # This allows RAG to build a real index structure, but using deterministic, fake embeddings
     with (
         patch("src.data.rag.OpenAI", return_value=MockLLM()),
         patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
@@ -71,6 +68,8 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
         rag = RAG(persist_dir=temp_vector_store)
 
         # 1. Ingest
+        # We ingest specific text. The MockEmbedding returns constant vectors [0.1]*1536
+        # So essentially all text is identical in vector space, but the retrieval logic runs.
         text = "Customers prefer subscription models."
         rag.ingest_text(text, source="test_interview.txt")
 
@@ -79,26 +78,24 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 
         # Verify files created
         from pathlib import Path
-
         assert any(Path(temp_vector_store).iterdir())
 
         # 3. Reload (simulate new instance)
         rag_loaded = RAG(persist_dir=temp_vector_store)
         assert rag_loaded.index is not None
 
-        # 4. Query (Mock the query engine response since we don't have real embeddings)
-        # Real query would fail with fake embeddings matching nothing or erroring on mock.
-        # But we verified index loading.
+        # 4. Query
+        # Instead of mocking `as_query_engine`, we let it run.
+        # Since MockLLM is used, it will return a mock response, but the RETRIEVAL step happens.
+        # Because we use constant embeddings, the retrieval should find the document we just added
+        # (it's the only one and matches perfectly).
 
-        # We can mock the query engine on the loaded instance to verify connection
-        with patch.object(rag_loaded.index, "as_query_engine") as mock_engine:
-            mock_response = MagicMock()
-            # Explicit assignment for return value of str()
-            mock_response.__str__ = MagicMock(return_value="Verified answer.")  # type: ignore[method-assign]
-            mock_engine.return_value.query.return_value = mock_response
+        answer = rag_loaded.query("What do customers prefer?")
 
-            answer = rag_loaded.query("What do customers prefer?")
-            assert answer == "Verified answer."
+        # LlamaIndex MockLLM by default echoes the prompt or a standard response.
+        # We just want to ensure it didn't crash and returned a string.
+        assert isinstance(answer, str)
+        assert len(answer) > 0
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
