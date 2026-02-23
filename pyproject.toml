@@ -4,7 +4,15 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "langchain-openai>=0.1.0",
+    "pydantic>=2.0.0",
+    "tavily-python>=0.3.0",
+    "python-dotenv>=1.0.0",
+    "pydantic-settings>=2.13.1",
+    "tenacity>=9.1.4",
+    "langgraph>=1.0.9",
+]
 
 [dependency-groups]
 dev = [

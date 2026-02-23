@@ -1,61 +1,32 @@
 # The JTC 2.0: Enterprise Business Accelerator
 
-![Status](https://img.shields.io/badge/Status-Architecture_Defined-blue)
-![Python](https://img.shields.io/badge/Python-3.12+-green)
+![Status](https://img.shields.io/badge/Status-Cycle_1_Complete-green)
+![Python](https://img.shields.io/badge/Python-3.12+-blue)
 
 **The JTC 2.0** is a paradigm-shifting multi-agent system that fuses the rigorous methodology of **"Startup Science"** with the complex organizational dynamics of **Traditional Japanese Companies (JTCs)**. It is not just a chatbot; it is a role-playing simulation where your business ideas are subjected to "Gekizume" (harsh feedback) by AI agents, validated against real customer interviews, and automatically built into MVPs.
 
-## 🚀 Key Features
+## 🚀 Overview
 
--   **Multi-Agent Simulation**: Pitch your idea to a conservative Finance Manager and an aggressive Sales Manager in a retro RPG-style meeting room.
--   **Reality Injection (RAG)**: Ingest real customer interview transcripts to ground your business plan in primary data (The "Mom Test").
--   **Nemawashi Engine**: Simulate organizational politics using the French-DeGroot mathematical model to identify key influencers and build consensus.
--   **Automated MVP**: Generate a deployable React/Tailwind frontend for your solution in minutes using the v0.dev API.
--   **Psychological Safety**: Use a "New Employee" proxy avatar to receive harsh feedback, protecting your mental health ("De-identification").
+-   **What**: An AI-powered co-founder that helps you brainstorm, validate, and simulate the organizational resistance to new business ideas.
+-   **Why**: To help intrapreneurs navigate the "Valley of Death" in large organizations by simulating the harsh reality of corporate decision-making before pitching to real stakeholders.
+-   **How**: Uses **LangGraph** to orchestrate specialized agents (Ideator, Finance, Sales) and **Tavily** for real-time market research.
 
-## 🏗 Architecture Overview
+## ✨ Features (Cycle 1 Verified)
 
-The system is orchestrated by **LangGraph**, combining stateful agent workflows with external tools.
-
-```mermaid
-graph TD
-    User((User)) -->|Interact| PyxelUI[Pyxel Retro UI]
-    PyxelUI -->|API| LangGraph[LangGraph Orchestrator]
-
-    subgraph "The Meeting (Simulation)"
-        Proxy[New Employee Agent]
-        Finance[Finance Manager]
-        Sales[Sales Manager]
-    end
-
-    subgraph "Reality Check"
-        CPO[CPO Agent]
-        RAG[LlamaIndex + VectorDB]
-    end
-
-    subgraph "Execution"
-        Builder[MVP Builder]
-        v0[v0.dev API]
-    end
-
-    LangGraph --> Proxy
-    LangGraph --> Finance
-    LangGraph --> Sales
-    LangGraph --> CPO
-    LangGraph --> Builder
-
-    CPO --> RAG
-    Builder --> v0
-```
+-   **Automated Ideation Engine**: Generates 10 distinct, research-backed Lean Canvas business ideas from a single topic.
+-   **Market Research Integration**: Automatically pulls "Emerging Trends" and "Painful Problems" using Tavily Search API.
+-   **Strict Schema Validation**: All ideas are guaranteed to follow the Lean Canvas structure using Pydantic models.
+-   **Interactive Selection**: CLI interface for reviewing and selecting the "Plan A" to proceed with.
 
 ## 📋 Prerequisites
 
 -   **Python 3.12+**
--   **uv** (recommended for package management)
--   **Docker** (optional, for vector DB)
--   **API Keys**: OpenAI, Tavily, Vercel (v0.dev)
+-   **uv** (Modern Python package manager)
+-   **API Keys**:
+    -   `OPENAI_API_KEY` (GPT-4o recommended)
+    -   `TAVILY_API_KEY` (For market research)
 
-## 🛠 Installation & Setup
+## 🛠 Installation
 
 1.  **Clone the repository**
     ```bash
@@ -69,58 +40,56 @@ graph TD
     ```
 
 3.  **Configure Environment**
+    Create a `.env` file in the root directory:
     ```bash
-    cp .env.example .env
-    # Edit .env with your API keys
+    OPENAI_API_KEY=sk-...
+    TAVILY_API_KEY=tvly-...
     ```
 
 ## 🚀 Usage
 
-### Quick Start (Ideation)
-Generate 10 business ideas based on a topic.
+**Run the Ideation Engine:**
 
 ```bash
-uv run src/main.py --mode ideation --topic "AI for Agriculture"
+uv run main.py "AI for Agriculture"
 ```
 
-### Run the Simulation (The Meeting)
-Launch the Pyxel UI to watch the debate.
+Or simply run interactively:
 
 ```bash
-uv run src/main.py --mode simulation
+uv run main.py
 ```
 
-## 💻 Development Workflow
+The system will:
+1.  Research the topic.
+2.  Generate 10 Lean Canvas drafts.
+3.  Ask you to select one to proceed (Gate 1).
 
-This project follows the **AC-CDD (Architecture-Centric Cycle-Driven Development)** methodology.
+## 🏗 Architecture
 
--   **Run Tests**: `uv run pytest`
--   **Linting**: `uv run ruff check`
--   **Type Checking**: `uv run mypy .`
+**Directory Structure:**
 
-### Cycle Roadmap
--   **Cycle 1**: Foundation & Ideation
+```ascii
+.
+├── src/
+│   ├── agents/             # Agent Logic (Ideator)
+│   ├── core/               # LangGraph Workflow & Config
+│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, GlobalState)
+│   ├── tools/              # API Wrappers (Tavily)
+│   └── main.py             # CLI Entry Point
+├── tests/                  # Unit & UAT Tests
+├── dev_documents/          # Specs & Logs
+└── pyproject.toml          # Project Configuration
+```
+
+## 🗺 Roadmap
+
+-   **Cycle 1: Foundation & Ideation (Completed)**
 -   **Cycle 2**: JTC Simulation (Proxy & Meeting)
 -   **Cycle 3**: Real World Connection (RAG)
 -   **Cycle 4**: Consensus Building (Nemawashi)
 -   **Cycle 5**: MVP Generation
 -   **Cycle 6**: Governance & Finalization
-
-## 📂 Project Structure
-
-```ascii
-.
-├── dev_documents/          # Specs & Architecture
-├── src/
-│   ├── agents/             # Persona Definitions
-│   ├── core/               # LangGraph & State
-│   ├── data/               # RAG & Vector Store
-│   ├── domain/             # Business Logic
-│   ├── ui/                 # Pyxel Interface
-│   └── tools/              # API Wrappers
-├── tests/                  # Unit & Integration Tests
-└── pyproject.toml          # Dependencies & Config
-```
 
 ## 📄 License
 

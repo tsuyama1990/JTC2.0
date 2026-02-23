@@ -25,8 +25,11 @@ This cycle will create the following file structure. **Bold** files are new or m
 │   │   ├── **__init__.py**
 │   │   ├── **config.py**       # Env Vars (OPENAI_API_KEY, TAVILY_API_KEY)
 │   │   ├── **graph.py**        # Main LangGraph Definition
-│   │   ├── **state.py**        # GlobalState & LeanCanvas Pydantic Models
 │   │   └── **llm.py**          # LLM Client Factory (OpenAI)
+│   ├── **domain_models/**      # Domain Models
+│   │   ├── **__init__.py**
+│   │   ├── **lean_canvas.py**  # LeanCanvas Pydantic Model
+│   │   └── **state.py**        # GlobalState & Phase Pydantic Models
 │   ├── **tools/**
 │   │   ├── **__init__.py**
 │   │   └── **search.py**       # Tavily Search Tool Wrapper
@@ -34,7 +37,11 @@ This cycle will create the following file structure. **Bold** files are new or m
 ├── **tests/**
 │   ├── **__init__.py**
 │   ├── **conftest.py**
-│   └── **test_ideation.py**    # Unit Tests for Ideator Agent
+│   ├── **unit/**
+│   │   ├── **test_domain_models.py**
+│   │   └── **test_ideator_agent.py**
+│   └── **uat/**
+│       └── **test_uat_cycle01.py**
 ├── .env.example
 ├── pyproject.toml
 └── README.md
@@ -52,20 +59,13 @@ This cycle will create the following file structure. **Bold** files are new or m
 
 ## 3. Design Architecture
 
-### 3.1. Domain Models (`src/core/state.py`)
+### 3.1. Domain Models (`src/domain_models/`)
 
 We will use Pydantic to ensure strict typing and validation.
 
+**`src/domain_models/lean_canvas.py`**:
 ```python
 from pydantic import BaseModel, Field
-from typing import List, Optional
-from enum import Enum
-
-class Phase(str, Enum):
-    IDEATION = "ideation"
-    VERIFICATION = "verification"
-    SOLUTION = "solution"
-    PMF = "pmf"
 
 class LeanCanvas(BaseModel):
     id: int
@@ -75,6 +75,20 @@ class LeanCanvas(BaseModel):
     unique_value_prop: str = Field(..., description="Single clear compelling message")
     solution: str = Field(..., description="Top 3 features")
     status: str = "draft"
+```
+
+**`src/domain_models/state.py`**:
+```python
+from pydantic import BaseModel
+from typing import List, Optional
+from enum import Enum
+from .lean_canvas import LeanCanvas
+
+class Phase(str, Enum):
+    IDEATION = "ideation"
+    VERIFICATION = "verification"
+    SOLUTION = "solution"
+    PMF = "pmf"
 
 class GlobalState(BaseModel):
     """The central state of the LangGraph workflow."""
@@ -95,7 +109,7 @@ class GlobalState(BaseModel):
 ## 4. Implementation Approach
 
 1.  **Project Setup**: Initialize `uv`, install `langgraph`, `langchain-openai`, `pydantic`, `tavily-python`.
-2.  **Core Logic**: Implement `GlobalState` and `LeanCanvas` models in `src/core/state.py`.
+2.  **Core Logic**: Implement `GlobalState` and `LeanCanvas` models in `src/domain_models/`.
 3.  **LLM Setup**: Create `src/core/llm.py` to configure the ChatOpenAI client.
 4.  **Agent Creation**: Implement `IdeatorAgent` in `src/agents/ideator.py`. It should take a topic, search Tavily for trends, and output a JSON list of 10 ideas.
 5.  **Graph Construction**: Define the StateGraph in `src/core/graph.py`. Add the `ideator` node and a conditional edge to `selection`.
@@ -104,7 +118,7 @@ class GlobalState(BaseModel):
 ## 5. Test Strategy
 
 ### 5.1. Unit Testing
--   **File**: `tests/test_ideation.py`
+-   **File**: `tests/unit/test_ideator_agent.py`
 -   **Scope**:
     -   Verify `LeanCanvas` validation raises errors on missing fields.
     -   Mock the LLM response to ensure `IdeatorAgent` correctly parses JSON into `List[LeanCanvas]`.
