@@ -40,15 +40,16 @@ class IdeatorAgent(BaseAgent):
         search_tool: The tool used for market research.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ChatOpenAI, search_tool: TavilySearch | None = None) -> None:
         """
         Initialize the Ideator Agent.
 
         Args:
             llm: A configured ChatOpenAI instance.
+            search_tool: Optional search tool instance (Dependency Injection).
         """
         self.llm = llm
-        self.search_tool = TavilySearch()
+        self.search_tool = search_tool or TavilySearch()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """

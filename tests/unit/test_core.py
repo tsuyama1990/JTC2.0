@@ -10,6 +10,7 @@ from src.core.llm import get_llm
 def test_config_values() -> None:
     """Test that default settings are loaded correctly."""
     from src.core.config import Settings
+
     # Use environment variable naming for Pydantic BaseSettings init
     s = Settings(OPENAI_API_KEY=SecretStr("sk-test"), TAVILY_API_KEY=SecretStr("tvly-test"))
     assert s.llm_model == "gpt-4o"

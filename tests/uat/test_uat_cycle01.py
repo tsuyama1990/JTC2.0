@@ -1,36 +1,37 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+# We import create_app but we will mock the LLM and Tools inside it
+from src.core.graph import create_app
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
 
-# Mock imports for things that don't exist yet
-# from src.core.graph import create_app # noqa: ERA001
-
 
 @pytest.fixture
-def mock_app() -> MagicMock:
-    # This simulates the compiled LangGraph app
+def mock_llm_factory() -> MagicMock:
     return MagicMock()
 
 
-def test_uat_cycle01_ideation_and_selection(mock_app: MagicMock) -> None:
+@patch("src.core.graph.IdeatorAgent")
+@patch("src.core.graph.get_llm")
+def test_uat_cycle01_ideation_and_selection(
+    mock_get_llm: MagicMock, mock_ideator_cls: MagicMock
+) -> None:
     """
     UAT Scenario:
     1. User inputs topic "AI for Agriculture".
     2. System generates 10 ideas.
     3. User selects idea #2.
     4. System updates state.
+
+    This integration test runs the actual LangGraph compiled app,
+    but mocks the external LLM and Search calls via the IdeatorAgent mock.
     """
 
-    # 1. Initial State
-    initial_state = GlobalState(topic="AI for Agriculture")
+    # 1. Setup Logic Mock
+    mock_ideator_instance = mock_ideator_cls.return_value
 
-    # Mock the graph execution result for Step 2 (Ideation)
-    # The real app.invoke would return the final state
-
-    # Simulate Ideator Agent generating 10 ideas
     generated_ideas = [
         LeanCanvas(
             id=i,
@@ -43,28 +44,38 @@ def test_uat_cycle01_ideation_and_selection(mock_app: MagicMock) -> None:
         for i in range(10)
     ]
 
-    state_after_ideation = initial_state.model_copy()
-    state_after_ideation.generated_ideas = generated_ideas
+    # The agent run method returns a dict update
+    mock_ideator_instance.run.return_value = {"generated_ideas": generated_ideas}
 
-    # Verify Step 2
-    assert len(state_after_ideation.generated_ideas) == 10
-    assert state_after_ideation.phase == Phase.IDEATION
+    # 2. Build App
+    app = create_app()
 
-    # 3. User Selects Idea #2
+    # 3. Execution (Step 1 & 2)
+    initial_state = GlobalState(topic="AI for Agriculture")
+    final_state_dict = app.invoke(initial_state)
+
+    # Convert dict back to State model for assertion convenience
+    # (LangGraph returns dict by default in compiled graph unless configured otherwise)
+    if isinstance(final_state_dict, dict):
+        final_state = GlobalState(**final_state_dict)
+    else:
+        final_state = final_state_dict  # Should not happen with default LangGraph
+
+    # 4. Verification
+    assert len(final_state.generated_ideas) == 10
+    assert final_state.phase == Phase.IDEATION
+
+    # Verify the agent was called
+    mock_ideator_instance.run.assert_called()
+
+    # 5. Selection (Simulated Logic)
+    # Since the Graph only runs the Ideator node currently, the Selection part is handled
+    # by the CLI logic (main.py) which updates the state.
+    # In Cycle 1, the Graph stops after Ideation.
+
     selected_id = 2
-    selected_canvas = next(
-        idea for idea in state_after_ideation.generated_ideas if idea.id == selected_id
-    )
+    selected_canvas = next(idea for idea in final_state.generated_ideas if idea.id == selected_id)
 
-    # Simulate State Update
-    final_state = state_after_ideation.model_copy()
-    final_state.selected_idea = selected_canvas
-    # Ideally phase transitions to VERIFICATION
-    # final_state.phase = Phase.VERIFICATION # noqa: ERA001
-
-    # Verify Step 4
-    if final_state.selected_idea is None:
-        pytest.fail("Selected idea should not be None")
-
-    assert final_state.selected_idea.id == 2
-    assert final_state.selected_idea.title == "Idea 2"
+    # Verify we can select
+    assert selected_canvas.id == 2
+    assert selected_canvas.title == "Idea 2"

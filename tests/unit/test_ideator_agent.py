@@ -19,7 +19,7 @@ def test_ideator_agent_run_success(
     mock_tavily: MagicMock,
     mock_prompt_cls: MagicMock,
     mock_settings: MagicMock,
-    mock_llm: MagicMock
+    mock_llm: MagicMock,
 ) -> None:
     # Setup settings
     mock_settings.search_query_template = "Trends in {topic}"
@@ -67,7 +67,7 @@ def test_ideator_agent_fail(
     mock_tavily: MagicMock,
     mock_prompt_cls: MagicMock,
     mock_settings: MagicMock,
-    mock_llm: MagicMock
+    mock_llm: MagicMock,
 ) -> None:
     # Setup settings
     mock_settings.search_query_template = "Trends in {topic}"

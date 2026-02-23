@@ -32,16 +32,14 @@ def test_tavily_search_success(mock_settings: MagicMock, mock_client_cls: MagicM
 
     # We assert that it called it with the mock objects from settings, or the values if resolved
     # Since we set the mock properties above, they should match
-    mock_client.search.assert_called_with(
-        query="query",
-        max_results=5,
-        search_depth="advanced"
-    )
+    mock_client.search.assert_called_with(query="query", max_results=5, search_depth="advanced")
 
 
 @patch("src.tools.search.TavilyClient")
 @patch("src.tools.search.settings")
-def test_tavily_search_error_with_retry(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+def test_tavily_search_error_with_retry(
+    mock_settings: MagicMock, mock_client_cls: MagicMock
+) -> None:
     mock_settings.tavily_api_key = SecretStr("test-key")
     mock_client = mock_client_cls.return_value
     # Simulate repeated failure

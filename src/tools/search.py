@@ -1,12 +1,13 @@
 import logging
 from typing import Literal
 
-from tavily import TavilyClient
+from tavily import InvalidAPIKeyError, MissingAPIKeyError, TavilyClient
 from tenacity import (
     after_log,
     before_sleep_log,
     retry,
     retry_if_exception_type,
+    retry_unless_exception_type,
     stop_after_attempt,
     wait_exponential,
 )
@@ -38,7 +39,9 @@ class TavilySearch:
         self.client = TavilyClient(api_key=self.api_key)
 
     @retry(
-        retry=retry_if_exception_type(Exception),  # Retry on generic exceptions for now
+        # Retry on generic exceptions but exclude Auth errors/ValueError which won't be fixed by retrying
+        retry=retry_if_exception_type(Exception)
+        & retry_unless_exception_type((MissingAPIKeyError, InvalidAPIKeyError, ValueError)),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         stop=stop_after_attempt(3),
         before_sleep=before_sleep_log(logger, logging.WARNING),

@@ -22,16 +22,16 @@ Name                               Stmts   Miss  Cover   Missing
 src/__init__.py                        0      0   100%
 src/agents/__init__.py                 0      0   100%
 src/agents/base.py                     6      0   100%
-src/agents/ideator.py                 37      3    92%   29-30, 103
+src/agents/ideator.py                 37      3    92%   29-30, 104
 src/core/__init__.py                   0      0   100%
-src/core/config.py                    30     11    63%   54-66
-src/core/graph.py                     13     13     0%   1-23
+src/core/config.py                    31     11    65%   43-48, 60, 62-67
+src/core/graph.py                     13      0   100%
 src/core/llm.py                        7      0   100%
 src/domain_models/__init__.py          3      0   100%
 src/domain_models/lean_canvas.py      24      0   100%
 src/domain_models/state.py            15      0   100%
 src/tools/__init__.py                  0      0   100%
-src/tools/search.py                   27      3    89%   36-37, 73
+src/tools/search.py                   27      3    89%   37-38, 76
 ----------------------------------------------------------------
-TOTAL                                162     30    81%
-============================= 17 passed in 10.95s ==============================
+TOTAL                                163     17    90%
+============================= 17 passed in 11.20s ==============================

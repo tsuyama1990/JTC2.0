@@ -1,12 +1,12 @@
 from langgraph.graph import END, StateGraph
-from langgraph.graph.graph import CompiledGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from src.agents.ideator import IdeatorAgent
 from src.core.llm import get_llm
 from src.domain_models.state import GlobalState
 
 
-def create_app() -> CompiledGraph:
+def create_app() -> CompiledStateGraph:
     """Create and compile the LangGraph application."""
     llm = get_llm()
     ideator = IdeatorAgent(llm)

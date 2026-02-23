@@ -1,5 +1,6 @@
 import argparse
 import sys
+from itertools import islice
 
 # Add src to path if running from root
 sys.path.append(".")
@@ -15,7 +16,9 @@ def echo(msg: str) -> None:
     print(msg)  # noqa: T201
 
 
-def display_ideas_paginated(ideas: list[LeanCanvas], page_size: int = 5) -> None:
+def display_ideas_paginated(
+    ideas: list[LeanCanvas], page_size: int = settings.ui_page_size
+) -> None:
     """
     Display generated ideas with pagination using a generator-like approach.
 
@@ -30,19 +33,13 @@ def display_ideas_paginated(ideas: list[LeanCanvas], page_size: int = 5) -> None
     total_ideas = len(ideas)
     echo(f"\n=== Generated {total_ideas} Ideas ===")
 
-    # Use iterator to process chunks without loading everything into memory (if it were a stream)
-    # Since 'ideas' is a list, we are already in memory, but this structure supports future streaming.
+    # Use iterator to process chunks efficiently
     iterator = iter(ideas)
 
     shown_count = 0
     while shown_count < total_ideas:
-        # Consume chunk
-        chunk = []
-        try:
-            for _ in range(page_size):
-                chunk.append(next(iterator))
-        except StopIteration:
-            pass
+        # Use islice to consume chunk without creating intermediate lists of full size
+        chunk = list(islice(iterator, page_size))
 
         if not chunk:
             break
@@ -63,19 +60,17 @@ def select_idea(ideas: list[LeanCanvas]) -> LeanCanvas | None:
     """
     Prompt user to select an idea.
 
-    Optimized for O(N) lookup once, then O(1) selection logic.
+    Uses direct filtering to avoid O(N) memory allocation for a lookup dictionary.
     """
-    # Create lookup map for O(1) access
-    # Given N=10, memory overhead is negligible.
-    idea_map = {idea.id: idea for idea in ideas}
-
     while True:
         try:
             choice = input("\n[GATE 1] Select an Idea ID (0-9) to proceed: ")
             idx = int(choice)
 
-            if idx in idea_map:
-                return idea_map[idx]
+            # O(N) search but O(1) memory
+            for idea in ideas:
+                if idea.id == idx:
+                    return idea
 
             echo(f"ID {idx} not found. Please try again.")
         except ValueError:
@@ -90,24 +85,25 @@ def main() -> None:
 
     echo("=== JTC 2.0 Cycle 1: Foundation & Ideation ===")
 
-    topic = args.topic
-    if not topic:
-        topic = input("Enter a business topic (e.g., 'AI for Agriculture'): ")
-
-    if not topic.strip():
-        echo("Topic cannot be empty.")
-        return
-
-    echo(f"\nPhase: {Phase.IDEATION}")
-    echo(f"Researching and Ideating for: '{topic}'...")
-    echo("(This may take 30-60 seconds due to search and LLM generation)...")
-
     try:
+        topic = args.topic
+        if not topic:
+            topic = input("Enter a business topic (e.g., 'AI for Agriculture'): ")
+
+        if not topic.strip():
+            echo("Topic cannot be empty.")
+            return
+
+        echo(f"\nPhase: {Phase.IDEATION}")
+        echo(f"Researching and Ideating for: '{topic}'...")
+        echo("(This may take 30-60 seconds due to search and LLM generation)...")
+
         app = create_app()
         initial_state = GlobalState(topic=topic)
         final_state = app.invoke(initial_state)
     except Exception as e:
         echo(f"\nError during execution: {e}")
+        # In a real app, we might log the full traceback here
         return
 
     generated_ideas = final_state.get("generated_ideas", [])
@@ -120,7 +116,7 @@ def main() -> None:
         # Convert dicts to models if necessary (LangGraph serialization)
         typed_ideas = [LeanCanvas(**g) for g in generated_ideas]
 
-    display_ideas_paginated(typed_ideas, page_size=settings.ui_page_size)
+    display_ideas_paginated(typed_ideas)
 
     if not typed_ideas:
         return

@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     log_level: str = Field(alias="LOG_LEVEL", default="INFO")
 
 
+def _validate_settings(s: Settings) -> None:
+    if not s.openai_api_key:
+        msg = "OPENAI_API_KEY is missing"
+        raise ValueError(msg)
+    if not s.tavily_api_key:
+        msg = "TAVILY_API_KEY is missing"
+        raise ValueError(msg)
+
+
 def load_settings() -> Settings:
     """Load and validate settings."""
     try:
@@ -47,16 +56,8 @@ def load_settings() -> Settings:
         # We allow missing keys ONLY if we are in a testing environment (pytest)
         # to prevent import errors during test collection.
         # Tests will patch the settings anyway.
-        if "pytest" in sys.modules:
-            return s
-
-        # Explicit validation after load for production/runtime
-        if not s.openai_api_key:
-            msg = "OPENAI_API_KEY is missing"
-            raise ValueError(msg)
-        if not s.tavily_api_key:
-            msg = "TAVILY_API_KEY is missing"
-            raise ValueError(msg)
+        if "pytest" not in sys.modules:
+            _validate_settings(s)
         return s
     except Exception as e:
         # We use print here because logging might not be configured yet
