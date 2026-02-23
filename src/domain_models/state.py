@@ -131,7 +131,7 @@ class GlobalState(BaseModel):
 
         # Reject invalid types explicitly
         msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
-        raise ValueError(msg)
+        raise TypeError(msg)
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:

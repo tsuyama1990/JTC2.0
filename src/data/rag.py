@@ -29,13 +29,20 @@ class RAG:
 
     def _validate_path(self, path_str: str) -> str:
         """Ensure persist directory is safe."""
-        path = Path(path_str).resolve()
+        # Use strict resolution to catch symlinks
+        try:
+            path = Path(path_str).resolve(strict=False)
+        except Exception as e:
+            msg = f"Invalid path: {e}"
+            raise ValueError(msg) from e
+
         cwd = Path.cwd().resolve()
 
+        # Strict allowlist check: Must be relative to CWD
         if not path.is_relative_to(cwd):
-             msg = "Path traversal detected in persist_dir"
+             msg = "Path traversal detected in persist_dir. Must be within project root."
              raise ValueError(msg)
-        return path_str
+        return str(path)
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""

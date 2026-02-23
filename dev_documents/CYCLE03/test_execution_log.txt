@@ -4,7 +4,7 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 19 items / 15 errors
+collected 20 items / 15 errors
 
 ==================================== ERRORS ====================================
 _____________ ERROR collecting tests/integration/test_rag_flow.py ______________
@@ -23,7 +23,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -51,7 +51,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -71,7 +71,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -91,7 +91,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -111,7 +111,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -131,7 +131,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -151,7 +151,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -181,7 +181,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -211,7 +211,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -235,7 +235,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -255,7 +255,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -279,7 +279,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -309,7 +309,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -333,7 +333,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -353,7 +353,7 @@ src/domain_models/metrics.py:9: in <module>
 src/domain_models/metrics.py:14: in AARRR
     ge=get_settings().validation.min_metric_value,
        ^^^^^^^^^^^^^^
-src/core/config.py:285: in get_settings
+src/core/config.py:294: in get_settings
     return Settings()
            ^^^^^^^^^^
 .venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
@@ -378,4 +378,4 @@ ERROR tests/unit/test_memory_safety.py - pydantic_core._pydantic_core.Validat...
 ERROR tests/unit/test_simulation_logic.py - pydantic_core._pydantic_core.Vali...
 ERROR tests/unit/test_ui.py - pydantic_core._pydantic_core.ValidationError: 1...
 !!!!!!!!!!!!!!!!!!! Interrupted: 15 errors during collection !!!!!!!!!!!!!!!!!!!
-============================== 15 errors in 8.35s ==============================
+============================== 15 errors in 7.77s ==============================

@@ -145,6 +145,7 @@ class AgentConfig(BaseModel):
 
 def _load_default_agents_config() -> dict[str, AgentConfig]:
     """Load default agent configuration from Theme constants."""
+    # Defined explicitly within the function to avoid global module-level mutable state
     return {
         "New Employee": AgentConfig(
             role="New Employee",
@@ -265,11 +266,19 @@ class Settings(BaseSettings):
         self.validate_api_keys()
 
     def validate_api_keys(self) -> Self:
-        """Validate API keys are present."""
+        """Validate API keys are present and have correct format."""
         if not self.openai_api_key:
             raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
+        if not self.openai_api_key.get_secret_value().startswith("sk-"):
+            msg = "OpenAI API Key must start with 'sk-'."
+            raise ValueError(msg)
+
         if not self.tavily_api_key:
             raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
+        if not self.tavily_api_key.get_secret_value().startswith("tvly-"):
+            msg = "Tavily API Key must start with 'tvly-'."
+            raise ValueError(msg)
+
         return self
 
     def rotate_keys(self) -> None:

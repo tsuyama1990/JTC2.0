@@ -193,9 +193,8 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
         return
 
     # Normalize to iterator and STRICTLY enforce iterator type
+    # We strictly expect an iterator or convert to one without loading into list first
     if not isinstance(generated_ideas_raw, Iterator):
-        # We explicitly convert to iterator if it's iterable, but warn if it was a list
-        # This enforces the "generator first" constraint from constitution
         iterator = iter(generated_ideas_raw)
     else:
         iterator = generated_ideas_raw
