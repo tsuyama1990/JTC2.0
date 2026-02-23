@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -96,4 +96,16 @@ class Persona(BaseModel):
     interview_insights: list[str] = Field(
         default_factory=list,
         description="Key insights derived from customer interviews.",
+        min_length=0,
+        max_length=50, # Added max length limit
     )
+
+    @field_validator("interview_insights")
+    @classmethod
+    def validate_insights_content(cls, v: list[str]) -> list[str]:
+        """Validate content of interview insights."""
+        for insight in v:
+            if len(insight.strip()) < 5:
+                msg = f"Insight '{insight}' is too short."
+                raise ValueError(msg)
+        return v

@@ -52,7 +52,10 @@ class LazyIdeaIterator:
         self._consumed = True
         return self._iterator
 
-    def next(self) -> LeanCanvas:
+    def __next__(self) -> LeanCanvas:
+        # Allow direct iteration on the wrapper
+        if not self._consumed:
+             self._consumed = True
         return next(self._iterator)
 
 
@@ -65,8 +68,16 @@ class GlobalState(BaseModel):
     phase: Phase = Phase.IDEATION
     topic: str = ""
 
-    # Critical: Wrapper for memory efficiency.
-    generated_ideas: LazyIdeaIterator | Iterator[LeanCanvas] | None = None
+    # Critical: Wrapper for memory efficiency. Enforced single type.
+    # Note: Union removed as requested by audit, but Pydantic validation might fail
+    # if passing a raw iterator when instantiating or copying if not handled.
+    # However, `LazyIdeaIterator` wraps an iterator.
+    # If the input is ALREADY a LazyIdeaIterator, it works.
+    # If the input is a raw iterator, Pydantic will complain unless we use a validator
+    # to auto-wrap it or relax the type.
+    # Given strict type enforcement requested: "Enforce LazyIdeaIterator type exclusively".
+    # This means the producer (IdeatorAgent) MUST return a LazyIdeaIterator.
+    generated_ideas: LazyIdeaIterator | None = None
 
     selected_idea: LeanCanvas | None = None
     messages: list[str] = Field(default_factory=list)
@@ -102,6 +113,18 @@ class GlobalState(BaseModel):
             if role != state.role:
                 msg = f"Key {role} does not match AgentState role {state.role}"
                 raise ValueError(msg)
+        return v
+
+    @field_validator("generated_ideas", mode="before")
+    @classmethod
+    def wrap_iterator(cls, v: object) -> object:
+        """
+        Auto-wrap Iterator[LeanCanvas] into LazyIdeaIterator if needed.
+        This allows passing a raw iterator (e.g. from tests or agents) while ensuring
+        the internal state uses the safe wrapper.
+        """
+        if isinstance(v, Iterator) and not isinstance(v, LazyIdeaIterator):
+            return LazyIdeaIterator(v)  # type: ignore[arg-type]
         return v
 
     @model_validator(mode="after")

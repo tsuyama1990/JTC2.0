@@ -37,55 +37,6 @@ from src.core.constants import (
     MSG_WAITING_FOR_DEBATE,
 )
 
-# Default configuration for agents, defined here to be part of the schema
-# This avoids "magic numbers" in the renderer code while keeping it configurable.
-_DEFAULT_AGENTS_CONFIG = {
-    "New Employee": {
-        "role": "New Employee",
-        "label": "NewEmp",
-        "color": 11,
-        "x": 20,
-        "y": 80,
-        "w": 20,
-        "h": 30,
-        "text_x": 15,
-        "text_y": 112,
-    },
-    "Finance Manager": {
-        "role": "Finance Manager",
-        "label": "Finance",
-        "color": 8,
-        "x": 70,
-        "y": 80,
-        "w": 20,
-        "h": 30,
-        "text_x": 65,
-        "text_y": 112,
-    },
-    "Sales Manager": {
-        "role": "Sales Manager",
-        "label": "Sales",
-        "color": 9,
-        "x": 120,
-        "y": 80,
-        "w": 20,
-        "h": 30,
-        "text_x": 120,
-        "text_y": 112,
-    },
-    "CPO": {
-        "role": "CPO",
-        "label": "CPO",
-        "color": 12,
-        "x": 140,
-        "y": 40,
-        "w": 20,
-        "h": 30,
-        "text_x": 135,
-        "text_y": 72,
-    },
-}
-
 
 class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
@@ -176,6 +127,59 @@ class AgentConfig(BaseModel):
         return v
 
 
+def _load_default_agents_config() -> dict[str, AgentConfig]:
+    """Load default agent configuration. Can be replaced with file loader."""
+    # This could load from a JSON file, e.g., json.load(open("agent_config.json"))
+    # For now, we define the structure here to satisfy strict schema requirements
+    # while keeping it separated from the class definition.
+    return {
+        "New Employee": AgentConfig(
+            role="New Employee",
+            label="NewEmp",
+            color=11,
+            x=20,
+            y=80,
+            w=20,
+            h=30,
+            text_x=15,
+            text_y=112,
+        ),
+        "Finance Manager": AgentConfig(
+            role="Finance Manager",
+            label="Finance",
+            color=8,
+            x=70,
+            y=80,
+            w=20,
+            h=30,
+            text_x=65,
+            text_y=112,
+        ),
+        "Sales Manager": AgentConfig(
+            role="Sales Manager",
+            label="Sales",
+            color=9,
+            x=120,
+            y=80,
+            w=20,
+            h=30,
+            text_x=120,
+            text_y=112,
+        ),
+        "CPO": AgentConfig(
+            role="CPO",
+            label="CPO",
+            color=12,
+            x=140,
+            y=40,
+            w=20,
+            h=30,
+            text_x=135,
+            text_y=72,
+        ),
+    }
+
+
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
@@ -200,11 +204,8 @@ class SimulationConfig(BaseSettings):
     max_turns: int = 5
 
     # Agent Map (Role -> Config)
-    # Using a dict to avoid hardcoding role logic in renderer
-    # Default is provided, but can be overridden by environment variables if needed
-    agents: dict[str, AgentConfig] = Field(
-        default_factory=lambda: {k: AgentConfig(**v) for k, v in _DEFAULT_AGENTS_CONFIG.items()}
-    )
+    # Using default_factory to allow overrides and load from external source if needed
+    agents: dict[str, AgentConfig] = Field(default_factory=_load_default_agents_config)
 
     @field_validator("width", "height")
     @classmethod
@@ -273,7 +274,7 @@ class Settings(BaseSettings):
     def rotate_keys(self) -> None:
         """
         Placeholder for key rotation logic.
-        In production, this would fetch new keys from a secret manager (e.g., AWS Secrets Manager, HashiCorp Vault).
+        In production, this would fetch new keys from a secret manager.
         """
 
 

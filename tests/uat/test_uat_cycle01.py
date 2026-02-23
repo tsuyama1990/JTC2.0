@@ -12,7 +12,7 @@ from src.core.graph import create_app
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
-from src.domain_models.state import GlobalState, Phase
+from src.domain_models.state import GlobalState, LazyIdeaIterator, Phase
 
 
 @pytest.fixture
@@ -50,12 +50,8 @@ def test_uat_cycle01_full_flow(
                 solution="Solution description text",
             )
 
-    # Use LazyIdeaIterator wrapper as per new implementation if agent returns raw iterator,
-    # but GlobalState expects LazyIdeaIterator or Iterator.
-    # Ideally the agent should return the wrapped iterator or the graph/handler should wrap it.
-    # In `ideator.py`, it yields items. `IdeatorAgent.run` returns `{"generated_ideas": ideas_iter}`.
-    # The GlobalState model will accept Iterator.
-    mock_ideator_instance.run.return_value = {"generated_ideas": large_dataset_generator()}
+    # Use LazyIdeaIterator wrapper as per new implementation
+    mock_ideator_instance.run.return_value = {"generated_ideas": LazyIdeaIterator(large_dataset_generator())}
 
     # --- 2. Build App ---
     app = create_app()
@@ -88,6 +84,8 @@ def test_uat_cycle01_full_flow(
     assert selected_idea.id == 2
 
     # Update state with selection
+    # We verify that we can construct a valid state for the next phase manually,
+    # simulating the effect of the user input and re-entry.
     state_after_gate_1 = GlobalState(
         **result_dict,
         selected_idea=selected_idea

@@ -25,6 +25,17 @@ class PersonaAgent(BaseAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
+        self._base_init(llm, role, system_prompt, search_tool, app_settings)
+
+    def _base_init(
+        self,
+        llm: ChatOpenAI,
+        role: Role,
+        system_prompt: str,
+        search_tool: SearchTool | None,
+        app_settings: Settings | None,
+    ) -> None:
+        """Common initialization logic."""
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
@@ -39,27 +50,22 @@ class PersonaAgent(BaseAgent):
             if self.settings.tavily_api_key
             else None
         )
-        # Cache for research results: {topic: result}
         self._research_cache: dict[str, str] = {}
-        # Rate limit state: last_request_time
         self._last_request_time: float = 0.0
-        self._min_request_interval: float = 1.0 # 1 second
+        self._min_request_interval: float = 1.0
 
     def _build_context(self, state: GlobalState) -> str:
         """Construct the conversation history context."""
-        if state.selected_idea:
-            # Use list of strings for efficiency
-            context_parts = [
-                f"IDEA: {state.selected_idea.title}",
-                f"PROBLEM: {state.selected_idea.problem}",
-                f"SOLUTION: {state.selected_idea.solution}",
-                f"UVP: {state.selected_idea.unique_value_prop}",
-                "\nDEBATE HISTORY:"
-            ]
-        else:
-            context_parts = ["\nDEBATE HISTORY:"]
+        context_parts = ["\nDEBATE HISTORY:"]
 
-        # Efficiently extend the list using a generator
+        if state.selected_idea:
+            # Efficient prepending logic or just standard order
+            context_parts.insert(0, f"UVP: {state.selected_idea.unique_value_prop}")
+            context_parts.insert(0, f"SOLUTION: {state.selected_idea.solution}")
+            context_parts.insert(0, f"PROBLEM: {state.selected_idea.problem}")
+            context_parts.insert(0, f"IDEA: {state.selected_idea.title}")
+
+        # Generator expression for history
         context_parts.extend(f"{msg.role}: {msg.content}" for msg in state.debate_history)
 
         return "\n".join(context_parts)
@@ -85,7 +91,10 @@ class PersonaAgent(BaseAgent):
         self._last_request_time = time.time()
 
     def _cached_research(self, topic: str) -> str:
-        """Cache and rate-limit research results."""
+        """Cache research results to avoid redundant API calls."""
+        # _research_cache is initialized in _base_init, so we don't need to define it here again
+        # unless we are handling cases where _base_init wasn't called (unlikely for controlled usage).
+
         if topic in self._research_cache:
             return self._research_cache[topic]
 
@@ -142,9 +151,7 @@ class FinanceAgent(PersonaAgent):
             "You use market data to find reasons why new ideas will fail. "
             "Be critical but professional."
         )
-        super().__init__(
-            llm, Role.FINANCE, system_prompt, search_tool, app_settings
-        )
+        self._base_init(llm, Role.FINANCE, system_prompt, search_tool, app_settings)
 
     def _research_impl(self, topic: str) -> str:
         """Perform market research on risks."""
@@ -166,9 +173,7 @@ class SalesAgent(PersonaAgent):
             "You worry about cannibalizing existing products and whether the sales force can actually sell this. "
             "You care about immediate revenue and customer trust."
         )
-        super().__init__(
-            llm, Role.SALES, system_prompt, search_tool, app_settings
-        )
+        self._base_init(llm, Role.SALES, system_prompt, search_tool, app_settings)
 
 
 class NewEmployeeAgent(PersonaAgent):
@@ -185,9 +190,7 @@ class NewEmployeeAgent(PersonaAgent):
             "You are nervous. You try to answer questions but often falter. "
             "You defend the idea passionately but acknowledge weaknesses."
         )
-        super().__init__(
-            llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings
-        )
+        self._base_init(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)
 
 
 class CPOAgent(PersonaAgent):
@@ -206,9 +209,7 @@ class CPOAgent(PersonaAgent):
             "In the rooftop phase, you provide fact-based advice using market data. "
             "You never give the final answer, but provide 'weapons' (facts/examples) to help them win the argument."
         )
-        super().__init__(
-            llm, Role.CPO, system_prompt, search_tool, app_settings
-        )
+        self._base_init(llm, Role.CPO, system_prompt, search_tool, app_settings)
 
     def _research_impl(self, topic: str) -> str:
         """Perform deep market research for mentoring."""
