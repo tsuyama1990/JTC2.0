@@ -15,16 +15,21 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
     """
     Wrapper for Idea Iterator to enforce single-use consumption and safety limits.
 
-    Safety:
-    - Enforces a strict maximum number of items (`iterator_safety_limit`) to prevent infinite loops/OOM.
-    - Tracks consumption state.
+    This iterator ensures that we don't load infinite items or consume too much memory.
+    It expects a generator or iterator as input.
     """
 
     def __init__(self, iterator: Iterator[LeanCanvas]) -> None:
+        """
+        Initialize the lazy iterator.
+
+        Args:
+            iterator: An iterator (preferably a generator) yielding LeanCanvas objects.
+                      The iterator should NOT be pre-materialized list if possible.
+        """
         self._iterator = iterator
         self._consumed = False
         self._count = 0
-        # Load limit from settings to avoid hardcoding
         self._max_items = get_settings().iterator_safety_limit
 
     def __iter__(self) -> Iterator[LeanCanvas]:
@@ -32,18 +37,13 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
 
     def __next__(self) -> LeanCanvas:
         if self._count >= self._max_items:
-            # We raise StopIteration to signal end of stream,
-            # but we can optionally log a warning if it's hitting the safety cap abruptly.
-            # Standard Python iteration protocol requires StopIteration.
+            # Safety break
             raise StopIteration
 
-        try:
-            item = next(self._iterator)
-            self._consumed = True
-            self._count += 1
-            return item
-        except StopIteration:
-            raise
+        item = next(self._iterator)
+        self._consumed = True
+        self._count += 1
+        return item
 
     @classmethod
     def __get_pydantic_core_schema__(
