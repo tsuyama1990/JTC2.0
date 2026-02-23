@@ -1,8 +1,15 @@
 import logging
+from typing import Any
 
 import httpx
 
 from src.core.config import get_settings
+from src.core.constants import (
+    ERR_V0_API_KEY_MISSING,
+    ERR_V0_GENERATION_FAILED,
+    ERR_V0_NETWORK_ERROR,
+    ERR_V0_NO_URL,
+)
 from src.core.exceptions import V0GenerationError
 
 logger = logging.getLogger(__name__)
@@ -34,9 +41,8 @@ class V0Client:
             V0GenerationError: If the API call fails or configuration is missing.
         """
         if not self.api_key:
-            msg = "V0_API_KEY is not configured."
-            logger.error(msg)
-            raise V0GenerationError(msg)
+            logger.error(ERR_V0_API_KEY_MISSING)
+            raise V0GenerationError(ERR_V0_API_KEY_MISSING)
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -64,18 +70,20 @@ class V0Client:
                 response = client.post(self.base_url, headers=headers, json=payload)
 
                 if response.status_code != 200:
+                    msg = ERR_V0_GENERATION_FAILED.format(status_code=response.status_code)
                     logger.error(f"v0.dev API error: {response.status_code} - {response.text}")
-                    raise V0GenerationError(f"v0.dev generation failed: {response.status_code}")
+                    raise V0GenerationError(msg)
 
                 data = response.json()
 
                 if "url" in data:
                     return str(data["url"])
 
-                msg = f"No URL found in v0 response: {data.keys()}"
+                msg = ERR_V0_NO_URL.format(keys=list(data.keys()))
                 logger.error(msg)
                 raise V0GenerationError(msg)
 
         except httpx.RequestError as e:
-            logger.exception(f"Network error calling v0.dev: {e}")
-            raise V0GenerationError(f"Network error: {e}") from e
+            msg = ERR_V0_NETWORK_ERROR.format(e=e)
+            logger.exception(msg)
+            raise V0GenerationError(msg) from e

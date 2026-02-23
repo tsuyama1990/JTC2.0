@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from httpx import RequestError, Response
+from httpx import Response, RequestError
 
 from src.core.exceptions import V0GenerationError
 
@@ -71,5 +71,8 @@ class TestV0Client:
         """Test network error."""
         mock_post.side_effect = RequestError("Connection failed")
 
-        with pytest.raises(V0GenerationError, match="Network error:"):
+        # The actual error message is formatted string from V0_NETWORK_ERROR constant
+        # "Network error calling v0.dev: {e}"
+        # We need to match part of it
+        with pytest.raises(V0GenerationError, match="Network error calling v0.dev:"):
             client.generate_ui("prompt")

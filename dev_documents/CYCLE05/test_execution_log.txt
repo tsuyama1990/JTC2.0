@@ -51,7 +51,7 @@ src/agents/mixins.py                  23      6    74%   28, 31-35
 src/agents/personas.py                79      5    94%   90-92, 97-98
 src/core/__init__.py                   0      0   100%
 src/core/config.py                   141      0   100%
-src/core/constants.py                 89      0   100%
+src/core/constants.py                 94      0   100%
 src/core/exceptions.py                 6      0   100%
 src/core/factory.py                   33     15    55%   23-24, 35-49
 src/core/graph.py                     99     42    58%   22-24, 30-40, 62-69, 74-81, 88-90, 93, 125-127, 132-142
@@ -80,8 +80,8 @@ src/domain_models/transcript.py       22      2    91%   32-33
 src/domain_models/validators.py       12      0   100%
 src/tools/__init__.py                  3      0   100%
 src/tools/search.py                   34      2    94%   39, 75
-src/tools/v0_client.py                32      0   100%
+src/tools/v0_client.py                35      0   100%
 src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 128-134, 154
 ----------------------------------------------------------------
-TOTAL                               1658    191    88%
-============================= 115 passed in 19.79s =============================
+TOTAL                               1666    191    89%
+============================= 115 passed in 20.76s =============================
