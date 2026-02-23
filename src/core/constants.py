@@ -12,14 +12,24 @@ ERR_LLM_CONFIG_MISSING: Final[str] = (
 ERR_SEARCH_FAILED: Final[str] = "Search service unavailable."
 ERR_LLM_FAILURE: Final[str] = "LLM generation failed."
 ERR_UNIQUE_ID_VIOLATION: Final[str] = "Generated ideas must have unique IDs."
+ERR_TOO_MANY_METRICS: Final[str] = "Too many custom metrics. Limit is {limit}"
+ERR_INVALID_METRIC_KEY: Final[str] = "Metric key '{key}' contains invalid characters."
+ERR_MISSING_PERSONA: Final[str] = "Target persona is required for VERIFICATION phase."
+ERR_MISSING_MVP: Final[str] = "MVP definition is required for SOLUTION phase."
+
+# Validation Errors (Config)
+ERR_INVALID_COLOR: Final[str] = "Color must be between 0 and 15"
+ERR_INVALID_DIMENSIONS: Final[str] = "Dimensions must be positive"
+ERR_INVALID_RESOLUTION: Final[str] = "Resolution must be positive"
+ERR_INVALID_FPS: Final[str] = "FPS must be between 1 and 60"
 
 # UI Messages
 MSG_NO_IDEAS: Final[str] = "\nNo ideas generated. Please try again or check logs."
-MSG_GENERATED_HEADER: Final[str] = "\n=== Generated {count} Ideas ==="
+MSG_GENERATED_HEADER: Final[str] = "\n=== Generated Ideas ==="
 MSG_PRESS_ENTER: Final[str] = "\nPress Enter to see more..."
-MSG_SELECT_PROMPT: Final[str] = "\n[GATE 1] Select an Idea ID (0-9) to proceed: "
-MSG_ID_NOT_FOUND: Final[str] = "ID {idx} not found. Please try again."
-MSG_INVALID_INPUT: Final[str] = "Please enter a valid number."
+MSG_SELECT_PROMPT: Final[str] = "\n[GATE 1] Select an Idea ID (0-9) to proceed (or 'n' for next page): "
+MSG_ID_NOT_FOUND: Final[str] = "ID {idx} not found in this batch. Please try again."
+MSG_INVALID_INPUT: Final[str] = "Please enter a valid number or 'n'."
 MSG_SELECTED: Final[str] = "\n✓ Selected Plan: {title}"
 MSG_CYCLE_COMPLETE: Final[str] = "Cycle 1 Complete. State updated."
 MSG_TOPIC_EMPTY: Final[str] = "Topic cannot be empty."
@@ -27,6 +37,10 @@ MSG_PHASE_START: Final[str] = "\nPhase: {phase}"
 MSG_RESEARCHING: Final[str] = "Researching and Ideating for: '{topic}'..."
 MSG_WAIT: Final[str] = "(This may take 30-60 seconds due to search and LLM generation)..."
 MSG_EXECUTION_ERROR: Final[str] = "\nError during execution: {e}"
+
+# Simulation Messages
+MSG_SIM_TITLE: Final[str] = "JTC Simulation"
+MSG_WAITING_FOR_DEBATE: Final[str] = "Waiting for debate start..."
 
 # Domain Model Descriptions
 DESC_MVP_TYPE: Final[str] = "Type of MVP (e.g., Landing Page, Wizard of Oz)"

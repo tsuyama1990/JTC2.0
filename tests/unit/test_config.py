@@ -2,8 +2,9 @@ import os
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
-from src.core.config import get_settings
+from src.core.config import AgentConfig, SimulationConfig, get_settings
 
 
 def test_config_loading_success() -> None:
@@ -62,3 +63,45 @@ def test_invalid_log_level() -> None:
         get_settings.cache_clear()
         s = get_settings()
         assert s.log_level == "INVALID"
+
+
+def test_agent_config_validation() -> None:
+    """Test validation for AgentConfig."""
+    # Valid config
+    AgentConfig(
+        role="Test", label="T", color=0, x=1, y=1, w=10, h=10, text_x=1, text_y=1
+    )
+
+    # Invalid color (<0)
+    with pytest.raises(ValidationError):
+        AgentConfig(
+            role="Test", label="T", color=-1, x=1, y=1, w=10, h=10, text_x=1, text_y=1
+        )
+
+    # Invalid color (>15)
+    with pytest.raises(ValidationError):
+        AgentConfig(
+            role="Test", label="T", color=16, x=1, y=1, w=10, h=10, text_x=1, text_y=1
+        )
+
+    # Invalid dimension (<=0)
+    with pytest.raises(ValidationError):
+        AgentConfig(
+            role="Test", label="T", color=0, x=1, y=1, w=0, h=10, text_x=1, text_y=1
+        )
+
+
+def test_simulation_config_validation() -> None:
+    """Test validation for SimulationConfig."""
+    # Valid
+    SimulationConfig(
+        width=160, height=120, fps=30, bg_color=0, text_color=7
+    )
+
+    # Invalid FPS
+    with pytest.raises(ValidationError):
+        SimulationConfig(fps=0)
+
+    # Invalid Resolution
+    with pytest.raises(ValidationError):
+        SimulationConfig(width=-100)

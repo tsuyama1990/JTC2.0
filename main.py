@@ -1,16 +1,19 @@
 import argparse
 import logging
 import sys
-from collections.abc import Iterable, Iterator
-from itertools import chain
+import threading
+from collections.abc import Iterator
+from itertools import chain, islice
 
 # Add src to path if running from root
 sys.path.append(".")
 
-from src.core.config import get_settings
+from src.core.config import UIConfig, get_settings
 from src.core.graph import create_app
+from src.core.simulation import create_simulation_graph
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
+from src.ui.renderer import SimulationRenderer
 
 # Configure logging
 settings = get_settings()
@@ -23,144 +26,110 @@ def echo(msg: str) -> None:
     print(msg)  # noqa: T201
 
 
-def display_ideas_paginated(
-    ideas: Iterable[LeanCanvas], page_size: int | None = None
-) -> None:
+def safe_input(prompt: str) -> str:
     """
-    Display generated ideas with pagination using a strictly lazy generator approach.
-    Crucially, this method never materializes a full list of 'chunk' size in memory
-    if page_size is large, although printing requires materializing one item at a time.
+    Safely handle user input with stripping and EOF handling.
 
     Args:
-        ideas: Iterable of LeanCanvas objects.
-        page_size: Number of items per page.
+        prompt: The prompt to display.
+
+    Returns:
+        Cleaned input string.
     """
-    ui_config = get_settings().ui
-    if page_size is None:
-        page_size = ui_config.page_size
-
-    iterator = iter(ideas)
-
-    # Peek to handle "No ideas" case
     try:
-        first_item = next(iterator)
-    except StopIteration:
-        echo(ui_config.no_ideas)
-        return
-
-    # Reconstruct iterator
-    iterator = chain([first_item], iterator)
-    echo(ui_config.generated_header)
-
-    while True:
-        count = 0
-        has_items = False
-
-        # Iterate manually up to page_size
-        for _ in range(page_size):
-            try:
-                idea = next(iterator)
-                has_items = True
-                count += 1
-                echo(f"\n[{idea.id}] {idea.title}")
-                echo(f"    Problem: {idea.problem}")
-                echo(f"    Solution: {idea.solution}")
-                echo("-" * 50)
-            except StopIteration:
-                break
-
-        if not has_items:
-            break
-
-        # If we processed fewer items than page_size, we are done
-        if count < page_size:
-            break
-
-        # Prompt for next page
-        input(ui_config.press_enter)
+        return input(prompt).strip()
+    except EOFError:
+        return ""
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 
-def select_idea(ideas: Iterable[LeanCanvas]) -> LeanCanvas | None:
-    """
-    Prompt user to select an idea.
-
-    LIMITATION: Since 'ideas' is an iterator/generator for scalability,
-    we cannot rewind it. We scan it ONCE to find the ID.
-    This implies O(N) search and the iterator is consumed.
-
-    For a CLI workflow, this means if the user picks an ID that appeared
-    in the *past* (paginated view), and we are iterating the same stream,
-    it works if we haven't consumed past it. But 'display_ideas_paginated'
-    CONSUMES the iterator.
-
-    Therefore, strictly speaking, passing the *same* iterator to 'select_idea'
-    after 'display_ideas_paginated' will result in an empty iterator.
-
-    To solve this in a strictly streaming/OOM-safe way without caching:
-    The selection must happen *during* display or we must be able to re-generate.
-
-    However, the typical pattern is:
-    1. Generate (List stored in State, or Generator?)
-    2. Display
-    3. Select
-
-    The 'GlobalState' currently stores 'generated_ideas: list[LeanCanvas]'.
-    This VIOLATES the "NEVER load entire datasets" rule if the list is huge.
-    BUT, the agent returns a list.
-
-    If we assume the Agent *could* return a generator, we'd need to change 'GlobalState'
-    to not hold a list. But Pydantic models hold data.
-
-    For this specific refactor (CLI), assuming we receive an iterable:
-    If it's a list (from state), we can iterate it multiple times.
-    If it's a generator, 'display' consumes it.
-
-    FIX: We will scan the iterable. If it's exhausted, we assume the user
-    provided a list (as per current architecture) OR we acknowledge that
-    selection on a consumed stream is impossible.
-
-    Since '_process_execution' returns 'list[LeanCanvas]', strict scalability
-    at the CLI level is bounded by the fact that we already loaded the list in memory.
-
-    To satisfy the audit "NEVER load... in select_idea":
-    We iterate one by one and check ID. We do NOT build a map.
-    """
-    ui_config = get_settings().ui
+def _process_page_selection(
+    page_items: list[LeanCanvas],
+    page_size: int,
+    ui_config: UIConfig
+) -> LeanCanvas | None | str:
+    """Handle user input for a single page."""
+    for item in page_items:
+        echo(f"\n[{item.id}] {item.title}")
+        echo(f"    Problem: {item.problem}")
+        echo(f"    Solution: {item.solution}")
+        echo("-" * 50)
 
     while True:
+        choice = safe_input(ui_config.select_prompt)
+
+        if not choice:
+            continue
+
+        if choice.lower() == 'n':
+            # If strictly less than page size, we know it's the last page
+            if len(page_items) < page_size:
+                echo("End of list.")
+                return None
+            return 'next'
+
         try:
-            choice = input(ui_config.select_prompt)
             idx = int(choice)
-
-            # Resetting iterator is impossible if it's a generator.
-            # We assume 'ideas' is a re-iterable collection (like a list)
-            # OR the caller manages the stream.
-
-            iterator = iter(ideas)
-            selected = None
-
-            # Linear scan O(N) - Memory O(1)
-            for idea in iterator:
-                if idea.id == idx:
-                    selected = idea
-                    break
+            # Search in CURRENT page only
+            selected = next((i for i in page_items if i.id == idx), None)
 
             if selected:
                 return selected
 
             echo(ui_config.id_not_found.format(idx=idx))
-
-            # If ideas was a one-time generator, it's dead now.
-            # Check if we can peek to see if it's exhausted?
-            # We can't easily. We rely on the fact that for now,
-            # upstream provides a list, so iter(ideas) works again.
-            if not isinstance(ideas, list) and not isinstance(ideas, tuple):
-                 # Fail fast if we can't retry
-                 echo("Cannot retry selection on exhausted stream.")
-                 return None
-
         except ValueError:
             echo(ui_config.invalid_input)
+
+    return None
+
+
+def browse_and_select(ideas_gen: Iterator[LeanCanvas], page_size: int | None = None) -> LeanCanvas | None:
+    """
+    Browse items from generator in chunks (pages) and allow selection.
+    Strictly O(page_size) memory usage.
+    """
+    ui_config = get_settings().ui
+    if page_size is None:
+        page_size = ui_config.page_size
+
+    # Validation
+    if page_size <= 0:
+        logger.warning(f"Invalid page_size {page_size}, defaulting to 5")
+        page_size = 5
+
+    # Peek to handle empty generator
+    try:
+        first_item = next(ideas_gen)
+    except StopIteration:
+        echo(ui_config.no_ideas)
+        return None
+
+    # Put first item back into a new iterator
+    current_iter = chain([first_item], ideas_gen)
+
+    echo(ui_config.generated_header)
+
+    while True:
+        # Materialize only ONE page (O(page_size) memory)
+        page_items = list(islice(current_iter, page_size))
+
+        if not page_items:
+            break
+
+        result = _process_page_selection(page_items, page_size, ui_config)
+
+        if isinstance(result, LeanCanvas):
+            return result
+
+        if result is None:
+            return None
+
+        # If result is 'next', loop continues
+        if result == 'next':
+             continue
+
+    return None
 
 
 def _process_execution(topic: str) -> Iterator[LeanCanvas]:
@@ -174,99 +143,112 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
     initial_state = GlobalState(topic=topic)
     final_state = app.invoke(initial_state)
 
-    # Get the raw generator/iterable from state
-    # If it's a list (old behavior), iter() works. If it's a generator, iter() works.
     generated_ideas_raw = final_state.get("generated_ideas", [])
 
-    # Process lazily. If raw items are dicts, convert them.
-    # If they are LeanCanvas objects, yield them.
-    for item in generated_ideas_raw:
+    if generated_ideas_raw is None:
+        return
+
+    # Normalize to iterator
+    iterator = (
+        generated_ideas_raw
+        if isinstance(generated_ideas_raw, Iterator)
+        else iter(generated_ideas_raw)
+    )
+
+    for item in iterator:
         if isinstance(item, LeanCanvas):
             yield item
         elif isinstance(item, dict):
-            # This validation will happen item-by-item
             try:
                 yield LeanCanvas(**item)
             except Exception:
                 logger.exception("Failed to parse idea")
-                # Continue or break? Continue to be robust.
                 continue
         else:
             logger.warning(f"Unknown item type in generated ideas: {type(item)}")
 
 
+def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
+    """Run the simulation phase with UI."""
+    initial_state = GlobalState(
+        topic=topic,
+        selected_idea=selected_idea,
+        simulation_active=True,
+        phase=Phase.IDEATION
+    )
+
+    app = create_simulation_graph()
+
+    # Shared state container
+    # We use a dict to hold the current state reference
+    shared_state = {"current": initial_state}
+
+    def background_task() -> None:
+        try:
+            # We use stream_mode="values" to get full state updates
+            # app.stream yields state updates as dicts or objects depending on config
+            for state_update in app.stream(initial_state, stream_mode="values"):
+                if isinstance(state_update, dict):
+                     try:
+                         # Update shared state safely
+                         shared_state["current"] = GlobalState(**state_update)
+                     except Exception:
+                         logger.exception("Failed to convert state update to GlobalState")
+                elif isinstance(state_update, GlobalState):
+                     shared_state["current"] = state_update
+                else:
+                     logger.warning(f"Unknown state update type: {type(state_update)}")
+
+            # Simulation finished
+            # We treat the simulation as effectively done even if simulation_active is True
+            # The UI loop will just continue showing the last state.
+
+        except Exception:
+            logger.exception("Simulation thread failed")
+
+    thread = threading.Thread(target=background_task, daemon=True)
+    thread.start()
+
+    # Start UI
+    renderer = SimulationRenderer(lambda: shared_state["current"])
+    renderer.start()
+
+
 def main() -> None:
     """CLI Entry Point."""
-    parser = argparse.ArgumentParser(description="JTC 2.0 Cycle 1: Foundation & Ideation")
-    parser.add_argument("topic", nargs="?", help="Business topic for ideation")
+    parser = argparse.ArgumentParser(description="JTC 2.0")
+    parser.add_argument("topic", nargs="?", help="Business topic")
     args = parser.parse_args()
 
     ui_config = get_settings().ui
-
-    echo("=== JTC 2.0 Cycle 1: Foundation & Ideation ===")
+    echo("=== JTC 2.0 ===")
 
     try:
         topic = args.topic
         if not topic:
-            topic = input("Enter a business topic (e.g., 'AI for Agriculture'): ")
+            topic = safe_input("Enter a business topic (e.g., 'AI for Agriculture'): ")
 
         if not topic or not topic.strip():
             echo(ui_config.topic_empty)
             return
 
         if len(topic) > 200:
-            echo("Topic is too long. Please keep it under 200 characters.")
+            echo("Topic is too long.")
             return
 
-        # typed_ideas is now a generator
+        # STRICT SCALABILITY: typed_ideas_gen is a generator.
+        # We pass it directly to the browse function without converting to list.
         typed_ideas_gen = _process_execution(topic)
+
+        selected_idea = browse_and_select(typed_ideas_gen)
+
+        if selected_idea:
+            echo(ui_config.selected.format(title=selected_idea.title))
+            run_simulation_mode(topic, selected_idea)
 
     except Exception as e:
         logger.exception("Application execution failed")
         echo(ui_config.execution_error.format(e=e))
-        return
-
-    # NOTE: Since typed_ideas_gen is a generator, passing it to display_ideas_paginated
-    # will CONSUME it. We cannot reuse it for select_idea unless we cache it.
-    # To satisfy "NEVER load entire dataset", we must accept that we can't select
-    # from a consumed stream without re-generating or storing.
-
-    # Pragamatic Compromise for Prototype:
-    # Convert to list for UX usability IF small enough, OR implement selection during display.
-    # The audit strictly forbids loading entire dataset.
-    # So we MUST NOT convert to list.
-
-    # If we display, we lose the items for selection.
-    # Solution: We can't support selection after display on a strict stream without storage.
-    # We will tee the iterator? Tee stores in memory.
-
-    # We will acknowledge that for this specific strict-scalability implementation,
-    # the CLI flow is imperfect: it displays, then selection fails if it was a one-time stream.
-    # However, IdeatorAgent currently returns a generator over a *list* it holds internally
-    # (because LLM response is one object).
-    # So actually, if we re-invoke the agent or if the state holds the data...
-    # But `GlobalState` holds the iterator.
-
-    # Real Fix: We cache the items to disk (sqlite) or we accept O(N) memory for N=10.
-    # Assuming N=10 is small, but "Rule is Rule".
-
-    # Let's just pass the generator. The display will show it.
-    # `select_idea` will fail/exit if it tries to iterate a consumed generator.
-    # This proves the architecture handles OOM risk (by crashing/exiting instead of blowing RAM).
-    # Ideally, we would select *while* displaying.
-
-    display_ideas_paginated(typed_ideas_gen)
-
-    # select_idea(typed_ideas_gen)
-    # Ideally we'd remove selection or integrate it.
-    # I will comment out selection call or handle it gracefully if empty.
-
-    # If we really want to support selection, we need to collect IDs or something.
-    # For now, I will leave display functioning.
-
-    if False:
-        # Disabled selection for strict OOM compliance on streams until persistence layer is added
-        select_idea(typed_ideas_gen)
 
 
 if __name__ == "__main__":

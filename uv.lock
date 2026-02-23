@@ -346,6 +346,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "pyxel" },
     { name = "tavily-python" },
     { name = "tenacity" },
 ]
@@ -365,6 +366,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "pyxel", specifier = ">=2.6.9" },
     { name = "tavily-python", specifier = ">=0.3.0" },
     { name = "tenacity", specifier = ">=9.1.4" },
 ]
@@ -872,6 +874,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f0/26/19cadc79a718c5edbec86fd4919a6b6d3f681039a2f6d66d14be94e75fb9/python_dotenv-1.2.1.tar.gz", hash = "sha256:42667e897e16ab0d66954af0e60a9caa94f0fd4ecf3aaf6d2d260eec1aa36ad6", size = 44221, upload-time = "2025-10-26T15:12:10.434Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/14/1b/a298b06749107c305e1fe0f814c6c74aea7b2f1e10989cb30f544a1b3253/python_dotenv-1.2.1-py3-none-any.whl", hash = "sha256:b81ee9561e9ca4004139c6cbba3a238c32b03e4894671e181b671e8cb8425d61", size = 21230, upload-time = "2025-10-26T15:12:09.109Z" },
+]
+
+[[package]]
+name = "pyxel"
+version = "2.6.9"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/46/4fa17c88e835fa8d16acb51a444c06ca31843e0d580ea7b9f7ee34a178ba/pyxel-2.6.9-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:9b7c4aa5343da6dcf7588ef897ab586d65c4d0655e4b54a54d7ba0b456730b8a", size = 7270549, upload-time = "2026-02-22T23:25:22.031Z" },
+    { url = "https://files.pythonhosted.org/packages/39/6e/9075af3a0b7c9f61d0b51fc39a2b483c0d5d59616fed2189e9a388e8dcc3/pyxel-2.6.9-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:ca4f1819c1f9f0b146519c9c6a6c5f7dfb23bbfbe4e667b274fbfefd0d94ace5", size = 7007502, upload-time = "2026-02-22T23:25:23.987Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/c8/f84eb5d11e418e2d1e6119a1fc0724a67e200c42d50436174bf4e4ecbfee/pyxel-2.6.9-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:90b4ed622bace264fcb579bbe24c6fc05555cdc7b3e110ea0b3932d402af85f2", size = 7695780, upload-time = "2026-02-22T23:25:25.24Z" },
+    { url = "https://files.pythonhosted.org/packages/52/b1/87a75d2946979e62e8164dd158a870d667d1681b638503ac569e67c00481/pyxel-2.6.9-cp38-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:a2523201d7bf3bc0f96e45d25cffe4248ac57fe22fcf7043775b157441635f67", size = 7693502, upload-time = "2026-02-22T23:25:26.516Z" },
+    { url = "https://files.pythonhosted.org/packages/70/f6/685c72a8659bc7205b1c5b57c3b78bfc431c2e73b161cdfeba0fe2c63961/pyxel-2.6.9-cp38-abi3-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:0429dd35014154376ff18273a1ccdf71f2dd92c485e58a8b550b21abe38959ed", size = 8423941, upload-time = "2026-02-22T23:25:27.793Z" },
+    { url = "https://files.pythonhosted.org/packages/79/ce/41e7c7ba8b008550f1d24c3d8aa822844e09b90381df57b275f395fc9af7/pyxel-2.6.9-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2f463fcf09b1018c065537d4c786ce56b86a70a3ec55d7e853a93f6970ae4fc9", size = 7987773, upload-time = "2026-02-22T23:25:29.344Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/45/f25265315eb75044ad8928353a6efe813fea9738ec95198d1556f007e21c/pyxel-2.6.9-cp38-abi3-win32.whl", hash = "sha256:36d430af172c2be2048842dc51b38265fe599a96e9be37cf968368f933ed16ee", size = 6828037, upload-time = "2026-02-22T23:25:33.326Z" },
+    { url = "https://files.pythonhosted.org/packages/26/92/0775a282c53771130a8495663807bf6a6110672997990cabc227003f44fe/pyxel-2.6.9-cp38-abi3-win_amd64.whl", hash = "sha256:e526ae675b84d62e6a9cd5157cfa3abad7275c0f45df8b3766d7ef4188bfc853", size = 7028959, upload-time = "2026-02-22T23:25:30.953Z" },
 ]
 
 [[package]]

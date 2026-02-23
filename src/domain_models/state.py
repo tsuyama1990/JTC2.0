@@ -1,8 +1,8 @@
-from collections.abc import Iterable
+from collections.abc import Iterator
 from enum import StrEnum
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.config import get_settings
 
@@ -10,6 +10,7 @@ from .lean_canvas import LeanCanvas
 from .metrics import Metrics
 from .mvp import MVP
 from .persona import Persona
+from .simulation import DialogueMessage
 
 
 class Phase(StrEnum):
@@ -34,21 +35,33 @@ class GlobalStateValidators:
 
 
 class GlobalState(BaseModel):
-    """The central state of the LangGraph workflow."""
+    """The central state of the LangGraph workflow.
 
-    # Allow arbitrary types to support Iterators/Generators for scalability
+    Note on `generated_ideas`:
+        This field holds an Iterator to support lazy loading of large datasets (Scalability).
+        It is single-use: once consumed, it cannot be reset.
+        It is not serializable, so persistence of this state must handle this field carefully.
+        `arbitrary_types_allowed=True` is required to support the Iterator type.
+    """
+
+    # Strict validation enabled, but arbitrary types allowed for Iterator
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     phase: Phase = Phase.IDEATION
     topic: str = ""
-    # Changed from list to Iterable to support lazy loading/generators
-    generated_ideas: Iterable[LeanCanvas] = []
+
+    # Critical: Iterator for memory efficiency. Consumed once.
+    generated_ideas: Iterator[LeanCanvas] | None = None
+
     selected_idea: LeanCanvas | None = None
-    messages: list[str] = []
+    messages: list[str] = Field(default_factory=list)
 
     target_persona: Persona | None = None
     mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
+
+    debate_history: list[DialogueMessage] = Field(default_factory=list)
+    simulation_active: bool = False
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:

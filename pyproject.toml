@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "tenacity>=9.1.4",
     "langgraph>=1.0.9",
+    "pyxel>=2.6.9",
 ]
 
 [dependency-groups]
