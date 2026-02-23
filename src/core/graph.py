@@ -51,10 +51,9 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
             return {"debate_history": final_state.debate_history}
 
         logger.warning("Simulation graph returned unknown state type.")
+        return {}
     except Exception as e:
         logger.error(f"Error in Simulation Graph: {e}", exc_info=True)
-        return {}
-    else:
         return {}
 
 

@@ -238,6 +238,12 @@ class Settings(BaseSettings):
 
     # RAG Configuration
     rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", default="./vector_store")
+    rag_chunk_size: int = Field(alias="RAG_CHUNK_SIZE", default=4000)
+    rag_max_query_length: int = Field(alias="RAG_MAX_QUERY_LENGTH", default=500)
+    rag_max_index_size_mb: int = Field(alias="RAG_MAX_INDEX_SIZE_MB", default=500)
+
+    # Iterator Safety
+    iterator_safety_limit: int = Field(alias="ITERATOR_SAFETY_LIMIT", default=10000)
 
     # Search Configuration
     search_max_results: int = Field(alias="SEARCH_MAX_RESULTS", default=5)

@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic_core import core_schema
 
+from src.core.config import get_settings
 from src.domain_models.lean_canvas import LeanCanvas
 
 
@@ -20,17 +21,21 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
     def __init__(self, iterator: Iterator[LeanCanvas]) -> None:
         self._iterator = iterator
         self._consumed = False
+        self._count = 0
+        # Load limit from settings to avoid hardcoding
+        self._max_items = get_settings().iterator_safety_limit
 
     def __iter__(self) -> Iterator[LeanCanvas]:
         # Return self as the iterator
         return self
 
     def __next__(self) -> LeanCanvas:
+        if self._count >= self._max_items:
+            raise StopIteration("Safety limit reached for LazyIdeaIterator.")
+
         # Delegate to the wrapped iterator
-        if self._consumed:
-            # Already marked as started
-            pass
         self._consumed = True
+        self._count += 1
         return next(self._iterator)
 
     @classmethod

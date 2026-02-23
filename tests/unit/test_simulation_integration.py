@@ -43,9 +43,6 @@ def test_simulation_turn_sequence(
     Verify that the simulation graph executes the correct sequence of turns:
     Pitch -> Finance -> Defense 1 -> Sales -> Defense 2 -> END.
     """
-    # Setup Logic:
-    # Each agent instance needs a .run(state) method.
-
     # Create Mock Instances
     mock_new_emp = MagicMock()
     mock_finance = MagicMock()
@@ -99,7 +96,9 @@ def test_simulation_error_handling(
     initial_state: GlobalState
 ) -> None:
     """
-    Verify that the simulation graph handles errors gracefully if an agent fails.
+    Verify that the simulation graph raises exceptions if an agent fails.
+    The outer graph wrapper (safe_simulation_run) handles catching,
+    but the internal graph should propagate or fail.
     """
     mock_get_llm.return_value = MagicMock()
 
@@ -109,12 +108,6 @@ def test_simulation_error_handling(
     mock_agent.run.side_effect = RuntimeError("Simulation Crash")
 
     app = create_simulation_graph()
-
-    # LangGraph doesn't catch node exceptions by default unless configured.
-    # We expect the graph invocation to raise the exception.
-    # The robustness comes from the outer 'safe_simulation_run' wrapper in graph.py,
-    # but here we are testing the inner graph.
-    # So we verify it raises correctly.
 
     with pytest.raises(RuntimeError, match="Simulation Crash"):
         app.invoke(initial_state)
