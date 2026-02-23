@@ -3,7 +3,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from src.core.config import settings
+from src.core.config import get_settings
 
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics
@@ -36,6 +36,7 @@ class GlobalState(BaseModel):
     @model_validator(mode="after")
     def validate_phase_requirements(self) -> Self:
         """Validate that required fields are present for the current phase."""
+        settings = get_settings()
         if self.phase == Phase.VERIFICATION and self.target_persona is None:
             raise ValueError(settings.errors.missing_persona)
         if self.phase == Phase.SOLUTION and self.mvp_definition is None:

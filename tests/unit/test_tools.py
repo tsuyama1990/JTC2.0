@@ -8,10 +8,11 @@ from src.tools.search import TavilySearch
 
 
 @patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.settings")
-def test_tavily_search_success(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+@patch("src.tools.search.get_settings")
+def test_tavily_search_success(mock_get_settings: MagicMock, mock_client_cls: MagicMock) -> None:
     # Setup settings with explicit values
-    mock_settings.tavily_api_key = SecretStr("test-key")
+    mock_settings = mock_get_settings.return_value
+    mock_settings.tavily_api_key.get_secret_value.return_value = "test-key"
     mock_settings.search_max_results = 5
     mock_settings.search_depth = "advanced"
 
@@ -36,11 +37,12 @@ def test_tavily_search_success(mock_settings: MagicMock, mock_client_cls: MagicM
 
 
 @patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.settings")
+@patch("src.tools.search.get_settings")
 def test_tavily_search_error_with_retry(
-    mock_settings: MagicMock, mock_client_cls: MagicMock
+    mock_get_settings: MagicMock, mock_client_cls: MagicMock
 ) -> None:
-    mock_settings.tavily_api_key = SecretStr("test-key")
+    mock_settings = mock_get_settings.return_value
+    mock_settings.tavily_api_key.get_secret_value.return_value = "test-key"
     mock_client = mock_client_cls.return_value
     # Simulate repeated failure
     mock_client.search.side_effect = Exception("Search error")
@@ -58,9 +60,10 @@ def test_tavily_search_error_with_retry(
 
 
 @patch("src.tools.search.TavilyClient")
-@patch("src.tools.search.settings")
-def test_tavily_safe_search_error(mock_settings: MagicMock, mock_client_cls: MagicMock) -> None:
-    mock_settings.tavily_api_key = SecretStr("test-key")
+@patch("src.tools.search.get_settings")
+def test_tavily_safe_search_error(mock_get_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+    mock_settings = mock_get_settings.return_value
+    mock_settings.tavily_api_key.get_secret_value.return_value = "test-key"
     mock_client = mock_client_cls.return_value
     # Simulate repeated failure
     mock_client.search.side_effect = Exception("Search error")

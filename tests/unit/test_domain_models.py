@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.domain_models.lean_canvas import LeanCanvas
+from src.domain_models.persona import EmpathyMap, Persona
 from src.domain_models.state import GlobalState, Phase
 
 
@@ -80,8 +81,6 @@ def test_global_state_defaults() -> None:
     assert state.generated_ideas == []
     assert state.selected_idea is None
 
-
-from src.domain_models.persona import EmpathyMap, Persona
 
 def test_global_state_phase_enum() -> None:
     """Test GlobalState uses Phase enum."""

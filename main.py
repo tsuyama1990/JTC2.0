@@ -7,7 +7,7 @@ from itertools import islice
 # Add src to path if running from root
 sys.path.append(".")
 
-from src.core.config import settings
+from src.core.config import get_settings
 from src.core.constants import (
     MSG_CYCLE_COMPLETE,
     MSG_EXECUTION_ERROR,
@@ -28,6 +28,7 @@ from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
 
 # Configure logging
+settings = get_settings()
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def echo(msg: str) -> None:
 
 
 def display_ideas_paginated(
-    ideas: Iterable[LeanCanvas], page_size: int = settings.ui_page_size
+    ideas: Iterable[LeanCanvas], page_size: int | None = None
 ) -> None:
     """
     Display generated ideas with pagination using a generator-like approach.
@@ -47,6 +48,8 @@ def display_ideas_paginated(
         ideas: Iterable of LeanCanvas objects.
         page_size: Number of items per page.
     """
+    if page_size is None:
+        page_size = get_settings().ui_page_size
     # We need to peek at the iterator to check if empty, or handle StopIteration immediately
     iterator = iter(ideas)
 

@@ -12,7 +12,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.core.config import settings
+from src.core.config import get_settings
 from src.core.constants import ERR_SEARCH_CONFIG_MISSING, ERR_SEARCH_FAILED
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,7 @@ class TavilySearch:
         # Otherwise, fetch from settings but KEEP IT AS SecretStr internally if possible,
         # but TavilyClient needs str. So we reveal it only at the boundary.
         self.api_key = api_key
+        settings = get_settings()
 
         if not self.api_key and settings.tavily_api_key:
             self.api_key = settings.tavily_api_key.get_secret_value()
@@ -72,6 +73,7 @@ class TavilySearch:
         """
         # search_depth="advanced" is generally better for research
         # We explicitly cast search_depth to the Literal type expected by Tavily
+        settings = get_settings()
         depth: Literal["basic", "advanced"] = search_depth or settings.search_depth  # type: ignore[assignment]
 
         response = self.client.search(

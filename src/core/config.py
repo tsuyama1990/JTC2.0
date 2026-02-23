@@ -1,7 +1,7 @@
-import sys
-from typing import ClassVar
+from functools import lru_cache
+from typing import ClassVar, Self
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import ERR_CONFIG_MISSING_OPENAI_KEY, ERR_CONFIG_MISSING_TAVILY_KEY
@@ -43,6 +43,7 @@ class ErrorMessages(BaseSettings):
 
     # Validation Errors
     too_many_metrics: str = "Too many custom metrics. Limit is {limit}"
+    invalid_metric_key: str = "Metric key '{key}' contains invalid characters."
     missing_persona: str = "Target persona is required for VERIFICATION phase."
     missing_mvp: str = "MVP definition is required for SOLUTION phase."
 
@@ -76,27 +77,16 @@ class Settings(BaseSettings):
     validation: ClassVar[ValidationConfig] = ValidationConfig()
     errors: ClassVar[ErrorMessages] = ErrorMessages()
 
-
-def _validate_settings(s: Settings) -> None:
-    if not s.openai_api_key:
-        raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-    if not s.tavily_api_key:
-        raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
-
-
-def load_settings() -> Settings:
-    """Load and validate settings."""
-    try:
-        s = Settings()
-        if "pytest" not in sys.modules:
-            _validate_settings(s)
-    except Exception as e:
-        sys.stderr.write(f"Configuration Error: {e}\n")
-        sys.stderr.write("Please ensure .env file exists and contains all required keys.\n")
-        sys.exit(1)
-    else:
-        return s
+    def validate_api_keys(self) -> Self:
+        """Validate API keys are present."""
+        if not self.openai_api_key:
+            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
+        if not self.tavily_api_key:
+            raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
+        return self
 
 
-# Global settings instance
-settings = load_settings()
+@lru_cache
+def get_settings() -> Settings:
+    """Load and cache settings."""
+    return Settings()

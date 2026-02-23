@@ -12,17 +12,19 @@ def mock_llm() -> MagicMock:
     return MagicMock()
 
 
-@patch("src.agents.ideator.settings")
+@patch("src.agents.ideator.get_settings")
 @patch("src.agents.ideator.ChatPromptTemplate")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_run_success(
     mock_tavily: MagicMock,
     mock_prompt_cls: MagicMock,
-    mock_settings: MagicMock,
+    mock_get_settings: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     # Setup settings
+    mock_settings = mock_get_settings.return_value
     mock_settings.search_query_template = "Trends in {topic}"
+    mock_settings.tavily_api_key.get_secret_value.return_value = "tv-key"
 
     # Setup Search
     mock_search_instance = mock_tavily.return_value
@@ -60,17 +62,19 @@ def test_ideator_agent_run_success(
     mock_search_instance.safe_search.assert_called_with("Trends in Test Topic")
 
 
-@patch("src.agents.ideator.settings")
+@patch("src.agents.ideator.get_settings")
 @patch("src.agents.ideator.ChatPromptTemplate")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_fail(
     mock_tavily: MagicMock,
     mock_prompt_cls: MagicMock,
-    mock_settings: MagicMock,
+    mock_get_settings: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     # Setup settings
+    mock_settings = mock_get_settings.return_value
     mock_settings.search_query_template = "Trends in {topic}"
+    mock_settings.tavily_api_key.get_secret_value.return_value = "tv-key"
 
     # Setup Search
     mock_search_instance = mock_tavily.return_value
