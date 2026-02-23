@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.agents.ideator import IdeatorAgent, LeanCanvasList
+from src.agents.ideator import IdeatorAgent
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
 

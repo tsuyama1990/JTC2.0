@@ -4,7 +4,6 @@ from unittest.mock import patch
 import pytest
 
 from src.core.config import get_settings
-from src.core.constants import ERR_CONFIG_MISSING_OPENAI_KEY
 
 
 def test_config_loading_success() -> None:

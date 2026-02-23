@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -85,19 +86,24 @@ class IdeatorAgent(BaseAgent):
             ]
         )
 
-    def _generate_ideas(self, prompt: ChatPromptTemplate) -> list[LeanCanvas]:
-        """Invoke LLM to generate ideas."""
+    def _generate_ideas(self, prompt: ChatPromptTemplate) -> Iterator[LeanCanvas]:
+        """
+        Invoke LLM to generate ideas and yield them as an iterator.
+
+        Note: Currently waits for full LLM response then yields items.
+        Future optimization: Use streaming parsing if supported.
+        """
         chain = prompt | self.llm.with_structured_output(LeanCanvasList)
         try:
-            # Prompt is already formatted with static messages
             result = chain.invoke({})
         except Exception:
-            return []
+            return
 
         if not isinstance(result, LeanCanvasList):
-            return []
+            return
 
-        return result.canvases
+        # Yield items one by one to satisfy iterator interface
+        yield from result.canvases
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
@@ -118,6 +124,7 @@ class IdeatorAgent(BaseAgent):
         prompt = self._generate_prompt(topic, search_results)
 
         # 3. Generate
-        ideas = self._generate_ideas(prompt)
+        # Returns an iterator/generator
+        ideas_iter = self._generate_ideas(prompt)
 
-        return {"generated_ideas": ideas}
+        return {"generated_ideas": ideas_iter}

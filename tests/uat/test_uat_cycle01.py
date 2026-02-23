@@ -62,7 +62,11 @@ def test_uat_cycle01_ideation_and_selection(
         final_state = final_state_dict  # Should not happen with default LangGraph
 
     # 4. Verification
-    assert len(final_state.generated_ideas) == 10
+    # Since generated_ideas is now an Iterable, we convert to list to check length
+    # Note: Consuming the iterator here means final_state.generated_ideas is exhausted
+    # unless we re-populate it or use the consumed list for further checks.
+    ideas_list = list(final_state.generated_ideas)
+    assert len(ideas_list) == 10
     assert final_state.phase == Phase.IDEATION
 
     # Verify the agent was called
@@ -74,7 +78,8 @@ def test_uat_cycle01_ideation_and_selection(
     # In Cycle 1, the Graph stops after Ideation.
 
     selected_id = 2
-    selected_canvas = next(idea for idea in final_state.generated_ideas if idea.id == selected_id)
+    # We must select from the captured list because final_state.generated_ideas generator is consumed above
+    selected_canvas = next(idea for idea in ideas_list if idea.id == selected_id)
 
     # Verify we can select
     assert selected_canvas.id == 2
