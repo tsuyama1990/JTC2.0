@@ -92,12 +92,11 @@ class PersonaAgent(BaseAgent):
 
     def _cached_research(self, topic: str) -> str:
         """Cache research results to avoid redundant API calls."""
-        # _research_cache is initialized in _base_init, so we don't need to define it here again
-        # unless we are handling cases where _base_init wasn't called (unlikely for controlled usage).
-
         if topic in self._research_cache:
             return self._research_cache[topic]
 
+        # Removed redundant hasattr check as _base_init guarantees search_tool and logic presence
+        # But we still need to know if _research_impl exists on the subclass
         if hasattr(self, "_research_impl"):
             self._rate_limit_wait()
             # Ensure return type is str

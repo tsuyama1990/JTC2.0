@@ -111,12 +111,20 @@ class GlobalState(BaseModel):
     def wrap_iterator(cls, v: object) -> object:
         """
         Auto-wrap Iterator[LeanCanvas] into LazyIdeaIterator if needed.
-        This allows passing a raw iterator (e.g. from tests or agents) while ensuring
-        the internal state uses the safe wrapper.
+        Strictly enforces that the input is a valid Iterator.
         """
-        if isinstance(v, Iterator) and not isinstance(v, LazyIdeaIterator):
+        if v is None:
+            return None
+
+        if isinstance(v, LazyIdeaIterator):
+            return v
+
+        if isinstance(v, Iterator):
             return LazyIdeaIterator(v)
-        return v
+
+        # Reject invalid types explicitly
+        msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
+        raise ValueError(msg)
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:
