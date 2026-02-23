@@ -31,8 +31,6 @@ class TavilySearch:
         settings = get_settings()
 
         # Prioritize explicit key, then config
-        # Note: We retrieve the raw string here because TavilyClient likely expects str.
-        # This is the "boundary" where SecretStr is revealed.
         if api_key:
             self.api_key = api_key
         elif settings.tavily_api_key:
@@ -40,7 +38,6 @@ class TavilySearch:
         else:
             raise ValueError(ERR_SEARCH_CONFIG_MISSING)
 
-        # Initialize client with raw key
         self.client = TavilyClient(api_key=self.api_key)
 
     @retry(
@@ -57,7 +54,13 @@ class TavilySearch:
         max_results: int | None = None,
         search_depth: Literal["basic", "advanced"] | None = None,
     ) -> str:
-        """Execute a search query."""
+        """
+        Execute a search query.
+
+        Note: While we could return an iterator of results, the downstream LLM
+        expects a string block. We optimize by building the string efficiently,
+        but ultimately we must return a single string for the prompt.
+        """
         settings = get_settings()
         depth: Literal["basic", "advanced"] = search_depth or settings.search_depth  # type: ignore[assignment]
 
@@ -71,14 +74,13 @@ class TavilySearch:
         if not results:
             return "No results found."
 
-        summary_list = [
+        # Use generator expression within join for memory efficiency during string construction
+        return "\n".join(
             f"Title: {result.get('title', 'No Title')}\n"
             f"URL: {result.get('url', 'No URL')}\n"
             f"Content: {result.get('content', 'No Content')}\n"
             for result in results
-        ]
-
-        return "\n".join(summary_list)
+        )
 
     def safe_search(self, query: str) -> str:
         """Execute a search safely, catching exceptions."""

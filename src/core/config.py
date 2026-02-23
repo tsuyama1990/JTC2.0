@@ -51,6 +51,7 @@ class ErrorMessages(BaseSettings):
 class UIConfig(BaseSettings):
     """UI Strings and Configuration."""
 
+    # Load from env var "UI_PAGE_SIZE", default to 5
     page_size: int = Field(alias="UI_PAGE_SIZE", default=5)
 
     # Messages
@@ -88,9 +89,6 @@ class Settings(BaseSettings):
         alias="SEARCH_QUERY_TEMPLATE",
         default="emerging business trends and painful problems in {topic}",
     )
-
-    # UI Configuration (Keep alias for backward compat if needed, but prefer UIConfig)
-    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=5)
 
     # Logging
     log_level: str = Field(alias="LOG_LEVEL", default="INFO")

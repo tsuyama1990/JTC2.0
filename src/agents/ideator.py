@@ -2,7 +2,7 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from src.agents.base import BaseAgent, SearchTool
 from src.core.config import Settings, get_settings
@@ -18,6 +18,7 @@ class LeanCanvasList(BaseModel):
 
     Ensures that generated ideas have unique IDs.
     """
+    model_config = ConfigDict(extra="forbid")
 
     canvases: list[LeanCanvas]
 
@@ -88,19 +89,7 @@ class IdeatorAgent(BaseAgent):
         """Invoke LLM to generate ideas."""
         chain = prompt | self.llm.with_structured_output(LeanCanvasList)
         try:
-            # We pass empty dict because prompt is already formatted in _generate_prompt?
-            # Wait, ChatPromptTemplate.from_messages creates a template.
-            # If we format it eagerly in _generate_prompt with f-strings, it's just messages.
-            # Let's fix _generate_prompt to return formatted messages or keep it as template.
-
-            # Correction: In the original code:
-            # prompt = ChatPromptTemplate.from_messages(...)
-            # chain.invoke({"topic": topic, "research": search_results})
-
-            # Here I formatted it inside _generate_prompt string.
-            # So invoke needs no args if prompt is already fully bound?
-            # Actually ChatPromptTemplate needs input vars if they are in the string.
-            # But I used f-strings. So it's static messages.
+            # Prompt is already formatted with static messages
             result = chain.invoke({})
         except Exception:
             return []
