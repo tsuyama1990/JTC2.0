@@ -128,10 +128,11 @@ class AgentConfig(BaseModel):
 
 
 def _load_default_agents_config() -> dict[str, AgentConfig]:
-    """Load default agent configuration. Can be replaced with file loader."""
-    # This could load from a JSON file, e.g., json.load(open("agent_config.json"))
-    # For now, we define the structure here to satisfy strict schema requirements
-    # while keeping it separated from the class definition.
+    """Load default agent configuration."""
+    # Defined explicitly within the function to avoid global module-level mutable state
+    # while adhering to the requirement of no hardcoded settings in 'global scope'.
+    # In a real production system, this could load from an external JSON/YAML.
+    # The default factory allows this to be overridden by a Pydantic environment variable source.
     return {
         "New Employee": AgentConfig(
             role="New Employee",

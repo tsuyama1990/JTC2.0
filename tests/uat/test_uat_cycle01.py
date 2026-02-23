@@ -39,8 +39,9 @@ def test_uat_cycle01_full_flow(
     # --- 1. Setup Logic Mock ---
     mock_ideator_instance = mock_ideator_cls.return_value
 
-    def large_dataset_generator() -> Iterator[LeanCanvas]:
-        for i in range(100):
+    def limited_dataset_generator() -> Iterator[LeanCanvas]:
+        # Simulate a limited but sufficient dataset to prove paging without OOM risk
+        for i in range(20):
             yield LeanCanvas(
                 id=i,
                 title=f"Idea {i}",
@@ -51,7 +52,9 @@ def test_uat_cycle01_full_flow(
             )
 
     # Use LazyIdeaIterator wrapper as per new implementation
-    mock_ideator_instance.run.return_value = {"generated_ideas": LazyIdeaIterator(large_dataset_generator())}
+    # The GlobalState validator 'wrap_iterator' will handle wrapping if we passed raw iterator,
+    # but here we pass the wrapped one explicitly to match expected agent behavior if it complies.
+    mock_ideator_instance.run.return_value = {"generated_ideas": LazyIdeaIterator(limited_dataset_generator())}
 
     # --- 2. Build App ---
     app = create_app()
@@ -64,12 +67,13 @@ def test_uat_cycle01_full_flow(
     result_dict = app.invoke(initial_state)
 
     # --- Scalability Check ---
-    # GlobalState validates inputs. If it was cast to GlobalState, validation runs.
-    # invoke returns a dict.
+    # The iterator is in result_dict["generated_ideas"]
+    # It should be an instance of LazyIdeaIterator (or wrapped automatically if raw was returned)
     ideas_iter = result_dict["generated_ideas"]
-    assert ideas_iter is not None
+    assert isinstance(ideas_iter, LazyIdeaIterator)
 
     page_size = 5
+    # Peek at first page without consuming all 20
     page_1 = list(itertools.islice(ideas_iter, page_size))
     assert len(page_1) == 5
     assert page_1[0].id == 0

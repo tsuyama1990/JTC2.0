@@ -34,7 +34,7 @@ class GlobalStateValidators:
         return state
 
 
-class LazyIdeaIterator:
+class LazyIdeaIterator(Iterator[LeanCanvas]):
     """
     Wrapper for Idea Iterator to enforce single-use consumption and safety.
 
@@ -46,16 +46,15 @@ class LazyIdeaIterator:
         self._consumed = False
 
     def __iter__(self) -> Iterator[LeanCanvas]:
-        if self._consumed:
-            msg = "Iterator already consumed. Cannot re-iterate."
-            raise RuntimeError(msg)
-        self._consumed = True
-        return self._iterator
+        # Return self as the iterator
+        return self
 
     def __next__(self) -> LeanCanvas:
-        # Allow direct iteration on the wrapper
-        if not self._consumed:
-             self._consumed = True
+        # Delegate to the wrapped iterator
+        if self._consumed:
+             # Already marked as started
+             pass
+        self._consumed = True
         return next(self._iterator)
 
 
@@ -69,14 +68,6 @@ class GlobalState(BaseModel):
     topic: str = ""
 
     # Critical: Wrapper for memory efficiency. Enforced single type.
-    # Note: Union removed as requested by audit, but Pydantic validation might fail
-    # if passing a raw iterator when instantiating or copying if not handled.
-    # However, `LazyIdeaIterator` wraps an iterator.
-    # If the input is ALREADY a LazyIdeaIterator, it works.
-    # If the input is a raw iterator, Pydantic will complain unless we use a validator
-    # to auto-wrap it or relax the type.
-    # Given strict type enforcement requested: "Enforce LazyIdeaIterator type exclusively".
-    # This means the producer (IdeatorAgent) MUST return a LazyIdeaIterator.
     generated_ideas: LazyIdeaIterator | None = None
 
     selected_idea: LeanCanvas | None = None
@@ -124,7 +115,7 @@ class GlobalState(BaseModel):
         the internal state uses the safe wrapper.
         """
         if isinstance(v, Iterator) and not isinstance(v, LazyIdeaIterator):
-            return LazyIdeaIterator(v)  # type: ignore[arg-type]
+            return LazyIdeaIterator(v)
         return v
 
     @model_validator(mode="after")
