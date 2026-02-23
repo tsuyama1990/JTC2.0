@@ -1,8 +1,10 @@
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 # We import create_app but we will mock the LLM and Tools inside it
+from src.core.config import get_settings
 from src.core.graph import create_app
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
@@ -13,6 +15,7 @@ def mock_llm_factory() -> MagicMock:
     return MagicMock()
 
 
+@patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test", "TAVILY_API_KEY": "tv-test", "V0_API_KEY": "v0-test"})
 @patch("src.core.graph.IdeatorAgent")
 @patch("src.core.graph.get_llm")
 def test_uat_cycle01_ideation_and_selection(
@@ -28,6 +31,8 @@ def test_uat_cycle01_ideation_and_selection(
     This integration test runs the actual LangGraph compiled app,
     but mocks the external LLM and Search calls via the IdeatorAgent mock.
     """
+    # Clear cache to ensure env vars are picked up
+    get_settings.cache_clear()
 
     # 1. Setup Logic Mock
     mock_ideator_instance = mock_ideator_cls.return_value
@@ -49,6 +54,7 @@ def test_uat_cycle01_ideation_and_selection(
     mock_ideator_instance.run.return_value = {"generated_ideas": iter(generated_ideas)}
 
     # 2. Build App
+    # This will now succeed because env vars are patched and cache cleared
     app = create_app()
 
     # 3. Execution (Step 1 & 2)

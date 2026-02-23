@@ -10,7 +10,7 @@ from .lean_canvas import LeanCanvas
 from .metrics import Metrics
 from .mvp import MVP
 from .persona import Persona
-from .simulation import DialogueMessage
+from .simulation import AgentState, DialogueMessage, Role
 
 
 class Phase(StrEnum):
@@ -62,6 +62,13 @@ class GlobalState(BaseModel):
 
     debate_history: list[DialogueMessage] = Field(default_factory=list)
     simulation_active: bool = False
+
+    # New fields for architecture compliance
+    transcript: str | None = Field(default=None, description="Raw transcript from PLAUD or interviews")
+    agent_states: dict[Role, AgentState] = Field(
+        default_factory=dict,
+        description="Persistent state of agents (e.g. DeGroot weights)"
+    )
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:

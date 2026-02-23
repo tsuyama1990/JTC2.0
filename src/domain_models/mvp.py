@@ -55,3 +55,13 @@ class MVP(BaseModel):
         min_length=get_settings().validation.min_content_length,
         max_length=500,
     )
+
+    # New fields for v0.dev integration
+    v0_url: str | None = Field(
+        default=None,
+        description="URL of the deployed MVP on v0.dev",
+    )
+    deployment_status: str = Field(
+        default="pending",
+        description="Status of the MVP deployment (e.g., pending, deployed, failed)",
+    )

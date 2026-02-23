@@ -45,6 +45,9 @@ class EmpathyMap(BaseModel):
 
 
 class Persona(BaseModel):
+    """
+    Represents the Target Customer Persona.
+    """
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(
@@ -84,3 +87,13 @@ class Persona(BaseModel):
         max_length=get_settings().validation.max_content_length,
     )
     empathy_map: EmpathyMap | None = None
+
+    # New fields for fact-based validation
+    is_fact_based: bool = Field(
+        default=False,
+        description="True if the persona has been validated with primary research (e.g. interviews).",
+    )
+    interview_insights: list[str] = Field(
+        default_factory=list,
+        description="Key insights derived from customer interviews.",
+    )

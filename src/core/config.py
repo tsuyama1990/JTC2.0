@@ -186,6 +186,17 @@ class SimulationConfig(BaseSettings):
             text_x=120,
             text_y=112,
         ),
+        "CPO": AgentConfig(
+            role="CPO",
+            label="CPO",
+            color=12,
+            x=140,
+            y=40,
+            w=20,
+            h=30,
+            text_x=135,
+            text_y=72,
+        ),
     }
 
     @field_validator("width", "height")
@@ -220,6 +231,7 @@ class Settings(BaseSettings):
     # API Keys
     openai_api_key: SecretStr | None = Field(alias="OPENAI_API_KEY", default=None)
     tavily_api_key: SecretStr | None = Field(alias="TAVILY_API_KEY", default=None)
+    v0_api_key: SecretStr | None = Field(alias="V0_API_KEY", default=None)
 
     # Model Configuration
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o")

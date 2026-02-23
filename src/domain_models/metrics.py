@@ -35,10 +35,25 @@ class AARRR(BaseModel):
     )
 
 
+class DetailedMetrics(BaseModel):
+    """Detailed metrics for the simulation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    planning_score: float = Field(0.0, description="Score for planning quality")
+    communication_score: float = Field(0.0, description="Score for communication effectiveness")
+    tool_selection_quality: float = Field(0.0, description="Score for appropriate tool usage")
+    action_completion: float = Field(0.0, description="Score for action completion rate")
+    cognitive_load: float = Field(0.0, description="Score for cognitive load management")
+
+
 class Metrics(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     aarrr: AARRR = Field(default_factory=AARRR, description=DESC_METRICS_AARRR)
+    detailed: DetailedMetrics = Field(
+        default_factory=DetailedMetrics, description="Detailed simulation metrics"
+    )
     custom_metrics: dict[str, float] = Field(
         default_factory=dict, description=DESC_METRICS_CUSTOM
     )

@@ -2,9 +2,10 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.config import get_settings
-from src.domain_models.metrics import AARRR, Metrics
+from src.domain_models.metrics import AARRR, DetailedMetrics, Metrics
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
+from src.domain_models.simulation import AgentState, DeGrootProfile, Role
 from src.domain_models.state import GlobalState, Phase
 
 
@@ -23,10 +24,14 @@ def test_persona_creation() -> None:
         frustrations=["No time"],
         bio="A busy developer looking to improve skills.",
         empathy_map=empathy,
+        is_fact_based=True,
+        interview_insights=["Insight 1"],
     )
     assert persona.name == "John Doe"
     assert persona.empathy_map is not None
     assert persona.empathy_map.says == ["I want this"]
+    assert persona.is_fact_based is True
+    assert len(persona.interview_insights) == 1
 
 
 def test_persona_validation_error() -> None:
@@ -57,9 +62,13 @@ def test_mvp_creation() -> None:
         type=MVPType.LANDING_PAGE,
         core_features=[feature],
         success_criteria="Achieve 100 signups within the first week.",
+        v0_url="https://v0.dev/test",
+        deployment_status="deployed",
     )
     assert mvp.type == MVPType.LANDING_PAGE
     assert mvp.core_features[0].priority == Priority.MUST_HAVE
+    assert mvp.v0_url == "https://v0.dev/test"
+    assert mvp.deployment_status == "deployed"
 
 
 def test_mvp_feature_validation() -> None:
@@ -85,10 +94,17 @@ def test_mvp_invalid_priority() -> None:
 
 
 def test_metrics_creation() -> None:
+    detailed = DetailedMetrics(
+        planning_score=0.8,
+        communication_score=0.9,
+    )
     metrics = Metrics(
-        aarrr=AARRR(acquisition=100.0, activation=50.0), custom_metrics={"nps": 9.0}
+        aarrr=AARRR(acquisition=100.0, activation=50.0),
+        detailed=detailed,
+        custom_metrics={"nps": 9.0}
     )
     assert metrics.aarrr.acquisition == 100.0
+    assert metrics.detailed.planning_score == 0.8
     assert metrics.custom_metrics["nps"] == 9.0
 
 
@@ -147,3 +163,21 @@ def test_global_state_lifecycle_validation() -> None:
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
     assert settings.errors.missing_mvp in str(exc.value)
+
+
+def test_agent_state_creation() -> None:
+    """Test AgentState and DeGrootProfile."""
+    profile = DeGrootProfile(
+        self_confidence=0.8,
+        influence_weights={"Sales Manager": 0.2}
+    )
+    agent_state = AgentState(
+        role=Role.FINANCE,
+        degroot_profile=profile
+    )
+    assert agent_state.degroot_profile.self_confidence == 0.8
+    assert agent_state.degroot_profile.influence_weights["Sales Manager"] == 0.2
+
+    # Validation
+    with pytest.raises(ValidationError):
+        DeGrootProfile(self_confidence=1.5)  # Should be <= 1.0
