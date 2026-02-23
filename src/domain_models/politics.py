@@ -32,7 +32,7 @@ class SparseMatrixEntry(BaseModel):
 class InfluenceNetwork(BaseModel):
     """Represents the influence graph between stakeholders."""
 
-    stakeholders: list[Stakeholder]
+    stakeholders: list[Stakeholder] = Field(..., min_length=1)
     # Use Union for matrix: can be dense (list of lists) or sparse (list of entries)
     matrix: list[list[float]] | list[SparseMatrixEntry]
 

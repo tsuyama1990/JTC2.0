@@ -112,3 +112,12 @@ DEFAULT_PAGE_SIZE: Final[int] = 5
 DEFAULT_FPS: Final[int] = 30
 DEFAULT_WIDTH: Final[int] = 160
 DEFAULT_HEIGHT: Final[int] = 120
+
+# UI Layout Defaults
+DEFAULT_CHARS_PER_LINE: Final[int] = 38
+DEFAULT_LINE_HEIGHT: Final[int] = 8
+DEFAULT_DIALOGUE_X: Final[int] = 5
+DEFAULT_DIALOGUE_Y: Final[int] = 15
+DEFAULT_MAX_Y: Final[int] = 75
+DEFAULT_CONSOLE_SLEEP: Final[float] = 0.5
+DEFAULT_MAX_TURNS: Final[int] = 5

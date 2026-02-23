@@ -27,19 +27,18 @@ logger = logging.getLogger(__name__)
 def _scan_dir_size(path: str) -> int:
     """
     Calculate directory size iteratively.
-    Used for initial size calculation.
+    Optimized to use os.scandir which yields DirEntry objects containing cached stat info.
     """
     total = 0
     stack = [path]
 
-    # Safety: Limit stack depth implicitly by file system structure,
-    # but we handle loops via follow_symlinks=False
     while stack:
         current_path = stack.pop()
         try:
             with os.scandir(current_path) as it:
                 for entry in it:
-                    if entry.is_file():
+                    if entry.is_file(follow_symlinks=False):
+                        # entry.stat() is cached on Linux/Windows for scandir
                         total += entry.stat().st_size
                     elif entry.is_dir(follow_symlinks=False):
                         stack.append(entry.path)
@@ -109,20 +108,27 @@ class RAG:
             raise ConfigurationError(msg)
 
         try:
-            # resolve(strict=False) allows the path to not exist yet (we might create it)
-            # But the parent must be safe.
-            # If the path exists, we check it. If not, we check parent.
-            path = Path(path_str).resolve()
+            # resolve(strict=True) checks existence.
+            # If path doesn't exist, we check parent.
+            path = Path(path_str)
+            if path.exists():
+                path = path.resolve(strict=True)
+            else:
+                # If path doesn't exist, verify parent exists and is safe
+                # This prevents creating files in arbitrary locations
+                parent = path.parent.resolve(strict=True)
+                path = parent / path.name
+                # Note: path is now absolute but might not exist, which is fine for creation
         except Exception as e:
-            msg = f"Invalid path format: {e}"
+            msg = f"Invalid path format or non-existent parent: {e}"
             raise ConfigurationError(msg) from e
 
-        cwd = Path.cwd().resolve()
+        cwd = Path.cwd().resolve(strict=True)
 
         # Load allowed paths from settings
         # These are relative to CWD
         allowed_rel_paths = self.settings.rag_allowed_paths
-        allowed_parents = [cwd / p for p in allowed_rel_paths]
+        allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths] # Resolve allowed paths too
 
         is_safe = False
         for parent in allowed_parents:
@@ -140,6 +146,20 @@ class RAG:
             raise ConfigurationError(msg)
 
         return str(path)
+
+    def _sanitize_query(self, query: str) -> str:
+        """
+        Sanitize input query to prevent injection or processing issues.
+        - Removes control characters.
+        - Trims whitespace.
+        - Limits charset to printable.
+        """
+        # Remove control characters (e.g. null bytes, newlines in middle if undesirable)
+        # We allow newlines for multi-line queries but remove other control chars
+        # ASCII control chars are 0-31 and 127.
+        # We allow tab (9), newline (10), carriage return (13).
+        sanitized = "".join(ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127)
+        return sanitized.strip()
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
@@ -294,12 +314,13 @@ class RAG:
             msg = "Query cannot be empty."
             raise ValueError(msg)
 
+        # Input Sanitization
+        question = self._sanitize_query(question)
+
         max_len = self.settings.rag_max_query_length
         if len(question) > max_len:
             msg = ERR_RAG_QUERY_TOO_LARGE.format(size=len(question))
             raise ValidationError(msg)
-
-        question = question.strip()
 
         try:
             return self.breaker.call(self._query_impl, question)

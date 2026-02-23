@@ -7,10 +7,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.core.constants import (
     DEFAULT_CB_FAIL_MAX,
     DEFAULT_CB_RESET_TIMEOUT,
+    DEFAULT_CHARS_PER_LINE,
+    DEFAULT_CONSOLE_SLEEP,
+    DEFAULT_DIALOGUE_X,
+    DEFAULT_DIALOGUE_Y,
     DEFAULT_FPS,
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
+    DEFAULT_LINE_HEIGHT,
     DEFAULT_MAX_TITLE_LENGTH,
+    DEFAULT_MAX_TURNS,
+    DEFAULT_MAX_Y,
     DEFAULT_MIN_TITLE_LENGTH,
     DEFAULT_NEMAWASHI_BOOST,
     DEFAULT_NEMAWASHI_MAX_STEPS,
@@ -170,15 +177,15 @@ class SimulationConfig(BaseSettings):
     bg_color: int = Field(default=COLOR_BG, description="Background color")
     text_color: int = Field(default=COLOR_TEXT, description="Text color")
 
-    chars_per_line: int = Field(default=38, description="Characters per line in dialogue")
-    line_height: int = Field(default=8, description="Line height in pixels")
-    dialogue_x: int = Field(default=5, description="Dialogue box X position")
-    dialogue_y: int = Field(default=15, description="Dialogue box Y position")
-    max_y: int = Field(default=75, description="Max Y for scrolling")
+    chars_per_line: int = Field(default=DEFAULT_CHARS_PER_LINE, description="Characters per line in dialogue")
+    line_height: int = Field(default=DEFAULT_LINE_HEIGHT, description="Line height in pixels")
+    dialogue_x: int = Field(default=DEFAULT_DIALOGUE_X, description="Dialogue box X position")
+    dialogue_y: int = Field(default=DEFAULT_DIALOGUE_Y, description="Dialogue box Y position")
+    max_y: int = Field(default=DEFAULT_MAX_Y, description="Max Y for scrolling")
     waiting_msg: str = Field(default=MSG_WAITING_FOR_DEBATE, description="Message when waiting")
 
-    console_sleep: float = Field(default=0.5, description="Sleep time for console fallback")
-    max_turns: int = Field(default=5, description="Max turns in simulation")
+    console_sleep: float = Field(default=DEFAULT_CONSOLE_SLEEP, description="Sleep time for console fallback")
+    max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
     agents: dict[str, AgentConfig] = Field(default_factory=_default_agents, description="Configuration for agents")
 
