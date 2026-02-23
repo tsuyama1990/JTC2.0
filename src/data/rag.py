@@ -19,6 +19,7 @@ from src.core.constants import (
     ERR_RAG_INDEX_SIZE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
+    ERR_PATH_TRAVERSAL,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
@@ -161,18 +162,14 @@ class RAG:
             # Check strictly if path starts with allowed parent path
             # str(path) gives absolute path string.
             # We must verify it's UNDER the parent.
-            try:
-                # is_relative_to is generally safe if both are resolved
-                if path.is_relative_to(parent):
-                    is_safe = True
-                    break
-            except ValueError:
-                continue
+            # Use strict string prefix check to prevent traversal
+            if str(path).startswith(str(parent)):
+                is_safe = True
+                break
 
         if not is_safe:
-            msg = "Path traversal detected in persist_dir. Must be within project root."
             logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
-            raise ConfigurationError(msg)
+            raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         return str(path)
 
@@ -256,6 +253,7 @@ class RAG:
                     raise ValidationError(ERR_RAG_TEXT_TOO_LARGE.format(size=len(request.text)))
                 yield request.text
             else:
+                # If iterator, just yield
                 yield from request.text
 
         for content_part in content_generator():
@@ -298,12 +296,14 @@ class RAG:
         except Exception as e:
             raise ValidationError(str(e)) from e
 
+        # Use generator to stream documents
         doc_iterator = self._document_generator(request)
 
         try:
             # If index is None, we must create it with at least one document
             if self.index is None:
                 try:
+                    # Only peek the first document to initialize index
                     first_doc = next(doc_iterator)
                     self.index = VectorStoreIndex.from_documents([first_doc])
                 except StopIteration:

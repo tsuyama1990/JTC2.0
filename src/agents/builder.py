@@ -34,6 +34,15 @@ class BuilderAgent(BaseAgent):
         """
         Extract discrete features from the solution description using LLM.
         """
+        if not solution_description or len(solution_description) < 10:
+            logger.warning("Solution description too short for feature extraction.")
+            return []
+
+        # Sanitize input (basic check)
+        if len(solution_description) > 5000:
+             logger.warning("Solution description too long, truncating.")
+             solution_description = solution_description[:5000]
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "You are a product manager. Extract distinct features from the solution description."),

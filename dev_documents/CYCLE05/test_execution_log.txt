@@ -44,7 +44,7 @@ Name                               Stmts   Miss  Cover   Missing
 src/__init__.py                        0      0   100%
 src/agents/__init__.py                 6      0   100%
 src/agents/base.py                     9      0   100%
-src/agents/builder.py                 67      2    97%   48, 69
+src/agents/builder.py                 73      6    92%   38-39, 43-44, 57, 78
 src/agents/cpo.py                     17      0   100%
 src/agents/ideator.py                 47     12    74%   31-34, 97-107
 src/agents/mixins.py                  23      6    74%   28, 31-35
@@ -65,7 +65,7 @@ src/core/simulation.py                49      1    98%   42
 src/core/theme.py                     18      0   100%
 src/core/validators.py                47     10    79%   47, 50-51, 53-54, 61, 64-65, 67-68
 src/data/__init__.py                   2      0   100%
-src/data/rag.py                      208     28    87%   57-58, 65-66, 88-89, 133-134, 143, 148-150, 169-170, 190, 222-224, 259, 263-264, 298-299, 310, 364, 370-378
+src/data/rag.py                      204     26    87%   58-59, 66-67, 89-90, 134-135, 144, 149-151, 187, 219-221, 257, 261-262, 296-297, 310, 364, 370-378
 src/domain_models/__init__.py          6      0   100%
 src/domain_models/common.py           23      0   100%
 src/domain_models/enums.py            11      0   100%
@@ -80,8 +80,8 @@ src/domain_models/transcript.py       22      2    91%   32-33
 src/domain_models/validators.py       12      0   100%
 src/tools/__init__.py                  3      0   100%
 src/tools/search.py                   34      2    94%   39, 75
-src/tools/v0_client.py                35      0   100%
+src/tools/v0_client.py                39      0   100%
 src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 128-134, 154
 ----------------------------------------------------------------
-TOTAL                               1666    191    89%
-============================= 115 passed in 20.76s =============================
+TOTAL                               1672    193    88%
+============================= 115 passed in 19.87s =============================

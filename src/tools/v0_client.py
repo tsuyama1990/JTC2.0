@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import httpx
+import pybreaker
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -21,11 +22,17 @@ class V0Client:
     """
 
     def __init__(self, api_key: str | None = None) -> None:
-        settings = get_settings()
+        self.settings = get_settings()
         self.api_key = api_key or (
-            settings.v0_api_key.get_secret_value() if settings.v0_api_key else None
+            self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None
         )
-        self.base_url = settings.v0_api_url
+        self.base_url = self.settings.v0_api_url
+
+        # Circuit Breaker
+        self.breaker = pybreaker.CircuitBreaker(
+            fail_max=self.settings.circuit_breaker_fail_max,
+            reset_timeout=self.settings.circuit_breaker_reset_timeout,
+        )
 
     def generate_ui(self, prompt: str) -> str:
         """
@@ -44,6 +51,9 @@ class V0Client:
             logger.error(ERR_V0_API_KEY_MISSING)
             raise V0GenerationError(ERR_V0_API_KEY_MISSING)
 
+        return self.breaker.call(self._generate_ui_impl, prompt)
+
+    def _generate_ui_impl(self, prompt: str) -> str:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
