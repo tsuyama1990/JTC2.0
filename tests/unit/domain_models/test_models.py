@@ -181,3 +181,31 @@ def test_agent_state_creation() -> None:
     # Validation
     with pytest.raises(ValidationError):
         DeGrootProfile(self_confidence=1.5)  # Should be <= 1.0
+
+
+def test_transcript_validation() -> None:
+    """Test transcript validation."""
+    # Valid
+    GlobalState(transcript="This is a valid long transcript.")
+
+    # Invalid (too short)
+    with pytest.raises(ValidationError, match="Transcript is too short"):
+        GlobalState(transcript="Short")
+
+
+def test_agent_states_validation() -> None:
+    """Test agent_states key validation."""
+    profile = DeGrootProfile(self_confidence=0.5)
+
+    # Valid
+    valid_states = {
+        Role.FINANCE: AgentState(role=Role.FINANCE, degroot_profile=profile)
+    }
+    GlobalState(agent_states=valid_states)
+
+    # Invalid key mismatch
+    invalid_states = {
+        Role.SALES: AgentState(role=Role.FINANCE, degroot_profile=profile)
+    }
+    with pytest.raises(ValidationError, match="Key Sales Manager does not match"):
+        GlobalState(agent_states=invalid_states)

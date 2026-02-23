@@ -44,14 +44,19 @@ class PersonaAgent(BaseAgent):
         """Construct the conversation history context."""
         context = []
         if state.selected_idea:
-            context.append(f"IDEA: {state.selected_idea.title}")
-            context.append(f"PROBLEM: {state.selected_idea.problem}")
-            context.append(f"SOLUTION: {state.selected_idea.solution}")
-            context.append(f"UVP: {state.selected_idea.unique_value_prop}")
+            # Pre-allocate list for efficiency, though append is O(1)
+            context = [
+                f"IDEA: {state.selected_idea.title}",
+                f"PROBLEM: {state.selected_idea.problem}",
+                f"SOLUTION: {state.selected_idea.solution}",
+                f"UVP: {state.selected_idea.unique_value_prop}",
+                "\nDEBATE HISTORY:"
+            ]
+        else:
+            context = ["\nDEBATE HISTORY:"]
 
-        context.append("\nDEBATE HISTORY:")
-        for msg in state.debate_history:
-            context.append(f"{msg.role}: {msg.content}")
+        # Efficiently extend the list
+        context.extend(f"{msg.role}: {msg.content}" for msg in state.debate_history)
 
         return "\n".join(context)
 

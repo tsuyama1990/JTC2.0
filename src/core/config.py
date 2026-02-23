@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
+    DEFAULT_AGENTS_CONFIG,
     ERR_CONFIG_MISSING_OPENAI_KEY,
     ERR_CONFIG_MISSING_TAVILY_KEY,
     ERR_INVALID_COLOR,
@@ -152,52 +153,10 @@ class SimulationConfig(BaseSettings):
 
     # Agent Map (Role -> Config)
     # Using a dict to avoid hardcoding role logic in renderer
-    agents: dict[str, AgentConfig] = {
-        "New Employee": AgentConfig(
-            role="New Employee",
-            label="NewEmp",
-            color=11,
-            x=20,
-            y=80,
-            w=20,
-            h=30,
-            text_x=15,
-            text_y=112,
-        ),
-        "Finance Manager": AgentConfig(
-            role="Finance Manager",
-            label="Finance",
-            color=8,
-            x=70,
-            y=80,
-            w=20,
-            h=30,
-            text_x=65,
-            text_y=112,
-        ),
-        "Sales Manager": AgentConfig(
-            role="Sales Manager",
-            label="Sales",
-            color=9,
-            x=120,
-            y=80,
-            w=20,
-            h=30,
-            text_x=120,
-            text_y=112,
-        ),
-        "CPO": AgentConfig(
-            role="CPO",
-            label="CPO",
-            color=12,
-            x=140,
-            y=40,
-            w=20,
-            h=30,
-            text_x=135,
-            text_y=72,
-        ),
-    }
+    # Default is provided, but can be overridden by environment variables if needed
+    agents: dict[str, AgentConfig] = Field(
+        default_factory=lambda: {k: AgentConfig(**v) for k, v in DEFAULT_AGENTS_CONFIG.items()}
+    )
 
     @field_validator("width", "height")
     @classmethod

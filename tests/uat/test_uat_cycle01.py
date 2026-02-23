@@ -1,3 +1,4 @@
+import itertools
 import os
 from unittest.mock import MagicMock, patch
 
@@ -69,12 +70,17 @@ def test_uat_cycle01_ideation_and_selection(
         final_state = final_state_dict  # Should not happen with default LangGraph
 
     # 4. Verification
-    # Since generated_ideas is now an Iterable, we convert to list to check length
-    # Note: Consuming the iterator here means final_state.generated_ideas is exhausted
-    # unless we re-populate it or use the consumed list for further checks.
+    # Use itertools.islice to check the first few elements without consuming the entire iterator
+    # (assuming it might be infinite or very large in a real scenario).
+    # However, since we need to verify length and content for the test, we acknowledge consumption here.
+    # In a real app, pagination would use islice.
     assert final_state.generated_ideas is not None
-    ideas_list = list(final_state.generated_ideas)
-    assert len(ideas_list) == 10
+
+    # We slice to ensure we don't accidentally consume an infinite generator, though our mock is finite.
+    # We take 11 items to check if there are indeed 10 (or more).
+    preview_ideas = list(itertools.islice(final_state.generated_ideas, 11))
+
+    assert len(preview_ideas) == 10
     assert final_state.phase == Phase.IDEATION
 
     # Verify the agent was called
@@ -86,8 +92,8 @@ def test_uat_cycle01_ideation_and_selection(
     # In Cycle 1, the Graph stops after Ideation.
 
     selected_id = 2
-    # We must select from the captured list because final_state.generated_ideas generator is consumed above
-    selected_canvas = next(idea for idea in ideas_list if idea.id == selected_id)
+    # Select from the previewed list since the generator is consumed up to that point
+    selected_canvas = next(idea for idea in preview_ideas if idea.id == selected_id)
 
     # Verify we can select
     assert selected_canvas.id == 2

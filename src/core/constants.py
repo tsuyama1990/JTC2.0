@@ -1,4 +1,4 @@
-from typing import Final
+from typing import Any, Final
 
 # Error Messages
 ERR_CONFIG_MISSING_OPENAI_KEY: Final[str] = "OPENAI_API_KEY is missing"
@@ -63,3 +63,51 @@ DESC_EMPATHY_FEELS: Final[str] = "Emotional state and feelings"
 
 DESC_METRICS_AARRR: Final[str] = "Standard AARRR metrics (Acquisition, Activation, Retention, Revenue, Referral)"
 DESC_METRICS_CUSTOM: Final[str] = "Additional custom metrics specific to the business model"
+
+# Default Agent Configuration
+DEFAULT_AGENTS_CONFIG: Final[dict[str, Any]] = {
+    "New Employee": {
+        "role": "New Employee",
+        "label": "NewEmp",
+        "color": 11,
+        "x": 20,
+        "y": 80,
+        "w": 20,
+        "h": 30,
+        "text_x": 15,
+        "text_y": 112,
+    },
+    "Finance Manager": {
+        "role": "Finance Manager",
+        "label": "Finance",
+        "color": 8,
+        "x": 70,
+        "y": 80,
+        "w": 20,
+        "h": 30,
+        "text_x": 65,
+        "text_y": 112,
+    },
+    "Sales Manager": {
+        "role": "Sales Manager",
+        "label": "Sales",
+        "color": 9,
+        "x": 120,
+        "y": 80,
+        "w": 20,
+        "h": 30,
+        "text_x": 120,
+        "text_y": 112,
+    },
+    "CPO": {
+        "role": "CPO",
+        "label": "CPO",
+        "color": 12,
+        "x": 140,
+        "y": 40,
+        "w": 20,
+        "h": 30,
+        "text_x": 135,
+        "text_y": 72,
+    },
+}

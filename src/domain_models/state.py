@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from enum import StrEnum
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.config import get_settings
 
@@ -69,6 +69,25 @@ class GlobalState(BaseModel):
         default_factory=dict,
         description="Persistent state of agents (e.g. DeGroot weights)"
     )
+
+    @field_validator("transcript")
+    @classmethod
+    def validate_transcript(cls, v: str | None) -> str | None:
+        """Ensure transcript, if provided, is not trivial."""
+        if v is not None and len(v.strip()) < 10:
+            msg = "Transcript is too short to be valid."
+            raise ValueError(msg)
+        return v
+
+    @field_validator("agent_states")
+    @classmethod
+    def validate_agent_states(cls, v: dict[Role, AgentState]) -> dict[Role, AgentState]:
+        """Ensure agent_states keys match the AgentState role."""
+        for role, state in v.items():
+            if role != state.role:
+                msg = f"Key {role} does not match AgentState role {state.role}"
+                raise ValueError(msg)
+        return v
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:
