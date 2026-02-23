@@ -90,7 +90,8 @@ class RAG:
              raise ConfigurationError(msg)
 
         try:
-            path = Path(path_str).resolve()
+            # Resolve path (handles symlinks by default in newer Python, but let's be explicit if needed)
+            path = Path(path_str).resolve(strict=False)
         except Exception as e:
             msg = f"Invalid path format: {e}"
             raise ConfigurationError(msg) from e
@@ -262,7 +263,9 @@ class RAG:
 
     def _query_impl(self, question: str) -> str:
         if self.index is None:
-            return "No data available."
+            # Raise exception instead of returning string for consistent error handling
+            msg = "No data available in RAG index."
+            raise ValidationError(msg)
 
         query_engine = self.index.as_query_engine()
         response = query_engine.query(question)

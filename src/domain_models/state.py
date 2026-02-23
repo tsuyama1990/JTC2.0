@@ -60,7 +60,13 @@ class GlobalState(BaseModel):
     simulation_active: bool = False
 
     # Track pivots for looping logic
-    pivot_count: int = Field(default=0, description="Number of times the user has pivoted.")
+    # Audit: Add ge=0 and upper bound validation
+    pivot_count: int = Field(
+        default=0,
+        ge=0,
+        le=5, # Hardcoded reasonable limit, or load from config if strictly needed. 5 is reasonable for "JTC".
+        description="Number of times the user has pivoted."
+    )
 
     # Updated fields for Cycle 3
     transcripts: list[Transcript] = Field(

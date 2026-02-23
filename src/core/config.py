@@ -187,7 +187,7 @@ class NemawashiConfig(BaseSettings):
     tolerance: float = Field(alias="NEMAWASHI_TOLERANCE", default=DEFAULT_NEMAWASHI_TOLERANCE)
     nomikai_boost: float = Field(alias="NEMAWASHI_NOMIKAI_BOOST", default=DEFAULT_NEMAWASHI_BOOST)
     nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=DEFAULT_NEMAWASHI_REDUCTION)
-    sparse_threshold: int = Field(alias="NEMAWASHI_SPARSE_THRESHOLD", default=1000)
+    sparse_threshold: int = Field(alias="NEMAWASHI_SPARSE_THRESHOLD", default=1000, ge=1)
 
 
 class SimulationConfig(BaseSettings):

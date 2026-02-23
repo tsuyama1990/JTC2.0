@@ -30,34 +30,22 @@ class ConsensusEngine:
         Run the DeGroot model to calculate final opinion distribution.
 
         Strategy:
-        - Prefer Sparse Matrices (csr_matrix) to avoid OOM on large datasets, as requested by audit.
-        - While the input `network.matrix` is already loaded (list of lists), converting to dense numpy array
-          doubles the memory footprint for large N. `csr_matrix` is more efficient for the calculation phase.
-        - Threshold for sparse vs dense is configurable via `sparse_threshold`.
+        - ALWAYS use Sparse Matrices (csr_matrix) to avoid OOM on large datasets and double memory usage.
+        - Audit Requirement: "NEVER load entire datasets into memory."
+        - Although input is a list of lists, converting to dense numpy array would duplicate memory usage.
+          Converting directly to CSR is more efficient for the multiplication steps.
         """
         opinions = np.array([s.initial_support for s in network.stakeholders])
-        rows = len(network.matrix)
-
-        # Optimization Threshold from Config
-        sparse_threshold = self.settings.sparse_threshold
 
         try:
-            # Audit Feedback: "Implement chunked processing or streaming... regardless of size"
-            # Since input is already in memory (list[list]), we focus on preventing calculation OOM.
-            # Using CSR matrix for everything above a very low threshold (or always if threshold=0)
-            # helps significantly.
-            if rows < sparse_threshold:
-                # Dense Mode: Only for truly small matrices where overhead of sparse format isn't worth it
-                matrix_op = np.array(network.matrix)
-                # Validate Stochasticity
-                self._validate_stochasticity(matrix_op.sum(axis=1))
-            else:
-                # Sparse Mode: Default for anything significant
-                matrix_op = csr_matrix(network.matrix)
-                # Validate Stochasticity (Sparse)
-                # axis=1 returns np.matrix, convert to array -> flatten
-                row_sums = np.array(matrix_op.sum(axis=1)).flatten()
-                self._validate_stochasticity(row_sums)
+            # Sparse Mode: Default for everything to prevent OOM and double memory allocation
+            # efficient for matrix-vector multiplication in the loop
+            matrix_op = csr_matrix(network.matrix)
+
+            # Validate Stochasticity (Sparse)
+            # axis=1 returns np.matrix, convert to array -> flatten
+            row_sums = np.array(matrix_op.sum(axis=1)).flatten()
+            self._validate_stochasticity(row_sums)
 
         except Exception as e:
             if isinstance(e, ValidationError):

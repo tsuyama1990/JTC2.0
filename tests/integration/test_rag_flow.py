@@ -90,12 +90,17 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
         # Because we use constant embeddings, the retrieval should find the document we just added
         # (it's the only one and matches perfectly).
 
-        answer = rag_loaded.query("What do customers prefer?")
+        # To properly assert content, we can inspect what the retrieval engine found
+        # by using the query engine directly if possible, or by trusting the MockLLM output if it includes context.
+        # LlamaIndex MockLLM response usually is fixed, so inspecting retrieval nodes is better.
 
-        # LlamaIndex MockLLM by default echoes the prompt or a standard response.
-        # We just want to ensure it didn't crash and returned a string.
-        assert isinstance(answer, str)
-        assert len(answer) > 0
+        query_engine = rag_loaded.index.as_query_engine()
+        response = query_engine.query("What do customers prefer?")
+
+        # Verify the response object contains our source node
+        assert len(response.source_nodes) > 0
+        retrieved_text = response.source_nodes[0].node.get_content()
+        assert "Customers prefer subscription models" in retrieved_text
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
