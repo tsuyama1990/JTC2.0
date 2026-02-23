@@ -22,6 +22,9 @@ def mock_settings() -> Generator[MagicMock, None, None]:
         mock.return_value.rag_chunk_size = 4000
         mock.return_value.rag_max_query_length = 500
         mock.return_value.rag_max_index_size_mb = 500
+        mock.return_value.rag_max_document_length = 10000
+        mock.return_value.circuit_breaker_fail_max = 5
+        mock.return_value.circuit_breaker_reset_timeout = 60
         yield mock
 
 

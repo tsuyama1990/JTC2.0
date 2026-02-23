@@ -11,6 +11,7 @@ from .lean_canvas import LeanCanvas
 from .metrics import Metrics
 from .mvp import MVP
 from .persona import Persona
+from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage, Role
 from .transcript import Transcript
 
@@ -86,6 +87,7 @@ class GlobalState(BaseModel):
     agent_states: dict[Role, AgentState] = Field(
         default_factory=dict, description="Persistent state of agents (e.g. DeGroot weights)"
     )
+    influence_network: InfluenceNetwork | None = None
 
     @field_validator("transcripts")
     @classmethod

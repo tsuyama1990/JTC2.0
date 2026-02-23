@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.simulation import create_simulation_graph, _get_cached_agent
+from src.core.simulation import _get_cached_agent, create_simulation_graph
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
@@ -58,7 +58,7 @@ def test_simulation_turn_sequence(
         def _run(state: GlobalState):
             msg = DialogueMessage(role=role, content=f"Message from {role}", timestamp=0.0)
             # Simulating what PersonaAgent does: return full updated list
-            new_history = list(state.debate_history) + [msg]
+            new_history = [*state.debate_history, msg]
             return {"debate_history": new_history}
         return _run
 

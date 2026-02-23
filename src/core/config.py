@@ -174,6 +174,15 @@ def _load_default_agents_config() -> dict[str, AgentConfig]:
     }
 
 
+class NemawashiConfig(BaseSettings):
+    """Configuration for Nemawashi Consensus Building."""
+
+    max_steps: int = 10
+    tolerance: float = 1e-6
+    nomikai_boost: float = 0.3
+    nomikai_reduction: float = 0.1
+
+
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
@@ -239,8 +248,13 @@ class Settings(BaseSettings):
     # RAG Configuration
     rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", default="./vector_store")
     rag_chunk_size: int = Field(alias="RAG_CHUNK_SIZE", default=4000)
+    rag_max_document_length: int = Field(alias="RAG_MAX_DOC_LENGTH", default=10000)
     rag_max_query_length: int = Field(alias="RAG_MAX_QUERY_LENGTH", default=500)
     rag_max_index_size_mb: int = Field(alias="RAG_MAX_INDEX_SIZE_MB", default=500)
+
+    # Circuit Breaker
+    circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=5)
+    circuit_breaker_reset_timeout: int = Field(alias="CB_RESET_TIMEOUT", default=60)
 
     # Iterator Safety
     iterator_safety_limit: int = Field(alias="ITERATOR_SAFETY_LIMIT", default=10000)
@@ -263,6 +277,7 @@ class Settings(BaseSettings):
     errors: ClassVar[ErrorMessages] = ErrorMessages()
     ui: ClassVar[UIConfig] = UIConfig()
     simulation: ClassVar[SimulationConfig] = SimulationConfig()
+    nemawashi: ClassVar[NemawashiConfig] = NemawashiConfig()
 
     def model_post_init(self, __context: object) -> None:
         """Validate API keys on initialization."""
@@ -277,7 +292,8 @@ class Settings(BaseSettings):
             msg = "OpenAI API Key must start with 'sk-'."
             raise ValueError(msg)
         if len(self.openai_api_key.get_secret_value()) < 20:
-             raise ValueError("OpenAI API Key is too short.")
+            msg = "OpenAI API Key is too short."
+            raise ValueError(msg)
 
         if not self.tavily_api_key:
             raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
@@ -285,7 +301,8 @@ class Settings(BaseSettings):
             msg = "Tavily API Key must start with 'tvly-'."
             raise ValueError(msg)
         if len(self.tavily_api_key.get_secret_value()) < 20:
-             raise ValueError("Tavily API Key is too short.")
+            msg = "Tavily API Key is too short."
+            raise ValueError(msg)
 
         return self
 

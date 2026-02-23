@@ -23,6 +23,16 @@ ERR_INVALID_DIMENSIONS: Final[str] = "Dimensions must be positive"
 ERR_INVALID_RESOLUTION: Final[str] = "Resolution must be positive"
 ERR_INVALID_FPS: Final[str] = "FPS must be between 1 and 60"
 
+# Nemawashi Errors
+ERR_MATRIX_SHAPE: Final[str] = "Influence matrix must be square (NxN)."
+ERR_MATRIX_VALUES: Final[str] = "Matrix values must be between 0.0 and 1.0."
+ERR_STAKEHOLDER_MISMATCH: Final[str] = "Number of stakeholders must match matrix dimensions."
+ERR_DISCONNECTED_GRAPH: Final[str] = "Influence network contains disconnected components."
+ERR_PATH_TRAVERSAL: Final[str] = "Path traversal detected in persist_dir. Must be within project root."
+ERR_RAG_INDEX_SIZE: Final[str] = "Vector store size exceeds limit ({limit} MB). Loading blocked."
+ERR_RAG_TEXT_TOO_LARGE: Final[str] = "Text too large ({size} chars) for ingestion."
+ERR_CIRCUIT_OPEN: Final[str] = "Circuit breaker is open. External service unavailable."
+
 # UI Messages
 MSG_NO_IDEAS: Final[str] = "\nNo ideas generated. Please try again or check logs."
 MSG_GENERATED_HEADER: Final[str] = "\n=== Generated Ideas ==="
@@ -43,6 +53,13 @@ MSG_EXECUTION_ERROR: Final[str] = "\nError during execution: {e}"
 # Simulation Messages
 MSG_SIM_TITLE: Final[str] = "JTC Simulation"
 MSG_WAITING_FOR_DEBATE: Final[str] = "Waiting for debate start..."
+
+# Nemawashi UI
+MSG_NEMAWASHI_TITLE: Final[str] = "Nemawashi Consensus Map"
+MSG_CONSENSUS_REACHED: Final[str] = "Consensus Reached!"
+MSG_CONSENSUS_FAILED: Final[str] = "Consensus Failed."
+MSG_INFLUENCER_IDENTIFIED: Final[str] = "Key Influencer Identified: {name}"
+MSG_NOMIKAI_SUCCESS: Final[str] = "Nomikai successful. {target} is now more open."
 
 # Domain Model Descriptions
 DESC_MVP_TYPE: Final[str] = "Type of MVP (e.g., Landing Page, Wizard of Oz)"
