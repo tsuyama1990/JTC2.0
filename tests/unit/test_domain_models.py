@@ -78,7 +78,7 @@ def test_global_state_defaults() -> None:
     """Test GlobalState default values."""
     state = GlobalState()
     assert state.phase == Phase.IDEATION
-    assert state.generated_ideas == []
+    assert state.generated_ideas is None
     assert state.selected_idea is None
 
 

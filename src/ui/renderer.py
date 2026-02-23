@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 import pyxel
 
+from src.core.config import get_settings
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
 
@@ -34,10 +35,12 @@ class SimulationRenderer:
         """
         self.state_getter = state_getter
         self.headless = os.getenv("HEADLESS_MODE", "false").lower() == "true"
-        self.width = 160
-        self.height = 120
-        self.bg_color = 0  # Black
-        self.text_color = 7  # White
+        self.settings = get_settings().simulation
+
+        self.width = self.settings.width
+        self.height = self.settings.height
+        self.bg_color = self.settings.bg_color
+        self.text_color = self.settings.text_color
 
     def start(self) -> None:
         """Start the Pyxel application loop."""
@@ -47,7 +50,7 @@ class SimulationRenderer:
             return
 
         try:
-            pyxel.init(self.width, self.height, title="JTC Simulation", fps=30)
+            pyxel.init(self.width, self.height, title=self.settings.title, fps=self.settings.fps)
             pyxel.run(self.update, self.draw)
         except Exception as e:
             logger.warning(f"Failed to initialize Pyxel (likely no display): {e}")
@@ -71,12 +74,12 @@ class SimulationRenderer:
 
             # Simple exit condition for console mode
             if not state.simulation_active and current_count > 0:
-                 break
-
-            if current_count >= 5: # Hack: Simulation usually 5 steps
                 break
 
-            time.sleep(0.5)
+            if current_count >= self.settings.max_turns:
+                break
+
+            time.sleep(self.settings.console_sleep)
 
     def update(self) -> None:
         """Update logic (poll inputs)."""
@@ -93,44 +96,53 @@ class SimulationRenderer:
 
     def _draw_agents(self) -> None:
         """Draw rectangles representing agents."""
-        # Draw New Employee (Green)
-        pyxel.rect(20, 80, 20, 30, 11)
-        pyxel.text(15, 112, "NewEmp", 11)
+        # Draw New Employee
+        cfg = self.settings.new_employee
+        pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
+        pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
 
-        # Draw Finance (Red)
-        pyxel.rect(70, 80, 20, 30, 8)
-        pyxel.text(65, 112, "Finance", 8)
+        # Draw Finance
+        cfg = self.settings.finance
+        pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
+        pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
 
-        # Draw Sales (Orange)
-        pyxel.rect(120, 80, 20, 30, 9)
-        pyxel.text(120, 112, "Sales", 9)
+        # Draw Sales
+        cfg = self.settings.sales
+        pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
+        pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
 
     def _draw_dialogue(self, state: GlobalState) -> None:
         """Draw the latest dialogue message."""
         if not state.debate_history:
-            pyxel.text(5, 5, "Waiting for debate start...", self.text_color)
+            pyxel.text(
+                self.settings.dialogue_x,
+                self.settings.dialogue_y,
+                self.settings.waiting_msg,
+                self.text_color,
+            )
             return
 
         msg = state.debate_history[-1]
 
         # Determine speaker color
-        color = 7
+        color = self.text_color
         if msg.role == Role.NEW_EMPLOYEE:
-            color = 11
+            color = self.settings.new_employee.color
         elif msg.role == Role.FINANCE:
-            color = 8
+            color = self.settings.finance.color
         elif msg.role == Role.SALES:
-            color = 9
+            color = self.settings.sales.color
 
-        pyxel.text(5, 5, f"{msg.role}:", color)
+        pyxel.text(self.settings.dialogue_x, self.settings.dialogue_y, f"{msg.role}:", color)
 
-        # Simple text wrapping (very basic)
+        # Simple text wrapping
         content = msg.content
-        y = 15
-        chars_per_line = 38
-        for i in range(0, len(content), chars_per_line):
-            line = content[i : i + chars_per_line]
-            pyxel.text(5, y, line, 7)
-            y += 8
-            if y > 75: # Stop if overlapping agents
+        y = self.settings.dialogue_y + 10  # Start below role name
+        chars = self.settings.chars_per_line
+
+        for i in range(0, len(content), chars):
+            line = content[i : i + chars]
+            pyxel.text(self.settings.dialogue_x, y, line, self.text_color)
+            y += self.settings.line_height
+            if y > self.settings.max_y:
                 break

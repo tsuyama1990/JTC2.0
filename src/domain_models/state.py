@@ -43,7 +43,8 @@ class GlobalState(BaseModel):
     phase: Phase = Phase.IDEATION
     topic: str = ""
     # Changed from list to Iterable to support lazy loading/generators
-    generated_ideas: Iterable[LeanCanvas] = []
+    # Using None default to avoid mutable default argument (list)
+    generated_ideas: Iterable[LeanCanvas] | None = None
     selected_idea: LeanCanvas | None = None
     messages: list[str] = []
 

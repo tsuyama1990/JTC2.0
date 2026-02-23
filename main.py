@@ -2,8 +2,8 @@ import argparse
 import logging
 import sys
 import threading
-from collections.abc import Iterable, Iterator
-from itertools import chain
+from collections.abc import Iterator
+from itertools import chain, islice
 
 # Add src to path if running from root
 sys.path.append(".")
@@ -26,82 +26,81 @@ def echo(msg: str) -> None:
     print(msg)  # noqa: T201
 
 
-def display_ideas_paginated(
-    ideas: Iterable[LeanCanvas], page_size: int | None = None
-) -> None:
+
+
+def _process_page_selection(
+    page_items: list[LeanCanvas],
+    page_size: int,
+    ui_config: object # type: ignore
+) -> LeanCanvas | None | str:
+    """Handle user input for a single page."""
+    for item in page_items:
+        echo(f"\n[{item.id}] {item.title}")
+        echo(f"    Problem: {item.problem}")
+        echo(f"    Solution: {item.solution}")
+        echo("-" * 50)
+
+    while True:
+        choice = input(ui_config.select_prompt) # type: ignore
+
+        if choice.lower() == 'n':
+            if len(page_items) < page_size:
+                echo("End of list.")
+                return None
+            return 'next'
+
+        try:
+            idx = int(choice)
+            # Search in CURRENT page only
+            selected = next((i for i in page_items if i.id == idx), None)
+
+            if selected:
+                return selected
+
+            echo(ui_config.id_not_found.format(idx=idx)) # type: ignore
+        except ValueError:
+            echo(ui_config.invalid_input) # type: ignore
+
+    return None
+
+
+def browse_and_select(ideas_gen: Iterator[LeanCanvas], page_size: int | None = None) -> LeanCanvas | None:
     """
-    Display generated ideas with pagination.
+    Browse items from generator in chunks (pages) and allow selection.
+    Strictly O(page_size) memory usage.
     """
     ui_config = get_settings().ui
     if page_size is None:
         page_size = ui_config.page_size
 
-    iterator = iter(ideas)
-
-    # Peek to handle "No ideas" case
+    # Peek to handle empty generator
     try:
-        first_item = next(iterator)
+        first_item = next(ideas_gen)
     except StopIteration:
         echo(ui_config.no_ideas)
-        return
+        return None
 
-    # Reconstruct iterator
-    iterator = chain([first_item], iterator)
+    # Put first item back into a new iterator
+    current_iter = chain([first_item], ideas_gen)
+
     echo(ui_config.generated_header)
 
     while True:
-        count = 0
-        has_items = False
+        # Materialize only ONE page
+        page_items = list(islice(current_iter, page_size))
 
-        # Iterate manually up to page_size
-        for _ in range(page_size):
-            try:
-                idea = next(iterator)
-                has_items = True
-                count += 1
-                echo(f"\n[{idea.id}] {idea.title}")
-                echo(f"    Problem: {idea.problem}")
-                echo(f"    Solution: {idea.solution}")
-                echo("-" * 50)
-            except StopIteration:
-                break
-
-        if not has_items:
+        if not page_items:
             break
 
-        # If we processed fewer items than page_size, we are done
-        if count < page_size:
-            break
+        result = _process_page_selection(page_items, page_size, ui_config)
 
-        # Prompt for next page
-        input(ui_config.press_enter)
+        if isinstance(result, LeanCanvas):
+            return result
 
+        if result is None:
+            return None
 
-def select_idea(ideas: Iterable[LeanCanvas]) -> LeanCanvas | None:
-    """Prompt user to select an idea."""
-    ui_config = get_settings().ui
-
-    while True:
-        try:
-            choice = input(ui_config.select_prompt)
-            idx = int(choice)
-
-            # ideas is expected to be re-iterable (list) here
-            iterator = iter(ideas)
-            selected = None
-
-            for idea in iterator:
-                if idea.id == idx:
-                    selected = idea
-                    break
-
-            if selected:
-                return selected
-
-            echo(ui_config.id_not_found.format(idx=idx))
-
-        except ValueError:
-            echo(ui_config.invalid_input)
+        # If result is 'next', loop continues
 
 
 def _process_execution(topic: str) -> Iterator[LeanCanvas]:
@@ -116,6 +115,9 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
     final_state = app.invoke(initial_state)
 
     generated_ideas_raw = final_state.get("generated_ideas", [])
+
+    if generated_ideas_raw is None:
+        return
 
     for item in generated_ideas_raw:
         if isinstance(item, LeanCanvas):
@@ -132,8 +134,6 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
 
 def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
     """Run the simulation phase with UI."""
-    # Note: We keep phase as IDEATION to avoid validation errors requiring Target Persona,
-    # which is not yet created in this flow.
     initial_state = GlobalState(
         topic=topic,
         selected_idea=selected_idea,
@@ -199,18 +199,11 @@ def main() -> None:
             echo("Topic is too long.")
             return
 
+        # STRICT SCALABILITY: typed_ideas_gen is a generator.
+        # We pass it directly to the browse function without converting to list.
         typed_ideas_gen = _process_execution(topic)
 
-        # Buffer ideas for selection
-        ideas_list = list(typed_ideas_gen)
-
-        if not ideas_list:
-            echo(ui_config.no_ideas)
-            return
-
-        display_ideas_paginated(ideas_list)
-
-        selected_idea = select_idea(ideas_list)
+        selected_idea = browse_and_select(typed_ideas_gen)
 
         if selected_idea:
             echo(ui_config.selected.format(title=selected_idea.title))

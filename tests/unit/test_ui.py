@@ -23,8 +23,9 @@ def test_renderer_draw(mock_pyxel: MagicMock, mock_state: GlobalState) -> None:
 
     mock_pyxel.cls.assert_called_with(0)
     # Check if text was called with expected content
-    # Note: color logic is complex, just check any call
-    mock_pyxel.text.assert_any_call(5, 5, f"{Role.NEW_EMPLOYEE}:", 11)
+    # We check for call arguments matching configuration defaults in config.py
+    # dialogue_x=5, dialogue_y=15, new_emp_color=11
+    mock_pyxel.text.assert_any_call(5, 15, f"{Role.NEW_EMPLOYEE}:", 11)
     # Check rects
     mock_pyxel.rect.assert_any_call(20, 80, 20, 30, 11)
 
