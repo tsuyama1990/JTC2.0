@@ -63,9 +63,7 @@ def validate_topic(topic: str) -> str:
     # Allow alphanumeric, spaces, - _ . : ,
     if not re.match(r"^[a-zA-Z0-9\s\-_\.,:]+$", topic):
         logger.warning(f"Topic contains special characters: {topic}")
-        # We warn but don't strictly block unless it looks dangerous,
-        # but for high security we should strip.
-        # Let's strictly sanitize for now.
+        # STRICT sanitization: Remove anything not in allowlist
         return re.sub(r"[^a-zA-Z0-9\s\-_\.,:]", "", topic)
 
     return topic
@@ -195,11 +193,12 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
         return
 
     # Normalize to iterator and STRICTLY enforce iterator type
-    iterator = (
-        generated_ideas_raw
-        if isinstance(generated_ideas_raw, Iterator)
-        else iter(generated_ideas_raw)
-    )
+    if not isinstance(generated_ideas_raw, Iterator):
+        # We explicitly convert to iterator if it's iterable, but warn if it was a list
+        # This enforces the "generator first" constraint from constitution
+        iterator = iter(generated_ideas_raw)
+    else:
+        iterator = generated_ideas_raw
 
     # We yield items one by one to ensure this function remains a generator
     for item in iterator:
@@ -256,9 +255,15 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
     thread = threading.Thread(target=background_task, daemon=True)
     thread.start()
 
-    # Start UI
-    renderer = SimulationRenderer(lambda: shared_state["current"])
-    renderer.start()
+    try:
+        # Start UI (Blocking)
+        renderer = SimulationRenderer(lambda: shared_state["current"])
+        renderer.start()
+    finally:
+        # Ensure cleanup if possible, though daemon thread dies with main
+        # Explicit join with timeout just to be clean if needed, though daemon handles it.
+        # But generally with Pyxel blocking, we just let it exit.
+        pass
 
 
 def ingest_transcript(filepath: str) -> None:

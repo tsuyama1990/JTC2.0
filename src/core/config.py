@@ -259,6 +259,11 @@ class Settings(BaseSettings):
     ui: ClassVar[UIConfig] = UIConfig()
     simulation: ClassVar[SimulationConfig] = SimulationConfig()
 
+    def model_post_init(self, __context: object) -> None:
+        """Validate API keys on initialization."""
+        super().model_post_init(__context)
+        self.validate_api_keys()
+
     def validate_api_keys(self) -> Self:
         """Validate API keys are present."""
         if not self.openai_api_key:

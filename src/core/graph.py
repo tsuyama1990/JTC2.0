@@ -29,7 +29,14 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
     return {"phase": Phase.VERIFICATION}
 
 def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
-    """Wrapper for Simulation execution with error handling."""
+    """
+    Wrapper for Simulation execution with error handling.
+
+    NOTE: This implementation currently runs a single agent turn per 'round' node execution.
+    Architecture specifies a turn-based simulation. Future cycles should implement a
+    MultiAgent Orchestrator here to manage turns between Finance, Sales, and New Employee.
+    For Cycle 3, we maintain the existing behavior of running the New Employee agent logic.
+    """
     # In Cycle 2/3, simulation usually implies turn-based.
     # For now, we are just running the NewEmployee agent as the "simulation_round" node
     # based on the legacy implementation.

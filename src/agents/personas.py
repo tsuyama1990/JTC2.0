@@ -78,15 +78,20 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
 
         # But we still need to know if _research_impl exists on the subclass
         if hasattr(self, "_research_impl"):
-            self._rate_limit_wait()
-            # Ensure return type is str
-            # We use getattr to bypass mypy 'attr-defined' error for dynamic dispatch
-            impl = self._research_impl
-            result: str = impl(topic)
-            self._research_cache[topic] = result
-            return result
-        logger.warning(f"Agent {self.role} attempted research without implementation.")
+            try:
+                self._rate_limit_wait()
+                # Ensure return type is str
+                # We use getattr to bypass mypy 'attr-defined' error for dynamic dispatch
+                impl = self._research_impl
+                result: str = impl(topic)
+            except Exception as e:
+                logger.error(f"Research implementation failed for {topic}: {e}", exc_info=True)
+                return ""
+            else:
+                self._research_cache[topic] = result
+                return result
 
+        logger.warning(f"Agent {self.role} attempted research without implementation.")
         return ""
 
     def run(self, state: GlobalState) -> dict[str, Any]:

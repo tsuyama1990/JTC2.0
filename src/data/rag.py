@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -28,9 +29,10 @@ class RAG:
 
     def _validate_path(self, path_str: str) -> str:
         """Ensure persist directory is safe."""
-        # Simple check: restrict to current directory or strict subdirs
-        # For this context, we allow relative paths but ensure no traversing up
-        if ".." in path_str:
+        path = Path(path_str).resolve()
+        cwd = Path.cwd().resolve()
+
+        if not path.is_relative_to(cwd):
              msg = "Path traversal detected in persist_dir"
              raise ValueError(msg)
         return path_str
@@ -46,7 +48,9 @@ class RAG:
             model=self.settings.llm_model,
             api_key=api_key_str
         )
-        LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)  # type: ignore[attr-defined]
+        # Note: LlamaIndex settings typing can be tricky with mypy.
+        # We assign directly as recommended in docs, suppressing assignment error if needed.
+        LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
         # Scalability: Check index size before loading?
         # LlamaIndex local storage is files (docstore.json, index_store.json, etc).
@@ -55,16 +59,32 @@ class RAG:
         if Path(self.persist_dir).exists():
             try:
                 # Basic OOM protection: Warn if index seems huge (e.g. > 500MB)
-                # This is heuristic.
-                total_size = sum(f.stat().st_size for f in Path(self.persist_dir).glob("**/*") if f.is_file())
+                total_size = 0
+                # Use os.scandir for better performance on large directories
+                # Note: os.scandir is recursive only if we implement walk, but persist_dir usually flat or shallow.
+                # glob is simple. For depth, rglob.
+                # To follow strict audit: "os.scandir for better memory efficiency".
+                # Implementing a simple iterative size check.
+                stack = [self.persist_dir]
+                while stack:
+                    current_dir = stack.pop()
+                    with os.scandir(current_dir) as it:
+                        for entry in it:
+                            if entry.is_file():
+                                total_size += entry.stat().st_size
+                            elif entry.is_dir():
+                                stack.append(entry.path)
+
                 if total_size > 500 * 1024 * 1024:
                     logger.warning(f"Vector store at {self.persist_dir} is large ({total_size/1024/1024:.1f} MB). Loading may impact memory.")
 
                 storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
                 self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
-            except Exception:
-                logger.warning(f"Failed to load index from {self.persist_dir}, starting fresh.")
+            except Exception as e:
+                logger.exception("Failed to load index from %s", self.persist_dir)
                 self.index = None
+                msg = f"Critical RAG failure: Could not load index from {self.persist_dir}"
+                raise RuntimeError(msg) from e
 
     def ingest_text(self, text: str, source: str) -> None:
         """
