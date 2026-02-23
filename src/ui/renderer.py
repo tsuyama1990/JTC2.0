@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import time
@@ -6,6 +7,7 @@ from collections.abc import Callable
 import pyxel
 
 from src.core.config import get_settings
+from src.domain_models.simulation import DialogueMessage
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
@@ -24,13 +26,6 @@ class SimulationRenderer:
             state_getter: A function that returns the current GlobalState.
                           This allows the renderer to pull the latest state
                           from the simulation thread.
-
-                          THREAD SAFETY NOTE:
-                          The state_getter is expected to return a reference to a GlobalState object.
-                          Since the background thread replaces the GlobalState object atomically,
-                          and we only read from the returned object (which is effectively immutable
-                          for the duration of the frame), this pattern is safe without locks
-                          for visualization purposes.
         """
         self.state_getter = state_getter
         self.headless = os.getenv("HEADLESS_MODE", "false").lower() == "true"
@@ -40,6 +35,10 @@ class SimulationRenderer:
         self.height = self.settings.height
         self.bg_color = self.settings.bg_color
         self.text_color = self.settings.text_color
+
+        # Caching for text wrapping
+        self._last_msg_content: str | None = None
+        self._cached_lines: list[str] = []
 
     def start(self) -> None:
         """Start the Pyxel application loop."""
@@ -55,30 +54,44 @@ class SimulationRenderer:
             logger.warning(f"Failed to initialize Pyxel (likely no display): {e}")
             logger.info("Falling back to console mode.")
             self.headless = True
+            # Ensure any partial Pyxel init is cleaned up before console loop
+            with contextlib.suppress(Exception):
+                pyxel.quit()
             self._console_loop()
+        finally:
+            if not self.headless:
+                with contextlib.suppress(Exception):
+                    pyxel.quit()
 
     def _console_loop(self) -> None:
         """Fallback loop for headless environments."""
         last_count = 0
         while True:
-            state = self.state_getter()
-            current_count = len(state.debate_history)
+            try:
+                state = self.state_getter()
+                current_count = len(state.debate_history)
 
-            if current_count > last_count:
-                new_msgs = state.debate_history[last_count:]
-                for msg in new_msgs:
-                    # Using print here as it acts as the primary UI in headless mode
-                    print(f"[{msg.role}]: {msg.content}")  # noqa: T201
-                last_count = current_count
+                if current_count > last_count:
+                    new_msgs = state.debate_history[last_count:]
+                    for msg in new_msgs:
+                        # Using print here as it acts as the primary UI in headless mode
+                        print(f"[{msg.role}]: {msg.content}")  # noqa: T201
+                    last_count = current_count
 
-            # Simple exit condition for console mode
-            if not state.simulation_active and current_count > 0:
+                # Simple exit condition for console mode
+                if not state.simulation_active and current_count > 0:
+                    break
+
+                # Safety break
+                if current_count >= self.settings.max_turns:
+                    break
+
+                time.sleep(self.settings.console_sleep)
+            except KeyboardInterrupt:
                 break
-
-            if current_count >= self.settings.max_turns:
+            except Exception:
+                logger.exception("Console loop error")
                 break
-
-            time.sleep(self.settings.console_sleep)
 
     def update(self) -> None:
         """Update logic (poll inputs)."""
@@ -98,6 +111,19 @@ class SimulationRenderer:
         for _role_name, cfg in self.settings.agents.items():
             pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
             pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
+
+    def _get_wrapped_lines(self, msg: DialogueMessage) -> list[str]:
+        """Wrap text for display, with caching."""
+        if msg.content == self._last_msg_content:
+            return self._cached_lines
+
+        self._last_msg_content = msg.content
+        chars = self.settings.chars_per_line
+        self._cached_lines = [
+            msg.content[i : i + chars]
+            for i in range(0, len(msg.content), chars)
+        ]
+        return self._cached_lines
 
     def _draw_dialogue(self, state: GlobalState) -> None:
         """Draw the latest dialogue message."""
@@ -121,13 +147,10 @@ class SimulationRenderer:
 
         pyxel.text(self.settings.dialogue_x, self.settings.dialogue_y, f"{msg.role}:", color)
 
-        # Simple text wrapping
-        content = msg.content
+        lines = self._get_wrapped_lines(msg)
         y = self.settings.dialogue_y + 10  # Start below role name
-        chars = self.settings.chars_per_line
 
-        for i in range(0, len(content), chars):
-            line = content[i : i + chars]
+        for line in lines:
             pyxel.text(self.settings.dialogue_x, y, line, self.text_color)
             y += self.settings.line_height
             if y > self.settings.max_y:

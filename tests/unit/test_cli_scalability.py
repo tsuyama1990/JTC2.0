@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 from main import browse_and_select
@@ -20,7 +20,7 @@ def test_browse_and_select_lazy(
     mock_ui.select_prompt = "Select:"
 
     # Create a generator that yields 5 items
-    def idea_generator() -> Iterable[LeanCanvas]:
+    def idea_generator() -> Iterator[LeanCanvas]:
         for i in range(5):
             yield LeanCanvas(
                 id=i,

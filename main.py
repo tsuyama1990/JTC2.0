@@ -8,7 +8,7 @@ from itertools import chain, islice
 # Add src to path if running from root
 sys.path.append(".")
 
-from src.core.config import get_settings
+from src.core.config import UIConfig, get_settings
 from src.core.graph import create_app
 from src.core.simulation import create_simulation_graph
 from src.domain_models.lean_canvas import LeanCanvas
@@ -26,12 +26,28 @@ def echo(msg: str) -> None:
     print(msg)  # noqa: T201
 
 
+def safe_input(prompt: str) -> str:
+    """
+    Safely handle user input with stripping and EOF handling.
+
+    Args:
+        prompt: The prompt to display.
+
+    Returns:
+        Cleaned input string.
+    """
+    try:
+        return input(prompt).strip()
+    except EOFError:
+        return ""
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 
 def _process_page_selection(
     page_items: list[LeanCanvas],
     page_size: int,
-    ui_config: object # type: ignore
+    ui_config: UIConfig
 ) -> LeanCanvas | None | str:
     """Handle user input for a single page."""
     for item in page_items:
@@ -41,9 +57,13 @@ def _process_page_selection(
         echo("-" * 50)
 
     while True:
-        choice = input(ui_config.select_prompt) # type: ignore
+        choice = safe_input(ui_config.select_prompt)
+
+        if not choice:
+            continue
 
         if choice.lower() == 'n':
+            # If strictly less than page size, we know it's the last page
             if len(page_items) < page_size:
                 echo("End of list.")
                 return None
@@ -57,9 +77,9 @@ def _process_page_selection(
             if selected:
                 return selected
 
-            echo(ui_config.id_not_found.format(idx=idx)) # type: ignore
+            echo(ui_config.id_not_found.format(idx=idx))
         except ValueError:
-            echo(ui_config.invalid_input) # type: ignore
+            echo(ui_config.invalid_input)
 
     return None
 
@@ -72,6 +92,11 @@ def browse_and_select(ideas_gen: Iterator[LeanCanvas], page_size: int | None = N
     ui_config = get_settings().ui
     if page_size is None:
         page_size = ui_config.page_size
+
+    # Validation
+    if page_size <= 0:
+        logger.warning(f"Invalid page_size {page_size}, defaulting to 5")
+        page_size = 5
 
     # Peek to handle empty generator
     try:
@@ -86,7 +111,7 @@ def browse_and_select(ideas_gen: Iterator[LeanCanvas], page_size: int | None = N
     echo(ui_config.generated_header)
 
     while True:
-        # Materialize only ONE page
+        # Materialize only ONE page (O(page_size) memory)
         page_items = list(islice(current_iter, page_size))
 
         if not page_items:
@@ -101,6 +126,10 @@ def browse_and_select(ideas_gen: Iterator[LeanCanvas], page_size: int | None = N
             return None
 
         # If result is 'next', loop continues
+        if result == 'next':
+             continue
+
+    return None
 
 
 def _process_execution(topic: str) -> Iterator[LeanCanvas]:
@@ -119,7 +148,14 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
     if generated_ideas_raw is None:
         return
 
-    for item in generated_ideas_raw:
+    # Normalize to iterator
+    iterator = (
+        generated_ideas_raw
+        if isinstance(generated_ideas_raw, Iterator)
+        else iter(generated_ideas_raw)
+    )
+
+    for item in iterator:
         if isinstance(item, LeanCanvas):
             yield item
         elif isinstance(item, dict):
@@ -154,6 +190,7 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
             for state_update in app.stream(initial_state, stream_mode="values"):
                 if isinstance(state_update, dict):
                      try:
+                         # Update shared state safely
                          shared_state["current"] = GlobalState(**state_update)
                      except Exception:
                          logger.exception("Failed to convert state update to GlobalState")
@@ -189,7 +226,7 @@ def main() -> None:
     try:
         topic = args.topic
         if not topic:
-            topic = input("Enter a business topic (e.g., 'AI for Agriculture'): ")
+            topic = safe_input("Enter a business topic (e.g., 'AI for Agriculture'): ")
 
         if not topic or not topic.strip():
             echo(ui_config.topic_empty)

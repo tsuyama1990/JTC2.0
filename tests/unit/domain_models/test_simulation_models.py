@@ -1,9 +1,9 @@
 import pytest
 from pydantic import ValidationError
 
+from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
-from src.domain_models.lean_canvas import LeanCanvas
 
 
 def test_dialogue_message_valid() -> None:
