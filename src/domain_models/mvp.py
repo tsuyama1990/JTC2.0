@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -57,7 +57,8 @@ class MVP(BaseModel):
     )
 
     # New fields for v0.dev integration
-    v0_url: str | None = Field(
+    # Changed to HttpUrl for validation
+    v0_url: HttpUrl | None = Field(
         default=None,
         description="URL of the deployed MVP on v0.dev",
     )

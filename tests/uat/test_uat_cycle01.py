@@ -50,7 +50,11 @@ def test_uat_cycle01_full_flow(
                 solution="Solution description text",
             )
 
-    # Mock Ideator behavior
+    # Use LazyIdeaIterator wrapper as per new implementation if agent returns raw iterator,
+    # but GlobalState expects LazyIdeaIterator or Iterator.
+    # Ideally the agent should return the wrapped iterator or the graph/handler should wrap it.
+    # In `ideator.py`, it yields items. `IdeatorAgent.run` returns `{"generated_ideas": ideas_iter}`.
+    # The GlobalState model will accept Iterator.
     mock_ideator_instance.run.return_value = {"generated_ideas": large_dataset_generator()}
 
     # --- 2. Build App ---
@@ -64,6 +68,8 @@ def test_uat_cycle01_full_flow(
     result_dict = app.invoke(initial_state)
 
     # --- Scalability Check ---
+    # GlobalState validates inputs. If it was cast to GlobalState, validation runs.
+    # invoke returns a dict.
     ideas_iter = result_dict["generated_ideas"]
     assert ideas_iter is not None
 
@@ -88,7 +94,6 @@ def test_uat_cycle01_full_flow(
     )
 
     # --- 4. Validate Phase 2 (Verification) Readiness ---
-    # Construct a valid state for Phase 2 to verify data integrity
     dummy_persona = Persona(
         name="Farmer Joe",
         occupation="Farmer",
@@ -108,7 +113,6 @@ def test_uat_cycle01_full_flow(
     state_ready_for_verification.target_persona = dummy_persona
     state_ready_for_verification.phase = Phase.VERIFICATION
 
-    # This should pass validation (confirming we can transition)
     GlobalState.model_validate(state_ready_for_verification.model_dump())
     assert state_ready_for_verification.phase == Phase.VERIFICATION
 
@@ -121,7 +125,8 @@ def test_uat_cycle01_full_flow(
     dummy_mvp = MVP(
         type=MVPType.LANDING_PAGE,
         core_features=[dummy_feature],
-        success_criteria="10 signups"
+        success_criteria="10 signups",
+        v0_url="https://v0.dev/test" # Added valid HttpUrl
     )
 
     state_ready_for_solution = state_ready_for_verification.model_copy()

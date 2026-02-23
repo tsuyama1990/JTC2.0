@@ -270,6 +270,12 @@ class Settings(BaseSettings):
             raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
         return self
 
+    def rotate_keys(self) -> None:
+        """
+        Placeholder for key rotation logic.
+        In production, this would fetch new keys from a secret manager (e.g., AWS Secrets Manager, HashiCorp Vault).
+        """
+
 
 @lru_cache
 def get_settings() -> Settings:

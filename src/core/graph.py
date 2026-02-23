@@ -12,6 +12,67 @@ from src.domain_models.state import GlobalState, Phase
 logger = logging.getLogger(__name__)
 
 
+def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
+    """Wrapper for Ideator execution with error handling."""
+    # We must instantiate inside or outside.
+    # For simplicity in refactoring without changing signatures too much, we re-instantiate or assume scope.
+    # To keep scope correct, we should pass agent instance.
+    # But LangGraph nodes expect state -> dict.
+    # We will use the global get_llm here or pass it via functools.partial in real app.
+    # Here we instantiate to satisfy the node signature requirement.
+    llm = get_llm()
+    ideator = IdeatorAgent(llm)
+    try:
+        return ideator.run(state)
+    except Exception as e:
+        logger.error(f"Error in Ideator Agent: {e}", exc_info=True)
+        return {}
+
+def verification_node(state: GlobalState) -> dict[str, Any]:
+    """Transition to Verification Phase."""
+    if not state.selected_idea:
+        logger.error("Attempted to enter Verification Phase without a selected idea.")
+
+    logger.info(f"Transitioning to Phase: {Phase.VERIFICATION}")
+    return {"phase": Phase.VERIFICATION}
+
+def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
+    """Wrapper for Simulation execution with error handling."""
+    llm = get_llm()
+    new_employee = NewEmployeeAgent(llm)
+    try:
+        return new_employee.run(state)
+    except Exception as e:
+        logger.error(f"Error in Simulation Agent: {e}", exc_info=True)
+        return {}
+
+def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
+    """Wrapper for CPO execution with error handling."""
+    llm = get_llm()
+    cpo = CPOAgent(llm)
+    try:
+        return cpo.run(state)
+    except Exception as e:
+        logger.error(f"Error in CPO Agent: {e}", exc_info=True)
+        return {}
+
+def solution_node(state: GlobalState) -> dict[str, Any]:
+    """Transition to Solution Phase."""
+    if not state.target_persona:
+            logger.warning("Entering Solution Phase without a defined target persona.")
+
+    logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
+    return {"phase": Phase.SOLUTION}
+
+def pmf_node(state: GlobalState) -> dict[str, Any]:
+    """Transition to PMF Phase."""
+    if not state.mvp_definition:
+            logger.warning("Entering PMF Phase without an MVP definition.")
+
+    logger.info(f"Transitioning to Phase: {Phase.PMF}")
+    return {"phase": Phase.PMF}
+
+
 def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     """
     Create and compile the LangGraph application.
@@ -30,97 +91,33 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     Returns:
         CompiledStateGraph: The compiled LangGraph application.
     """
-    llm = get_llm()
-    ideator = IdeatorAgent(llm)
-    cpo = CPOAgent(llm)
-    new_employee = NewEmployeeAgent(llm)
-
     workflow = StateGraph(GlobalState)
 
     # --- NODE DEFINITIONS ---
-
-    # 1. Ideation Node
-    workflow.add_node("ideator", ideator.run)
-
-    # 2. Verification Node (Gate 2 Preparation)
-    def verification_node(state: GlobalState) -> dict[str, Any]:
-        """
-        Transition to Verification Phase.
-        In a full implementation, this would involve generating the Persona
-        based on the selected idea before asking the user for the 'Riskiest Assumption'.
-        """
-        if not state.selected_idea:
-            logger.error("Attempted to enter Verification Phase without a selected idea.")
-            # In a robust system, we might raise an error or return to ideation.
-            # For this MVP refactor, we log it.
-
-        logger.info(f"Transitioning to Phase: {Phase.VERIFICATION}")
-        return {"phase": Phase.VERIFICATION}
-
+    workflow.add_node("ideator", safe_ideator_run)
     workflow.add_node("verification", verification_node)
-
-    # 3. Simulation Loop Nodes
-    # Ideally, this loop cycles between Finance -> Sales -> New Employee -> CPO
-    workflow.add_node("simulation_round", new_employee.run)
-    workflow.add_node("cpo_mentoring", cpo.run)
-
-    # 4. Solution Node (Gate 3 Preparation)
-    def solution_node(state: GlobalState) -> dict[str, Any]:
-        """
-        Transition to Solution Phase.
-        Prepares the MVP definition based on the simulation outcome.
-        User will then select 'Must-have' features.
-        """
-        if not state.target_persona:
-             logger.warning("Entering Solution Phase without a defined target persona.")
-
-        logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
-        return {"phase": Phase.SOLUTION}
-
+    workflow.add_node("simulation_round", safe_simulation_run)
+    workflow.add_node("cpo_mentoring", safe_cpo_run)
     workflow.add_node("solution", solution_node)
-
-    # 5. PMF Node (Gate 4 Preparation)
-    def pmf_node(state: GlobalState) -> dict[str, Any]:
-        """
-        Transition to PMF Phase.
-        Analyzes MVP results and prepares AARRR metrics.
-        User will then decide to Pivot or Persevere.
-        """
-        if not state.mvp_definition:
-             logger.warning("Entering PMF Phase without an MVP definition.")
-
-        logger.info(f"Transitioning to Phase: {Phase.PMF}")
-        return {"phase": Phase.PMF}
-
     workflow.add_node("pmf", pmf_node)
 
     # --- EDGE DEFINITIONS ---
-
     workflow.set_entry_point("ideator")
 
     # Gate 1: Idea Verification (Plan A Selection)
-    # The graph interrupts AFTER 'ideator'. User selects idea externally.
-    # Then we proceed to 'verification'.
     workflow.add_edge("ideator", "verification")
 
     # Gate 2: Customer-Problem Fit (Riskiest Assumption)
-    # The graph interrupts AFTER 'verification'. User selects assumption/persona details.
-    # Then we proceed to the simulation.
     workflow.add_edge("verification", "simulation_round")
 
     # Simulation Logic
     workflow.add_edge("simulation_round", "cpo_mentoring")
 
-    # In this simplified flow, we go from CPO directly to Solution.
-    # A full loop would verify if 'approval' is granted.
-    workflow.add_edge("cpo_mentoring", "solution")
-
     # Gate 3: Problem-Solution Fit (MVP Scope)
-    # Interrupts AFTER 'solution'. User selects features.
+    workflow.add_edge("cpo_mentoring", "solution")
     workflow.add_edge("solution", "pmf")
 
     # Gate 4: Product-Market Fit (Pivot Decision)
-    # Interrupts AFTER 'pmf'. User decides next step.
     workflow.add_edge("pmf", END)
 
     # Compile with Interrupts for HITL Gates

@@ -39,13 +39,17 @@ class PersonaAgent(BaseAgent):
             if self.settings.tavily_api_key
             else None
         )
+        # Cache for research results: {topic: result}
+        self._research_cache: dict[str, str] = {}
+        # Rate limit state: last_request_time
+        self._last_request_time: float = 0.0
+        self._min_request_interval: float = 1.0 # 1 second
 
     def _build_context(self, state: GlobalState) -> str:
         """Construct the conversation history context."""
-        context = []
         if state.selected_idea:
-            # Pre-allocate list for efficiency, though append is O(1)
-            context = [
+            # Use list of strings for efficiency
+            context_parts = [
                 f"IDEA: {state.selected_idea.title}",
                 f"PROBLEM: {state.selected_idea.problem}",
                 f"SOLUTION: {state.selected_idea.solution}",
@@ -53,12 +57,12 @@ class PersonaAgent(BaseAgent):
                 "\nDEBATE HISTORY:"
             ]
         else:
-            context = ["\nDEBATE HISTORY:"]
+            context_parts = ["\nDEBATE HISTORY:"]
 
-        # Efficiently extend the list
-        context.extend(f"{msg.role}: {msg.content}" for msg in state.debate_history)
+        # Efficiently extend the list using a generator
+        context_parts.extend(f"{msg.role}: {msg.content}" for msg in state.debate_history)
 
-        return "\n".join(context)
+        return "\n".join(context_parts)
 
     def _generate_response(self, context: str, research_data: str = "") -> str:
         """Generate response using LLM."""
@@ -72,19 +76,22 @@ class PersonaAgent(BaseAgent):
         response = chain.invoke({})
         return str(response.content)
 
-    # We use instance-level caching or avoid lru_cache on method to prevent memory leaks with `self`.
-    # A simple way for this agent lifecycle is to cache on the instance manually or use a staticmethod helper.
-    # Since agents might be recreated, we'll keep it simple: cache on self.
-    def _cached_research(self, topic: str) -> str:
-        """Cache research results to avoid redundant API calls."""
-        if not hasattr(self, "_research_cache"):
-            self._research_cache: dict[str, str] = {}
+    def _rate_limit_wait(self) -> None:
+        """Enforce rate limiting for API calls."""
+        current_time = time.time()
+        elapsed = current_time - self._last_request_time
+        if elapsed < self._min_request_interval:
+            time.sleep(self._min_request_interval - elapsed)
+        self._last_request_time = time.time()
 
+    def _cached_research(self, topic: str) -> str:
+        """Cache and rate-limit research results."""
         if topic in self._research_cache:
             return self._research_cache[topic]
 
         if hasattr(self, "_research_impl"):
-            # Ensure return type is str (SearchTool.safe_search returns str)
+            self._rate_limit_wait()
+            # Ensure return type is str
             result: str = self._research_impl(topic)
             self._research_cache[topic] = result
             return result

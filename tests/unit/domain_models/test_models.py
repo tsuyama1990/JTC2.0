@@ -67,7 +67,8 @@ def test_mvp_creation() -> None:
     )
     assert mvp.type == MVPType.LANDING_PAGE
     assert mvp.core_features[0].priority == Priority.MUST_HAVE
-    assert mvp.v0_url == "https://v0.dev/test"
+    # Check string representation or HttpUrl properties
+    assert str(mvp.v0_url) == "https://v0.dev/test"
     assert mvp.deployment_status == "deployed"
 
 

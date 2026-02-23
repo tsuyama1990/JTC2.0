@@ -44,17 +44,38 @@ def test_finance_agent_research_logic(mock_llm: MagicMock) -> None:
     # Mock safe_search on the tool instance
     mock_search.safe_search.return_value = "Risks found."
 
-    # In our refactored agent, we pass search_tool.
-    # The _research_impl method calls self.search_tool.safe_search.
     agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
 
-    # We test the public wrapper or the impl directly.
-    # Since _research_impl is internal but used by run, let's test it directly
-    # as per original test intent.
+    # Test _research_impl directly
     res = agent._research_impl("AI")
 
     assert res == "Risks found."
     mock_search.safe_search.assert_called_with("market risks and costs for AI")
+
+
+def test_cached_research_logic(mock_llm: MagicMock) -> None:
+    """Test caching and rate limiting logic."""
+    mock_search = MagicMock()
+    mock_search.safe_search.side_effect = ["Result 1", "Result 2"] # Should only be called once
+
+    agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
+    agent._min_request_interval = 0.0 # Disable delay for test
+
+    # First call
+    res1 = agent._cached_research("Topic A")
+    assert res1 == "Result 1"
+
+    # Second call (Should hit cache)
+    res2 = agent._cached_research("Topic A")
+    assert res2 == "Result 1"
+
+    # Only one call to backend
+    assert mock_search.safe_search.call_count == 1
+
+    # Different topic (Should call backend)
+    res3 = agent._cached_research("Topic B")
+    assert res3 == "Result 2"
+    assert mock_search.safe_search.call_count == 2
 
 
 @patch("src.agents.personas.TavilySearch")

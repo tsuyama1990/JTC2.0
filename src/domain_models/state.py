@@ -34,24 +34,39 @@ class GlobalStateValidators:
         return state
 
 
-class GlobalState(BaseModel):
-    """The central state of the LangGraph workflow.
+class LazyIdeaIterator:
+    """
+    Wrapper for Idea Iterator to enforce single-use consumption and safety.
 
-    Note on `generated_ideas`:
-        This field holds an Iterator to support lazy loading of large datasets (Scalability).
-        It is single-use: once consumed, it cannot be reset.
-        It is not serializable, so persistence of this state must handle this field carefully.
-        `arbitrary_types_allowed=True` is required to support the Iterator type.
+    This class is not a Pydantic model but used as a field type.
     """
 
-    # Strict validation enabled, but arbitrary types allowed for Iterator
+    def __init__(self, iterator: Iterator[LeanCanvas]) -> None:
+        self._iterator = iterator
+        self._consumed = False
+
+    def __iter__(self) -> Iterator[LeanCanvas]:
+        if self._consumed:
+            msg = "Iterator already consumed. Cannot re-iterate."
+            raise RuntimeError(msg)
+        self._consumed = True
+        return self._iterator
+
+    def next(self) -> LeanCanvas:
+        return next(self._iterator)
+
+
+class GlobalState(BaseModel):
+    """The central state of the LangGraph workflow."""
+
+    # Strict validation enabled, but arbitrary types allowed for Iterator wrapper
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     phase: Phase = Phase.IDEATION
     topic: str = ""
 
-    # Critical: Iterator for memory efficiency. Consumed once.
-    generated_ideas: Iterator[LeanCanvas] | None = None
+    # Critical: Wrapper for memory efficiency.
+    generated_ideas: LazyIdeaIterator | Iterator[LeanCanvas] | None = None
 
     selected_idea: LeanCanvas | None = None
     messages: list[str] = Field(default_factory=list)
