@@ -14,8 +14,8 @@ def mock_settings() -> Generator[MagicMock, None, None]:
     with patch("src.data.rag.get_settings") as mock:
         mock.return_value.openai_api_key.get_secret_value.return_value = "sk-test"
         mock.return_value.llm_model = "gpt-4o"
-        # Mock rag_persist_dir
-        mock.return_value.rag_persist_dir = "./mock_vector_store"
+        # Mock rag_persist_dir - must be a valid subdir relative to CWD, e.g. tests/
+        mock.return_value.rag_persist_dir = "tests/mock_vector_store"
         # Errors
         mock.return_value.errors.config_missing_openai = "Missing API Key"
         # New Config fields
@@ -46,11 +46,20 @@ def test_rag_initialization(
     mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test RAG initialization."""
+    # We need to ensure the path actually exists for resolve() if we weren't mocking it,
+    # but RAG calls resolve().
+    # Since we are using a real RAG class, we must provide a path that passes _validate_path.
+    # "tests/mock_vector_store" should pass as "tests" is in allowed_parents.
+
+    # We must ensure the directory exists so resolve() works without error if checking existence?
+    # Path.resolve() works even if file doesn't exist on Python 3.10+ usually, but strict=True?
+    # RAG code uses Path(path_str).resolve() (default strict=False).
+
     rag = RAG()
     assert rag.index is None
     # Path is resolved to absolute
     from pathlib import Path
-    expected = str(Path("./mock_vector_store").resolve())
+    expected = str(Path("tests/mock_vector_store").resolve())
     assert rag.persist_dir == expected
 
 
@@ -75,7 +84,7 @@ def test_rag_persist_index(
 
     rag.persist_index()
     from pathlib import Path
-    expected = str(Path("./mock_vector_store").resolve())
+    expected = str(Path("tests/mock_vector_store").resolve())
     rag.index.storage_context.persist.assert_called_with(persist_dir=expected)
 
 
@@ -96,3 +105,14 @@ def test_rag_query(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMo
     response = rag.query("What does the customer hate?")
     assert response == "The customer hates it."
     rag.index.as_query_engine.assert_called_once()
+
+
+def test_rag_query_validation(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
+    """Test query input validation."""
+    rag = RAG()
+
+    with pytest.raises(TypeError, match="Query must be a string"):
+        rag.query(123) # type: ignore
+
+    with pytest.raises(ValueError, match="Query cannot be empty"):
+        rag.query("   ")

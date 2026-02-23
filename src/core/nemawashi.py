@@ -6,7 +6,7 @@ from scipy.sparse import csgraph
 
 from src.core.config import get_settings
 from src.core.constants import ERR_DISCONNECTED_GRAPH
-from src.core.exceptions import CalculationError, NetworkError
+from src.core.exceptions import CalculationError, NetworkError, ValidationError
 from src.domain_models.politics import InfluenceNetwork
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,6 @@ class NemawashiEngine:
         # Check connectivity
         if not self._is_connected(matrix):
             logger.warning(ERR_DISCONNECTED_GRAPH)
-            # Raising error as per strict audit requirement
             raise NetworkError(ERR_DISCONNECTED_GRAPH)
 
         max_steps = self.settings.max_steps
@@ -40,8 +39,18 @@ class NemawashiEngine:
 
         # Run iteration using French-DeGroot update rule
         current_ops = opinions
+        rows = matrix.shape[0]
+
+        # Determine if we should chunk
+        chunk_size = 1000 # Could be configurable, but 1000 is reasonable default
+        use_chunking = rows > chunk_size
+
         for _ in range(max_steps):
-            next_ops = self._chunked_dot(matrix, current_ops)
+            if use_chunking:
+                next_ops = self._chunked_dot(matrix, current_ops, chunk_size)
+            else:
+                next_ops = matrix.dot(current_ops)
+
             if np.allclose(current_ops, next_ops, atol=tolerance):
                 logger.info("Consensus converged.")
                 return typing.cast(list[float], next_ops.tolist())
@@ -54,6 +63,15 @@ class NemawashiEngine:
         Identify key influencers based on centrality/eigenvectors.
         """
         matrix = np.array(network.matrix)
+
+        # Basic validation before expensive operation
+        if matrix.shape[0] == 0:
+            return []
+
+        # Check for NaN or Inf
+        if not np.all(np.isfinite(matrix)):
+             msg = "Influence matrix contains NaN or Inf values."
+             raise ValidationError(msg)
 
         try:
             # Use eig on transpose to find left eigenvectors (vW = v)
@@ -94,7 +112,7 @@ class NemawashiEngine:
 
         if target_idx == -1:
             msg = f"Target {target_name} not found."
-            raise ValueError(msg)
+            raise ValidationError(msg)
 
         # 1. Boost Support
         self._boost_support(new_network, target_idx)
@@ -140,7 +158,7 @@ class NemawashiEngine:
         row_sums = matrix.sum(axis=1)
         if not np.allclose(row_sums, 1.0, atol=1e-5):
             msg = "Influence matrix rows must sum to 1.0"
-            raise ValueError(msg)
+            raise ValidationError(msg)
 
     def _chunked_dot(
         self, matrix: np.ndarray, vector: np.ndarray, chunk_size: int = 1000
@@ -162,8 +180,6 @@ class NemawashiEngine:
     def _is_connected(self, matrix: np.ndarray) -> bool:
         """Check if graph has a single component (weakly connected)."""
         # Convert to boolean adjacency
-        # We need check if graph is split into disjoint islands.
-        # weak connection is sufficient for 'not totally disconnected'
         adj = matrix > 0
         n_components, _ = csgraph.connected_components(adj, connection="weak")
         return int(n_components) == 1

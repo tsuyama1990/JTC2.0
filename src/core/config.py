@@ -7,11 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.core.constants import (
     ERR_CONFIG_MISSING_OPENAI_KEY,
     ERR_CONFIG_MISSING_TAVILY_KEY,
-    ERR_INVALID_COLOR,
-    ERR_INVALID_DIMENSIONS,
-    ERR_INVALID_FPS,
     ERR_INVALID_METRIC_KEY,
-    ERR_INVALID_RESOLUTION,
     ERR_LLM_CONFIG_MISSING,
     ERR_LLM_FAILURE,
     ERR_MISSING_MVP,
@@ -52,13 +48,7 @@ from src.core.theme import (
     DEFAULT_PAGE_SIZE,
     DEFAULT_WIDTH,
 )
-
-
-def _validate_color_value(v: int) -> int:
-    """Ensure color is within Pyxel palette (0-15)."""
-    if not (0 <= v <= 15):
-        raise ValueError(ERR_INVALID_COLOR)
-    return v
+from src.core.validators import ConfigValidators
 
 
 class ValidationConfig(BaseSettings):
@@ -136,16 +126,12 @@ class AgentConfig(BaseModel):
     @field_validator("color")
     @classmethod
     def validate_color(cls, v: int) -> int:
-        """Ensure color is within Pyxel palette (0-15)."""
-        return _validate_color_value(v)
+        return ConfigValidators.validate_color(v)
 
     @field_validator("w", "h")
     @classmethod
     def validate_dimensions(cls, v: int) -> int:
-        """Ensure dimensions are positive."""
-        if v <= 0:
-            raise ValueError(ERR_INVALID_DIMENSIONS)
-        return v
+        return ConfigValidators.validate_dimension(v)
 
 
 def _load_default_agents_config() -> dict[str, AgentConfig]:
@@ -218,21 +204,17 @@ class SimulationConfig(BaseSettings):
     @field_validator("width", "height")
     @classmethod
     def validate_resolution(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError(ERR_INVALID_RESOLUTION)
-        return v
+        return ConfigValidators.validate_resolution(v)
 
     @field_validator("fps")
     @classmethod
     def validate_fps(cls, v: int) -> int:
-        if not (1 <= v <= 60):
-            raise ValueError(ERR_INVALID_FPS)
-        return v
+        return ConfigValidators.validate_fps(v)
 
     @field_validator("bg_color", "text_color")
     @classmethod
     def validate_color(cls, v: int) -> int:
-        return _validate_color_value(v)
+        return ConfigValidators.validate_color(v)
 
 
 class Settings(BaseSettings):
@@ -291,21 +273,11 @@ class Settings(BaseSettings):
         """Validate API keys are present and have correct format."""
         if not self.openai_api_key:
             raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-        if not self.openai_api_key.get_secret_value().startswith("sk-"):
-            msg = "OpenAI API Key must start with 'sk-'."
-            raise ValueError(msg)
-        if len(self.openai_api_key.get_secret_value()) < 20:
-            msg = "OpenAI API Key is too short."
-            raise ValueError(msg)
+        ConfigValidators.validate_openai_key(self.openai_api_key)
 
         if not self.tavily_api_key:
             raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
-        if not self.tavily_api_key.get_secret_value().startswith("tvly-"):
-            msg = "Tavily API Key must start with 'tvly-'."
-            raise ValueError(msg)
-        if len(self.tavily_api_key.get_secret_value()) < 20:
-            msg = "Tavily API Key is too short."
-            raise ValueError(msg)
+        ConfigValidators.validate_tavily_key(self.tavily_api_key)
 
         return self
 

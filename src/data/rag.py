@@ -17,48 +17,35 @@ from src.core.constants import (
     ERR_RAG_INDEX_SIZE,
     ERR_RAG_TEXT_TOO_LARGE,
 )
+from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
 logger = logging.getLogger(__name__)
 
 
 @functools.lru_cache(maxsize=1)
-def _get_dir_size_cached(path: str, limit: int) -> int:
-    """Recursive directory size calculation with early exit and caching."""
+def _get_dir_size_iterative(path: str, limit: int) -> int:
+    """
+    Iterative directory size calculation with early exit and caching.
+    Uses a stack to avoid recursion depth issues.
+    """
     total = 0
-    try:
-        with os.scandir(path) as it:
-            for entry in it:
-                if entry.is_file():
-                    total += entry.stat().st_size
-                elif entry.is_dir():
-                    # Determine remaining limit for recursion
-                    remaining = limit - total
-                    # Prevent negative limit in recursion if we are already over
-                    remaining = max(remaining, 0)
-                    # Recursively check subdirectories
-                    total += _get_recursive_size(entry.path, limit - total)
+    stack = [path]
 
-                if total > limit:
-                    return total
-    except OSError as e:
-        logger.warning(f"Error scanning index directory: {e}")
-    return total
+    while stack:
+        current_path = stack.pop()
+        try:
+            with os.scandir(current_path) as it:
+                for entry in it:
+                    if entry.is_file():
+                        total += entry.stat().st_size
+                    elif entry.is_dir(follow_symlinks=False):
+                        stack.append(entry.path)
 
+                    if total > limit:
+                        return total
+        except OSError as e:
+            logger.warning(f"Error scanning index directory {current_path}: {e}")
 
-def _get_recursive_size(path: str, limit: int) -> int:
-    """Internal helper for recursion without caching."""
-    total = 0
-    try:
-        with os.scandir(path) as it:
-            for entry in it:
-                if entry.is_file():
-                    total += entry.stat().st_size
-                elif entry.is_dir():
-                    total += _get_recursive_size(entry.path, limit - total)
-                if total > limit:
-                    return total
-    except OSError:
-        pass
     return total
 
 
@@ -88,12 +75,11 @@ class RAG:
             path = Path(path_str).resolve()
         except Exception as e:
             msg = f"Invalid path: {e}"
-            raise ValueError(msg) from e
+            raise ConfigurationError(msg) from e
 
         cwd = Path.cwd().resolve()
 
         # Strict allowlist check: Must be relative to CWD AND specifically allowed folders
-        # This prevents traversal to .env or .git even if they are in CWD
         allowed_parents = [cwd / "data", cwd / "vector_store", cwd / "tests"]
         is_safe = False
         for parent in allowed_parents:
@@ -101,21 +87,19 @@ class RAG:
                 is_safe = True
                 break
 
-        if not is_safe and not os.getenv("PYTEST_CURRENT_TEST"):
-             # Relax for tests if using tempdirs outside allowed, but usually tests use tmp_path
-             # If strictly enforcing, tests must use a subdir that matches allowed structure
-             raise ValueError(ERR_PATH_TRAVERSAL)
+        # Removed PYTEST_CURRENT_TEST check for strict enforcement
+        if not is_safe:
+             raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
-        # Double check it is strictly inside CWD anyway
         if not path.is_relative_to(cwd):
-             raise ValueError(ERR_PATH_TRAVERSAL)
+             raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         return str(path)
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
         if not self.settings.openai_api_key:
-            raise ValueError(self.settings.errors.config_missing_openai)
+            raise ConfigurationError(self.settings.errors.config_missing_openai)
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
 
@@ -155,7 +139,7 @@ class RAG:
         limit_mb = self.settings.rag_max_index_size_mb
         limit_bytes = limit_mb * 1024 * 1024
 
-        size = _get_dir_size_cached(self.persist_dir, limit_bytes)
+        size = _get_dir_size_iterative(self.persist_dir, limit_bytes)
         if size > limit_bytes:
             msg = ERR_RAG_INDEX_SIZE.format(limit=limit_mb)
             logger.error(msg)
@@ -170,7 +154,11 @@ class RAG:
         max_len = self.settings.rag_max_document_length
         if len(text) > max_len:
             msg = ERR_RAG_TEXT_TOO_LARGE.format(size=len(text))
-            raise ValueError(msg)
+            raise ValidationError(msg)
+
+        if not source or not isinstance(source, str):
+            msg = "Source must be a non-empty string."
+            raise ValidationError(msg)
 
         chunk_size = self.settings.rag_chunk_size
 
@@ -223,9 +211,9 @@ class RAG:
 
         try:
             return self.breaker.call(self._query_impl, question)
-        except pybreaker.CircuitBreakerError:
+        except pybreaker.CircuitBreakerError as e:
             logger.exception("Circuit breaker open.")
-            return ERR_CIRCUIT_OPEN
+            raise NetworkError(ERR_CIRCUIT_OPEN) from e
 
     def _query_impl(self, question: str) -> str:
         if self.index is None:

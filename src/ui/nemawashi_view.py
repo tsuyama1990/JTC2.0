@@ -4,6 +4,16 @@ import pyxel
 
 from src.core.config import get_settings
 from src.core.constants import MSG_NEMAWASHI_TITLE
+from src.core.theme import (
+    COLOR_EDGE_STRONG,
+    COLOR_EDGE_WEAK,
+    COLOR_NEMAWASHI_BG,
+    COLOR_NODE_DEFAULT,
+    COLOR_NODE_SUPPORT,
+    COLOR_SUPPORT_BAR_BG,
+    COLOR_SUPPORT_BAR_FILL,
+    COLOR_TEXT,
+)
 from src.domain_models.politics import InfluenceNetwork
 
 
@@ -20,12 +30,12 @@ class NemawashiView:
     def draw(self, network: InfluenceNetwork | None) -> None:
         """Draw the network graph."""
         # Draw background
-        pyxel.rect(self.x, self.y, self.w, self.h, 1)  # Dark Blue background
+        pyxel.rect(self.x, self.y, self.w, self.h, COLOR_NEMAWASHI_BG)
 
-        pyxel.text(self.x + 5, self.y + 5, MSG_NEMAWASHI_TITLE, 7)
+        pyxel.text(self.x + 5, self.y + 5, MSG_NEMAWASHI_TITLE, COLOR_TEXT)
 
         if not network:
-            pyxel.text(self.x + 5, self.y + 20, "No network data.", 5)
+            pyxel.text(self.x + 5, self.y + 20, "No network data.", COLOR_EDGE_WEAK)
             return
 
         # Simple graph visualization
@@ -55,18 +65,18 @@ class NemawashiView:
                 if i != j and weight > 0.1:  # Threshold to avoid clutter
                     start = nodes[j]
                     end = nodes[i]
-                    col = 5 if weight < 0.5 else 11  # Dark blue vs Green
+                    col = COLOR_EDGE_WEAK if weight < 0.5 else COLOR_EDGE_STRONG
                     pyxel.line(start[0], start[1], end[0], end[1], col)
 
         # Draw nodes
         for nx, ny, s in nodes:
-            col = 8  # Red
+            col = COLOR_NODE_DEFAULT
             if s.initial_support > 0.5:
-                col = 3  # Green
+                col = COLOR_NODE_SUPPORT
             pyxel.circ(nx, ny, 3, col)
-            pyxel.text(nx - 10, ny - 8, s.name[:5], 7)
+            pyxel.text(nx - 10, ny - 8, s.name[:5], COLOR_TEXT)
             # Show support bar
             bar_w = 10
             fill_w = int(bar_w * s.initial_support)
-            pyxel.rect(nx - 5, ny + 5, bar_w, 2, 0)
-            pyxel.rect(nx - 5, ny + 5, fill_w, 2, 11)
+            pyxel.rect(nx - 5, ny + 5, bar_w, 2, COLOR_SUPPORT_BAR_BG)
+            pyxel.rect(nx - 5, ny + 5, fill_w, 2, COLOR_SUPPORT_BAR_FILL)

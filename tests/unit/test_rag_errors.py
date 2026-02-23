@@ -1,7 +1,10 @@
+import re
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.constants import ERR_PATH_TRAVERSAL
+from src.core.exceptions import ConfigurationError
 from src.data.rag import RAG
 
 
@@ -17,11 +20,12 @@ def test_rag_init_missing_api_key() -> None:
         mock_settings.errors.config_missing_openai = "Missing API Key"
         mock_settings_getter.return_value = mock_settings
 
-        with pytest.raises(ValueError, match="Missing API Key"):
-            RAG(persist_dir="./test")
+        # Use a VALID path to ensure we hit the API key check, not path check
+        with pytest.raises(ConfigurationError, match="Missing API Key"):
+            RAG(persist_dir="tests/valid_path")
 
 
 def test_rag_init_invalid_path() -> None:
     """Test RAG initialization failure when path is unsafe."""
-    with pytest.raises(ValueError, match="Path traversal"):
+    with pytest.raises(ConfigurationError, match=re.escape(ERR_PATH_TRAVERSAL)):
         RAG(persist_dir="../unsafe")

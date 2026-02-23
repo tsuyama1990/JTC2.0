@@ -105,8 +105,9 @@ def test_cpo_agent_behavior() -> None:
     llm.invoke.return_value = mock_msg
     llm.return_value = mock_msg
 
-    # Init agent
-    agent = CPOAgent(llm, rag_path="./dummy")
+    # Init agent with valid path to pass strict validation
+    # This path is relative to CWD and starts with 'tests'
+    agent = CPOAgent(llm, rag_path="tests/mock_cpo_rag")
 
     # Mock internal RAG
     agent.rag = MagicMock()

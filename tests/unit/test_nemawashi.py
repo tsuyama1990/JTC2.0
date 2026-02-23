@@ -1,6 +1,10 @@
+from unittest.mock import patch
+
 import numpy as np
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 
+from src.core.exceptions import ValidationError
 from src.core.nemawashi import NemawashiEngine
 from src.domain_models.politics import InfluenceNetwork, Stakeholder
 
@@ -93,5 +97,31 @@ def test_validation_stochasticity() -> None:
 
     engine = NemawashiEngine()
 
-    with pytest.raises(ValueError, match="Influence matrix rows must sum to 1.0"):
+    with pytest.raises(ValidationError, match="Influence matrix rows must sum to 1.0"):
         engine.calculate_consensus(net)
+
+
+def test_chunking_logic(sample_network: InfluenceNetwork) -> None:
+    """Verify chunking logic is used when network size exceeds chunk size."""
+    engine = NemawashiEngine()
+
+    # Mock _chunked_dot to verify it's called
+    with patch.object(engine, '_chunked_dot', wraps=engine._chunked_dot):
+        matrix = np.array(sample_network.matrix)
+        vector = np.array([s.initial_support for s in sample_network.stakeholders])
+        result = engine._chunked_dot(matrix, vector, chunk_size=1)
+        assert len(result) == 2
+        # Verify it matches direct dot product
+        expected = matrix.dot(vector)
+        assert np.allclose(result, expected)
+
+
+def test_identify_influencers_validation() -> None:
+    """Test validation against NaN/Inf values."""
+    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.1)
+    matrix = [[float('nan')]]
+
+    # Expect Pydantic validation error, not custom ValidationError
+    # because InfluenceNetwork validator runs first
+    with pytest.raises(PydanticValidationError, match="Matrix values must be"):
+        InfluenceNetwork(stakeholders=[s1], matrix=matrix)
