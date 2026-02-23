@@ -41,10 +41,17 @@ def test_simulation_flow_initialization(mock_state: GlobalState) -> None:
 def test_finance_agent_research_logic(mock_llm: MagicMock) -> None:
     """Test FinanceAgent research logic."""
     mock_search = MagicMock()
+    # Mock safe_search on the tool instance
     mock_search.safe_search.return_value = "Risks found."
 
+    # In our refactored agent, we pass search_tool.
+    # The _research_impl method calls self.search_tool.safe_search.
     agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
-    res = agent._research("AI")
+
+    # We test the public wrapper or the impl directly.
+    # Since _research_impl is internal but used by run, let's test it directly
+    # as per original test intent.
+    res = agent._research_impl("AI")
 
     assert res == "Risks found."
     mock_search.safe_search.assert_called_with("market risks and costs for AI")

@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
-    DEFAULT_AGENTS_CONFIG,
     ERR_CONFIG_MISSING_OPENAI_KEY,
     ERR_CONFIG_MISSING_TAVILY_KEY,
     ERR_INVALID_COLOR,
@@ -37,6 +36,55 @@ from src.core.constants import (
     MSG_WAIT,
     MSG_WAITING_FOR_DEBATE,
 )
+
+# Default configuration for agents, defined here to be part of the schema
+# This avoids "magic numbers" in the renderer code while keeping it configurable.
+_DEFAULT_AGENTS_CONFIG = {
+    "New Employee": {
+        "role": "New Employee",
+        "label": "NewEmp",
+        "color": 11,
+        "x": 20,
+        "y": 80,
+        "w": 20,
+        "h": 30,
+        "text_x": 15,
+        "text_y": 112,
+    },
+    "Finance Manager": {
+        "role": "Finance Manager",
+        "label": "Finance",
+        "color": 8,
+        "x": 70,
+        "y": 80,
+        "w": 20,
+        "h": 30,
+        "text_x": 65,
+        "text_y": 112,
+    },
+    "Sales Manager": {
+        "role": "Sales Manager",
+        "label": "Sales",
+        "color": 9,
+        "x": 120,
+        "y": 80,
+        "w": 20,
+        "h": 30,
+        "text_x": 120,
+        "text_y": 112,
+    },
+    "CPO": {
+        "role": "CPO",
+        "label": "CPO",
+        "color": 12,
+        "x": 140,
+        "y": 40,
+        "w": 20,
+        "h": 30,
+        "text_x": 135,
+        "text_y": 72,
+    },
+}
 
 
 class ValidationConfig(BaseSettings):
@@ -155,7 +203,7 @@ class SimulationConfig(BaseSettings):
     # Using a dict to avoid hardcoding role logic in renderer
     # Default is provided, but can be overridden by environment variables if needed
     agents: dict[str, AgentConfig] = Field(
-        default_factory=lambda: {k: AgentConfig(**v) for k, v in DEFAULT_AGENTS_CONFIG.items()}
+        default_factory=lambda: {k: AgentConfig(**v) for k, v in _DEFAULT_AGENTS_CONFIG.items()}
     )
 
     @field_validator("width", "height")

@@ -17,6 +17,6 @@ def test_cpo_research(mock_llm: MagicMock) -> None:
     agent.search_tool = MagicMock()
     agent.search_tool.safe_search.return_value = "Found case study"
 
-    result = agent._research("SaaS Platform")
+    result = agent._research_impl("SaaS Platform")
     assert result == "Found case study"
     agent.search_tool.safe_search.assert_called_with("successful business models and case studies similar to SaaS Platform")

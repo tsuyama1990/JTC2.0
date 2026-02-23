@@ -72,16 +72,35 @@ class PersonaAgent(BaseAgent):
         response = chain.invoke({})
         return str(response.content)
 
+    # We use instance-level caching or avoid lru_cache on method to prevent memory leaks with `self`.
+    # A simple way for this agent lifecycle is to cache on the instance manually or use a staticmethod helper.
+    # Since agents might be recreated, we'll keep it simple: cache on self.
+    def _cached_research(self, topic: str) -> str:
+        """Cache research results to avoid redundant API calls."""
+        if not hasattr(self, "_research_cache"):
+            self._research_cache: dict[str, str] = {}
+
+        if topic in self._research_cache:
+            return self._research_cache[topic]
+
+        if hasattr(self, "_research_impl"):
+            # Ensure return type is str (SearchTool.safe_search returns str)
+            result: str = self._research_impl(topic)
+            self._research_cache[topic] = result
+            return result
+        return ""
+
     def run(self, state: GlobalState) -> dict[str, Any]:
         """Run the agent logic."""
         context = self._build_context(state)
         research_data = ""
 
         # Override in subclasses if research is needed
-        if hasattr(self, "_research") and state.selected_idea:
+        if hasattr(self, "_research_impl") and state.selected_idea:
              title = state.selected_idea.title
              logger.debug(f"Agent {self.role} executing research on: {title}")
-             research_data = self._research(title)
+             # Use the cached wrapper
+             research_data = self._cached_research(title)
 
         content = self._generate_response(context, research_data)
         logger.debug(f"Agent {self.role} generated response: {content[:50]}...")
@@ -120,7 +139,7 @@ class FinanceAgent(PersonaAgent):
             llm, Role.FINANCE, system_prompt, search_tool, app_settings
         )
 
-    def _research(self, topic: str) -> str:
+    def _research_impl(self, topic: str) -> str:
         """Perform market research on risks."""
         query = f"market risks and costs for {topic}"
         return self.search_tool.safe_search(query)
@@ -184,7 +203,7 @@ class CPOAgent(PersonaAgent):
             llm, Role.CPO, system_prompt, search_tool, app_settings
         )
 
-    def _research(self, topic: str) -> str:
+    def _research_impl(self, topic: str) -> str:
         """Perform deep market research for mentoring."""
         query = f"successful business models and case studies similar to {topic}"
         return self.search_tool.safe_search(query)

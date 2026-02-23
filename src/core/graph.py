@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -7,6 +8,8 @@ from src.agents.ideator import IdeatorAgent
 from src.agents.personas import CPOAgent, NewEmployeeAgent
 from src.core.llm import get_llm
 from src.domain_models.state import GlobalState, Phase
+
+logger = logging.getLogger(__name__)
 
 
 def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
@@ -47,8 +50,11 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
         based on the selected idea before asking the user for the 'Riskiest Assumption'.
         """
         if not state.selected_idea:
-            # In a real app, we might handle this error or loop back
-            pass
+            logger.error("Attempted to enter Verification Phase without a selected idea.")
+            # In a robust system, we might raise an error or return to ideation.
+            # For this MVP refactor, we log it.
+
+        logger.info(f"Transitioning to Phase: {Phase.VERIFICATION}")
         return {"phase": Phase.VERIFICATION}
 
     workflow.add_node("verification", verification_node)
@@ -66,8 +72,9 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
         User will then select 'Must-have' features.
         """
         if not state.target_persona:
-             # Logic to ensure persona exists would go here
-             pass
+             logger.warning("Entering Solution Phase without a defined target persona.")
+
+        logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
         return {"phase": Phase.SOLUTION}
 
     workflow.add_node("solution", solution_node)
@@ -80,7 +87,9 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
         User will then decide to Pivot or Persevere.
         """
         if not state.mvp_definition:
-             pass
+             logger.warning("Entering PMF Phase without an MVP definition.")
+
+        logger.info(f"Transitioning to Phase: {Phase.PMF}")
         return {"phase": Phase.PMF}
 
     workflow.add_node("pmf", pmf_node)
