@@ -29,6 +29,8 @@ from src.core.constants import (
     DEFAULT_RAG_MAX_INDEX_SIZE_MB,
     DEFAULT_RAG_MAX_QUERY_LENGTH,
     DEFAULT_V0_API_URL,
+    DEFAULT_V0_RETRY_BACKOFF,
+    DEFAULT_V0_RETRY_MAX,
     DEFAULT_WIDTH,
     ERR_CONFIG_MISSING_OPENAI_KEY,
     ERR_CONFIG_MISSING_TAVILY_KEY,
@@ -159,6 +161,13 @@ class NemawashiConfig(BaseSettings):
     nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=DEFAULT_NEMAWASHI_REDUCTION, description="Stubbornness reduction from Nomikai")
 
 
+class V0Config(BaseSettings):
+    """Configuration for v0.dev integration."""
+
+    retry_max: int = Field(alias="V0_RETRY_MAX", default=DEFAULT_V0_RETRY_MAX, description="Max retries for API calls")
+    retry_backoff: float = Field(alias="V0_RETRY_BACKOFF", default=DEFAULT_V0_RETRY_BACKOFF, description="Exponential backoff factor")
+
+
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
@@ -275,6 +284,7 @@ class Settings(BaseSettings):
     ui: UIConfig = Field(default_factory=UIConfig)
     simulation: SimulationConfig = Field(default_factory=SimulationConfig)
     nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
+    v0: V0Config = Field(default_factory=V0Config)
 
     def model_post_init(self, __context: object) -> None:
         """Validate API keys on initialization."""

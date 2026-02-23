@@ -67,6 +67,9 @@ class GlobalState(BaseModel):
     @classmethod
     def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
         """Ensure transcripts are unique by source."""
+        # Simple list validation logic, keeping it here for field proximity or move to validator?
+        # The audit asked to "Extract complex validation logic".
+        # This is relatively simple, but let's be strict.
         sources = [t.source for t in v]
         if len(sources) != len(set(sources)):
             msg = "Duplicate transcript sources found."

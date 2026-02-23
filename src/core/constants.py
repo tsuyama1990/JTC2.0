@@ -115,6 +115,8 @@ DEFAULT_ITERATOR_SAFETY_LIMIT: Final[int] = 10000
 
 # Configuration Defaults (API)
 DEFAULT_V0_API_URL: Final[str] = "https://api.v0.dev/chat/completions"
+DEFAULT_V0_RETRY_MAX: Final[int] = 3
+DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
 
 # UI Defaults
 DEFAULT_PAGE_SIZE: Final[int] = 5

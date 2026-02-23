@@ -66,27 +66,21 @@ class CPOAgent(PersonaAgent):
 
         # 3. Inject Nemawashi (Influence) Data
         if state.influence_network:
-            # We can analyze the network or use pre-calculated analytics from the engine if stored in state.
-            # Currently state has influence_network (matrix).
-            # Ideally, we should have the analysis results (consensus scores, influencers) in the state.
-            # But if not, we can do a lightweight check or just mention the network exists.
-            # The Nemawashi Engine runs before this node, so we might want to check for updated agent_states (opinions).
+            # Check for consensus data which might be injected by the Nemawashi engine node
+            # The node calculates consensus and updates support levels.
 
-            # Since we don't have easy access to detailed analytics without the engine here,
-            # we will rely on what's available.
-            # If Nemawashi node updated the influence_network or agent_states, we use that.
+            # We provide a summary of the political landscape.
+            # Ideally, we would use the Engine here to get fresh analytics, but to avoid
+            # heavy computation inside the agent, we rely on the state being up to date.
 
-            # For now, let's append a placeholder for the strategy advice based on the graph structure.
-            # The CPO should advise on *who* to target.
-
-            # Use 'state.influence_network' to find the most stubborn or influential stakeholder?
-            # We'll just append raw data summary for LLM to interpret.
-
-            stakeholders_info = "\nSTAKEHOLDER ANALYSIS (Nemawashi):\n"
+            stakeholders_info = ["\nSTAKEHOLDER ANALYSIS (Nemawashi):"]
             for s in state.influence_network.stakeholders:
-                stakeholders_info += f"- {s.name}: Support={s.initial_support:.2f}, Stubbornness={s.stubbornness:.2f}\n"
+                status = "Supportive" if s.initial_support > 0.7 else "Resistant" if s.initial_support < 0.3 else "Neutral"
+                stakeholders_info.append(
+                    f"- {s.name}: {status} (Support={s.initial_support:.2f}, Stubbornness={s.stubbornness:.2f})"
+                )
 
-            research_data += f"\n\n{stakeholders_info}"
+            research_data += "\n".join(stakeholders_info)
 
         content = self._generate_response(context, research_data)
 

@@ -39,17 +39,14 @@ def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     return ideator.run(state)
 
 
+@safe_node("Error in Verification Node")
 def verification_node(state: GlobalState) -> dict[str, Any]:
     """
     Transition to Verification Phase.
     Here we prepare for the 'Mom Test' by setting the phase.
     The user will select the Riskiest Assumption (Gate 2) and provide transcripts.
     """
-    try:
-        StateValidator.validate_phase_requirements(state)
-    except ValueError:
-        logger.exception("Validation failed for Verification transition")
-        return {}
+    StateValidator.validate_phase_requirements(state)
 
     if not state.selected_idea:
         logger.error("Attempted to enter Verification Phase without a selected idea.")
@@ -206,13 +203,10 @@ def mvp_generation_node(state: GlobalState) -> dict[str, Any]:
     return updates
 
 
+@safe_node("Error in PMF Node")
 def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
-    try:
-        StateValidator.validate_phase_requirements(state)
-    except ValueError:
-        logger.exception("Validation failed for PMF transition")
-        return {}
+    StateValidator.validate_phase_requirements(state)
 
     if not state.mvp_definition:
         logger.warning("Entering PMF Phase without an MVP definition.")

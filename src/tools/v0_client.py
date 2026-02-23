@@ -61,13 +61,21 @@ class V0Client:
 
         return self.breaker.call(self._generate_ui_impl, prompt)
 
+    def _sanitize_header(self, value: str) -> str:
+        """Prevent header injection by stripping newlines."""
+        return value.replace("\n", "").replace("\r", "")
+
     def _generate_ui_impl(self, prompt: str) -> str:
+        # Sanitize headers
+        sanitized_api_key = self._sanitize_header(self.api_key) # type: ignore # checked in public method
+
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {sanitized_api_key}",
             "Content-Type": "application/json",
         }
 
         # Structure payload for v0.dev (assuming OpenAI-compatible chat format)
+        # Prompt is user content in JSON body, requests handles escaping, but strict hygiene is good.
         payload = {
             "model": "v0-preview", # or similar model name
             "messages": [
@@ -83,8 +91,8 @@ class V0Client:
             "stream": False
         }
 
-        max_retries = 3
-        backoff_factor = 2
+        max_retries = self.settings.v0.retry_max
+        backoff_factor = self.settings.v0.retry_backoff
 
         try:
             with httpx.Client(timeout=60.0) as client:
