@@ -36,6 +36,22 @@ from src.core.constants import (
     MSG_WAIT,
     MSG_WAITING_FOR_DEBATE,
 )
+from src.core.theme import (
+    AGENT_POS_CPO,
+    AGENT_POS_FINANCE,
+    AGENT_POS_NEW_EMP,
+    AGENT_POS_SALES,
+    COLOR_BG,
+    COLOR_CPO,
+    COLOR_FINANCE,
+    COLOR_NEW_EMP,
+    COLOR_SALES,
+    COLOR_TEXT,
+    DEFAULT_FPS,
+    DEFAULT_HEIGHT,
+    DEFAULT_PAGE_SIZE,
+    DEFAULT_WIDTH,
+)
 
 
 class ValidationConfig(BaseSettings):
@@ -79,7 +95,7 @@ class UIConfig(BaseSettings):
     """UI Strings and Configuration."""
 
     # Load from env var "UI_PAGE_SIZE", default to 5
-    page_size: int = Field(alias="UI_PAGE_SIZE", default=5)
+    page_size: int = Field(alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE)
 
     # Messages
     no_ideas: str = MSG_NO_IDEAS
@@ -128,55 +144,31 @@ class AgentConfig(BaseModel):
 
 
 def _load_default_agents_config() -> dict[str, AgentConfig]:
-    """Load default agent configuration."""
-    # Defined explicitly within the function to avoid global module-level mutable state
-    # while adhering to the requirement of no hardcoded settings in 'global scope'.
-    # In a real production system, this could load from an external JSON/YAML.
-    # The default factory allows this to be overridden by a Pydantic environment variable source.
+    """Load default agent configuration from Theme constants."""
     return {
         "New Employee": AgentConfig(
             role="New Employee",
             label="NewEmp",
-            color=11,
-            x=20,
-            y=80,
-            w=20,
-            h=30,
-            text_x=15,
-            text_y=112,
+            color=COLOR_NEW_EMP,
+            **AGENT_POS_NEW_EMP,
         ),
         "Finance Manager": AgentConfig(
             role="Finance Manager",
             label="Finance",
-            color=8,
-            x=70,
-            y=80,
-            w=20,
-            h=30,
-            text_x=65,
-            text_y=112,
+            color=COLOR_FINANCE,
+            **AGENT_POS_FINANCE,
         ),
         "Sales Manager": AgentConfig(
             role="Sales Manager",
             label="Sales",
-            color=9,
-            x=120,
-            y=80,
-            w=20,
-            h=30,
-            text_x=120,
-            text_y=112,
+            color=COLOR_SALES,
+            **AGENT_POS_SALES,
         ),
         "CPO": AgentConfig(
             role="CPO",
             label="CPO",
-            color=12,
-            x=140,
-            y=40,
-            w=20,
-            h=30,
-            text_x=135,
-            text_y=72,
+            color=COLOR_CPO,
+            **AGENT_POS_CPO,
         ),
     }
 
@@ -185,12 +177,12 @@ class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
     # Window
-    width: int = 160
-    height: int = 120
-    fps: int = 30
+    width: int = DEFAULT_WIDTH
+    height: int = DEFAULT_HEIGHT
+    fps: int = DEFAULT_FPS
     title: str = MSG_SIM_TITLE
-    bg_color: int = 0
-    text_color: int = 7
+    bg_color: int = COLOR_BG
+    text_color: int = COLOR_TEXT
 
     # Dialogue
     chars_per_line: int = 38
@@ -260,7 +252,7 @@ class Settings(BaseSettings):
     log_level: str = Field(alias="LOG_LEVEL", default="INFO")
 
     # UI Page Size (also used in UIConfig but can be overridden by env)
-    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=5)
+    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE)
 
     validation: ClassVar[ValidationConfig] = ValidationConfig()
     errors: ClassVar[ErrorMessages] = ErrorMessages()

@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
@@ -60,8 +62,8 @@ class Metrics(BaseModel):
 
     @field_validator("custom_metrics")
     @classmethod
-    def validate_custom_metrics(cls, v: dict[str, float]) -> dict[str, float]:
-        """Validate custom metrics keys and limit."""
+    def validate_custom_metrics(cls, v: dict[str, Any]) -> dict[str, float]:
+        """Validate custom metrics keys, values, and limit."""
         settings = get_settings()
 
         if len(v) > settings.validation.max_custom_metrics:
@@ -70,9 +72,14 @@ class Metrics(BaseModel):
             )
             raise ValueError(msg)
 
-        for key in v:
+        for key, value in v.items():
             if not key.isidentifier():
                 msg = settings.errors.invalid_metric_key.format(key=key)
                 raise ValueError(msg)
+
+            # Explicit type check for values (mypy won't catch runtime dict values if Any)
+            if not isinstance(value, (int, float)):
+                msg = f"Metric value for {key} must be numeric."
+                raise TypeError(msg)
 
         return v

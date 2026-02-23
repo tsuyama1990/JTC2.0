@@ -6,6 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent, SearchTool
+from src.agents.mixins import RateLimitMixin
 from src.core.config import Settings, get_settings
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
@@ -14,7 +15,7 @@ from src.tools.search import TavilySearch
 logger = logging.getLogger(__name__)
 
 
-class PersonaAgent(BaseAgent):
+class PersonaAgent(BaseAgent, RateLimitMixin):
     """Base class for persona-based agents in the simulation."""
 
     def __init__(
@@ -25,6 +26,7 @@ class PersonaAgent(BaseAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
+        RateLimitMixin.__init__(self)
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
@@ -40,8 +42,6 @@ class PersonaAgent(BaseAgent):
             else None
         )
         self._research_cache: dict[str, str] = {}
-        self._last_request_time: float = 0.0
-        self._min_request_interval: float = 1.0
 
     def _build_context(self, state: GlobalState) -> str:
         """Construct the conversation history context."""
@@ -71,27 +71,22 @@ class PersonaAgent(BaseAgent):
         response = chain.invoke({})
         return str(response.content)
 
-    def _rate_limit_wait(self) -> None:
-        """Enforce rate limiting for API calls."""
-        current_time = time.time()
-        elapsed = current_time - self._last_request_time
-        if elapsed < self._min_request_interval:
-            time.sleep(self._min_request_interval - elapsed)
-        self._last_request_time = time.time()
-
     def _cached_research(self, topic: str) -> str:
         """Cache research results to avoid redundant API calls."""
         if topic in self._research_cache:
             return self._research_cache[topic]
 
-        # Removed redundant hasattr check as _base_init guarantees search_tool and logic presence
         # But we still need to know if _research_impl exists on the subclass
         if hasattr(self, "_research_impl"):
             self._rate_limit_wait()
             # Ensure return type is str
-            result: str = self._research_impl(topic)
+            # We use getattr to bypass mypy 'attr-defined' error for dynamic dispatch
+            impl = self._research_impl
+            result: str = impl(topic)
             self._research_cache[topic] = result
             return result
+        logger.warning(f"Agent {self.role} attempted research without implementation.")
+
         return ""
 
     def run(self, state: GlobalState) -> dict[str, Any]:

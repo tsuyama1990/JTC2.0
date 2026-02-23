@@ -93,6 +93,16 @@ class GlobalState(BaseModel):
         description="Persistent state of agents (e.g. DeGroot weights)"
     )
 
+    @field_validator("transcripts")
+    @classmethod
+    def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
+        """Ensure transcripts are unique by source."""
+        sources = [t.source for t in v]
+        if len(sources) != len(set(sources)):
+            msg = "Duplicate transcript sources found."
+            raise ValueError(msg)
+        return v
+
     @field_validator("agent_states")
     @classmethod
     def validate_agent_states(cls, v: dict[Role, AgentState]) -> dict[Role, AgentState]:

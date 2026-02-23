@@ -1,5 +1,6 @@
 import argparse
 import logging
+import re
 import sys
 import threading
 from collections.abc import Iterator
@@ -44,6 +45,49 @@ def safe_input(prompt: str) -> str:
         return ""
     except KeyboardInterrupt:
         sys.exit(0)
+
+
+def validate_topic(topic: str) -> str:
+    """
+    Sanitize and validate the topic string.
+    Allow alphanumeric, spaces, and basic punctuation.
+    """
+    if not topic or not topic.strip():
+        msg = "Topic cannot be empty."
+        raise ValueError(msg)
+
+    if len(topic) > 200:
+        msg = "Topic is too long (max 200 chars)."
+        raise ValueError(msg)
+
+    # Allow alphanumeric, spaces, - _ . : ,
+    if not re.match(r"^[a-zA-Z0-9\s\-_\.,:]+$", topic):
+        logger.warning(f"Topic contains special characters: {topic}")
+        # We warn but don't strictly block unless it looks dangerous,
+        # but for high security we should strip.
+        # Let's strictly sanitize for now.
+        return re.sub(r"[^a-zA-Z0-9\s\-_\.,:]", "", topic)
+
+    return topic
+
+
+def validate_filepath(filepath: str) -> Path:
+    """
+    Validate filepath to prevent traversal attacks.
+    Ensures path is within the current working directory or allowed subdirs.
+    """
+    path = Path(filepath).resolve()
+    cwd = Path.cwd().resolve()
+
+    if not str(path).startswith(str(cwd)):
+        msg = "File path must be within the project directory."
+        raise ValueError(msg)
+
+    if not path.exists():
+        msg = f"File not found: {filepath}"
+        raise ValueError(msg)
+
+    return path
 
 
 def _process_page_selection(
@@ -150,13 +194,14 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
     if generated_ideas_raw is None:
         return
 
-    # Normalize to iterator
+    # Normalize to iterator and STRICTLY enforce iterator type
     iterator = (
         generated_ideas_raw
         if isinstance(generated_ideas_raw, Iterator)
         else iter(generated_ideas_raw)
     )
 
+    # We yield items one by one to ensure this function remains a generator
     for item in iterator:
         if isinstance(item, LeanCanvas):
             yield item
@@ -220,11 +265,15 @@ def ingest_transcript(filepath: str) -> None:
     """Ingest a transcript file into the RAG engine."""
     try:
         echo(f"Ingesting transcript from {filepath}...")
-        with Path(filepath).open(encoding="utf-8") as f:
+
+        # Security: Validate filepath
+        path = validate_filepath(filepath)
+
+        with path.open(encoding="utf-8") as f:
             content = f.read()
 
         rag = RAG()
-        rag.ingest_text(content, source=filepath)
+        rag.ingest_text(content, source=str(path))
         rag.persist_index()
         echo(f"Successfully ingested {filepath} into vector store.")
     except Exception as e:
@@ -251,13 +300,8 @@ def main() -> None:
         if not topic:
             topic = safe_input("Enter a business topic (e.g., 'AI for Agriculture'): ")
 
-        if not topic or not topic.strip():
-            echo(ui_config.topic_empty)
-            return
-
-        if len(topic) > 200:
-            echo("Topic is too long.")
-            return
+        # Security: Validate topic
+        topic = validate_topic(topic)
 
         # STRICT SCALABILITY: typed_ideas_gen is a generator.
         # We pass it directly to the browse function without converting to list.

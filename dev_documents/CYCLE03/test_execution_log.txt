@@ -4,25 +4,26 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 71 items
+collected 73 items
 
-tests/uat/test_uat_cycle01.py ..                                         [  2%]
-tests/uat/test_uat_cycle02.py .                                          [  4%]
-tests/uat/test_uat_cycle03.py ..                                         [  7%]
-tests/unit/domain_models/test_models.py ...........                      [ 22%]
-tests/unit/domain_models/test_simulation_models.py .....                 [ 29%]
-tests/unit/domain_models/test_transcript.py ...                          [ 33%]
-tests/unit/test_cli_input.py ...                                         [ 38%]
-tests/unit/test_cli_scalability.py .                                     [ 39%]
-tests/unit/test_config.py .......                                        [ 49%]
-tests/unit/test_core.py ....                                             [ 54%]
-tests/unit/test_cpo_agent.py ..                                          [ 57%]
-tests/unit/test_domain_models.py .......                                 [ 67%]
-tests/unit/test_ideator_agent.py ...                                     [ 71%]
+tests/integration/test_rag_flow.py ..                                    [  2%]
+tests/uat/test_uat_cycle01.py ..                                         [  5%]
+tests/uat/test_uat_cycle02.py .                                          [  6%]
+tests/uat/test_uat_cycle03.py ..                                         [  9%]
+tests/unit/domain_models/test_models.py ...........                      [ 24%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 31%]
+tests/unit/domain_models/test_transcript.py ...                          [ 35%]
+tests/unit/test_cli_input.py ...                                         [ 39%]
+tests/unit/test_cli_scalability.py .                                     [ 41%]
+tests/unit/test_config.py .......                                        [ 50%]
+tests/unit/test_core.py ....                                             [ 56%]
+tests/unit/test_cpo_agent.py ..                                          [ 58%]
+tests/unit/test_domain_models.py .......                                 [ 68%]
+tests/unit/test_ideator_agent.py ...                                     [ 72%]
 tests/unit/test_memory_safety.py .                                       [ 73%]
-tests/unit/test_rag.py ....                                              [ 78%]
-tests/unit/test_simulation_logic.py .......                              [ 88%]
-tests/unit/test_tools.py ...                                             [ 92%]
+tests/unit/test_rag.py ....                                              [ 79%]
+tests/unit/test_simulation_logic.py .......                              [ 89%]
+tests/unit/test_tools.py ...                                             [ 93%]
 tests/unit/test_ui.py .....                                              [100%]
 
 ================================ tests coverage ================================
@@ -35,29 +36,31 @@ src/agents/__init__.py                 0      0   100%
 src/agents/base.py                     9      0   100%
 src/agents/cpo.py                     17      0   100%
 src/agents/ideator.py                 47     12    74%   30-33, 96-106
-src/agents/personas.py                79      1    99%   95
+src/agents/mixins.py                  23      6    74%   28, 31-35
+src/agents/personas.py                75      2    97%   88-90
 src/core/__init__.py                   0      0   100%
-src/core/config.py                   126      1    99%   229
+src/core/config.py                   127      1    99%   221
 src/core/constants.py                 49      0   100%
 src/core/factory.py                   28     13    54%   29-43
 src/core/graph.py                     62     29    53%   19-21, 25-29, 37-44, 48-55, 59-63, 67-71
 src/core/llm.py                        8      0   100%
 src/core/simulation.py                40     10    75%   30-31, 34-35, 38-39, 42-43, 46-47
+src/core/theme.py                     15      0   100%
 src/data/__init__.py                   2      0   100%
-src/data/rag.py                       43      9    79%   30, 42-48, 64, 77
+src/data/rag.py                       56      8    86%   34-35, 41, 61, 79, 87, 101, 107
 src/domain_models/__init__.py          4      0   100%
 src/domain_models/lean_canvas.py      24      0   100%
-src/domain_models/metrics.py          34      2    94%   75-76
+src/domain_models/metrics.py          38      4    89%   77-78, 82-83
 src/domain_models/mvp.py              26      0   100%
 src/domain_models/persona.py          28      2    93%   109-110
 src/domain_models/simulation.py       20      0   100%
-src/domain_models/state.py            74      6    92%   116-124
-src/domain_models/transcript.py       13      0   100%
+src/domain_models/state.py            82      8    90%   102-103, 126-134
+src/domain_models/transcript.py       22      2    91%   31-32
 src/tools/__init__.py                  0      0   100%
 src/tools/search.py                   34      4    88%   39, 75, 90-91
 src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 131-137, 157
 ----------------------------------------------------------------
-TOTAL                                863     99    89%
-============================= 71 passed in 15.15s ==============================
+TOTAL                                932    111    88%
+============================= 73 passed in 15.34s ==============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")
