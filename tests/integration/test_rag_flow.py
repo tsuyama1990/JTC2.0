@@ -36,11 +36,19 @@ def temp_vector_store() -> Generator[str, None, None]:
     # RAG enforce stricter path validation (must be relative to CWD)
     base_dir = Path.cwd() / "tests" / "temp_rag_data"
     base_dir.mkdir(parents=True, exist_ok=True)
-    temp_dir = tempfile.mkdtemp(dir=str(base_dir))
-    yield temp_dir
-    # Cleanup
-    if Path(temp_dir).exists():
-        shutil.rmtree(temp_dir)
+    try:
+        temp_dir = tempfile.mkdtemp(dir=str(base_dir))
+        yield temp_dir
+    finally:
+        # Cleanup
+        if 'temp_dir' in locals() and Path(temp_dir).exists():
+            shutil.rmtree(temp_dir)
+
+        # Try to remove the base dir if empty to keep project clean
+        try:
+            base_dir.rmdir()
+        except OSError:
+            pass  # Directory not empty or busy
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
@@ -105,8 +113,9 @@ def test_cpo_agent_behavior() -> None:
     llm.invoke.return_value = mock_msg
     llm.return_value = mock_msg
 
-    # Init agent
-    agent = CPOAgent(llm, rag_path="./dummy")
+    # Init agent with valid path to pass strict validation
+    # This path is relative to CWD and starts with 'tests'
+    agent = CPOAgent(llm, rag_path="tests/mock_cpo_rag")
 
     # Mock internal RAG
     agent.rag = MagicMock()

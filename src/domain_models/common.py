@@ -13,9 +13,11 @@ from src.domain_models.lean_canvas import LeanCanvas
 
 class LazyIdeaIterator(Iterator[LeanCanvas]):
     """
-    Wrapper for Idea Iterator to enforce single-use consumption and safety.
+    Wrapper for Idea Iterator to enforce single-use consumption and safety limits.
 
-    This class is not a Pydantic model but used as a field type.
+    Safety:
+    - Enforces a strict maximum number of items (`iterator_safety_limit`) to prevent infinite loops/OOM.
+    - Tracks consumption state.
     """
 
     def __init__(self, iterator: Iterator[LeanCanvas]) -> None:
@@ -26,17 +28,22 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
         self._max_items = get_settings().iterator_safety_limit
 
     def __iter__(self) -> Iterator[LeanCanvas]:
-        # Return self as the iterator
         return self
 
     def __next__(self) -> LeanCanvas:
         if self._count >= self._max_items:
-            raise StopIteration("Safety limit reached for LazyIdeaIterator.")
+            # We raise StopIteration to signal end of stream,
+            # but we can optionally log a warning if it's hitting the safety cap abruptly.
+            # Standard Python iteration protocol requires StopIteration.
+            raise StopIteration
 
-        # Delegate to the wrapped iterator
-        self._consumed = True
-        self._count += 1
-        return next(self._iterator)
+        try:
+            item = next(self._iterator)
+            self._consumed = True
+            self._count += 1
+            return item
+        except StopIteration:
+            raise
 
     @classmethod
     def __get_pydantic_core_schema__(

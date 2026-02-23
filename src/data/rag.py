@@ -1,8 +1,11 @@
+import functools
 import logging
 import os
-import sys
+import time
 from pathlib import Path
+from typing import Any
 
+import pybreaker
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
 from llama_index.core import Settings as LlamaSettings
 from llama_index.core.storage.storage_context import StorageContext
@@ -10,8 +13,44 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 
 from src.core.config import get_settings
+from src.core.constants import (
+    ERR_CIRCUIT_OPEN,
+    ERR_PATH_TRAVERSAL,
+    ERR_RAG_INDEX_SIZE,
+    ERR_RAG_QUERY_TOO_LARGE,
+    ERR_RAG_TEXT_TOO_LARGE,
+    ERR_RATE_LIMIT,
+)
+from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+@functools.lru_cache(maxsize=1)
+def _get_dir_size_iterative(path: str, limit: int) -> int:
+    """
+    Iterative directory size calculation with early exit and caching.
+    Uses os.scandir for efficiency.
+    """
+    total = 0
+    stack = [path]
+
+    while stack:
+        current_path = stack.pop()
+        try:
+            with os.scandir(current_path) as it:
+                for entry in it:
+                    if entry.is_file():
+                        total += entry.stat().st_size
+                    elif entry.is_dir(follow_symlinks=False):
+                        stack.append(entry.path)
+
+                    if total > limit:
+                        return total
+        except OSError as e:
+            logger.warning(f"Error scanning index directory {current_path}: {e}")
+
+    return total
 
 
 class RAG:
@@ -25,114 +64,167 @@ class RAG:
         raw_path = persist_dir or self.settings.rag_persist_dir
         self.persist_dir = self._validate_path(raw_path)
 
+        # Circuit Breaker
+        self.breaker = pybreaker.CircuitBreaker(
+            fail_max=self.settings.circuit_breaker_fail_max,
+            reset_timeout=self.settings.circuit_breaker_reset_timeout,
+        )
+
+        # Simple Rate Limiting State
+        self._last_call_time = 0.0
+        self._min_interval = 0.1 # 10 requests/second max locally initiated
+
         self.index: VectorStoreIndex | None = None
         self._init_llama()
 
     def _validate_path(self, path_str: str) -> str:
-        """Ensure persist directory is safe and absolute."""
+        """
+        Ensure persist directory is safe and absolute.
+        Uses strict allowlist and pathlib.is_relative_to for security.
+        """
+        if not path_str or not isinstance(path_str, str):
+            msg = "Path must be a non-empty string."
+            raise ConfigurationError(msg)
+
         try:
             path = Path(path_str).resolve()
         except Exception as e:
-            msg = f"Invalid path: {e}"
-            raise ValueError(msg) from e
+            msg = f"Invalid path format: {e}"
+            raise ConfigurationError(msg) from e
 
         cwd = Path.cwd().resolve()
 
-        # Strict allowlist check: Must be relative to CWD
-        # Using is_relative_to correctly handles cross-platform paths in Python 3.9+
-        if not path.is_relative_to(cwd):
-            msg = "Path traversal detected in persist_dir. Must be within project root."
-            raise ValueError(msg)
+        # Strict allowlist: Must be contained within specific project folders
+        # We allow 'data', 'vector_store' (default), and 'tests' (for testing)
+        allowed_parents = [
+            cwd / "data",
+            cwd / "vector_store",
+            cwd / "tests",
+        ]
+
+        is_safe = False
+        for parent in allowed_parents:
+            try:
+                if path.is_relative_to(parent):
+                    is_safe = True
+                    break
+            except ValueError:
+                continue
+
+        if not is_safe:
+             logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
+             raise ConfigurationError(ERR_PATH_TRAVERSAL)
+
         return str(path)
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
         if not self.settings.openai_api_key:
-            raise ValueError(self.settings.errors.config_missing_openai)
+            raise ConfigurationError(self.settings.errors.config_missing_openai)
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
 
         LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
+        # Only attempt to load if the directory exists and has files
         if Path(self.persist_dir).exists():
             self._load_existing_index()
 
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
-        if not any(Path(self.persist_dir).iterdir()):
-            logger.info(f"Persist directory {self.persist_dir} exists but is empty. Initializing new index.")
+        # Use iterator to check for emptiness without loading list
+        path_obj = Path(self.persist_dir)
+        if not any(path_obj.iterdir()):
+            logger.info(
+                f"Persist directory {self.persist_dir} exists but is empty. Initializing new index."
+            )
             self.index = None
             return
 
+        # Critical: Check size BEFORE loading storage context logic
         try:
             self._check_index_size()
-            storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
+        except MemoryError:
+            raise # Propagate memory error immediately
 
+        try:
+            storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
         except Exception as e:
             logger.exception("Failed to load index from %s", self.persist_dir)
             self.index = None
-            raise RuntimeError(f"RAG Index Load Error: {e}") from e
+            # Allow continuing with fresh index unless it was a MemoryError (caught above)
 
     def _check_index_size(self) -> None:
         """
         Check if the index is too large and raise error if unsafe.
         Uses optimized scanning with early termination.
         """
-        total_size = 0
         limit_mb = self.settings.rag_max_index_size_mb
         limit_bytes = limit_mb * 1024 * 1024
 
-        try:
-            # Iterative approach with early exit to avoid full scan if limit hit
-            stack = [self.persist_dir]
-            while stack:
-                current_dir = stack.pop()
-                with os.scandir(current_dir) as it:
-                    for entry in it:
-                        if entry.is_file():
-                            total_size += entry.stat().st_size
-                            if total_size > limit_bytes:
-                                msg = f"Vector store size exceeds limit ({limit_mb} MB). Loading blocked."
-                                logger.error(msg)
-                                raise MemoryError(msg)
-                        elif entry.is_dir():
-                            stack.append(entry.path)
-        except OSError as e:
-            logger.warning(f"Error scanning index directory: {e}")
+        size = _get_dir_size_iterative(self.persist_dir, limit_bytes)
+        if size > limit_bytes:
+            msg = ERR_RAG_INDEX_SIZE.format(limit=limit_mb)
+            logger.error(msg)
+            raise MemoryError(msg)
+
+    def _rate_limit(self) -> None:
+        """Simple blocking rate limiter."""
+        current = time.time()
+        elapsed = current - self._last_call_time
+        if elapsed < self._min_interval:
+            time.sleep(self._min_interval - elapsed)
+        self._last_call_time = time.time()
 
     def ingest_text(self, text: str, source: str) -> None:
         """
         Ingest text into the vector store in-memory.
-        Uses batch insertion.
+        Uses batch insertion and strict validation.
         """
+        self._rate_limit()
+
+        # Strict Input Validation
+        if not text or not isinstance(text, str):
+            msg = "Text must be a non-empty string."
+            raise ValidationError(msg)
+
+        max_len = self.settings.rag_max_document_length
+        if len(text) > max_len:
+            msg = ERR_RAG_TEXT_TOO_LARGE.format(size=len(text))
+            raise ValidationError(msg)
+
+        if not source or not isinstance(source, str):
+            msg = "Source must be a non-empty string."
+            raise ValidationError(msg)
+
         chunk_size = self.settings.rag_chunk_size
 
+        # Chunking
         if len(text) > chunk_size:
             logger.info(f"Text too large ({len(text)} chars). Chunking...")
             chunks = [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
         else:
             chunks = [text]
 
-        documents = [Document(text=chunk, metadata={"source": source, "chunk_index": i}) for i, chunk in enumerate(chunks)]
+        documents = [
+            Document(text=chunk, metadata={"source": source, "chunk_index": i})
+            for i, chunk in enumerate(chunks)
+        ]
 
         try:
             if self.index is None:
                 self.index = VectorStoreIndex.from_documents(documents)
             else:
-                # Batch insertion if supported by index, otherwise loop
-                # VectorStoreIndex usually inserts one by one unless we rebuild or use refresh
-                # But insert() is generally the API.
-                # Optimization: For very large batches, creating a new index from documents might be faster,
-                # but we want to append.
                 for doc in documents:
                     self.index.insert(doc)
         except Exception as e:
-            logger.error(f"Failed to ingest document from {source}: {e}")
-            raise RuntimeError(f"Ingestion failed: {e}") from e
+            logger.exception("Failed to ingest document from %s", source)
+            msg = f"Ingestion failed: {e}"
+            raise RuntimeError(msg) from e
 
     def persist_index(self) -> None:
         """Persist the index to disk."""
@@ -144,19 +236,30 @@ class RAG:
         """
         Query the index for relevant context.
         """
+        self._rate_limit()
+
         if not isinstance(question, str):
-             raise ValueError("Query must be a string.")
+            msg = "Query must be a string."
+            raise TypeError(msg)
 
         if not question.strip():
-             raise ValueError("Query cannot be empty.")
+            msg = "Query cannot be empty."
+            raise ValueError(msg)
 
         max_len = self.settings.rag_max_query_length
         if len(question) > max_len:
-            logger.warning(f"Query too long ({len(question)} chars). Truncating to {max_len}.")
-            question = question[:max_len]
+            msg = ERR_RAG_QUERY_TOO_LARGE.format(size=len(question))
+            raise ValidationError(msg)
 
         question = question.strip()
 
+        try:
+            return self.breaker.call(self._query_impl, question)
+        except pybreaker.CircuitBreakerError as e:
+            logger.exception("Circuit breaker open.")
+            raise NetworkError(ERR_CIRCUIT_OPEN) from e
+
+    def _query_impl(self, question: str) -> str:
         if self.index is None:
             return "No data available."
 

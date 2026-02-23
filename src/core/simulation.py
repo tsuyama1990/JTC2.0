@@ -26,7 +26,8 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=None)
+# Use LRU cache to prevent memory leaks from unbounded @cache
+@lru_cache(maxsize=10)
 def _get_cached_agent(role: Role) -> Any:
     """
     Singleton-like access for agents to prevent recreation loops.

@@ -1,0 +1,79 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
+collected 99 items
+
+tests/integration/test_rag_flow.py ..                                    [  2%]
+tests/uat/test_memory_safety.py ...                                      [  5%]
+tests/uat/test_nemawashi_uat.py ..                                       [  7%]
+tests/uat/test_uat_cycle01.py ...                                        [ 10%]
+tests/uat/test_uat_cycle02.py .                                          [ 11%]
+tests/uat/test_uat_cycle03.py ..                                         [ 13%]
+tests/unit/domain_models/test_models.py ...........                      [ 24%]
+tests/unit/domain_models/test_politics.py .....                          [ 29%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 34%]
+tests/unit/domain_models/test_transcript.py ...                          [ 37%]
+tests/unit/test_cli_input.py ...                                         [ 40%]
+tests/unit/test_cli_scalability.py .                                     [ 41%]
+tests/unit/test_config.py .......                                        [ 48%]
+tests/unit/test_core.py ....                                             [ 52%]
+tests/unit/test_cpo_agent.py ..                                          [ 54%]
+tests/unit/test_domain_models.py .......                                 [ 61%]
+tests/unit/test_ideator_agent.py ...                                     [ 64%]
+tests/unit/test_nemawashi.py ........                                    [ 72%]
+tests/unit/test_rag.py .....                                             [ 77%]
+tests/unit/test_rag_errors.py ...                                        [ 80%]
+tests/unit/test_rag_refactored.py .                                      [ 81%]
+tests/unit/test_simulation_integration.py ..                             [ 83%]
+tests/unit/test_simulation_logic.py ........                             [ 91%]
+tests/unit/test_tools.py ...                                             [ 94%]
+tests/unit/test_ui.py .....                                              [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.12-final-0 _______________
+
+Name                               Stmts   Miss  Cover   Missing
+----------------------------------------------------------------
+src/__init__.py                        0      0   100%
+src/agents/__init__.py                 0      0   100%
+src/agents/base.py                     9      0   100%
+src/agents/cpo.py                     17      0   100%
+src/agents/ideator.py                 47     12    74%   31-34, 97-107
+src/agents/mixins.py                  23      6    74%   28, 31-35
+src/agents/personas.py                79      5    94%   90-92, 97-98
+src/core/__init__.py                   0      0   100%
+src/core/config.py                   137      0   100%
+src/core/constants.py                 82      0   100%
+src/core/exceptions.py                 5      0   100%
+src/core/factory.py                   28     13    54%   29-43
+src/core/graph.py                     84     44    48%   20-22, 28-38, 60-67, 72-79, 84-97, 102-112
+src/core/llm.py                        8      0   100%
+src/core/nemawashi/__init__.py         5      0   100%
+src/core/nemawashi/analytics.py       52     14    73%   26, 33, 41-45, 55-56, 102-107
+src/core/nemawashi/consensus.py       38      9    76%   43-57
+src/core/nemawashi/engine.py          19      1    95%   34
+src/core/nemawashi/nomikai.py         42      2    95%   33-34
+src/core/simulation.py                49      1    98%   42
+src/core/theme.py                     18      0   100%
+src/core/validators.py                47     10    79%   47, 50-51, 53-54, 61, 64-65, 67-68
+src/data/__init__.py                   2      0   100%
+src/data/rag.py                      161     24    85%   45-46, 50-51, 86-87, 91-93, 111-112, 123, 156-158, 192-193, 201-202, 224-227, 264
+src/domain_models/__init__.py          5      0   100%
+src/domain_models/common.py           26      2    92%   45-46
+src/domain_models/lean_canvas.py      24      0   100%
+src/domain_models/metrics.py          41      6    85%   95-96, 100-101, 105-106
+src/domain_models/mvp.py              30      0   100%
+src/domain_models/persona.py          28      2    93%   124-125
+src/domain_models/politics.py         36      0   100%
+src/domain_models/simulation.py       20      0   100%
+src/domain_models/state.py            74      8    89%   82-83, 106-114
+src/domain_models/transcript.py       22      2    91%   32-33
+src/tools/__init__.py                  0      0   100%
+src/tools/search.py                   34      2    94%   39, 75
+src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 128-134, 154
+----------------------------------------------------------------
+TOTAL                               1388    173    88%
+============================= 99 passed in 18.23s ==============================
