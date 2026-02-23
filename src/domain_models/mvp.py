@@ -7,7 +7,7 @@ and success criteria, following the 'Lean Startup' methodology.
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -18,6 +18,7 @@ from src.core.constants import (
     DESC_MVP_SUCCESS_CRITERIA,
     DESC_MVP_TYPE,
 )
+import re
 
 
 class MVPType(StrEnum):
@@ -109,3 +110,14 @@ class MVPSpec(BaseModel):
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
         description="Key UI components to include",
     )
+
+    @field_validator("components")
+    @classmethod
+    def validate_components(cls, v: list[str]) -> list[str]:
+        """Validate component names to prevent injection/malformed input."""
+        # Allow alphanumeric, spaces, hyphens
+        pattern = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+        for comp in v:
+            if not pattern.match(comp):
+                raise ValueError(f"Invalid component name: {comp}. Must be alphanumeric.")
+        return v

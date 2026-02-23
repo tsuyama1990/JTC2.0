@@ -2,6 +2,7 @@ import logging
 import os
 import time
 from collections.abc import Iterator
+from functools import lru_cache
 from pathlib import Path
 
 import pybreaker
@@ -22,6 +23,15 @@ from src.core.constants import (
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _scan_dir_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -> int:
+    """
+    Cached version of directory size calculation.
+    ttl_hash is a trick to invalidate cache by passing a changing value (like time // 60).
+    """
+    return _scan_dir_size(path, depth_limit)
 
 
 def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
@@ -104,9 +114,11 @@ class RAG:
         # Incremental Size Tracking
         self._current_index_size = 0
         if Path(self.persist_dir).exists():
-            self._current_index_size = _scan_dir_size(
+            # Use cached scan
+            self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
-                depth_limit=self.settings.rag_scan_depth_limit
+                depth_limit=self.settings.rag_scan_depth_limit,
+                ttl_hash=int(time.time() // 60) # Refresh every minute
             )
 
         self.index: VectorStoreIndex | None = None
@@ -126,6 +138,9 @@ class RAG:
             # Normalize path strictly
             if path.exists():
                 path = path.resolve(strict=True)
+                # Check for symlinks in final path component
+                if path.is_symlink():
+                    raise ConfigurationError("Symlinks not allowed in persist_dir.")
             else:
                 # If path doesn't exist, verify parent exists and is safe
                 parent = path.parent.resolve(strict=True)
@@ -197,6 +212,11 @@ class RAG:
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
+
+            # MEMORY SAFETY: We assume load_index_from_storage loads efficiently.
+            # LlamaIndex loads indices into memory. To prevent OOM, we should check size.
+            # We already check _current_index_size in _check_index_size_limit().
+
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
         except Exception:
@@ -304,7 +324,13 @@ class RAG:
         if self.index:
             self.index.storage_context.persist(persist_dir=self.persist_dir)
             logger.info(f"Index persisted to {self.persist_dir}")
-            self._current_index_size = _scan_dir_size(self.persist_dir, self.settings.rag_scan_depth_limit)
+            # Invalidate cache for next load
+            _scan_dir_size_cached.cache_clear()
+            self._current_index_size = _scan_dir_size_cached(
+                self.persist_dir,
+                self.settings.rag_scan_depth_limit,
+                ttl_hash=int(time.time() // 60)
+            )
 
     def query(self, question: str) -> str:
         """

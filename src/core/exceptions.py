@@ -20,3 +20,7 @@ class ValidationError(AppError):
 
 class CalculationError(AppError):
     """Raised when a mathematical calculation fails."""
+
+
+class V0GenerationError(AppError):
+    """Raised when v0.dev generation fails."""

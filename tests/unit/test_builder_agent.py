@@ -2,9 +2,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.exceptions import V0GenerationError
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
-from src.domain_models.mvp import MVPSpec
+from src.domain_models.mvp import MVPSpec, MVPType, Priority, MVP, Feature
 from src.agents.builder import FeatureList
 
 try:
@@ -158,14 +159,17 @@ class TestBuilderAgent:
             result = agent.run(state_with_idea)
             assert result == {}
 
-    def test_generation_exception(self, agent: BuilderAgent, state_with_idea: GlobalState) -> None:
-        """Test handling of exception during generation."""
+    def test_generation_v0_exception(self, agent: BuilderAgent, state_with_idea: GlobalState) -> None:
+        """Test handling of V0GenerationError during generation."""
         state_with_idea.selected_feature = "Feature A long"
 
         with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
             app_name="App", core_feature="Feature A long", components=[]
         )):
-             with patch("src.agents.builder.V0Client", side_effect=Exception("V0 Crash")):
+             with patch("src.agents.builder.V0Client") as mock_v0_cls:
+                 # Raise specific V0 exception
+                 mock_v0_cls.return_value.generate_ui.side_effect = V0GenerationError("API Failure")
+
                  result = agent.run(state_with_idea)
                  # Should return partial state
                  assert "mvp_spec" in result

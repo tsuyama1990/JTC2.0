@@ -40,6 +40,12 @@ class ConsensusEngine:
         Raises:
             ValidationError: If matrix construction fails.
         """
+        # Memory Safety: Check dimension limit
+        if n > 10000:
+            msg = f"Network size {n} exceeds limit of 10,000 stakeholders."
+            logger.error(msg)
+            raise ValueError(msg)
+
         if not network.matrix:
             return csr_matrix((n, n), dtype=float)
 

@@ -213,6 +213,7 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = Field(alias="OPENAI_API_KEY", default=None, description="OpenAI API Key")
     tavily_api_key: SecretStr | None = Field(alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key")
     v0_api_key: SecretStr | None = Field(alias="V0_API_KEY", default=None, description="V0.dev API Key")
+    v0_api_url: str = Field(alias="V0_API_URL", default="https://api.v0.dev/chat/completions", description="V0.dev API URL")
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
 
