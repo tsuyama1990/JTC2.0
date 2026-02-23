@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import ClassVar, Self
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import ERR_CONFIG_MISSING_OPENAI_KEY, ERR_CONFIG_MISSING_TAVILY_KEY
@@ -48,6 +48,27 @@ class ErrorMessages(BaseSettings):
     missing_mvp: str = "MVP definition is required for SOLUTION phase."
 
 
+class UIConfig(BaseSettings):
+    """UI Strings and Configuration."""
+
+    page_size: int = Field(alias="UI_PAGE_SIZE", default=5)
+
+    # Messages
+    no_ideas: str = "\nNo ideas generated. Please try again or check logs."
+    generated_header: str = "\n=== Generated Ideas ==="  # Simplified header
+    press_enter: str = "\nPress Enter to see more..."
+    select_prompt: str = "\n[GATE 1] Select an Idea ID (0-9) to proceed: "
+    id_not_found: str = "ID {idx} not found. Please try again."
+    invalid_input: str = "Please enter a valid number."
+    selected: str = "\n✓ Selected Plan: {title}"
+    cycle_complete: str = "Cycle 1 Complete. State updated."
+    topic_empty: str = "Topic cannot be empty."
+    phase_start: str = "\nPhase: {phase}"
+    researching: str = "Researching and Ideating for: '{topic}'..."
+    wait: str = "(This may take 30-60 seconds due to search and LLM generation)..."
+    execution_error: str = "\nError during execution: {e}"
+
+
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
@@ -68,7 +89,7 @@ class Settings(BaseSettings):
         default="emerging business trends and painful problems in {topic}",
     )
 
-    # UI Configuration
+    # UI Configuration (Keep alias for backward compat if needed, but prefer UIConfig)
     ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=5)
 
     # Logging
@@ -76,6 +97,7 @@ class Settings(BaseSettings):
 
     validation: ClassVar[ValidationConfig] = ValidationConfig()
     errors: ClassVar[ErrorMessages] = ErrorMessages()
+    ui: ClassVar[UIConfig] = UIConfig()
 
     def validate_api_keys(self) -> Self:
         """Validate API keys are present."""

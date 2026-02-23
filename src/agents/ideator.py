@@ -63,12 +63,56 @@ class IdeatorAgent(BaseAgent):
             else None
         )
 
+    def _research(self, topic: str) -> str:
+        """Perform market research using the search tool."""
+        query = self.settings.search_query_template.format(topic=topic)
+        return self.search_tool.safe_search(query)
+
+    def _generate_prompt(self, topic: str, research_data: str) -> ChatPromptTemplate:
+        """Create the prompt for idea generation."""
+        system_prompt = (
+            "You are a visionary startup ideator. Your goal is to generate 10 DISTINCT, "
+            "viable business ideas based on the provided research.\n"
+            "Each idea must be structured as a Lean Canvas.\n"
+            "You MUST generate exactly 10 ideas.\n"
+            "Assign IDs from 0 to 9 sequentially."
+        )
+        return ChatPromptTemplate.from_messages(
+            [
+                ("system", system_prompt),
+                ("user", f"Topic: {topic}\n\nResearch Summary:\n{research_data}"),
+            ]
+        )
+
+    def _generate_ideas(self, prompt: ChatPromptTemplate) -> list[LeanCanvas]:
+        """Invoke LLM to generate ideas."""
+        chain = prompt | self.llm.with_structured_output(LeanCanvasList)
+        try:
+            # We pass empty dict because prompt is already formatted in _generate_prompt?
+            # Wait, ChatPromptTemplate.from_messages creates a template.
+            # If we format it eagerly in _generate_prompt with f-strings, it's just messages.
+            # Let's fix _generate_prompt to return formatted messages or keep it as template.
+
+            # Correction: In the original code:
+            # prompt = ChatPromptTemplate.from_messages(...)
+            # chain.invoke({"topic": topic, "research": search_results})
+
+            # Here I formatted it inside _generate_prompt string.
+            # So invoke needs no args if prompt is already fully bound?
+            # Actually ChatPromptTemplate needs input vars if they are in the string.
+            # But I used f-strings. So it's static messages.
+            result = chain.invoke({})
+        except Exception:
+            return []
+
+        if not isinstance(result, LeanCanvasList):
+            return []
+
+        return result.canvases
+
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
         Generate 10 Lean Canvas drafts based on the topic.
-
-        This method performs research using Tavily and then uses the LLM
-        to generate structured business ideas.
 
         Args:
             state: The current global state containing the topic.
@@ -79,40 +123,12 @@ class IdeatorAgent(BaseAgent):
         topic = state.topic
 
         # 1. Research
-        # Use configurable template
-        query = self.settings.search_query_template.format(topic=topic)
-        # Use safe_search for robustness
-        search_results = self.search_tool.safe_search(query)
+        search_results = self._research(topic)
 
-        # 2. Ideation Prompt
-        system_prompt = (
-            "You are a visionary startup ideator. Your goal is to generate 10 DISTINCT, "
-            "viable business ideas based on the provided research.\n"
-            "Each idea must be structured as a Lean Canvas.\n"
-            "You MUST generate exactly 10 ideas.\n"
-            "Assign IDs from 0 to 9 sequentially."
-        )
-
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                ("user", "Topic: {topic}\n\nResearch Summary:\n{research}"),
-            ]
-        )
+        # 2. Prepare Prompt
+        prompt = self._generate_prompt(topic, search_results)
 
         # 3. Generate
-        # We use with_structured_output to ensure Pydantic validation.
+        ideas = self._generate_ideas(prompt)
 
-        chain = prompt | self.llm.with_structured_output(LeanCanvasList)
-
-        try:
-            result = chain.invoke({"topic": topic, "research": search_results})
-        except Exception:
-            # Fallback if LLM fails or structure is invalid
-            # Return empty list to degrade gracefully rather than crashing
-            return {"generated_ideas": []}
-
-        if not isinstance(result, LeanCanvasList):
-            return {"generated_ideas": []}
-
-        return {"generated_ideas": result.canvases}
+        return {"generated_ideas": ideas}

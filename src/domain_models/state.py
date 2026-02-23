@@ -18,6 +18,20 @@ class Phase(StrEnum):
     PMF = "pmf"
 
 
+class GlobalStateValidators:
+    """Encapsulates validation logic for GlobalState."""
+
+    @staticmethod
+    def validate_phase_requirements(state: "GlobalState") -> "GlobalState":
+        """Validate that required fields are present for the current phase."""
+        settings = get_settings()
+        if state.phase == Phase.VERIFICATION and state.target_persona is None:
+            raise ValueError(settings.errors.missing_persona)
+        if state.phase == Phase.SOLUTION and state.mvp_definition is None:
+            raise ValueError(settings.errors.missing_mvp)
+        return state
+
+
 class GlobalState(BaseModel):
     """The central state of the LangGraph workflow."""
 
@@ -34,11 +48,7 @@ class GlobalState(BaseModel):
     metrics_data: Metrics | None = None
 
     @model_validator(mode="after")
-    def validate_phase_requirements(self) -> Self:
-        """Validate that required fields are present for the current phase."""
-        settings = get_settings()
-        if self.phase == Phase.VERIFICATION and self.target_persona is None:
-            raise ValueError(settings.errors.missing_persona)
-        if self.phase == Phase.SOLUTION and self.mvp_definition is None:
-            raise ValueError(settings.errors.missing_mvp)
+    def validate_state(self) -> Self:
+        """Apply all state validators."""
+        GlobalStateValidators.validate_phase_requirements(self)
         return self

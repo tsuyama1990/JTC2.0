@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pydantic import SecretStr
 from tenacity import RetryError
 
 from src.tools.search import TavilySearch

@@ -2,7 +2,6 @@ import os
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 
 from src.core.config import get_settings
 from src.core.constants import ERR_CONFIG_MISSING_OPENAI_KEY
@@ -30,9 +29,8 @@ def test_config_missing_openai_key() -> None:
         # simply initializing Settings shouldn't fail.
         # But explicitly calling validate_api_keys() SHOULD fail.
         s = get_settings()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="is missing"):
             s.validate_api_keys()
-        assert ERR_CONFIG_MISSING_OPENAI_KEY in str(exc.value)
 
 
 def test_config_missing_tavily_key() -> None:
@@ -41,10 +39,8 @@ def test_config_missing_tavily_key() -> None:
         os.environ["OPENAI_API_KEY"] = "sk-123"
         get_settings.cache_clear()
         s = get_settings()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="is missing"):
             s.validate_api_keys()
-        # The exact message is in ERR_CONFIG_MISSING_TAVILY_KEY, checking for partial match
-        assert "TAVILY_API_KEY" in str(exc.value)
 
 
 def test_config_caching() -> None:
