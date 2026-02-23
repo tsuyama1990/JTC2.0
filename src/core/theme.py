@@ -50,9 +50,3 @@ AGENT_POS_CPO: Final[dict[str, int]] = {
     "text_x": 135,
     "text_y": 72,
 }
-
-# UI Defaults
-DEFAULT_PAGE_SIZE: Final[int] = 5
-DEFAULT_FPS: Final[int] = 30
-DEFAULT_WIDTH: Final[int] = 160
-DEFAULT_HEIGHT: Final[int] = 120

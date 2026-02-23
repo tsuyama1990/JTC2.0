@@ -32,13 +32,18 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
 
     def __next__(self) -> LeanCanvas:
         if self._count >= self._max_items:
-            msg = f"Safety limit of {self._max_items} reached for LazyIdeaIterator."
-            raise StopIteration(msg)
+            # We raise StopIteration to signal end of stream,
+            # but we can optionally log a warning if it's hitting the safety cap abruptly.
+            # Standard Python iteration protocol requires StopIteration.
+            raise StopIteration
 
-        item = next(self._iterator)
-        self._consumed = True
-        self._count += 1
-        return item
+        try:
+            item = next(self._iterator)
+            self._consumed = True
+            self._count += 1
+            return item
+        except StopIteration:
+            raise
 
     @classmethod
     def __get_pydantic_core_schema__(

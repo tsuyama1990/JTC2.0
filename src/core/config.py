@@ -5,6 +5,23 @@ from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
+    DEFAULT_CB_FAIL_MAX,
+    DEFAULT_CB_RESET_TIMEOUT,
+    DEFAULT_FPS,
+    DEFAULT_HEIGHT,
+    DEFAULT_ITERATOR_SAFETY_LIMIT,
+    DEFAULT_MAX_TITLE_LENGTH,
+    DEFAULT_MIN_TITLE_LENGTH,
+    DEFAULT_NEMAWASHI_BOOST,
+    DEFAULT_NEMAWASHI_MAX_STEPS,
+    DEFAULT_NEMAWASHI_REDUCTION,
+    DEFAULT_NEMAWASHI_TOLERANCE,
+    DEFAULT_PAGE_SIZE,
+    DEFAULT_RAG_CHUNK_SIZE,
+    DEFAULT_RAG_MAX_DOC_LENGTH,
+    DEFAULT_RAG_MAX_INDEX_SIZE_MB,
+    DEFAULT_RAG_MAX_QUERY_LENGTH,
+    DEFAULT_WIDTH,
     ERR_CONFIG_MISSING_OPENAI_KEY,
     ERR_CONFIG_MISSING_TAVILY_KEY,
     ERR_INVALID_METRIC_KEY,
@@ -43,10 +60,6 @@ from src.core.theme import (
     COLOR_NEW_EMP,
     COLOR_SALES,
     COLOR_TEXT,
-    DEFAULT_FPS,
-    DEFAULT_HEIGHT,
-    DEFAULT_PAGE_SIZE,
-    DEFAULT_WIDTH,
 )
 from src.core.validators import ConfigValidators
 
@@ -55,8 +68,8 @@ class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
     # Title & Content
-    min_title_length: int = 3
-    max_title_length: int = 100
+    min_title_length: int = DEFAULT_MIN_TITLE_LENGTH
+    max_title_length: int = DEFAULT_MAX_TITLE_LENGTH
     min_content_length: int = 3
     max_content_length: int = 1000
 
@@ -170,10 +183,10 @@ def _load_default_agents_config() -> dict[str, AgentConfig]:
 class NemawashiConfig(BaseSettings):
     """Configuration for Nemawashi Consensus Building."""
 
-    max_steps: int = Field(alias="NEMAWASHI_MAX_STEPS", default=10)
-    tolerance: float = Field(alias="NEMAWASHI_TOLERANCE", default=1e-6)
-    nomikai_boost: float = Field(alias="NEMAWASHI_NOMIKAI_BOOST", default=0.3)
-    nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=0.1)
+    max_steps: int = Field(alias="NEMAWASHI_MAX_STEPS", default=DEFAULT_NEMAWASHI_MAX_STEPS)
+    tolerance: float = Field(alias="NEMAWASHI_TOLERANCE", default=DEFAULT_NEMAWASHI_TOLERANCE)
+    nomikai_boost: float = Field(alias="NEMAWASHI_NOMIKAI_BOOST", default=DEFAULT_NEMAWASHI_BOOST)
+    nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=DEFAULT_NEMAWASHI_REDUCTION)
 
 
 class SimulationConfig(BaseSettings):
@@ -234,17 +247,17 @@ class Settings(BaseSettings):
 
     # RAG Configuration
     rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", default="./vector_store")
-    rag_chunk_size: int = Field(alias="RAG_CHUNK_SIZE", default=4000)
-    rag_max_document_length: int = Field(alias="RAG_MAX_DOC_LENGTH", default=10000)
-    rag_max_query_length: int = Field(alias="RAG_MAX_QUERY_LENGTH", default=500)
-    rag_max_index_size_mb: int = Field(alias="RAG_MAX_INDEX_SIZE_MB", default=500)
+    rag_chunk_size: int = Field(alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE)
+    rag_max_document_length: int = Field(alias="RAG_MAX_DOC_LENGTH", default=DEFAULT_RAG_MAX_DOC_LENGTH)
+    rag_max_query_length: int = Field(alias="RAG_MAX_QUERY_LENGTH", default=DEFAULT_RAG_MAX_QUERY_LENGTH)
+    rag_max_index_size_mb: int = Field(alias="RAG_MAX_INDEX_SIZE_MB", default=DEFAULT_RAG_MAX_INDEX_SIZE_MB)
 
     # Circuit Breaker
-    circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=5)
-    circuit_breaker_reset_timeout: int = Field(alias="CB_RESET_TIMEOUT", default=60)
+    circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=DEFAULT_CB_FAIL_MAX)
+    circuit_breaker_reset_timeout: int = Field(alias="CB_RESET_TIMEOUT", default=DEFAULT_CB_RESET_TIMEOUT)
 
     # Iterator Safety
-    iterator_safety_limit: int = Field(alias="ITERATOR_SAFETY_LIMIT", default=10000)
+    iterator_safety_limit: int = Field(alias="ITERATOR_SAFETY_LIMIT", default=DEFAULT_ITERATOR_SAFETY_LIMIT)
 
     # Search Configuration
     search_max_results: int = Field(alias="SEARCH_MAX_RESULTS", default=5)

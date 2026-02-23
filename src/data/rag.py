@@ -1,7 +1,9 @@
 import functools
 import logging
 import os
+import time
 from pathlib import Path
+from typing import Any
 
 import pybreaker
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -15,7 +17,9 @@ from src.core.constants import (
     ERR_CIRCUIT_OPEN,
     ERR_PATH_TRAVERSAL,
     ERR_RAG_INDEX_SIZE,
+    ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
+    ERR_RATE_LIMIT,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
@@ -26,7 +30,7 @@ logger = logging.getLogger(__name__)
 def _get_dir_size_iterative(path: str, limit: int) -> int:
     """
     Iterative directory size calculation with early exit and caching.
-    Uses a stack to avoid recursion depth issues.
+    Uses os.scandir for efficiency.
     """
     total = 0
     stack = [path]
@@ -66,6 +70,10 @@ class RAG:
             reset_timeout=self.settings.circuit_breaker_reset_timeout,
         )
 
+        # Simple Rate Limiting State
+        self._last_call_time = 0.0
+        self._min_interval = 0.1 # 10 requests/second max locally initiated
+
         self.index: VectorStoreIndex | None = None
         self._init_llama()
 
@@ -96,14 +104,11 @@ class RAG:
 
         is_safe = False
         for parent in allowed_parents:
-            # resolve() handles symlinks and normalization.
-            # is_relative_to() ensures it's strictly inside the parent tree.
             try:
                 if path.is_relative_to(parent):
                     is_safe = True
                     break
             except ValueError:
-                # Occurs if paths are on different drives (Windows) or mix relative/absolute improperly
                 continue
 
         if not is_safe:
@@ -137,22 +142,21 @@ class RAG:
             self.index = None
             return
 
+        # Critical: Check size BEFORE loading storage context logic
         try:
             self._check_index_size()
-            storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
+        except MemoryError:
+            raise # Propagate memory error immediately
 
+        try:
+            storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
         except Exception as e:
             logger.exception("Failed to load index from %s", self.persist_dir)
-            # We do NOT raise here to allow the app to continue with an empty index if corrupted,
-            # unless it's a critical memory error.
-            if isinstance(e, MemoryError):
-                raise
             self.index = None
-            # We log but continue, effectively resetting the index for this session.
-            # This is a design choice for robustness.
+            # Allow continuing with fresh index unless it was a MemoryError (caught above)
 
     def _check_index_size(self) -> None:
         """
@@ -168,11 +172,21 @@ class RAG:
             logger.error(msg)
             raise MemoryError(msg)
 
+    def _rate_limit(self) -> None:
+        """Simple blocking rate limiter."""
+        current = time.time()
+        elapsed = current - self._last_call_time
+        if elapsed < self._min_interval:
+            time.sleep(self._min_interval - elapsed)
+        self._last_call_time = time.time()
+
     def ingest_text(self, text: str, source: str) -> None:
         """
         Ingest text into the vector store in-memory.
         Uses batch insertion and strict validation.
         """
+        self._rate_limit()
+
         # Strict Input Validation
         if not text or not isinstance(text, str):
             msg = "Text must be a non-empty string."
@@ -189,7 +203,7 @@ class RAG:
 
         chunk_size = self.settings.rag_chunk_size
 
-        # Simple chunking if needed (LlamaIndex also handles this, but we pre-chunk for control)
+        # Chunking
         if len(text) > chunk_size:
             logger.info(f"Text too large ({len(text)} chars). Chunking...")
             chunks = [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
@@ -222,6 +236,8 @@ class RAG:
         """
         Query the index for relevant context.
         """
+        self._rate_limit()
+
         if not isinstance(question, str):
             msg = "Query must be a string."
             raise TypeError(msg)
@@ -232,8 +248,8 @@ class RAG:
 
         max_len = self.settings.rag_max_query_length
         if len(question) > max_len:
-            logger.warning(f"Query too long ({len(question)} chars). Truncating to {max_len}.")
-            question = question[:max_len]
+            msg = ERR_RAG_QUERY_TOO_LARGE.format(size=len(question))
+            raise ValidationError(msg)
 
         question = question.strip()
 

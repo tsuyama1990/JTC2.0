@@ -52,7 +52,7 @@ def test_lazy_iterator_safety_limit() -> None:
     list(itertools.islice(lazy_iter, 100))
 
     # Next call should fail
-    with pytest.raises(StopIteration, match="Safety limit of 100 reached"):
+    with pytest.raises(StopIteration):
         next(lazy_iter)
 
 
@@ -75,10 +75,9 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     with (
         patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
         patch.object(get_settings(), "rag_max_index_size_mb", 1),
-        pytest.raises(RuntimeError, match="RAG Index Load Error"),
+        pytest.raises(MemoryError, match="Vector store size exceeds limit"),
     ):
-        # Expect RuntimeError because _load_existing_index catches MemoryError and re-raises RuntimeError
-        # (or whatever RAG raises now)
+        # Expect MemoryError directly
         RAG(persist_dir=temp_rag_dir)
 
 

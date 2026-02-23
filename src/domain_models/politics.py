@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from src.core.constants import (
     ERR_MATRIX_SHAPE,
+    ERR_MATRIX_STOCHASTICITY,
     ERR_MATRIX_VALUES,
     ERR_STAKEHOLDER_MISMATCH,
 )
@@ -47,4 +48,13 @@ class InfluenceNetwork(BaseModel):
         for row in self.matrix:
             if len(row) != n:
                 raise ValueError(ERR_MATRIX_SHAPE)
+        return self
+
+    @model_validator(mode="after")
+    def validate_stochasticity(self) -> Self:
+        """Ensure rows sum to 1.0 (approximately)."""
+        for row in self.matrix:
+            row_sum = sum(row)
+            if not (0.99 <= row_sum <= 1.01):
+                raise ValueError(ERR_MATRIX_STOCHASTICITY)
         return self

@@ -4,10 +4,10 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 98 items
+collected 99 items
 
 tests/integration/test_rag_flow.py ..                                    [  2%]
-tests/uat/test_memory_safety.py .F.                                      [  5%]
+tests/uat/test_memory_safety.py ...                                      [  5%]
 tests/uat/test_nemawashi_uat.py ..                                       [  7%]
 tests/uat/test_uat_cycle01.py ...                                        [ 10%]
 tests/uat/test_uat_cycle02.py .                                          [ 11%]
@@ -19,86 +19,19 @@ tests/unit/domain_models/test_transcript.py ...                          [ 37%]
 tests/unit/test_cli_input.py ...                                         [ 40%]
 tests/unit/test_cli_scalability.py .                                     [ 41%]
 tests/unit/test_config.py .......                                        [ 48%]
-tests/unit/test_core.py ....                                             [ 53%]
-tests/unit/test_cpo_agent.py ..                                          [ 55%]
-tests/unit/test_domain_models.py .......                                 [ 62%]
-tests/unit/test_ideator_agent.py ...                                     [ 65%]
-tests/unit/test_nemawashi.py ........                                    [ 73%]
-tests/unit/test_rag.py .....                                             [ 78%]
-tests/unit/test_rag_errors.py ..                                         [ 80%]
+tests/unit/test_core.py ....                                             [ 52%]
+tests/unit/test_cpo_agent.py ..                                          [ 54%]
+tests/unit/test_domain_models.py .......                                 [ 61%]
+tests/unit/test_ideator_agent.py ...                                     [ 64%]
+tests/unit/test_nemawashi.py ........                                    [ 72%]
+tests/unit/test_rag.py .....                                             [ 77%]
+tests/unit/test_rag_errors.py ...                                        [ 80%]
 tests/unit/test_rag_refactored.py .                                      [ 81%]
 tests/unit/test_simulation_integration.py ..                             [ 83%]
 tests/unit/test_simulation_logic.py ........                             [ 91%]
 tests/unit/test_tools.py ...                                             [ 94%]
 tests/unit/test_ui.py .....                                              [100%]
 
-=================================== FAILURES ===================================
-_______________________ test_rag_large_index_prevention ________________________
-
-temp_rag_dir = '/tmp/pytest-of-jules/pytest-8/test_rag_large_index_preventio0/rag_test'
-
-    @patch.dict(os.environ, DUMMY_ENV_VARS)
-    def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
-        """
-        Verify RAG prevents loading an index that exceeds the size limit.
-        """
-        get_settings.cache_clear()
-
-        # Create a dummy large file
-        p = Path(temp_rag_dir) / "large_index_file.bin"
-        # Create 2MB file
-        with p.open("wb") as f:
-            f.write(b"\0" * (2 * 1024 * 1024))
-
-        # We must patch _validate_path because temp_rag_dir (from pytest tmp_path) is usually in /tmp
-        # which is outside project root, so _validate_path would fail before size check.
-        # We allow the path for this test.
-        with (
-            patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
-            patch.object(get_settings(), "rag_max_index_size_mb", 1),
-            pytest.raises(RuntimeError, match="RAG Index Load Error"),
-        ):
-            # Expect RuntimeError because _load_existing_index catches MemoryError and re-raises RuntimeError
-            # (or whatever RAG raises now)
->           RAG(persist_dir=temp_rag_dir)
-
-tests/uat/test_memory_safety.py:82:
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-src/data/rag.py:70: in __init__
-    self._init_llama()
-src/data/rag.py:127: in _init_llama
-    self._load_existing_index()
-src/data/rag.py:141: in _load_existing_index
-    self._check_index_size()
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-
-self = <src.data.rag.RAG object at 0x7f0fbdb22390>
-
-    def _check_index_size(self) -> None:
-        """
-        Check if the index is too large and raise error if unsafe.
-        Uses optimized scanning with early termination.
-        """
-        limit_mb = self.settings.rag_max_index_size_mb
-        limit_bytes = limit_mb * 1024 * 1024
-
-        size = _get_dir_size_iterative(self.persist_dir, limit_bytes)
-        if size > limit_bytes:
-            msg = ERR_RAG_INDEX_SIZE.format(limit=limit_mb)
-            logger.error(msg)
->           raise MemoryError(msg)
-E           MemoryError: Vector store size exceeds limit (1 MB). Loading blocked.
-
-src/data/rag.py:169: MemoryError
------------------------------- Captured log call -------------------------------
-ERROR    src.data.rag:rag.py:168 Vector store size exceeds limit (1 MB). Loading blocked.
-ERROR    src.data.rag:rag.py:148 Failed to load index from /tmp/pytest-of-jules/pytest-8/test_rag_large_index_preventio0/rag_test
-Traceback (most recent call last):
-  File "/app/src/data/rag.py", line 141, in _load_existing_index
-    self._check_index_size()
-  File "/app/src/data/rag.py", line 169, in _check_index_size
-    raise MemoryError(msg)
-MemoryError: Vector store size exceeds limit (1 MB). Loading blocked.
 ================================ tests coverage ================================
 _______________ coverage: platform linux, python 3.12.12-final-0 _______________
 
@@ -113,36 +46,34 @@ src/agents/mixins.py                  23      6    74%   28, 31-35
 src/agents/personas.py                79      5    94%   90-92, 97-98
 src/core/__init__.py                   0      0   100%
 src/core/config.py                   137      0   100%
-src/core/constants.py                 62      0   100%
+src/core/constants.py                 82      0   100%
 src/core/exceptions.py                 5      0   100%
 src/core/factory.py                   28     13    54%   29-43
 src/core/graph.py                     84     44    48%   20-22, 28-38, 60-67, 72-79, 84-97, 102-112
 src/core/llm.py                        8      0   100%
 src/core/nemawashi/__init__.py         5      0   100%
 src/core/nemawashi/analytics.py       52     14    73%   26, 33, 41-45, 55-56, 102-107
-src/core/nemawashi/consensus.py       42      1    98%   48
+src/core/nemawashi/consensus.py       38      9    76%   43-57
 src/core/nemawashi/engine.py          19      1    95%   34
 src/core/nemawashi/nomikai.py         42      2    95%   33-34
-src/core/simulation.py                49      1    98%   41
-src/core/theme.py                     22      0   100%
+src/core/simulation.py                49      1    98%   42
+src/core/theme.py                     18      0   100%
 src/core/validators.py                47     10    79%   47, 50-51, 53-54, 61, 64-65, 67-68
 src/data/__init__.py                   2      0   100%
-src/data/rag.py                      148     28    81%   41-42, 46-47, 78-79, 83-85, 105-107, 153, 178-179, 183-184, 187-188, 210-213, 235-236, 242-244, 248
+src/data/rag.py                      161     24    85%   45-46, 50-51, 86-87, 91-93, 111-112, 123, 156-158, 192-193, 201-202, 224-227, 264
 src/domain_models/__init__.py          5      0   100%
-src/domain_models/common.py           24      0   100%
+src/domain_models/common.py           26      2    92%   45-46
 src/domain_models/lean_canvas.py      24      0   100%
 src/domain_models/metrics.py          41      6    85%   95-96, 100-101, 105-106
 src/domain_models/mvp.py              30      0   100%
 src/domain_models/persona.py          28      2    93%   124-125
-src/domain_models/politics.py         29      0   100%
+src/domain_models/politics.py         36      0   100%
 src/domain_models/simulation.py       20      0   100%
-src/domain_models/state.py            74      8    89%   98-99, 122-130
+src/domain_models/state.py            74      8    89%   82-83, 106-114
 src/domain_models/transcript.py       22      2    91%   32-33
 src/tools/__init__.py                  0      0   100%
 src/tools/search.py                   34      2    94%   39, 75
 src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 128-134, 154
 ----------------------------------------------------------------
-TOTAL                               1354    167    88%
-=========================== short test summary info ============================
-FAILED tests/uat/test_memory_safety.py::test_rag_large_index_prevention - Mem...
-======================== 1 failed, 97 passed in 17.14s =========================
+TOTAL                               1388    173    88%
+============================= 99 passed in 18.23s ==============================

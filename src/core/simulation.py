@@ -12,7 +12,7 @@ This subgraph is invoked by the main application graph during the 'simulation_ro
 """
 
 import logging
-from functools import cache
+from functools import lru_cache
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -26,7 +26,8 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-@cache
+# Use LRU cache to prevent memory leaks from unbounded @cache
+@lru_cache(maxsize=10)
 def _get_cached_agent(role: Role) -> Any:
     """
     Singleton-like access for agents to prevent recreation loops.

@@ -40,22 +40,6 @@ class GlobalStateValidators:
 class GlobalState(BaseModel):
     """The central state of the LangGraph workflow."""
 
-    # Updated: Strict typing only, no arbitrary types allowed by default if possible.
-    # However, LazyIdeaIterator IS a custom type.
-    # The fix is to ensure LazyIdeaIterator is compatible or explicitly allowed ONLY for that field if needed,
-    # or rely on Pydantic's handling of iterators if wrapped correctly.
-    # But LazyIdeaIterator is a class. Pydantic needs `arbitrary_types_allowed` for non-pydantic types unless
-    # we add `__get_pydantic_core_schema__` to LazyIdeaIterator.
-    # A simpler approach is to keep strict=True but allow arbitrary for specific fields if Pydantic supports per-field config,
-    # which it doesn't easily in V2 without the global config or the schema method.
-    #
-    # Given the constraint "Remove arbitrary_types_allowed=True", we must make LazyIdeaIterator Pydantic-compatible.
-    # BUT modifying common.py to add pydantic schema might be complex.
-    # Alternative: The instruction says "implement proper type validation".
-    # We can try removing the config and see if Pydantic accepts the Iterator subclass if we just validate it.
-    # If not, we might need to add `ignored_types` or similar, but the instruction is strict.
-    #
-    # Let's try removing it. If it fails, we add the schema method to LazyIdeaIterator.
     model_config = ConfigDict(extra="forbid")
 
     phase: Phase = Phase.IDEATION
