@@ -26,23 +26,23 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
     # even though they reuse the same agent instances.
 
     # Wrap agents with logging for debug visibility
-    def run_pitch(state: GlobalState) -> dict:
+    def run_pitch(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 1: New Employee Pitch")
         return new_employee.run(state)
 
-    def run_finance(state: GlobalState) -> dict:
+    def run_finance(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 2: Finance Critique")
         return finance.run(state)
 
-    def run_defense_1(state: GlobalState) -> dict:
+    def run_defense_1(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 3: New Employee Defense")
         return new_employee.run(state)
 
-    def run_sales(state: GlobalState) -> dict:
+    def run_sales(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 4: Sales Critique")
         return sales.run(state)
 
-    def run_defense_2(state: GlobalState) -> dict:
+    def run_defense_2(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 5: New Employee Final Defense")
         return new_employee.run(state)
 

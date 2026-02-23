@@ -72,6 +72,7 @@ class UIConfig(BaseSettings):
 
 class AgentConfig(BaseModel):
     """Configuration for a single agent in the UI."""
+    role: str
     label: str
     color: int
     x: int
@@ -105,16 +106,19 @@ class SimulationConfig(BaseSettings):
     console_sleep: float = 0.5
     max_turns: int = 5
 
-    # Agents
-    new_employee: AgentConfig = AgentConfig(
-        label="NewEmp", color=11, x=20, y=80, w=20, h=30, text_x=15, text_y=112
-    )
-    finance: AgentConfig = AgentConfig(
-        label="Finance", color=8, x=70, y=80, w=20, h=30, text_x=65, text_y=112
-    )
-    sales: AgentConfig = AgentConfig(
-        label="Sales", color=9, x=120, y=80, w=20, h=30, text_x=120, text_y=112
-    )
+    # Agent Map (Role -> Config)
+    # Using a dict to avoid hardcoding role logic in renderer
+    agents: dict[str, AgentConfig] = {
+        "New Employee": AgentConfig(
+            role="New Employee", label="NewEmp", color=11, x=20, y=80, w=20, h=30, text_x=15, text_y=112
+        ),
+        "Finance Manager": AgentConfig(
+            role="Finance Manager", label="Finance", color=8, x=70, y=80, w=20, h=30, text_x=65, text_y=112
+        ),
+        "Sales Manager": AgentConfig(
+            role="Sales Manager", label="Sales", color=9, x=120, y=80, w=20, h=30, text_x=120, text_y=112
+        )
+    }
 
 
 class Settings(BaseSettings):

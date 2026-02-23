@@ -29,6 +29,11 @@ class PersonaAgent(BaseAgent):
         self.role = role
         self.system_prompt = system_prompt
         self.settings = app_settings or get_settings()
+
+        # Ensure API keys are present if we are initializing default tools
+        if search_tool is None:
+            self.settings.validate_api_keys()
+
         self.search_tool = search_tool or TavilySearch(
             api_key=self.settings.tavily_api_key.get_secret_value()
             if self.settings.tavily_api_key

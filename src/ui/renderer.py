@@ -6,7 +6,6 @@ from collections.abc import Callable
 import pyxel
 
 from src.core.config import get_settings
-from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
@@ -96,20 +95,9 @@ class SimulationRenderer:
 
     def _draw_agents(self) -> None:
         """Draw rectangles representing agents."""
-        # Draw New Employee
-        cfg = self.settings.new_employee
-        pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
-        pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
-
-        # Draw Finance
-        cfg = self.settings.finance
-        pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
-        pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
-
-        # Draw Sales
-        cfg = self.settings.sales
-        pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
-        pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
+        for _role_name, cfg in self.settings.agents.items():
+            pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
+            pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
 
     def _draw_dialogue(self, state: GlobalState) -> None:
         """Draw the latest dialogue message."""
@@ -124,14 +112,12 @@ class SimulationRenderer:
 
         msg = state.debate_history[-1]
 
-        # Determine speaker color
+        # Determine speaker color from config map
         color = self.text_color
-        if msg.role == Role.NEW_EMPLOYEE:
-            color = self.settings.new_employee.color
-        elif msg.role == Role.FINANCE:
-            color = self.settings.finance.color
-        elif msg.role == Role.SALES:
-            color = self.settings.sales.color
+        # msg.role is an Enum, we map it to string key used in settings.agents
+        role_key = str(msg.role.value)
+        if role_key in self.settings.agents:
+            color = self.settings.agents[role_key].color
 
         pyxel.text(self.settings.dialogue_x, self.settings.dialogue_y, f"{msg.role}:", color)
 

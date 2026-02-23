@@ -45,7 +45,8 @@ def test_uat_cycle01_ideation_and_selection(
     ]
 
     # The agent run method returns a dict update
-    mock_ideator_instance.run.return_value = {"generated_ideas": generated_ideas}
+    # IMPORTANT: We must return an iterator here because GlobalState expects Iterator[LeanCanvas]
+    mock_ideator_instance.run.return_value = {"generated_ideas": iter(generated_ideas)}
 
     # 2. Build App
     app = create_app()

@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterator
 from enum import StrEnum
 from typing import Self
 
@@ -37,14 +37,13 @@ class GlobalStateValidators:
 class GlobalState(BaseModel):
     """The central state of the LangGraph workflow."""
 
-    # Allow arbitrary types to support Iterators/Generators for scalability
+    # Strict validation enabled
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     phase: Phase = Phase.IDEATION
     topic: str = ""
-    # Changed from list to Iterable to support lazy loading/generators
-    # Using None default to avoid mutable default argument (list)
-    generated_ideas: Iterable[LeanCanvas] | None = None
+    # Changed from Iterable to Iterator to enforce streaming contract
+    generated_ideas: Iterator[LeanCanvas] | None = None
     selected_idea: LeanCanvas | None = None
     messages: list[str] = []
 
