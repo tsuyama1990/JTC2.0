@@ -192,25 +192,3 @@ class NewEmployeeAgent(PersonaAgent):
         self._base_init(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)
 
 
-class CPOAgent(PersonaAgent):
-    """The silent Mentor CPO."""
-
-    def __init__(
-        self,
-        llm: ChatOpenAI,
-        search_tool: SearchTool | None = None,
-        app_settings: Settings | None = None,
-    ) -> None:
-        system_prompt = (
-            "You are the Chief Product Officer (CPO). "
-            "You are a mentor to the New Employee. "
-            "You do not speak in the main meeting. "
-            "In the rooftop phase, you provide fact-based advice using market data. "
-            "You never give the final answer, but provide 'weapons' (facts/examples) to help them win the argument."
-        )
-        self._base_init(llm, Role.CPO, system_prompt, search_tool, app_settings)
-
-    def _research_impl(self, topic: str) -> str:
-        """Perform deep market research for mentoring."""
-        query = f"successful business models and case studies similar to {topic}"
-        return self.search_tool.safe_search(query)

@@ -1,6 +1,6 @@
 # The JTC 2.0: Enterprise Business Accelerator
 
-![Status](https://img.shields.io/badge/Status-Cycle_2_Complete-green)
+![Status](https://img.shields.io/badge/Status-Cycle_3_Complete-green)
 ![Python](https://img.shields.io/badge/Python-3.12+-blue)
 
 **The JTC 2.0** is a paradigm-shifting multi-agent system that fuses the rigorous methodology of **"Startup Science"** with the complex organizational dynamics of **Traditional Japanese Companies (JTCs)**. It is not just a chatbot; it is a role-playing simulation where your business ideas are subjected to "Gekizume" (harsh feedback) by AI agents, validated against real customer interviews, and automatically built into MVPs.
@@ -9,14 +9,15 @@
 
 -   **What**: An AI-powered co-founder that helps you brainstorm, validate, and simulate the organizational resistance to new business ideas.
 -   **Why**: To help intrapreneurs navigate the "Valley of Death" in large organizations by simulating the harsh reality of corporate decision-making before pitching to real stakeholders.
--   **How**: Uses **LangGraph** to orchestrate specialized agents (Ideator, Finance, Sales) and **Tavily** for real-time market research.
+-   **How**: Uses **LangGraph** to orchestrate specialized agents (Ideator, Finance, Sales, CPO) and **Tavily** for real-time market research.
 
 ## ✨ Features
 
 -   **Automated Ideation Engine**: Generates 10 distinct, research-backed Lean Canvas business ideas from a single topic.
 -   **JTC Simulation Engine ("The Meeting")**: Watch your "New Employee" proxy defend your idea against skeptical "Finance Manager" and aggressive "Sales Manager" agents in a realistic debate.
+-   **Real-World Data Ingestion (RAG)**: Ingest customer interview transcripts (via `--ingest`) to ground the simulation in primary data.
+-   **CPO Mentor Agent**: A silent observer who provides fact-based, data-driven advice ("The Mom Test") using ingested transcripts to validate or pivot your idea.
 -   **Pyxel Retro UI**: A gamified RPG-style interface for observing the simulation without personal emotional attachment ("De-identification").
--   **Market Research Integration**: Automatically pulls "Emerging Trends" and "Painful Problems" using Tavily Search API.
 -   **Strict Schema Validation**: All ideas are guaranteed to follow the Lean Canvas structure using Pydantic models.
 
 ## 📋 Prerequisites
@@ -49,22 +50,25 @@
 
 ## 🚀 Usage
 
+**Ingest Customer Transcripts:**
+
+First, feed the system with real-world data (e.g., interview notes):
+
+```bash
+uv run main.py --ingest ./path/to/interview.txt
+```
+
 **Start the Ideation & Simulation:**
 
 ```bash
 uv run main.py "AI for Agriculture"
 ```
 
-Or simply run interactively:
-
-```bash
-uv run main.py
-```
-
 The system will:
 1.  Research the topic and generate 10 Lean Canvas drafts.
-2.  Ask you to select one "Plan A" to proceed (Gate 1).
-3.  Launch the **JTC Simulation** in a Pyxel window (or console fallback) where agents debate the plan.
+2.  Ask you to select one "Plan A" to proceed.
+3.  Launch the **JTC Simulation** where agents debate the plan.
+4.  The **CPO Agent** will intervene after the meeting to provide data-backed mentoring based on your ingested transcripts.
 
 ## 🏗 Architecture
 
@@ -73,9 +77,10 @@ The system will:
 ```ascii
 .
 ├── src/
-│   ├── agents/             # Agent Logic (Ideator, Personas)
+│   ├── agents/             # Agent Logic (Ideator, CPO, Personas)
 │   ├── core/               # LangGraph Workflow, Simulation & Config
-│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, GlobalState, Simulation)
+│   ├── data/               # RAG Engine & Ingestion
+│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, GlobalState, Transcript)
 │   ├── tools/              # API Wrappers (Tavily)
 │   ├── ui/                 # Pyxel Renderer
 │   └── main.py             # CLI Entry Point
@@ -88,7 +93,7 @@ The system will:
 
 -   **Cycle 1: Foundation & Ideation (Completed)**
 -   **Cycle 2: JTC Simulation (Completed)**
--   **Cycle 3**: Real World Connection (RAG)
+-   **Cycle 3: Real World Connection (RAG) (Completed)**
 -   **Cycle 4**: Consensus Building (Nemawashi)
 -   **Cycle 5**: MVP Generation
 -   **Cycle 6**: Governance & Finalization

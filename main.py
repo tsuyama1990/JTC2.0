@@ -4,6 +4,7 @@ import sys
 import threading
 from collections.abc import Iterator
 from itertools import chain, islice
+from pathlib import Path
 
 # Add src to path if running from root
 sys.path.append(".")
@@ -11,6 +12,7 @@ sys.path.append(".")
 from src.core.config import UIConfig, get_settings
 from src.core.graph import create_app
 from src.core.simulation import create_simulation_graph
+from src.data.rag import RAG
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
 from src.ui.renderer import SimulationRenderer
@@ -214,14 +216,34 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
     renderer.start()
 
 
+def ingest_transcript(filepath: str) -> None:
+    """Ingest a transcript file into the RAG engine."""
+    try:
+        echo(f"Ingesting transcript from {filepath}...")
+        with Path(filepath).open(encoding="utf-8") as f:
+            content = f.read()
+
+        rag = RAG()
+        rag.ingest_text(content, source=filepath)
+        echo(f"Successfully ingested {filepath} into vector store.")
+    except Exception as e:
+        logger.exception("Ingestion failed")
+        echo(f"Error ingesting file: {e}")
+
+
 def main() -> None:
     """CLI Entry Point."""
     parser = argparse.ArgumentParser(description="JTC 2.0")
     parser.add_argument("topic", nargs="?", help="Business topic")
+    parser.add_argument("--ingest", help="Path to transcript file to ingest", type=str)
     args = parser.parse_args()
 
     ui_config = get_settings().ui
     echo("=== JTC 2.0 ===")
+
+    if args.ingest:
+        ingest_transcript(args.ingest)
+        return
 
     try:
         topic = args.topic

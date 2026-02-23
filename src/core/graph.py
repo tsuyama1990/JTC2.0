@@ -4,8 +4,9 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from src.agents.cpo import CPOAgent
 from src.agents.ideator import IdeatorAgent
-from src.agents.personas import CPOAgent, NewEmployeeAgent
+from src.agents.personas import NewEmployeeAgent
 from src.core.llm import get_llm
 from src.domain_models.state import GlobalState, Phase
 
@@ -49,7 +50,7 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     llm = get_llm()
-    cpo = CPOAgent(llm)
+    cpo = CPOAgent(llm, rag_path=state.rag_index_path)
     try:
         return cpo.run(state)
     except Exception as e:

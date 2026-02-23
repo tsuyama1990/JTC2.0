@@ -184,16 +184,6 @@ def test_agent_state_creation() -> None:
         DeGrootProfile(self_confidence=1.5)  # Should be <= 1.0
 
 
-def test_transcript_validation() -> None:
-    """Test transcript validation."""
-    # Valid
-    GlobalState(transcript="This is a valid long transcript.")
-
-    # Invalid (too short)
-    with pytest.raises(ValidationError, match="Transcript is too short"):
-        GlobalState(transcript="Short")
-
-
 def test_agent_states_validation() -> None:
     """Test agent_states key validation."""
     profile = DeGrootProfile(self_confidence=0.5)

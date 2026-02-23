@@ -11,6 +11,7 @@ from .metrics import Metrics
 from .mvp import MVP
 from .persona import Persona
 from .simulation import AgentState, DialogueMessage, Role
+from .transcript import Transcript
 
 
 class Phase(StrEnum):
@@ -80,21 +81,14 @@ class GlobalState(BaseModel):
     debate_history: list[DialogueMessage] = Field(default_factory=list)
     simulation_active: bool = False
 
-    # New fields for architecture compliance
-    transcript: str | None = Field(default=None, description="Raw transcript from PLAUD or interviews")
+    # Updated fields for Cycle 3
+    transcripts: list[Transcript] = Field(default_factory=list, description="Raw transcripts from PLAUD or interviews")
+    rag_index_path: str = Field(default="./vector_store", description="Path to the local vector store")
+
     agent_states: dict[Role, AgentState] = Field(
         default_factory=dict,
         description="Persistent state of agents (e.g. DeGroot weights)"
     )
-
-    @field_validator("transcript")
-    @classmethod
-    def validate_transcript(cls, v: str | None) -> str | None:
-        """Ensure transcript, if provided, is not trivial."""
-        if v is not None and len(v.strip()) < 10:
-            msg = "Transcript is too short to be valid."
-            raise ValueError(msg)
-        return v
 
     @field_validator("agent_states")
     @classmethod
