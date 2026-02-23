@@ -1,6 +1,6 @@
 # The JTC 2.0: Enterprise Business Accelerator
 
-![Status](https://img.shields.io/badge/Status-Cycle_4_Complete-green)
+![Status](https://img.shields.io/badge/Status-Cycle_5_Complete-green)
 ![Python](https://img.shields.io/badge/Python-3.12+-blue)
 
 **The JTC 2.0** is a paradigm-shifting multi-agent system that fuses the rigorous methodology of **"Startup Science"** with the complex organizational dynamics of **Traditional Japanese Companies (JTCs)**. It is not just a chatbot; it is a role-playing simulation where your business ideas are subjected to "Gekizume" (harsh feedback) by AI agents, validated against real customer interviews, and automatically built into MVPs.
@@ -18,6 +18,7 @@
 -   **Real-World Data Ingestion (Secure RAG)**: Ingest customer interview transcripts (via `--ingest`) to ground the simulation in primary data. Features strict path validation and memory-safe processing for large files.
 -   **CPO Mentor Agent**: A silent observer who provides fact-based, data-driven advice ("The Mom Test") using ingested transcripts to validate or pivot your idea.
 -   **Nemawashi (Root-Binding) Engine**: Analyze the invisible influence network within the organization. Identify "Key Influencers" and simulate "Nomikai" (drinking parties) to build consensus behind the scenes using the French-DeGroot model.
+-   **Automated MVP Construction**: Generate high-fidelity React/Tailwind UI from your Lean Canvas using v0.dev.
 -   **Pyxel Retro UI**: A gamified RPG-style interface for observing the simulation without personal emotional attachment ("De-identification").
 -   **Modular Architecture**: Designed for scalability and maintainability with strict schema validation and separated responsibilities.
 
@@ -28,6 +29,7 @@
 -   **API Keys**:
     -   `OPENAI_API_KEY` (GPT-4o recommended)
     -   `TAVILY_API_KEY` (For market research)
+    -   `V0_API_KEY` (For MVP Generation)
 
 ## 🛠 Installation
 
@@ -47,6 +49,7 @@
     ```bash
     OPENAI_API_KEY=sk-...
     TAVILY_API_KEY=tvly-...
+    V0_API_KEY=v0-...
     ```
 
 ## 🚀 Usage
@@ -71,6 +74,7 @@ The system will:
 3.  Launch the **JTC Simulation** where agents debate the plan.
 4.  The **CPO Agent** will intervene after the meeting to provide data-backed mentoring based on your ingested transcripts.
 5.  The **Nemawashi Engine** will analyze the political landscape and advise on who to influence first.
+6.  The **Builder Agent** will construct an MVP Spec and generate a UI URL via v0.dev.
 
 ## 🏗 Architecture
 
@@ -79,14 +83,14 @@ The system will:
 ```ascii
 .
 ├── src/
-│   ├── agents/             # Agent Logic (Ideator, CPO, Personas)
+│   ├── agents/             # Agent Logic (Ideator, CPO, Personas, Builder)
 │   ├── core/               # Core Logic
 │   │   ├── nemawashi/      # Consensus Building Package (Logic, Analytics, Nomikai)
 │   │   ├── simulation.py   # Simulation Graph
 │   │   └── config.py       # Configuration & Validation
 │   ├── data/               # RAG Engine & Ingestion
-│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, Politics, GlobalState)
-│   ├── tools/              # API Wrappers (Tavily)
+│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, Politics, GlobalState, MVP)
+│   ├── tools/              # API Wrappers (Tavily, V0Client)
 │   ├── ui/                 # Pyxel Renderer
 │   └── main.py             # CLI Entry Point
 ├── tests/                  # Unit & UAT Tests
@@ -100,7 +104,7 @@ The system will:
 -   **Cycle 2: JTC Simulation (Completed)**
 -   **Cycle 3: Real World Connection (RAG) (Completed)**
 -   **Cycle 4: Consensus Building (Nemawashi) (Completed)**
--   **Cycle 5**: MVP Generation
+-   **Cycle 5: MVP Generation (Completed)**
 -   **Cycle 6**: Governance & Finalization
 
 ## 📄 License

@@ -1,11 +1,12 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from scipy.sparse import csr_matrix
 
-from src.core.nemawashi.consensus import ConsensusEngine
 from src.core.exceptions import ValidationError
-from src.domain_models.politics import InfluenceNetwork, Stakeholder, SparseMatrixEntry
+from src.core.nemawashi.consensus import ConsensusEngine
+from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry, Stakeholder
+
 
 def test_consensus_conversion_failure() -> None:
     """Test that matrix conversion failures are handled gracefully."""

@@ -199,7 +199,7 @@ class RAG:
             logger.info(f"Loading index from {self.persist_dir}...")
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to load index from %s", self.persist_dir)
             self.index = None
 

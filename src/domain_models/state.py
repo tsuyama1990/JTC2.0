@@ -1,20 +1,19 @@
 from collections.abc import Iterator
-from enum import StrEnum
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.config import get_settings
 from src.domain_models.common import LazyIdeaIterator
+from src.domain_models.enums import Phase, Role
 from src.domain_models.validators import StateValidator
 
-from src.domain_models.enums import Phase
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics
-from .mvp import MVP
+from .mvp import MVP, MVPSpec
 from .persona import Persona
 from .politics import InfluenceNetwork
-from .simulation import AgentState, DialogueMessage, Role
+from .simulation import AgentState, DialogueMessage
 from .transcript import Transcript
 
 
@@ -36,6 +35,14 @@ class GlobalState(BaseModel):
     target_persona: Persona | None = None
     mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
+
+    # Cycle 5: MVP Generation (v0.dev)
+    mvp_spec: MVPSpec | None = None
+    mvp_url: str | None = None
+    candidate_features: list[str] = Field(
+        default_factory=list, description="List of extracted features for selection"
+    )
+    selected_feature: str | None = None
 
     debate_history: list[DialogueMessage] = Field(default_factory=list)
     simulation_active: bool = False
@@ -97,4 +104,5 @@ class GlobalState(BaseModel):
     @model_validator(mode="after")
     def validate_state(self) -> Self:
         """Apply all state validators."""
-        return StateValidator.validate_phase_requirements(self)
+        StateValidator.validate_phase_requirements(self)
+        return self

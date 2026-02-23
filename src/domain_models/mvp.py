@@ -93,3 +93,19 @@ class MVP(BaseModel):
         default=DeploymentStatus.PENDING,
         description="Status of the MVP deployment (e.g., pending, deployed, failed)",
     )
+
+
+class MVPSpec(BaseModel):
+    """
+    Specification for generating a UI via v0.dev.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    app_name: str = Field(..., description="Name of the application", min_length=1, max_length=50)
+    core_feature: str = Field(..., description="The single core feature to implement", min_length=10)
+    ui_style: str = Field(default="Modern, Clean, Corporate", description="Visual style of the UI")
+    components: list[str] = Field(
+        default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
+        description="Key UI components to include",
+    )

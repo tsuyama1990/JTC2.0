@@ -6,6 +6,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from src.core.factory import AgentFactory
 from src.core.simulation import create_simulation_graph
+from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.validators import StateValidator
@@ -19,7 +20,7 @@ def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     try:
         return ideator.run(state)
     except Exception as e:
-        logger.error(f"Error in Ideator Agent: {e}", exc_info=True)
+        logger.exception(f"Error in Ideator Agent: {e}")
         return {}
 
 
@@ -29,8 +30,8 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
     try:
         StateValidator.validate_phase_requirements(state)
     except ValueError as e:
-        logger.error(f"Validation failed for Verification transition: {e}")
-        return {} # Or handle error state
+        logger.exception(f"Validation failed for Verification transition: {e}")
+        return {}  # Or handle error state
 
     if not state.selected_idea:
         logger.error("Attempted to enter Verification Phase without a selected idea.")
@@ -64,7 +65,7 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
         logger.warning("Simulation graph returned unknown state type.")
         return {}
     except Exception as e:
-        logger.error(f"Error in Simulation Graph: {e}", exc_info=True)
+        logger.exception(f"Error in Simulation Graph: {e}")
         return {}
 
 
@@ -74,28 +75,56 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     try:
         res: dict[str, Any] = cpo.run(state)
     except Exception as e:
-        logger.error(f"Error in CPO Agent: {e}", exc_info=True)
+        logger.exception(f"Error in CPO Agent: {e}")
         return {}
     else:
         return res
 
 
 def solution_node(state: GlobalState) -> dict[str, Any]:
-    """Transition to Solution Phase."""
+    """Transition to Solution Phase and Generate MVP."""
     try:
         StateValidator.validate_phase_requirements(state)
     except ValueError as e:
-        logger.error(f"Validation failed for Solution transition: {e}")
-        # In a real app we might route to an error node or retry.
-        # For now, we log and proceed (or stay in current phase implicitly if we return empty?)
-        # Returning empty means no state update, effectively halting or looping.
+        logger.exception(f"Validation failed for Solution transition: {e}")
         return {}
 
     if not state.target_persona:
         logger.warning("Entering Solution Phase without a defined target persona.")
 
     logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
-    return {"phase": Phase.SOLUTION}
+
+    # Execute Builder Agent (Cycle 5)
+    try:
+        builder = AgentFactory.get_builder_agent()
+        updates: dict[str, Any] = builder.run(state)
+
+        # If MVP Spec is generated, also create MVP Definition to satisfy validation
+        if updates.get("mvp_spec"):
+            spec = updates["mvp_spec"]
+            # Create a minimal MVP definition from the spec
+            mvp = MVP(
+                type=MVPType.SINGLE_FEATURE,
+                core_features=[
+                    Feature(
+                        name=spec.core_feature,
+                        description=f"Core feature: {spec.core_feature}",
+                        priority=Priority.MUST_HAVE,
+                    )
+                ],
+                success_criteria="User engagement and feedback.",
+            )
+            # Map url if present
+            if updates.get("mvp_url"):
+                mvp.v0_url = updates["mvp_url"]  # type: ignore[assignment] # HttpUrl vs str
+
+            updates["mvp_definition"] = mvp
+
+        updates["phase"] = Phase.SOLUTION
+        return updates
+    except Exception as e:
+        logger.exception(f"Error in Builder Agent: {e}")
+        return {}
 
 
 def pmf_node(state: GlobalState) -> dict[str, Any]:
@@ -103,7 +132,7 @@ def pmf_node(state: GlobalState) -> dict[str, Any]:
     try:
         StateValidator.validate_phase_requirements(state)
     except ValueError as e:
-        logger.error(f"Validation failed for PMF transition: {e}")
+        logger.exception(f"Validation failed for PMF transition: {e}")
         return {}
 
     if not state.mvp_definition:
