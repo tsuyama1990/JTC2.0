@@ -26,8 +26,7 @@ class StateValidator:
         Raises:
             ValueError: If requirements for the phase are not met.
         """
-        # Import inside method to avoid circular import at runtime
-        from src.domain_models.state import Phase
+        from src.domain_models.enums import Phase
 
         settings = get_settings()
 

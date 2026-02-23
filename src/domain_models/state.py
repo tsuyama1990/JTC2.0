@@ -8,6 +8,7 @@ from src.core.config import get_settings
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.validators import StateValidator
 
+from src.domain_models.enums import Phase
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics
 from .mvp import MVP
@@ -15,13 +16,6 @@ from .persona import Persona
 from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage, Role
 from .transcript import Transcript
-
-
-class Phase(StrEnum):
-    IDEATION = "ideation"
-    VERIFICATION = "verification"
-    SOLUTION = "solution"
-    PMF = "pmf"
 
 
 class GlobalState(BaseModel):

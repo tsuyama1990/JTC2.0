@@ -1,15 +1,6 @@
-from enum import StrEnum
-
 from pydantic import BaseModel, ConfigDict, Field
 
-
-class Role(StrEnum):
-    """Roles in the simulation."""
-
-    NEW_EMPLOYEE = "New Employee"
-    FINANCE = "Finance Manager"
-    SALES = "Sales Manager"
-    CPO = "CPO"
+from src.domain_models.enums import Role
 
 
 class DeGrootProfile(BaseModel):
