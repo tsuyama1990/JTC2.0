@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import ClassVar, Self
+from typing import Self
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -67,20 +67,17 @@ from src.core.validators import ConfigValidators
 class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
-    # Title & Content
-    min_title_length: int = DEFAULT_MIN_TITLE_LENGTH
-    max_title_length: int = DEFAULT_MAX_TITLE_LENGTH
-    min_content_length: int = 3
-    max_content_length: int = 1000
+    min_title_length: int = Field(default=DEFAULT_MIN_TITLE_LENGTH, description="Minimum length for titles")
+    max_title_length: int = Field(default=DEFAULT_MAX_TITLE_LENGTH, description="Maximum length for titles")
+    min_content_length: int = Field(default=3, description="Minimum length for content blocks")
+    max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
 
-    # Lists
-    min_list_length: int = 1
-    max_list_length: int = 20
+    min_list_length: int = Field(default=1, description="Minimum items in lists")
+    max_list_length: int = Field(default=20, description="Maximum items in lists")
 
-    # Metrics
-    max_custom_metrics: int = 50
-    min_metric_value: float = 0.0
-    max_percentage_value: float = 100.0
+    max_custom_metrics: int = Field(default=50, description="Maximum custom metrics allowed")
+    min_metric_value: float = Field(default=0.0, description="Minimum value for metrics")
+    max_percentage_value: float = Field(default=100.0, description="Maximum percentage value")
 
 
 class ErrorMessages(BaseSettings):
@@ -93,8 +90,6 @@ class ErrorMessages(BaseSettings):
     llm_config_missing: str = ERR_LLM_CONFIG_MISSING
     search_failed: str = ERR_SEARCH_FAILED
     llm_failure: str = ERR_LLM_FAILURE
-
-    # Validation Errors
     too_many_metrics: str = ERR_TOO_MANY_METRICS
     invalid_metric_key: str = ERR_INVALID_METRIC_KEY
     missing_persona: str = ERR_MISSING_PERSONA
@@ -104,10 +99,8 @@ class ErrorMessages(BaseSettings):
 class UIConfig(BaseSettings):
     """UI Strings and Configuration."""
 
-    # Load from env var "UI_PAGE_SIZE", default to 5
-    page_size: int = Field(alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE)
+    page_size: int = Field(alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Number of items per page in UI")
 
-    # Messages
     no_ideas: str = MSG_NO_IDEAS
     generated_header: str = MSG_GENERATED_HEADER
     press_enter: str = MSG_PRESS_ENTER
@@ -128,15 +121,15 @@ class AgentConfig(BaseModel):
 
     model_config = SettingsConfigDict(frozen=True)
 
-    role: str
-    label: str
-    color: int
-    x: int
-    y: int
-    w: int
-    h: int
-    text_x: int
-    text_y: int
+    role: str = Field(..., description="Role name of the agent")
+    label: str = Field(..., description="Short label for UI")
+    color: int = Field(..., description="Color code for the agent")
+    x: int = Field(..., description="X position")
+    y: int = Field(..., description="Y position")
+    w: int = Field(..., description="Width")
+    h: int = Field(..., description="Height")
+    text_x: int = Field(..., description="Text X offset")
+    text_y: int = Field(..., description="Text Y offset")
 
     @field_validator("color")
     @classmethod
@@ -149,72 +142,45 @@ class AgentConfig(BaseModel):
         return ConfigValidators.validate_dimension(v)
 
 
-def _load_default_agents_config() -> dict[str, AgentConfig]:
-    """Load default agent configuration from Theme constants."""
-    # Defined explicitly within the function to avoid global module-level mutable state
+def _default_agents() -> dict[str, AgentConfig]:
     return {
-        "New Employee": AgentConfig(
-            role="New Employee",
-            label="NewEmp",
-            color=COLOR_NEW_EMP,
-            **AGENT_POS_NEW_EMP,
-        ),
-        "Finance Manager": AgentConfig(
-            role="Finance Manager",
-            label="Finance",
-            color=COLOR_FINANCE,
-            **AGENT_POS_FINANCE,
-        ),
-        "Sales Manager": AgentConfig(
-            role="Sales Manager",
-            label="Sales",
-            color=COLOR_SALES,
-            **AGENT_POS_SALES,
-        ),
-        "CPO": AgentConfig(
-            role="CPO",
-            label="CPO",
-            color=COLOR_CPO,
-            **AGENT_POS_CPO,
-        ),
+        "New Employee": AgentConfig(role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP),
+        "Finance Manager": AgentConfig(role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE),
+        "Sales Manager": AgentConfig(role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES),
+        "CPO": AgentConfig(role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO),
     }
 
 
 class NemawashiConfig(BaseSettings):
     """Configuration for Nemawashi Consensus Building."""
 
-    max_steps: int = Field(alias="NEMAWASHI_MAX_STEPS", default=DEFAULT_NEMAWASHI_MAX_STEPS)
-    tolerance: float = Field(alias="NEMAWASHI_TOLERANCE", default=DEFAULT_NEMAWASHI_TOLERANCE)
-    nomikai_boost: float = Field(alias="NEMAWASHI_NOMIKAI_BOOST", default=DEFAULT_NEMAWASHI_BOOST)
-    nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=DEFAULT_NEMAWASHI_REDUCTION)
+    max_steps: int = Field(alias="NEMAWASHI_MAX_STEPS", default=DEFAULT_NEMAWASHI_MAX_STEPS, description="Max iterations for consensus")
+    tolerance: float = Field(alias="NEMAWASHI_TOLERANCE", default=DEFAULT_NEMAWASHI_TOLERANCE, description="Convergence tolerance")
+    nomikai_boost: float = Field(alias="NEMAWASHI_NOMIKAI_BOOST", default=DEFAULT_NEMAWASHI_BOOST, description="Boost factor from Nomikai")
+    nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=DEFAULT_NEMAWASHI_REDUCTION, description="Stubbornness reduction from Nomikai")
 
 
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
-    # Window
-    width: int = DEFAULT_WIDTH
-    height: int = DEFAULT_HEIGHT
-    fps: int = DEFAULT_FPS
-    title: str = MSG_SIM_TITLE
-    bg_color: int = COLOR_BG
-    text_color: int = COLOR_TEXT
+    width: int = Field(default=DEFAULT_WIDTH, description="Window width")
+    height: int = Field(default=DEFAULT_HEIGHT, description="Window height")
+    fps: int = Field(default=DEFAULT_FPS, description="Frames per second")
+    title: str = Field(default=MSG_SIM_TITLE, description="Window title")
+    bg_color: int = Field(default=COLOR_BG, description="Background color")
+    text_color: int = Field(default=COLOR_TEXT, description="Text color")
 
-    # Dialogue
-    chars_per_line: int = 38
-    line_height: int = 8
-    dialogue_x: int = 5
-    dialogue_y: int = 15
-    max_y: int = 75
-    waiting_msg: str = MSG_WAITING_FOR_DEBATE
+    chars_per_line: int = Field(default=38, description="Characters per line in dialogue")
+    line_height: int = Field(default=8, description="Line height in pixels")
+    dialogue_x: int = Field(default=5, description="Dialogue box X position")
+    dialogue_y: int = Field(default=15, description="Dialogue box Y position")
+    max_y: int = Field(default=75, description="Max Y for scrolling")
+    waiting_msg: str = Field(default=MSG_WAITING_FOR_DEBATE, description="Message when waiting")
 
-    # Fallback Console
-    console_sleep: float = 0.5
-    max_turns: int = 5
+    console_sleep: float = Field(default=0.5, description="Sleep time for console fallback")
+    max_turns: int = Field(default=5, description="Max turns in simulation")
 
-    # Agent Map (Role -> Config)
-    # Using default_factory to allow overrides and load from external source if needed
-    agents: dict[str, AgentConfig] = Field(default_factory=_load_default_agents_config)
+    agents: dict[str, AgentConfig] = Field(default_factory=_default_agents, description="Configuration for agents")
 
     @field_validator("width", "height")
     @classmethod
@@ -237,47 +203,41 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
-    # API Keys
-    openai_api_key: SecretStr | None = Field(alias="OPENAI_API_KEY", default=None)
-    tavily_api_key: SecretStr | None = Field(alias="TAVILY_API_KEY", default=None)
-    v0_api_key: SecretStr | None = Field(alias="V0_API_KEY", default=None)
+    openai_api_key: SecretStr | None = Field(alias="OPENAI_API_KEY", default=None, description="OpenAI API Key")
+    tavily_api_key: SecretStr | None = Field(alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key")
+    v0_api_key: SecretStr | None = Field(alias="V0_API_KEY", default=None, description="V0.dev API Key")
 
-    # Model Configuration
-    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o")
+    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
 
-    # RAG Configuration
-    rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", default="./vector_store")
-    rag_chunk_size: int = Field(alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE)
-    rag_max_document_length: int = Field(alias="RAG_MAX_DOC_LENGTH", default=DEFAULT_RAG_MAX_DOC_LENGTH)
-    rag_max_query_length: int = Field(alias="RAG_MAX_QUERY_LENGTH", default=DEFAULT_RAG_MAX_QUERY_LENGTH)
-    rag_max_index_size_mb: int = Field(alias="RAG_MAX_INDEX_SIZE_MB", default=DEFAULT_RAG_MAX_INDEX_SIZE_MB)
+    rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index")
+    rag_chunk_size: int = Field(alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
+    rag_max_document_length: int = Field(alias="RAG_MAX_DOC_LENGTH", default=DEFAULT_RAG_MAX_DOC_LENGTH, description="Max document length")
+    rag_max_query_length: int = Field(alias="RAG_MAX_QUERY_LENGTH", default=DEFAULT_RAG_MAX_QUERY_LENGTH, description="Max query length")
+    rag_max_index_size_mb: int = Field(alias="RAG_MAX_INDEX_SIZE_MB", default=DEFAULT_RAG_MAX_INDEX_SIZE_MB, description="Max index size in MB")
+    rag_allowed_paths: list[str] = Field(default_factory=lambda: ["data", "vector_store", "tests"], description="Allowed directories for RAG")
 
-    # Circuit Breaker
-    circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=DEFAULT_CB_FAIL_MAX)
-    circuit_breaker_reset_timeout: int = Field(alias="CB_RESET_TIMEOUT", default=DEFAULT_CB_RESET_TIMEOUT)
+    circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold")
+    circuit_breaker_reset_timeout: int = Field(alias="CB_RESET_TIMEOUT", default=DEFAULT_CB_RESET_TIMEOUT, description="Circuit breaker reset timeout")
 
-    # Iterator Safety
-    iterator_safety_limit: int = Field(alias="ITERATOR_SAFETY_LIMIT", default=DEFAULT_ITERATOR_SAFETY_LIMIT)
+    iterator_safety_limit: int = Field(alias="ITERATOR_SAFETY_LIMIT", default=DEFAULT_ITERATOR_SAFETY_LIMIT, description="Max items for iterators")
 
-    # Search Configuration
-    search_max_results: int = Field(alias="SEARCH_MAX_RESULTS", default=5)
-    search_depth: str = Field(alias="SEARCH_DEPTH", default="advanced")
+    search_max_results: int = Field(alias="SEARCH_MAX_RESULTS", default=5, description="Max search results")
+    search_depth: str = Field(alias="SEARCH_DEPTH", default="advanced", description="Search depth (basic/advanced)")
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
         default="emerging business trends and painful problems in {topic}",
+        description="Template for search queries"
     )
 
-    # Logging
-    log_level: str = Field(alias="LOG_LEVEL", default="INFO")
+    log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
+    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI")
 
-    # UI Page Size (also used in UIConfig but can be overridden by env)
-    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE)
-
-    validation: ClassVar[ValidationConfig] = ValidationConfig()
-    errors: ClassVar[ErrorMessages] = ErrorMessages()
-    ui: ClassVar[UIConfig] = UIConfig()
-    simulation: ClassVar[SimulationConfig] = SimulationConfig()
-    nemawashi: ClassVar[NemawashiConfig] = NemawashiConfig()
+    # Nested configurations - Use Field to allow Pydantic to manage them
+    validation: ValidationConfig = Field(default_factory=ValidationConfig)
+    errors: ErrorMessages = Field(default_factory=ErrorMessages)
+    ui: UIConfig = Field(default_factory=UIConfig)
+    simulation: SimulationConfig = Field(default_factory=SimulationConfig)
+    nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
 
     def model_post_init(self, __context: object) -> None:
         """Validate API keys on initialization."""
@@ -297,10 +257,7 @@ class Settings(BaseSettings):
         return self
 
     def rotate_keys(self) -> None:
-        """
-        Placeholder for key rotation logic.
-        In production, this would fetch new keys from a secret manager.
-        """
+        """Placeholder for key rotation."""
 
 
 @lru_cache

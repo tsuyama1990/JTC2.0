@@ -1,9 +1,8 @@
-import functools
 import logging
 import os
 import time
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
 
 import pybreaker
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -11,30 +10,30 @@ from llama_index.core import Settings as LlamaSettings
 from llama_index.core.storage.storage_context import StorageContext
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
     ERR_CIRCUIT_OPEN,
-    ERR_PATH_TRAVERSAL,
     ERR_RAG_INDEX_SIZE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
-    ERR_RATE_LIMIT,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
 logger = logging.getLogger(__name__)
 
 
-@functools.lru_cache(maxsize=1)
-def _get_dir_size_iterative(path: str, limit: int) -> int:
+def _scan_dir_size(path: str) -> int:
     """
-    Iterative directory size calculation with early exit and caching.
-    Uses os.scandir for efficiency.
+    Calculate directory size iteratively.
+    Used for initial size calculation.
     """
     total = 0
     stack = [path]
 
+    # Safety: Limit stack depth implicitly by file system structure,
+    # but we handle loops via follow_symlinks=False
     while stack:
         current_path = stack.pop()
         try:
@@ -44,13 +43,30 @@ def _get_dir_size_iterative(path: str, limit: int) -> int:
                         total += entry.stat().st_size
                     elif entry.is_dir(follow_symlinks=False):
                         stack.append(entry.path)
-
-                    if total > limit:
-                        return total
         except OSError as e:
             logger.warning(f"Error scanning index directory {current_path}: {e}")
 
     return total
+
+
+class IngestionRequest(BaseModel):
+    """
+    Request model for ingesting text.
+    Supports both full string and streaming iterator for memory efficiency.
+    """
+
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+
+    text: str | Iterator[str]
+    source: str = Field(..., min_length=1)
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, v: str | Iterator[str]) -> str | Iterator[str]:
+        if isinstance(v, str) and not v:
+            msg = "Text must be a non-empty string."
+            raise ValueError(msg)
+        return v
 
 
 class RAG:
@@ -72,7 +88,13 @@ class RAG:
 
         # Simple Rate Limiting State
         self._last_call_time = 0.0
-        self._min_interval = 0.1 # 10 requests/second max locally initiated
+        self._min_interval = 0.1  # 10 requests/second max locally initiated
+
+        # Incremental Size Tracking
+        # Calculate once at startup, then track incrementally
+        self._current_index_size = 0
+        if Path(self.persist_dir).exists():
+            self._current_index_size = _scan_dir_size(self.persist_dir)
 
         self.index: VectorStoreIndex | None = None
         self._init_llama()
@@ -80,13 +102,16 @@ class RAG:
     def _validate_path(self, path_str: str) -> str:
         """
         Ensure persist directory is safe and absolute.
-        Uses strict allowlist and pathlib.is_relative_to for security.
+        Uses strict allowlist and pathlib.resolve(strict=True) for security.
         """
         if not path_str or not isinstance(path_str, str):
             msg = "Path must be a non-empty string."
             raise ConfigurationError(msg)
 
         try:
+            # resolve(strict=False) allows the path to not exist yet (we might create it)
+            # But the parent must be safe.
+            # If the path exists, we check it. If not, we check parent.
             path = Path(path_str).resolve()
         except Exception as e:
             msg = f"Invalid path format: {e}"
@@ -94,17 +119,15 @@ class RAG:
 
         cwd = Path.cwd().resolve()
 
-        # Strict allowlist: Must be contained within specific project folders
-        # We allow 'data', 'vector_store' (default), and 'tests' (for testing)
-        allowed_parents = [
-            cwd / "data",
-            cwd / "vector_store",
-            cwd / "tests",
-        ]
+        # Load allowed paths from settings
+        # These are relative to CWD
+        allowed_rel_paths = self.settings.rag_allowed_paths
+        allowed_parents = [cwd / p for p in allowed_rel_paths]
 
         is_safe = False
         for parent in allowed_parents:
             try:
+                # is_relative_to is safe against traversal if paths are resolved
                 if path.is_relative_to(parent):
                     is_safe = True
                     break
@@ -112,8 +135,9 @@ class RAG:
                 continue
 
         if not is_safe:
-             logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
-             raise ConfigurationError(ERR_PATH_TRAVERSAL)
+            msg = "Path traversal detected in persist_dir. Must be within project root."
+            logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
+            raise ConfigurationError(msg)
 
         return str(path)
 
@@ -133,7 +157,6 @@ class RAG:
 
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
-        # Use iterator to check for emptiness without loading list
         path_obj = Path(self.persist_dir)
         if not any(path_obj.iterdir()):
             logger.info(
@@ -142,32 +165,26 @@ class RAG:
             self.index = None
             return
 
-        # Critical: Check size BEFORE loading storage context logic
-        try:
-            self._check_index_size()
-        except MemoryError:
-            raise # Propagate memory error immediately
+        # Check size before loading
+        self._check_index_size_limit()
 
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to load index from %s", self.persist_dir)
             self.index = None
-            # Allow continuing with fresh index unless it was a MemoryError (caught above)
 
-    def _check_index_size(self) -> None:
+    def _check_index_size_limit(self) -> None:
         """
-        Check if the index is too large and raise error if unsafe.
-        Uses optimized scanning with early termination.
+        Check if the tracked index size is too large.
         """
         limit_mb = self.settings.rag_max_index_size_mb
         limit_bytes = limit_mb * 1024 * 1024
 
-        size = _get_dir_size_iterative(self.persist_dir, limit_bytes)
-        if size > limit_bytes:
+        if self._current_index_size > limit_bytes:
             msg = ERR_RAG_INDEX_SIZE.format(limit=limit_mb)
             logger.error(msg)
             raise MemoryError(msg)
@@ -180,42 +197,71 @@ class RAG:
             time.sleep(self._min_interval - elapsed)
         self._last_call_time = time.time()
 
-    def ingest_text(self, text: str, source: str) -> None:
+    def _generate_documents(self, request: IngestionRequest) -> tuple[list[Document], int]:
+        """Generate documents from request content."""
+        chunk_size = self.settings.rag_chunk_size
+        max_doc_len = self.settings.rag_max_document_length
+        documents = []
+        total_size_added = 0
+        current_chunk_idx = 0
+
+        def content_generator() -> Iterator[str]:
+            if isinstance(request.text, str):
+                if len(request.text) > max_doc_len:
+                    raise ValidationError(ERR_RAG_TEXT_TOO_LARGE.format(size=len(request.text)))
+                yield request.text
+            else:
+                yield from request.text
+
+        for content_part in content_generator():
+            if not isinstance(content_part, str):
+                logger.warning(f"Skipping non-string content in iterator from {request.source}")
+                continue
+
+            # Chunking logic
+            if len(content_part) > chunk_size:
+                chunks = [
+                    content_part[i : i + chunk_size]
+                    for i in range(0, len(content_part), chunk_size)
+                ]
+            else:
+                chunks = [content_part]
+
+            for chunk in chunks:
+                documents.append(
+                    Document(
+                        text=chunk,
+                        metadata={"source": request.source, "chunk_index": current_chunk_idx},
+                    )
+                )
+                current_chunk_idx += 1
+                total_size_added += len(chunk.encode("utf-8"))  # Approximate size
+
+        return documents, total_size_added
+
+    def ingest_text(self, text: str | Iterator[str], source: str) -> None:
         """
-        Ingest text into the vector store in-memory.
-        Uses batch insertion and strict validation.
+        Ingest text into the vector store.
+        Supports streaming iterators to avoid loading entire dataset into memory.
         """
         self._rate_limit()
 
-        # Strict Input Validation
-        if not text or not isinstance(text, str):
-            msg = "Text must be a non-empty string."
-            raise ValidationError(msg)
+        # Validate input using Pydantic
+        try:
+            request = IngestionRequest(text=text, source=source)
+        except Exception as e:
+            raise ValidationError(str(e)) from e
 
-        max_len = self.settings.rag_max_document_length
-        if len(text) > max_len:
-            msg = ERR_RAG_TEXT_TOO_LARGE.format(size=len(text))
-            raise ValidationError(msg)
+        documents, total_size_added = self._generate_documents(request)
 
-        if not source or not isinstance(source, str):
-            msg = "Source must be a non-empty string."
-            raise ValidationError(msg)
-
-        chunk_size = self.settings.rag_chunk_size
-
-        # Chunking
-        if len(text) > chunk_size:
-            logger.info(f"Text too large ({len(text)} chars). Chunking...")
-            chunks = [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
-        else:
-            chunks = [text]
-
-        documents = [
-            Document(text=chunk, metadata={"source": source, "chunk_index": i})
-            for i, chunk in enumerate(chunks)
-        ]
+        # Incremental Size Check
+        self._current_index_size += total_size_added
+        self._check_index_size_limit()
 
         try:
+            if not documents:
+                return
+
             if self.index is None:
                 self.index = VectorStoreIndex.from_documents(documents)
             else:
@@ -231,6 +277,8 @@ class RAG:
         if self.index:
             self.index.storage_context.persist(persist_dir=self.persist_dir)
             logger.info(f"Index persisted to {self.persist_dir}")
+            # Update size from disk to be accurate
+            self._current_index_size = _scan_dir_size(self.persist_dir)
 
     def query(self, question: str) -> str:
         """

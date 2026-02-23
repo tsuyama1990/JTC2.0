@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from src.core.config import get_settings
 from src.domain_models.common import LazyIdeaIterator
+from src.domain_models.validators import StateValidator
 
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics
@@ -21,20 +22,6 @@ class Phase(StrEnum):
     VERIFICATION = "verification"
     SOLUTION = "solution"
     PMF = "pmf"
-
-
-class GlobalStateValidators:
-    """Encapsulates validation logic for GlobalState."""
-
-    @staticmethod
-    def validate_phase_requirements(state: "GlobalState") -> "GlobalState":
-        """Validate that required fields are present for the current phase."""
-        settings = get_settings()
-        if state.phase == Phase.VERIFICATION and state.target_persona is None:
-            raise ValueError(settings.errors.missing_persona)
-        if state.phase == Phase.SOLUTION and state.mvp_definition is None:
-            raise ValueError(settings.errors.missing_mvp)
-        return state
 
 
 class GlobalState(BaseModel):
@@ -116,5 +103,4 @@ class GlobalState(BaseModel):
     @model_validator(mode="after")
     def validate_state(self) -> Self:
         """Apply all state validators."""
-        GlobalStateValidators.validate_phase_requirements(self)
-        return self
+        return StateValidator.validate_phase_requirements(self)
