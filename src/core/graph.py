@@ -5,8 +5,9 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.core.factory import AgentFactory
+from src.core.simulation import create_simulation_graph
 from src.domain_models.simulation import Role
-from src.domain_models.state import GlobalState, Phase
+from src.domain_models.state import GlobalState, GlobalStateValidators, Phase
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,12 @@ def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
 
 def verification_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Verification Phase."""
+    try:
+        GlobalStateValidators.validate_phase_requirements(state)
+    except ValueError as e:
+        logger.error(f"Validation failed for Verification transition: {e}")
+        return {}
+
     if not state.selected_idea:
         logger.error("Attempted to enter Verification Phase without a selected idea.")
 
@@ -34,23 +41,26 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     """
     Wrapper for Simulation execution with error handling.
 
-    NOTE: This implementation currently runs a single agent turn per 'round' node execution.
-    Architecture specifies a turn-based simulation. Future cycles should implement a
-    MultiAgent Orchestrator here to manage turns between Finance, Sales, and New Employee.
-    For Cycle 3, we maintain the existing behavior of running the New Employee agent logic.
+    Runs the full turn-based simulation (Finance vs Sales vs New Employee).
     """
-    # In Cycle 2/3, simulation usually implies turn-based.
-    # For now, we are just running the NewEmployee agent as the "simulation_round" node
-    # based on the legacy implementation.
-    # In a real turn-based system, this node would orchestrate multiple agents.
-    new_employee = AgentFactory.get_persona_agent(Role.NEW_EMPLOYEE)
+    logger.info("Starting Simulation Round (Turn-based Battle)")
+    simulation_app = create_simulation_graph()
     try:
-        res: dict[str, Any] = new_employee.run(state)
-    except Exception as e:
-        logger.error(f"Error in Simulation Agent: {e}", exc_info=True)
+        # invoke returns the final state dict/object
+        final_state = simulation_app.invoke(state)
+        # Extract the updated debate history
+        # Depending on invoke return type (dict if input was dict, likely dict)
+        if isinstance(final_state, dict):
+            return {"debate_history": final_state.get("debate_history", [])}
+        # If it returns GlobalState object
+        if hasattr(final_state, "debate_history"):
+            return {"debate_history": final_state.debate_history}
+
+        logger.warning("Simulation graph returned unknown state type.")
         return {}
-    else:
-        return res
+    except Exception as e:
+        logger.error(f"Error in Simulation Graph: {e}", exc_info=True)
+        return {}
 
 
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
@@ -67,6 +77,12 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
 
 def solution_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Solution Phase."""
+    try:
+        GlobalStateValidators.validate_phase_requirements(state)
+    except ValueError as e:
+        logger.error(f"Validation failed for Solution transition: {e}")
+        return {}
+
     if not state.target_persona:
         logger.warning("Entering Solution Phase without a defined target persona.")
 
@@ -76,6 +92,12 @@ def solution_node(state: GlobalState) -> dict[str, Any]:
 
 def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
+    try:
+        GlobalStateValidators.validate_phase_requirements(state)
+    except ValueError as e:
+        logger.error(f"Validation failed for PMF transition: {e}")
+        return {}
+
     if not state.mvp_definition:
         logger.warning("Entering PMF Phase without an MVP definition.")
 

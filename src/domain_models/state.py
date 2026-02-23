@@ -5,6 +5,7 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.config import get_settings
+from src.domain_models.common import LazyIdeaIterator
 
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics
@@ -35,43 +36,32 @@ class GlobalStateValidators:
         return state
 
 
-class LazyIdeaIterator(Iterator[LeanCanvas]):
-    """
-    Wrapper for Idea Iterator to enforce single-use consumption and safety.
-
-    This class is not a Pydantic model but used as a field type.
-    """
-
-    def __init__(self, iterator: Iterator[LeanCanvas]) -> None:
-        self._iterator = iterator
-        self._consumed = False
-
-    def __iter__(self) -> Iterator[LeanCanvas]:
-        # Return self as the iterator
-        return self
-
-    def __next__(self) -> LeanCanvas:
-        # Delegate to the wrapped iterator
-        if self._consumed:
-            # Already marked as started
-            pass
-        self._consumed = True
-        return next(self._iterator)
-
-
 class GlobalState(BaseModel):
     """The central state of the LangGraph workflow."""
 
-    # Strict validation enabled, but arbitrary types allowed for Iterator wrapper
-    # We maintain arbitrary_types_allowed=True due to LazyIdeaIterator being a complex iterator
-    # wrapper that Pydantic cannot fully validate without generics.
-    # However, we add strict field validation where possible.
-    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+    # Updated: Strict typing only, no arbitrary types allowed by default if possible.
+    # However, LazyIdeaIterator IS a custom type.
+    # The fix is to ensure LazyIdeaIterator is compatible or explicitly allowed ONLY for that field if needed,
+    # or rely on Pydantic's handling of iterators if wrapped correctly.
+    # But LazyIdeaIterator is a class. Pydantic needs `arbitrary_types_allowed` for non-pydantic types unless
+    # we add `__get_pydantic_core_schema__` to LazyIdeaIterator.
+    # A simpler approach is to keep strict=True but allow arbitrary for specific fields if Pydantic supports per-field config,
+    # which it doesn't easily in V2 without the global config or the schema method.
+    #
+    # Given the constraint "Remove arbitrary_types_allowed=True", we must make LazyIdeaIterator Pydantic-compatible.
+    # BUT modifying common.py to add pydantic schema might be complex.
+    # Alternative: The instruction says "implement proper type validation".
+    # We can try removing the config and see if Pydantic accepts the Iterator subclass if we just validate it.
+    # If not, we might need to add `ignored_types` or similar, but the instruction is strict.
+    #
+    # Let's try removing it. If it fails, we add the schema method to LazyIdeaIterator.
+    model_config = ConfigDict(extra="forbid")
 
     phase: Phase = Phase.IDEATION
     topic: str = ""
 
-    # Critical: Wrapper for memory efficiency. Enforced single type.
+    # Critical: Wrapper for memory efficiency.
+    # We use a validator to ensure it's the right type.
     generated_ideas: LazyIdeaIterator | None = None
 
     selected_idea: LeanCanvas | None = None

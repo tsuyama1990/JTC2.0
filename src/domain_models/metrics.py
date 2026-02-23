@@ -1,3 +1,11 @@
+"""
+Defines the Metrics domain models.
+
+These models encapsulate the Key Performance Indicators (KPIs) used to evaluate
+the success of the startup idea, including AARRR (Pirate Metrics) and
+detailed simulation scores (Planning, Communication, etc.).
+"""
+
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -7,6 +15,10 @@ from src.core.constants import DESC_METRICS_AARRR, DESC_METRICS_CUSTOM
 
 
 class AARRR(BaseModel):
+    """
+    Pirate Metrics: Acquisition, Activation, Retention, Revenue, Referral.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     acquisition: float = Field(
@@ -38,7 +50,11 @@ class AARRR(BaseModel):
 
 
 class DetailedMetrics(BaseModel):
-    """Detailed metrics for the simulation."""
+    """
+    Detailed metrics for the simulation phase.
+
+    Tracks the quality of the agent interactions and the startup plan.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -50,6 +66,10 @@ class DetailedMetrics(BaseModel):
 
 
 class Metrics(BaseModel):
+    """
+    Aggregates all metrics (AARRR, Detailed, and Custom).
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     aarrr: AARRR = Field(default_factory=AARRR, description=DESC_METRICS_AARRR)
@@ -79,5 +99,10 @@ class Metrics(BaseModel):
             if not isinstance(value, (int, float)):
                 msg = f"Metric value for {key} must be numeric."
                 raise TypeError(msg)
+
+            # Value range validation
+            if value < settings.validation.min_metric_value:
+                 msg = f"Metric value for {key} must be >= {settings.validation.min_metric_value}."
+                 raise ValueError(msg)
 
         return v

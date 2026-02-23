@@ -1,3 +1,11 @@
+"""
+Defines the Persona domain models.
+
+These models represent the target customer, their demographics,
+and their empathy map (Says, Thinks, Does, Feels), critical for
+Customer-Problem Fit.
+"""
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
@@ -16,6 +24,10 @@ from src.core.constants import (
 
 
 class EmpathyMap(BaseModel):
+    """
+    Represents the Empathy Map of the persona.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     says: list[str] = Field(
@@ -47,6 +59,8 @@ class EmpathyMap(BaseModel):
 class Persona(BaseModel):
     """
     Represents the Target Customer Persona.
+
+    Includes demographics, psychographics, and validation status based on primary research.
     """
 
     model_config = ConfigDict(extra="forbid")

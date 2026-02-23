@@ -8,10 +8,11 @@ import pytest
 # We import create_app but we will mock the LLM and Tools inside it
 from src.core.config import get_settings
 from src.core.graph import create_app
+from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
-from src.domain_models.state import GlobalState, LazyIdeaIterator, Phase
+from src.domain_models.state import GlobalState, Phase
 from tests.conftest import DUMMY_ENV_VARS
 
 
@@ -148,3 +149,36 @@ def test_gate_transitions_data_integrity(
     state_ready_for_pmf.phase = Phase.PMF
 
     GlobalState.model_validate(state_ready_for_pmf.model_dump())
+
+@patch.dict(os.environ, DUMMY_ENV_VARS)
+def test_large_dataset_iterator_safety() -> None:
+    """
+    Verify memory safety with a mock infinite iterator (Cycle 3 Scalability Check).
+    """
+    def infinite_generator() -> Iterator[LeanCanvas]:
+        """Yields infinite sequence."""
+        i = 0
+        while True:
+            yield LeanCanvas(
+                id=i,
+                title=f"Idea {i}",
+                problem="Problem text is long enough",
+                customer_segments="Segments text is long enough",
+                unique_value_prop="UVP text is long enough",
+                solution="Solution text is long enough",
+            )
+            i += 1
+
+    # Wrap infinite gen
+    lazy_iter = LazyIdeaIterator(infinite_generator())
+
+    # Consume a large chunk but finite
+    chunk_size = 1000
+    chunk = list(itertools.islice(lazy_iter, chunk_size))
+
+    assert len(chunk) == 1000
+    assert chunk[-1].id == 999
+
+    # Ensure next is still valid (state preserved)
+    next_item = next(lazy_iter)
+    assert next_item.id == 1000
