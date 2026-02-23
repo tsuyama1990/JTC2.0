@@ -20,28 +20,32 @@ def mock_settings() -> Generator[MagicMock, None, None]:
         mock.return_value.errors.config_missing_openai = "Missing API Key"
         yield mock
 
+
 @pytest.fixture
 def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
-    with patch("src.data.rag.VectorStoreIndex") as mock_index, \
-         patch("src.data.rag.Document") as mock_doc, \
-         patch("src.data.rag.StorageContext") as mock_storage, \
-         patch("src.data.rag.load_index_from_storage") as mock_load, \
-         patch("src.data.rag.OpenAI"), \
-         patch("src.data.rag.OpenAIEmbedding"), \
-         patch("src.data.rag.LlamaSettings"):  # Mock Settings to avoid type checks
-        yield {
-            "index": mock_index,
-            "doc": mock_doc,
-            "storage": mock_storage,
-            "load": mock_load
-        }
+    with (
+        patch("src.data.rag.VectorStoreIndex") as mock_index,
+        patch("src.data.rag.Document") as mock_doc,
+        patch("src.data.rag.StorageContext") as mock_storage,
+        patch("src.data.rag.load_index_from_storage") as mock_load,
+        patch("src.data.rag.OpenAI"),
+        patch("src.data.rag.OpenAIEmbedding"),
+        patch("src.data.rag.LlamaSettings"),
+    ):  # Mock Settings to avoid type checks
+        yield {"index": mock_index, "doc": mock_doc, "storage": mock_storage, "load": mock_load}
 
-def test_rag_initialization(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
+
+def test_rag_initialization(
+    mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
+) -> None:
     """Test RAG initialization."""
     rag = RAG()
     assert rag.index is None
-    # Depending on implementation, it might load existing index or start empty.
-    assert rag.persist_dir == "./mock_vector_store"
+    # Path is resolved to absolute
+    from pathlib import Path
+    expected = str(Path("./mock_vector_store").resolve())
+    assert rag.persist_dir == expected
+
 
 def test_rag_ingest_text(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
     """Test text ingestion."""
@@ -58,14 +62,20 @@ def test_rag_ingest_text(mock_settings: MagicMock, mock_llama_index: dict[str, M
     # But storage_context is inside the index mock which is complex to check perfectly here without deeper mocks
     # However, we changed the code to NOT persist in ingest_text.
 
-def test_rag_persist_index(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
+
+def test_rag_persist_index(
+    mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
+) -> None:
     """Test explicit persist."""
     rag = RAG()
     # Mock index existence
     rag.index = MagicMock()
 
     rag.persist_index()
-    rag.index.storage_context.persist.assert_called_with(persist_dir="./mock_vector_store")
+    from pathlib import Path
+    expected = str(Path("./mock_vector_store").resolve())
+    rag.index.storage_context.persist.assert_called_with(persist_dir=expected)
+
 
 def test_rag_query(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
     """Test querying the index."""

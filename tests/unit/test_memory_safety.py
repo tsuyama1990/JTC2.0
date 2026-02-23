@@ -20,9 +20,10 @@ def test_browse_and_select_memory_safety(
 
     # Create a generator that we can track consumption of
     consumed_count = 0
+
     def tracking_generator() -> Iterator[LeanCanvas]:
         nonlocal consumed_count
-        for i in range(100): # Large dataset
+        for i in range(100):  # Large dataset
             consumed_count += 1
             yield LeanCanvas(
                 id=i,
@@ -30,7 +31,7 @@ def test_browse_and_select_memory_safety(
                 problem="Problem is valid valid",
                 customer_segments="Seg",
                 unique_value_prop="UVP is valid valid",
-                solution="Solution is valid valid"
+                solution="Solution is valid valid",
             )
 
     # User action: 'n' (Next page), then '3' (Select ID 3 from Page 2 which has items 2,3)
@@ -51,4 +52,4 @@ def test_browse_and_select_memory_safety(
     # We expect roughly 4 items consumed (2 pages * 2 items)
     # chain([peek], iter) might affect count by 1.
     assert consumed_count <= 5
-    assert consumed_count < 100 # Definitely not 100
+    assert consumed_count < 100  # Definitely not 100

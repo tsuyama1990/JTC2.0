@@ -226,9 +226,7 @@ class SimulationConfig(BaseSettings):
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="forbid"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
     # API Keys
     openai_api_key: SecretStr | None = Field(alias="OPENAI_API_KEY", default=None)

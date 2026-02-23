@@ -48,6 +48,7 @@ class Persona(BaseModel):
     """
     Represents the Target Customer Persona.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(
@@ -97,7 +98,7 @@ class Persona(BaseModel):
         default_factory=list,
         description="Key insights derived from customer interviews.",
         min_length=0,
-        max_length=50, # Added max length limit
+        max_length=50,  # Added max length limit
     )
 
     @field_validator("interview_insights")

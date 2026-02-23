@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 from collections.abc import Generator
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,20 +19,29 @@ from tests.conftest import DUMMY_ENV_VARS
 class MockEmbedding(BaseEmbedding):
     def _get_query_embedding(self, query: str) -> list[float]:
         return [0.1] * 1536
+
     def _get_text_embedding(self, text: str) -> list[float]:
         return [0.1] * 1536
+
     async def _aget_query_embedding(self, query: str) -> list[float]:
         return [0.1] * 1536
+
     async def _aget_text_embedding(self, text: str) -> list[float]:
         return [0.1] * 1536
 
 
 @pytest.fixture
 def temp_vector_store() -> Generator[str, None, None]:
-    """Create a temporary directory for vector store."""
-    temp_dir = tempfile.mkdtemp()
+    """Create a temporary directory for vector store within project root."""
+    # RAG enforce stricter path validation (must be relative to CWD)
+    base_dir = Path.cwd() / "tests" / "temp_rag_data"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    temp_dir = tempfile.mkdtemp(dir=str(base_dir))
     yield temp_dir
-    shutil.rmtree(temp_dir)
+    # Cleanup
+    if Path(temp_dir).exists():
+        shutil.rmtree(temp_dir)
+
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_rag_integration_flow(temp_vector_store: str) -> None:
@@ -46,9 +56,10 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     # We mock OpenAI and OpenAIEmbedding to avoid real API calls.
     # We patch them where they are used in src.data.rag to ensure RAG uses the mocks
     # even if already imported.
-    with patch("src.data.rag.OpenAI", return_value=MockLLM()), \
-         patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)):
-
+    with (
+        patch("src.data.rag.OpenAI", return_value=MockLLM()),
+        patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+    ):
         # Initialize RAG with temp path
         rag = RAG(persist_dir=temp_vector_store)
 
@@ -61,6 +72,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 
         # Verify files created
         from pathlib import Path
+
         assert any(Path(temp_vector_store).iterdir())
 
         # 3. Reload (simulate new instance)
@@ -80,6 +92,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 
             answer = rag_loaded.query("What do customers prefer?")
             assert answer == "Verified answer."
+
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_cpo_agent_behavior() -> None:
@@ -108,8 +121,8 @@ def test_cpo_agent_behavior() -> None:
             problem="Problem statement description",
             solution="Solution description text",
             customer_segments="Customer Segments List",
-            unique_value_prop="Unique Value Proposition Text"
-        )
+            unique_value_prop="Unique Value Proposition Text",
+        ),
     )
 
     # Run

@@ -28,7 +28,9 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     state = GlobalState(
         topic="Subscription Service",
         transcripts=[
-            Transcript(source="interview.txt", content="I would never pay for this.", date="2023-10-27")
+            Transcript(
+                source="interview.txt", content="I would never pay for this.", date="2023-10-27"
+            )
         ],
         selected_idea=LeanCanvas(
             id=1,
@@ -36,8 +38,8 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
             problem="Users hate current subscriptions.",
             solution="A pay-as-you-go model.",
             customer_segments="Freelancers and SMBs.",
-            unique_value_prop="No commitment required."
-        )
+            unique_value_prop="No commitment required.",
+        ),
     )
 
     # Mock RAG query response
@@ -47,7 +49,9 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     # Mock LLM response to simulate CPO advice based on RAG
     # The agent calls chain.invoke({}), which returns a message
     mock_chain_result = MagicMock()
-    mock_chain_result.content = "Based on the transcript, the customer said they would never pay. You should pivot."
+    mock_chain_result.content = (
+        "Based on the transcript, the customer said they would never pay. You should pivot."
+    )
 
     # The chain is prompt | llm. invoke returns LLMResult (or similar message object)
     # We can mock the LLM instance to return this when invoked as a chain
@@ -100,8 +104,8 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
             problem="Big headache for users.",
             solution="Simple and effective fix.",
             customer_segments="Everyone needs this.",
-            unique_value_prop="Best in class solution."
-        )
+            unique_value_prop="Best in class solution.",
+        ),
     )
 
     # Mock RAG query response

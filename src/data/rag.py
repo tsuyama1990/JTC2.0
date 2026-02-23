@@ -40,21 +40,18 @@ class RAG:
 
         # Strict allowlist check: Must be relative to CWD
         if not path.is_relative_to(cwd):
-             msg = "Path traversal detected in persist_dir. Must be within project root."
-             raise ValueError(msg)
+            msg = "Path traversal detected in persist_dir. Must be within project root."
+            raise ValueError(msg)
         return str(path)
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
         if not self.settings.openai_api_key:
-             raise ValueError(self.settings.errors.config_missing_openai)
+            raise ValueError(self.settings.errors.config_missing_openai)
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
 
-        LlamaSettings.llm = OpenAI(
-            model=self.settings.llm_model,
-            api_key=api_key_str
-        )
+        LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
         # Note: LlamaIndex settings typing can be tricky with mypy.
         # We assign directly as recommended in docs, suppressing assignment error if needed.
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
@@ -64,33 +61,45 @@ class RAG:
         # We can check file sizes.
 
         if Path(self.persist_dir).exists():
+            # Check if directory is empty
+            if not any(Path(self.persist_dir).iterdir()):
+                logger.info(f"Persist directory {self.persist_dir} exists but is empty. Initializing new index.")
+                self.index = None
+                return
+
             try:
                 # Basic OOM protection: Warn if index seems huge (e.g. > 500MB)
                 total_size = 0
                 # Use os.scandir for better performance on large directories
-                # Note: os.scandir is recursive only if we implement walk, but persist_dir usually flat or shallow.
-                # glob is simple. For depth, rglob.
-                # To follow strict audit: "os.scandir for better memory efficiency".
-                # Implementing a simple iterative size check.
                 stack = [self.persist_dir]
                 while stack:
                     current_dir = stack.pop()
-                    with os.scandir(current_dir) as it:
-                        for entry in it:
-                            if entry.is_file():
-                                total_size += entry.stat().st_size
-                            elif entry.is_dir():
-                                stack.append(entry.path)
+                    try:
+                        with os.scandir(current_dir) as it:
+                            for entry in it:
+                                if entry.is_file():
+                                    total_size += entry.stat().st_size
+                                elif entry.is_dir():
+                                    stack.append(entry.path)
+                    except PermissionError:
+                        logger.warning(f"Permission denied scanning {current_dir}")
 
                 if total_size > 500 * 1024 * 1024:
-                    logger.warning(f"Vector store at {self.persist_dir} is large ({total_size/1024/1024:.1f} MB). Loading may impact memory.")
+                    logger.warning(
+                        f"Vector store at {self.persist_dir} is large ({total_size / 1024 / 1024:.1f} MB). Loading may impact memory."
+                    )
 
                 storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
                 self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
             except Exception as e:
                 logger.exception("Failed to load index from %s", self.persist_dir)
                 self.index = None
-                msg = f"Critical RAG failure: Could not load index from {self.persist_dir}"
+                # User notification via exception message
+                msg = (
+                    f"CRITICAL: Failed to load RAG index from '{self.persist_dir}'. "
+                    "The index may be corrupted or incompatible. "
+                    "Please check the logs or try re-ingesting data."
+                )
                 raise RuntimeError(msg) from e
 
     def ingest_text(self, text: str, source: str) -> None:
@@ -103,7 +112,9 @@ class RAG:
         """
         # Scalability: Check text length
         if len(text) > 1_000_000:
-            logger.warning(f"Ingesting large text ({len(text)} chars). Consider chunking before calling ingest.")
+            logger.warning(
+                f"Ingesting large text ({len(text)} chars). Consider chunking before calling ingest."
+            )
             # We proceed, but logging helps diagnosis.
 
         doc = Document(text=text, metadata={"source": source})
@@ -125,7 +136,7 @@ class RAG:
         """
         # Security: Sanitize input
         if len(question) > 1000:
-             question = question[:1000]
+            question = question[:1000]
 
         # Remove potentially dangerous characters if any (e.g. control chars)
         # For RAG, mostly length is the concern for DoS.

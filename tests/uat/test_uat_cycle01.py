@@ -23,6 +23,7 @@ def mock_llm_factory() -> MagicMock:
 @pytest.fixture
 def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
     """Yields a limited sequence of LeanCanvas objects on demand."""
+
     def _gen() -> Iterator[LeanCanvas]:
         for i in range(20):
             yield LeanCanvas(
@@ -33,6 +34,7 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
                 unique_value_prop="Unique Value Proposition",
                 solution="Solution description text",
             )
+
     return _gen()
 
 
@@ -42,7 +44,7 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
 def test_ideation_scalability(
     mock_get_llm: MagicMock,
     mock_ideator_cls: MagicMock,
-    limited_lean_canvas_generator: Iterator[LeanCanvas]
+    limited_lean_canvas_generator: Iterator[LeanCanvas],
 ) -> None:
     """
     Verify that the Ideation phase handles large/infinite iterators safely
@@ -52,7 +54,9 @@ def test_ideation_scalability(
 
     mock_ideator_instance = mock_ideator_cls.return_value
     # Return wrapped iterator as expected by strict validation
-    mock_ideator_instance.run.return_value = {"generated_ideas": LazyIdeaIterator(limited_lean_canvas_generator)}
+    mock_ideator_instance.run.return_value = {
+        "generated_ideas": LazyIdeaIterator(limited_lean_canvas_generator)
+    }
 
     app = create_app()
     initial_state = GlobalState(topic="AI for Scalability")
@@ -80,8 +84,7 @@ def test_ideation_scalability(
 @patch("src.core.factory.IdeatorAgent")
 @patch("src.core.factory.get_llm")
 def test_gate_transitions_data_integrity(
-    mock_get_llm: MagicMock,
-    mock_ideator_cls: MagicMock
+    mock_get_llm: MagicMock, mock_ideator_cls: MagicMock
 ) -> None:
     """
     Verify that state transitions through gates maintain data integrity
@@ -97,13 +100,13 @@ def test_gate_transitions_data_integrity(
         problem="Problem statement text",
         customer_segments="Customer Segments",
         unique_value_prop="Unique Value Proposition",
-        solution="Solution description text"
+        solution="Solution description text",
     )
 
     state_after_gate_1 = GlobalState(
         topic="AI Integrity",
-        generated_ideas=None, # Consumed or irrelevant for next phase
-        selected_idea=selected_idea
+        generated_ideas=None,  # Consumed or irrelevant for next phase
+        selected_idea=selected_idea,
     )
 
     # 1. Validate Transition to Verification
@@ -114,7 +117,7 @@ def test_gate_transitions_data_integrity(
         goals=["Pass tests"],
         frustrations=["Failures"],
         bio="Test Bio",
-        empathy_map=EmpathyMap(says=["Hi"], thinks=["Logic"], does=["Code"], feels=["Good"])
+        empathy_map=EmpathyMap(says=["Hi"], thinks=["Logic"], does=["Code"], feels=["Good"]),
     )
 
     state_ready_for_verification = state_after_gate_1.model_copy()
@@ -127,9 +130,11 @@ def test_gate_transitions_data_integrity(
     # 2. Validate Transition to Solution
     dummy_mvp = MVP(
         type=MVPType.LANDING_PAGE,
-        core_features=[Feature(name="Feature1", description="Description", priority=Priority.MUST_HAVE)],
+        core_features=[
+            Feature(name="Feature1", description="Description", priority=Priority.MUST_HAVE)
+        ],
         success_criteria="Criteria",
-        v0_url="https://v0.dev/test"
+        v0_url="https://v0.dev/test",
     )
 
     state_ready_for_solution = state_ready_for_verification.model_copy()

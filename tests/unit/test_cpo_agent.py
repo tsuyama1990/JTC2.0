@@ -12,6 +12,7 @@ def test_cpo_agent_init(mock_llm: MagicMock, mock_rag: MagicMock) -> None:
     assert "Chief Product Officer" in agent.system_prompt
     assert "do not speak in the main meeting" in agent.system_prompt
 
+
 @patch("src.agents.cpo.RAG")
 @patch("src.agents.cpo.ChatOpenAI")
 def test_cpo_research(mock_llm: MagicMock, mock_rag: MagicMock) -> None:

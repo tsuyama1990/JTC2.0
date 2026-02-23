@@ -102,7 +102,7 @@ def test_metrics_creation() -> None:
     metrics = Metrics(
         aarrr=AARRR(acquisition=100.0, activation=50.0),
         detailed=detailed,
-        custom_metrics={"nps": 9.0}
+        custom_metrics={"nps": 9.0},
     )
     assert metrics.aarrr.acquisition == 100.0
     assert metrics.detailed.planning_score == 0.8
@@ -168,14 +168,8 @@ def test_global_state_lifecycle_validation() -> None:
 
 def test_agent_state_creation() -> None:
     """Test AgentState and DeGrootProfile."""
-    profile = DeGrootProfile(
-        self_confidence=0.8,
-        influence_weights={"Sales Manager": 0.2}
-    )
-    agent_state = AgentState(
-        role=Role.FINANCE,
-        degroot_profile=profile
-    )
+    profile = DeGrootProfile(self_confidence=0.8, influence_weights={"Sales Manager": 0.2})
+    agent_state = AgentState(role=Role.FINANCE, degroot_profile=profile)
     assert agent_state.degroot_profile.self_confidence == 0.8
     assert agent_state.degroot_profile.influence_weights["Sales Manager"] == 0.2
 
@@ -189,14 +183,10 @@ def test_agent_states_validation() -> None:
     profile = DeGrootProfile(self_confidence=0.5)
 
     # Valid
-    valid_states = {
-        Role.FINANCE: AgentState(role=Role.FINANCE, degroot_profile=profile)
-    }
+    valid_states = {Role.FINANCE: AgentState(role=Role.FINANCE, degroot_profile=profile)}
     GlobalState(agent_states=valid_states)
 
     # Invalid key mismatch
-    invalid_states = {
-        Role.SALES: AgentState(role=Role.FINANCE, degroot_profile=profile)
-    }
+    invalid_states = {Role.SALES: AgentState(role=Role.FINANCE, degroot_profile=profile)}
     with pytest.raises(ValidationError, match="Key Sales Manager does not match"):
         GlobalState(agent_states=invalid_states)

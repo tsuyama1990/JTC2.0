@@ -7,6 +7,7 @@ class Transcript(BaseModel):
     """
     Represents a raw transcript from user interviews or market reports.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     source: str

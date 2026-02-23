@@ -4,378 +4,64 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 20 items / 15 errors
+collected 75 items
 
-==================================== ERRORS ====================================
-_____________ ERROR collecting tests/integration/test_rag_flow.py ______________
-tests/integration/test_rag_flow.py:10: in <module>
-    from src.agents.cpo import CPOAgent
-src/agents/cpo.py:5: in <module>
-    from src.agents.base import SearchTool
-src/agents/base.py:4: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-________________ ERROR collecting tests/uat/test_uat_cycle01.py ________________
-tests/uat/test_uat_cycle01.py:10: in <module>
-    from src.core.graph import create_app
-src/core/graph.py:7: in <module>
-    from src.core.factory import AgentFactory
-src/core/factory.py:3: in <module>
-    from src.agents.cpo import CPOAgent
-src/agents/cpo.py:5: in <module>
-    from src.agents.base import SearchTool
-src/agents/base.py:4: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-________________ ERROR collecting tests/uat/test_uat_cycle02.py ________________
-tests/uat/test_uat_cycle02.py:4: in <module>
-    from src.domain_models.simulation import DialogueMessage, Role
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-________________ ERROR collecting tests/uat/test_uat_cycle03.py ________________
-tests/uat/test_uat_cycle03.py:8: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-___________ ERROR collecting tests/unit/domain_models/test_models.py ___________
-tests/unit/domain_models/test_models.py:5: in <module>
-    from src.domain_models.metrics import AARRR, DetailedMetrics, Metrics
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-_____ ERROR collecting tests/unit/domain_models/test_simulation_models.py ______
-tests/unit/domain_models/test_simulation_models.py:5: in <module>
-    from src.domain_models.simulation import DialogueMessage, Role
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-_________ ERROR collecting tests/unit/domain_models/test_transcript.py _________
-tests/unit/domain_models/test_transcript.py:5: in <module>
-    from src.domain_models.transcript import Transcript
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-________________ ERROR collecting tests/unit/test_cli_input.py _________________
-tests/unit/test_cli_input.py:3: in <module>
-    from main import safe_input
-main.py:14: in <module>
-    from src.core.graph import create_app
-src/core/graph.py:7: in <module>
-    from src.core.factory import AgentFactory
-src/core/factory.py:3: in <module>
-    from src.agents.cpo import CPOAgent
-src/agents/cpo.py:5: in <module>
-    from src.agents.base import SearchTool
-src/agents/base.py:4: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-_____________ ERROR collecting tests/unit/test_cli_scalability.py ______________
-tests/unit/test_cli_scalability.py:4: in <module>
-    from main import browse_and_select
-main.py:14: in <module>
-    from src.core.graph import create_app
-src/core/graph.py:7: in <module>
-    from src.core.factory import AgentFactory
-src/core/factory.py:3: in <module>
-    from src.agents.cpo import CPOAgent
-src/agents/cpo.py:5: in <module>
-    from src.agents.base import SearchTool
-src/agents/base.py:4: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-________________ ERROR collecting tests/unit/test_cpo_agent.py _________________
-tests/unit/test_cpo_agent.py:3: in <module>
-    from src.agents.cpo import CPOAgent
-src/agents/cpo.py:5: in <module>
-    from src.agents.base import SearchTool
-src/agents/base.py:4: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-______________ ERROR collecting tests/unit/test_domain_models.py _______________
-tests/unit/test_domain_models.py:5: in <module>
-    from src.domain_models.persona import EmpathyMap, Persona
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-______________ ERROR collecting tests/unit/test_ideator_agent.py _______________
-tests/unit/test_ideator_agent.py:5: in <module>
-    from src.agents.ideator import IdeatorAgent
-src/agents/ideator.py:8: in <module>
-    from src.agents.base import BaseAgent, SearchTool
-src/agents/base.py:4: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-______________ ERROR collecting tests/unit/test_memory_safety.py _______________
-tests/unit/test_memory_safety.py:4: in <module>
-    from main import browse_and_select
-main.py:14: in <module>
-    from src.core.graph import create_app
-src/core/graph.py:7: in <module>
-    from src.core.factory import AgentFactory
-src/core/factory.py:3: in <module>
-    from src.agents.cpo import CPOAgent
-src/agents/cpo.py:5: in <module>
-    from src.agents.base import SearchTool
-src/agents/base.py:4: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-_____________ ERROR collecting tests/unit/test_simulation_logic.py _____________
-tests/unit/test_simulation_logic.py:6: in <module>
-    from src.agents.personas import FinanceAgent, NewEmployeeAgent
-src/agents/personas.py:8: in <module>
-    from src.agents.base import BaseAgent, SearchTool
-src/agents/base.py:4: in <module>
-    from src.domain_models.state import GlobalState
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-____________________ ERROR collecting tests/unit/test_ui.py ____________________
-tests/unit/test_ui.py:5: in <module>
-    from src.domain_models.simulation import DialogueMessage, Role
-src/domain_models/__init__.py:2: in <module>
-    from .state import GlobalState, Phase
-src/domain_models/state.py:10: in <module>
-    from .metrics import Metrics
-src/domain_models/metrics.py:9: in <module>
-    class AARRR(BaseModel):
-src/domain_models/metrics.py:14: in AARRR
-    ge=get_settings().validation.min_metric_value,
-       ^^^^^^^^^^^^^^
-src/core/config.py:294: in get_settings
-    return Settings()
-           ^^^^^^^^^^
-.venv/lib/python3.12/site-packages/pydantic_settings/main.py:242: in __init__
-    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
-E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-E     Value error, OPENAI_API_KEY is missing [type=value_error, input_value={}, input_type=dict]
-E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
-=========================== short test summary info ============================
-ERROR tests/integration/test_rag_flow.py - pydantic_core._pydantic_core.Valid...
-ERROR tests/uat/test_uat_cycle01.py - pydantic_core._pydantic_core.Validation...
-ERROR tests/uat/test_uat_cycle02.py - pydantic_core._pydantic_core.Validation...
-ERROR tests/uat/test_uat_cycle03.py - pydantic_core._pydantic_core.Validation...
-ERROR tests/unit/domain_models/test_models.py - pydantic_core._pydantic_core....
-ERROR tests/unit/domain_models/test_simulation_models.py - pydantic_core._pyd...
-ERROR tests/unit/domain_models/test_transcript.py - pydantic_core._pydantic_c...
-ERROR tests/unit/test_cli_input.py - pydantic_core._pydantic_core.ValidationE...
-ERROR tests/unit/test_cli_scalability.py - pydantic_core._pydantic_core.Valid...
-ERROR tests/unit/test_cpo_agent.py - pydantic_core._pydantic_core.ValidationE...
-ERROR tests/unit/test_domain_models.py - pydantic_core._pydantic_core.Validat...
-ERROR tests/unit/test_ideator_agent.py - pydantic_core._pydantic_core.Validat...
-ERROR tests/unit/test_memory_safety.py - pydantic_core._pydantic_core.Validat...
-ERROR tests/unit/test_simulation_logic.py - pydantic_core._pydantic_core.Vali...
-ERROR tests/unit/test_ui.py - pydantic_core._pydantic_core.ValidationError: 1...
-!!!!!!!!!!!!!!!!!!! Interrupted: 15 errors during collection !!!!!!!!!!!!!!!!!!!
-============================== 15 errors in 7.77s ==============================
+tests/integration/test_rag_flow.py ..                                    [  2%]
+tests/uat/test_uat_cycle01.py ..                                         [  5%]
+tests/uat/test_uat_cycle02.py .                                          [  6%]
+tests/uat/test_uat_cycle03.py ..                                         [  9%]
+tests/unit/domain_models/test_models.py ...........                      [ 24%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 30%]
+tests/unit/domain_models/test_transcript.py ...                          [ 34%]
+tests/unit/test_cli_input.py ...                                         [ 38%]
+tests/unit/test_cli_scalability.py .                                     [ 40%]
+tests/unit/test_config.py .......                                        [ 49%]
+tests/unit/test_core.py ....                                             [ 54%]
+tests/unit/test_cpo_agent.py ..                                          [ 57%]
+tests/unit/test_domain_models.py .......                                 [ 66%]
+tests/unit/test_ideator_agent.py ...                                     [ 70%]
+tests/unit/test_memory_safety.py .                                       [ 72%]
+tests/unit/test_rag.py ....                                              [ 77%]
+tests/unit/test_rag_errors.py ..                                         [ 80%]
+tests/unit/test_simulation_logic.py .......                              [ 89%]
+tests/unit/test_tools.py ...                                             [ 93%]
+tests/unit/test_ui.py .....                                              [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.12-final-0 _______________
+
+Name                               Stmts   Miss  Cover   Missing
+----------------------------------------------------------------
+src/__init__.py                        0      0   100%
+src/agents/__init__.py                 0      0   100%
+src/agents/base.py                     9      0   100%
+src/agents/cpo.py                     17      0   100%
+src/agents/ideator.py                 47     12    74%   31-34, 97-107
+src/agents/mixins.py                  23      6    74%   28, 31-35
+src/agents/personas.py                79      5    94%   90-92, 97-98
+src/core/__init__.py                   0      0   100%
+src/core/config.py                   136      5    96%   222, 271-272, 277-278
+src/core/constants.py                 49      0   100%
+src/core/factory.py                   28     13    54%   29-43
+src/core/graph.py                     62     29    53%   19-21, 26-30, 46-53, 58-65, 70-74, 79-83
+src/core/llm.py                        8      0   100%
+src/core/simulation.py                40     10    75%   30-31, 34-35, 38-39, 42-43, 46-47
+src/core/theme.py                     15      0   100%
+src/data/__init__.py                   2      0   100%
+src/data/rag.py                       81     17    79%   35-37, 82-85, 88, 94-103, 115, 125, 139, 145
+src/domain_models/__init__.py          4      0   100%
+src/domain_models/lean_canvas.py      24      0   100%
+src/domain_models/metrics.py          38      4    89%   75-76, 80-81
+src/domain_models/mvp.py              26      0   100%
+src/domain_models/persona.py          28      2    93%   110-111
+src/domain_models/simulation.py       20      0   100%
+src/domain_models/state.py            82      8    90%   106-107, 130-138
+src/domain_models/transcript.py       22      2    91%   32-33
+src/tools/__init__.py                  0      0   100%
+src/tools/search.py                   34      4    88%   39, 75, 90-91
+src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 128-134, 154
+----------------------------------------------------------------
+TOTAL                                970    127    87%
+============================= 75 passed in 15.55s ==============================
+/app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
+  self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

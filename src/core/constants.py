@@ -27,7 +27,9 @@ ERR_INVALID_FPS: Final[str] = "FPS must be between 1 and 60"
 MSG_NO_IDEAS: Final[str] = "\nNo ideas generated. Please try again or check logs."
 MSG_GENERATED_HEADER: Final[str] = "\n=== Generated Ideas ==="
 MSG_PRESS_ENTER: Final[str] = "\nPress Enter to see more..."
-MSG_SELECT_PROMPT: Final[str] = "\n[GATE 1] Select an Idea ID (0-9) to proceed (or 'n' for next page): "
+MSG_SELECT_PROMPT: Final[str] = (
+    "\n[GATE 1] Select an Idea ID (0-9) to proceed (or 'n' for next page): "
+)
 MSG_ID_NOT_FOUND: Final[str] = "ID {idx} not found in this batch. Please try again."
 MSG_INVALID_INPUT: Final[str] = "Please enter a valid number or 'n'."
 MSG_SELECTED: Final[str] = "\n✓ Selected Plan: {title}"
@@ -61,5 +63,7 @@ DESC_EMPATHY_THINKS: Final[str] = "Internal thoughts and beliefs"
 DESC_EMPATHY_DOES: Final[str] = "Actions and behaviors"
 DESC_EMPATHY_FEELS: Final[str] = "Emotional state and feelings"
 
-DESC_METRICS_AARRR: Final[str] = "Standard AARRR metrics (Acquisition, Activation, Retention, Revenue, Referral)"
+DESC_METRICS_AARRR: Final[str] = (
+    "Standard AARRR metrics (Acquisition, Activation, Retention, Revenue, Referral)"
+)
 DESC_METRICS_CUSTOM: Final[str] = "Additional custom metrics specific to the business model"

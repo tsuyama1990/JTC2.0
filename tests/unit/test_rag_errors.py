@@ -20,6 +20,7 @@ def test_rag_init_missing_api_key() -> None:
         with pytest.raises(ValueError, match="Missing API Key"):
             RAG(persist_dir="./test")
 
+
 def test_rag_init_invalid_path() -> None:
     """Test RAG initialization failure when path is unsafe."""
     with pytest.raises(ValueError, match="Path traversal"):

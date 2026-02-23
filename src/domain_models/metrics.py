@@ -56,9 +56,7 @@ class Metrics(BaseModel):
     detailed: DetailedMetrics = Field(
         default_factory=DetailedMetrics, description="Detailed simulation metrics"
     )
-    custom_metrics: dict[str, float] = Field(
-        default_factory=dict, description=DESC_METRICS_CUSTOM
-    )
+    custom_metrics: dict[str, float] = Field(default_factory=dict, description=DESC_METRICS_CUSTOM)
 
     @field_validator("custom_metrics")
     @classmethod

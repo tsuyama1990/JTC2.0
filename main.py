@@ -64,7 +64,11 @@ def validate_topic(topic: str) -> str:
     if not re.match(r"^[a-zA-Z0-9\s\-_\.,:]+$", topic):
         logger.warning(f"Topic contains special characters: {topic}")
         # STRICT sanitization: Remove anything not in allowlist
-        return re.sub(r"[^a-zA-Z0-9\s\-_\.,:]", "", topic)
+        topic = re.sub(r"[^a-zA-Z0-9\s\-_\.,:]", "", topic)
+
+    if not topic.strip():
+        msg = "Topic is empty after sanitization."
+        raise ValueError(msg)
 
     return topic
 
@@ -72,12 +76,13 @@ def validate_topic(topic: str) -> str:
 def validate_filepath(filepath: str) -> Path:
     """
     Validate filepath to prevent traversal attacks.
-    Ensures path is within the current working directory or allowed subdirs.
+    Ensures path is within the current working directory.
     """
     path = Path(filepath).resolve()
     cwd = Path.cwd().resolve()
 
-    if not str(path).startswith(str(cwd)):
+    # Strict path traversal check
+    if not path.is_relative_to(cwd):
         msg = "File path must be within the project directory."
         raise ValueError(msg)
 
@@ -89,9 +94,7 @@ def validate_filepath(filepath: str) -> Path:
 
 
 def _process_page_selection(
-    page_items: list[LeanCanvas],
-    page_size: int,
-    ui_config: UIConfig
+    page_items: list[LeanCanvas], page_size: int, ui_config: UIConfig
 ) -> LeanCanvas | None | str:
     """Handle user input for a single page."""
     for item in page_items:
@@ -106,12 +109,12 @@ def _process_page_selection(
         if not choice:
             continue
 
-        if choice.lower() == 'n':
+        if choice.lower() == "n":
             # If strictly less than page size, we know it's the last page
             if len(page_items) < page_size:
                 echo("End of list.")
                 return None
-            return 'next'
+            return "next"
 
         try:
             idx = int(choice)
@@ -128,7 +131,9 @@ def _process_page_selection(
     return None
 
 
-def browse_and_select(ideas_gen: Iterator[LeanCanvas], page_size: int | None = None) -> LeanCanvas | None:
+def browse_and_select(
+    ideas_gen: Iterator[LeanCanvas], page_size: int | None = None
+) -> LeanCanvas | None:
     """
     Browse items from generator in chunks (pages) and allow selection.
     Strictly O(page_size) memory usage.
@@ -170,8 +175,8 @@ def browse_and_select(ideas_gen: Iterator[LeanCanvas], page_size: int | None = N
             return None
 
         # If result is 'next', loop continues
-        if result == 'next':
-             continue
+        if result == "next":
+            continue
 
     return None
 
@@ -194,10 +199,16 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
 
     # Normalize to iterator and STRICTLY enforce iterator type
     # We strictly expect an iterator or convert to one without loading into list first
-    if not isinstance(generated_ideas_raw, Iterator):
+    if isinstance(generated_ideas_raw, list):
+        logger.warning(
+            "generated_ideas was materialized as a list. Memory usage optimization missed."
+        )
         iterator = iter(generated_ideas_raw)
-    else:
+    elif isinstance(generated_ideas_raw, Iterator):
         iterator = generated_ideas_raw
+    else:
+        # Fallback for other iterables
+        iterator = iter(generated_ideas_raw)
 
     # We yield items one by one to ensure this function remains a generator
     for item in iterator:
@@ -216,10 +227,7 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
 def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
     """Run the simulation phase with UI."""
     initial_state = GlobalState(
-        topic=topic,
-        selected_idea=selected_idea,
-        simulation_active=True,
-        phase=Phase.IDEATION
+        topic=topic, selected_idea=selected_idea, simulation_active=True, phase=Phase.IDEATION
     )
 
     app = create_simulation_graph()
@@ -234,15 +242,15 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
             # app.stream yields state updates as dicts or objects depending on config
             for state_update in app.stream(initial_state, stream_mode="values"):
                 if isinstance(state_update, dict):
-                     try:
-                         # Update shared state safely
-                         shared_state["current"] = GlobalState(**state_update)
-                     except Exception:
-                         logger.exception("Failed to convert state update to GlobalState")
+                    try:
+                        # Update shared state safely
+                        shared_state["current"] = GlobalState(**state_update)
+                    except Exception:
+                        logger.exception("Failed to convert state update to GlobalState")
                 elif isinstance(state_update, GlobalState):
-                     shared_state["current"] = state_update
+                    shared_state["current"] = state_update
                 else:
-                     logger.warning(f"Unknown state update type: {type(state_update)}")
+                    logger.warning(f"Unknown state update type: {type(state_update)}")
 
             # Simulation finished
             # We treat the simulation as effectively done even if simulation_active is True

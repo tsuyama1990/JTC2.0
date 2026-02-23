@@ -53,8 +53,8 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
     def __next__(self) -> LeanCanvas:
         # Delegate to the wrapped iterator
         if self._consumed:
-             # Already marked as started
-             pass
+            # Already marked as started
+            pass
         self._consumed = True
         return next(self._iterator)
 
@@ -85,12 +85,16 @@ class GlobalState(BaseModel):
     simulation_active: bool = False
 
     # Updated fields for Cycle 3
-    transcripts: list[Transcript] = Field(default_factory=list, description="Raw transcripts from PLAUD or interviews")
-    rag_index_path: str = Field(default_factory=lambda: get_settings().rag_persist_dir, description="Path to the local vector store")
+    transcripts: list[Transcript] = Field(
+        default_factory=list, description="Raw transcripts from PLAUD or interviews"
+    )
+    rag_index_path: str = Field(
+        default_factory=lambda: get_settings().rag_persist_dir,
+        description="Path to the local vector store",
+    )
 
     agent_states: dict[Role, AgentState] = Field(
-        default_factory=dict,
-        description="Persistent state of agents (e.g. DeGroot weights)"
+        default_factory=dict, description="Persistent state of agents (e.g. DeGroot weights)"
     )
 
     @field_validator("transcripts")

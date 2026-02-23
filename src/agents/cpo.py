@@ -24,7 +24,7 @@ class CPOAgent(PersonaAgent):
         llm: ChatOpenAI,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
-        rag_path: str = "./vector_store"
+        rag_path: str = "./vector_store",
     ) -> None:
         system_prompt = (
             "You are the Chief Product Officer (CPO). "

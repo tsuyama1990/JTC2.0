@@ -20,6 +20,7 @@ def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
         logger.error(f"Error in Ideator Agent: {e}", exc_info=True)
         return {}
 
+
 def verification_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Verification Phase."""
     if not state.selected_idea:
@@ -27,6 +28,7 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
     logger.info(f"Transitioning to Phase: {Phase.VERIFICATION}")
     return {"phase": Phase.VERIFICATION}
+
 
 def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     """
@@ -50,6 +52,7 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     else:
         return res
 
+
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
@@ -61,18 +64,20 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     else:
         return res
 
+
 def solution_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Solution Phase."""
     if not state.target_persona:
-            logger.warning("Entering Solution Phase without a defined target persona.")
+        logger.warning("Entering Solution Phase without a defined target persona.")
 
     logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
     return {"phase": Phase.SOLUTION}
 
+
 def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
     if not state.mvp_definition:
-            logger.warning("Entering PMF Phase without an MVP definition.")
+        logger.warning("Entering PMF Phase without an MVP definition.")
 
     logger.info(f"Transitioning to Phase: {Phase.PMF}")
     return {"phase": Phase.PMF}
@@ -126,6 +131,4 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     workflow.add_edge("pmf", END)
 
     # Compile with Interrupts for HITL Gates
-    return workflow.compile(
-        interrupt_after=["ideator", "verification", "solution", "pmf"]
-    )
+    return workflow.compile(interrupt_after=["ideator", "verification", "solution", "pmf"])

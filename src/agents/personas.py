@@ -64,7 +64,10 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", self.system_prompt),
-                ("user", f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:"),
+                (
+                    "user",
+                    f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:",
+                ),
             ]
         )
         chain = prompt | self.llm
@@ -101,19 +104,15 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
 
         # Override in subclasses if research is needed
         if hasattr(self, "_research_impl") and state.selected_idea:
-             title = state.selected_idea.title
-             logger.debug(f"Agent {self.role} executing research on: {title}")
-             # Use the cached wrapper
-             research_data = self._cached_research(title)
+            title = state.selected_idea.title
+            logger.debug(f"Agent {self.role} executing research on: {title}")
+            # Use the cached wrapper
+            research_data = self._cached_research(title)
 
         content = self._generate_response(context, research_data)
         logger.debug(f"Agent {self.role} generated response: {content[:50]}...")
 
-        message = DialogueMessage(
-            role=self.role,
-            content=content,
-            timestamp=time.time()
-        )
+        message = DialogueMessage(role=self.role, content=content, timestamp=time.time())
 
         # Return state update.
         # Note: LangGraph usually appends to list if configured with reducer,
