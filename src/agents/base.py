@@ -1,7 +1,21 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Protocol
 
 from src.domain_models.state import GlobalState
+
+
+class SearchTool(Protocol):
+    """Protocol for search tools."""
+
+    def search(
+        self, query: str, max_results: int | None = None, search_depth: str | None = None
+    ) -> str:
+        """Execute a search query."""
+        ...
+
+    def safe_search(self, query: str) -> str:
+        """Execute a search query safely."""
+        ...
 
 
 class BaseAgent(ABC):

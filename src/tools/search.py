@@ -31,11 +31,17 @@ class TavilySearch:
         Raises:
             ValueError: If API key is missing.
         """
-        self.api_key = api_key or (
-            settings.tavily_api_key.get_secret_value() if settings.tavily_api_key else None
-        )
+        # If API key is provided explicitly (e.g. from injection), use it.
+        # Otherwise, fetch from settings but KEEP IT AS SecretStr internally if possible,
+        # but TavilyClient needs str. So we reveal it only at the boundary.
+        self.api_key = api_key
+
+        if not self.api_key and settings.tavily_api_key:
+            self.api_key = settings.tavily_api_key.get_secret_value()
+
         if not self.api_key:
             raise ValueError(ERR_SEARCH_CONFIG_MISSING)
+
         self.client = TavilyClient(api_key=self.api_key)
 
     @retry(
@@ -65,10 +71,13 @@ class TavilySearch:
             A string containing the search results or error message.
         """
         # search_depth="advanced" is generally better for research
+        # We explicitly cast search_depth to the Literal type expected by Tavily
+        depth: Literal["basic", "advanced"] = search_depth or settings.search_depth  # type: ignore[assignment]
+
         response = self.client.search(
             query=query,
             max_results=max_results or settings.search_max_results,
-            search_depth=search_depth or settings.search_depth,
+            search_depth=depth,
         )
 
         results = response.get("results", [])
@@ -97,6 +106,9 @@ class TavilySearch:
         """
         try:
             return self.search(query)
+        except (MissingAPIKeyError, InvalidAPIKeyError, ValueError):
+            logger.exception("Tavily search failed: Invalid Configuration/Auth")
+            return ERR_SEARCH_FAILED
         except Exception:
             logger.exception("Tavily search failed after retries")
             return ERR_SEARCH_FAILED

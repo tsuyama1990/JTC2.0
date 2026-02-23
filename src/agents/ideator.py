@@ -4,8 +4,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, field_validator
 
-from src.agents.base import BaseAgent
-from src.core.config import settings
+from src.agents.base import BaseAgent, SearchTool
+from src.core.config import Settings, settings
 from src.core.constants import ERR_UNIQUE_ID_VIOLATION
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
@@ -38,18 +38,30 @@ class IdeatorAgent(BaseAgent):
     Attributes:
         llm: The Language Model to use for generation.
         search_tool: The tool used for market research.
+        settings: Application settings.
     """
 
-    def __init__(self, llm: ChatOpenAI, search_tool: TavilySearch | None = None) -> None:
+    def __init__(
+        self,
+        llm: ChatOpenAI,
+        search_tool: SearchTool | None = None,
+        app_settings: Settings | None = None,
+    ) -> None:
         """
         Initialize the Ideator Agent.
 
         Args:
             llm: A configured ChatOpenAI instance.
             search_tool: Optional search tool instance (Dependency Injection).
+            app_settings: Optional settings override (Dependency Injection).
         """
         self.llm = llm
-        self.search_tool = search_tool or TavilySearch()
+        self.settings = app_settings or settings
+        self.search_tool = search_tool or TavilySearch(
+            api_key=self.settings.tavily_api_key.get_secret_value()
+            if self.settings.tavily_api_key
+            else None
+        )
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
@@ -68,7 +80,7 @@ class IdeatorAgent(BaseAgent):
 
         # 1. Research
         # Use configurable template
-        query = settings.search_query_template.format(topic=topic)
+        query = self.settings.search_query_template.format(topic=topic)
         # Use safe_search for robustness
         search_results = self.search_tool.safe_search(query)
 

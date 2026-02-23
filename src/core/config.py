@@ -9,11 +9,7 @@ from src.core.constants import ERR_CONFIG_MISSING_OPENAI_KEY, ERR_CONFIG_MISSING
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # API Keys (Required - No default, but Optional here to allow instantiation
     # before validation, though BaseSettings typically validates on init.
@@ -31,7 +27,7 @@ class Settings(BaseSettings):
     search_depth: str = Field(alias="SEARCH_DEPTH", default="advanced")
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}"
+        default="emerging business trends and painful problems in {topic}",
     )
 
     # UI Configuration
