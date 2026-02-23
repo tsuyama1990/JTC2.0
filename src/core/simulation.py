@@ -39,7 +39,8 @@ def _get_cached_agent(role: Role) -> Any:
         return FinanceAgent(llm)
     if role == Role.SALES:
         return SalesAgent(llm)
-    raise ValueError(f"Unknown role: {role}")
+    msg = f"Unknown role: {role}"
+    raise ValueError(msg)
 
 
 def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]

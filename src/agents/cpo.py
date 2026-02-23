@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from langchain_openai import ChatOpenAI
 
@@ -7,6 +8,7 @@ from src.agents.personas import PersonaAgent
 from src.core.config import Settings
 from src.data.rag import RAG
 from src.domain_models.simulation import Role
+from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
@@ -46,3 +48,57 @@ class CPOAgent(PersonaAgent):
         query = f"What do customers say about {topic} or related problems?"
         logger.info(f"CPO querying RAG: {query}")
         return self.rag.query(query)
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        """
+        Run the CPO agent logic with Nemawashi context.
+        """
+        # 1. Build Standard Context
+        context = self._build_context(state)
+
+        # 2. Get Research Data (RAG)
+        research_data = ""
+        if state.selected_idea:
+            research_data = self._cached_research(state.selected_idea.title)
+
+        # 3. Inject Nemawashi (Influence) Data
+        if state.influence_network:
+            # We can analyze the network or use pre-calculated analytics from the engine if stored in state.
+            # Currently state has influence_network (matrix).
+            # Ideally, we should have the analysis results (consensus scores, influencers) in the state.
+            # But if not, we can do a lightweight check or just mention the network exists.
+            # The Nemawashi Engine runs before this node, so we might want to check for updated agent_states (opinions).
+
+            # Since we don't have easy access to detailed analytics without the engine here,
+            # we will rely on what's available.
+            # If Nemawashi node updated the influence_network or agent_states, we use that.
+
+            # For now, let's append a placeholder for the strategy advice based on the graph structure.
+            # The CPO should advise on *who* to target.
+
+            # Use 'state.influence_network' to find the most stubborn or influential stakeholder?
+            # We'll just append raw data summary for LLM to interpret.
+
+            stakeholders_info = "\nSTAKEHOLDER ANALYSIS (Nemawashi):\n"
+            for s in state.influence_network.stakeholders:
+                stakeholders_info += f"- {s.name}: Support={s.initial_support:.2f}, Stubbornness={s.stubbornness:.2f}\n"
+
+            research_data += f"\n\n{stakeholders_info}"
+
+        content = self._generate_response(context, research_data)
+
+        # CPO doesn't speak in the debate history usually?
+        # The prompt says "In the rooftop phase... provide advice".
+        # So we return the message.
+        # But wait, does CPO output go to debate_history?
+        # The graph wrapper `safe_cpo_run` returns it.
+        # If we append to debate_history, it shows up as a message.
+
+        # We return the standard dict update.
+        import time
+
+        from src.domain_models.simulation import DialogueMessage
+
+        message = DialogueMessage(role=self.role, content=content, timestamp=time.time())
+        new_history = [*list(state.debate_history), message]
+        return {"debate_history": new_history}

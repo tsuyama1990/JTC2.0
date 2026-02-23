@@ -16,12 +16,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from src.core.config import get_settings
 from src.core.constants import (
     ERR_CIRCUIT_OPEN,
+    ERR_PATH_TRAVERSAL,
     ERR_RAG_INDEX_SIZE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
-    ERR_PATH_TRAVERSAL,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
+from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
 
@@ -141,12 +142,15 @@ class RAG:
                 path = path.resolve(strict=True)
                 # Check for symlinks in final path component
                 if path.is_symlink():
-                    raise ConfigurationError("Symlinks not allowed in persist_dir.")
+                    symlink_msg = "Symlinks not allowed in persist_dir."
+                    raise ConfigurationError(symlink_msg)
             else:
                 # If path doesn't exist, verify parent exists and is safe
                 parent = path.parent.resolve(strict=True)
                 path = parent / path.name
         except Exception as e:
+            if isinstance(e, ConfigurationError):
+                raise
             msg = f"Invalid path format or non-existent parent: {e}"
             raise ConfigurationError(msg) from e
 
@@ -196,7 +200,7 @@ class RAG:
 
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
-        path_obj = Path(self.persist_dir)
+        # path_obj removed as unused (F841)
 
         # Optimized empty check (iterator based)
         try:
@@ -341,6 +345,12 @@ class RAG:
             msg = f"Ingestion failed: {e}"
             raise RuntimeError(msg) from e
 
+    def ingest_transcript(self, transcript: Transcript) -> None:
+        """
+        Ingest a transcript object.
+        """
+        self.ingest_text(transcript.content, source=transcript.source)
+
     def persist_index(self) -> None:
         """Persist the index to disk."""
         if self.index:
@@ -396,5 +406,6 @@ class RAG:
             # But the audit asked for specific exceptions.
             # Assuming standard LlamaIndex exceptions if they exist in imported modules.
             # Since we only imported generic stuff, we'll log exception name.
-            logger.error(f"LlamaIndex query failed: {e.__class__.__name__}: {e}")
-            raise RuntimeError(f"Query execution failed: {e}") from e
+            logger.exception("LlamaIndex query failed: %s", e.__class__.__name__)
+            msg = f"Query execution failed: {e}"
+            raise RuntimeError(msg) from e

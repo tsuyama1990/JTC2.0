@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from httpx import Response, RequestError
+from httpx import RequestError, Response
 
 from src.core.exceptions import V0GenerationError
 

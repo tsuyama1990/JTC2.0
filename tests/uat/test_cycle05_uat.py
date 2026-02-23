@@ -50,7 +50,7 @@ class TestCycle05UAT:
         agent = BuilderAgent(llm=mock_llm)
 
         with patch.object(agent, "_extract_features", return_value=["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]):
-            result = agent.run(initial_state)
+            result = agent.propose_features(initial_state)
 
             assert "candidate_features" in result
             assert len(result["candidate_features"]) == 3
@@ -84,7 +84,7 @@ class TestCycle05UAT:
                 core_feature="Feature 2 desc",
                 components=["Hero"]
             )):
-                result = agent.run(initial_state)
+                result = agent.generate_mvp(initial_state)
 
                 assert result["mvp_url"] == "https://v0.dev/uat-result"
                 assert result["mvp_spec"].core_feature == "Feature 2 desc"

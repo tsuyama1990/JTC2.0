@@ -8,6 +8,8 @@ from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.enums import Phase, Role
 from src.domain_models.validators import StateValidator
 
+__all__ = ["Phase", "GlobalState"]
+
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics
 from .mvp import MVP, MVPSpec

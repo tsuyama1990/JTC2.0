@@ -52,12 +52,13 @@ class BuilderAgent(BaseAgent):
         chain = prompt | self.llm.with_structured_output(FeatureList)
         try:
             result = chain.invoke({})
-            if isinstance(result, FeatureList):
-                return result.features
-            return []
         except Exception:
             logger.exception("Failed to extract features")
             return []
+
+        if isinstance(result, FeatureList):
+            return result.features
+        return []
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """
@@ -80,44 +81,41 @@ class BuilderAgent(BaseAgent):
             logger.exception("Failed to create MVP Spec")
             return MVPSpec(app_name=app_name, core_feature=feature)
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def propose_features(self, state: GlobalState) -> dict[str, Any]:
         """
-        Execute the Builder Agent logic.
-
-        1. If selected_feature is set, proceed to generation.
-        2. If not, extract features.
-        3. If multiple features, return them for user selection (Gate 3).
-        4. If single feature, auto-select and proceed.
+        Gate 3 Preparation: Extract features for user selection.
         """
         if not state.selected_idea:
             logger.warning("No idea selected for Builder Agent.")
             return {}
 
-        # 1. Handle Selection Logic
-        selected_feature = state.selected_feature
         candidate_features = state.candidate_features
+        if not candidate_features:
+            candidate_features = self._extract_features(state.selected_idea.solution)
 
+        if not candidate_features:
+            logger.warning("No features extracted from solution.")
+            return {}
+
+        logger.info(f"Proposed features: {candidate_features}")
+        return {"candidate_features": candidate_features}
+
+    def generate_mvp(self, state: GlobalState) -> dict[str, Any]:
+        """
+        Execute MVP Generation (Cycle 5) for the selected feature.
+        """
+        if not state.selected_idea:
+            logger.warning("No idea selected for MVP Generation.")
+            return {}
+
+        selected_feature = state.selected_feature
         if not selected_feature:
-            if not candidate_features:
-                # Extract features if not already done
-                candidate_features = self._extract_features(state.selected_idea.solution)
-
-            if not candidate_features:
-                logger.warning("No features extracted from solution.")
+            # Fallback: Check if there's only one candidate
+            if state.candidate_features and len(state.candidate_features) == 1:
+                selected_feature = state.candidate_features[0]
+            else:
+                logger.error("No feature selected for MVP Generation.")
                 return {}
-
-            if len(candidate_features) > 1:
-                # Gate 3: Multiple features found, require user selection
-                logger.info(f"Multiple features found: {candidate_features}. Waiting for selection.")
-                return {"candidate_features": candidate_features}
-
-            # Single feature: Auto-select
-            selected_feature = candidate_features[0]
-            logger.info(f"Single feature auto-selected: {selected_feature}")
-            # We continue execution with this feature, but we also update state return
-
-        # 2. Generation Logic (Optimization: V0 Generation)
-        # At this point we have a selected_feature (either from state or auto-selected)
 
         logger.info(f"Generating MVP for feature: {selected_feature}")
 
@@ -127,31 +125,35 @@ class BuilderAgent(BaseAgent):
             idea_context=f"{state.selected_idea.problem} -> {state.selected_idea.unique_value_prop}"
         )
 
+        # Construct a prompt for v0 from the spec
+        v0_prompt = (
+            f"Create a {spec.ui_style} React component using Tailwind CSS for '{spec.app_name}'. "
+            f"Core Feature: {spec.core_feature}. "
+            f"Include components: {', '.join(spec.components)}."
+        )
+        spec.v0_prompt = v0_prompt
+
         try:
             v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None)
-
-            # Construct a prompt for v0 from the spec
-            v0_prompt = (
-                f"Create a {spec.ui_style} React component using Tailwind CSS for '{spec.app_name}'. "
-                f"Core Feature: {spec.core_feature}. "
-                f"Include components: {', '.join(spec.components)}."
-            )
-
             url = v0_client.generate_ui(v0_prompt)
-            logger.info(f"MVP Generated: {url}")
-
-            return {
-                "mvp_spec": spec,
-                "mvp_url": url,
-                "selected_feature": selected_feature, # Ensure state reflects selection
-                "candidate_features": candidate_features # Ensure candidates are persisted if newly found
-            }
-
         except Exception:
             logger.exception("Failed to generate MVP via v0")
             # Return partial state (spec created but generation failed)
             return {
                 "mvp_spec": spec,
                 "selected_feature": selected_feature,
-                "candidate_features": candidate_features
             }
+        else:
+            logger.info(f"MVP Generated: {url}")
+
+            return {
+                "mvp_spec": spec,
+                "mvp_url": url,
+                "selected_feature": selected_feature,
+            }
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        """
+        Legacy run method. Delegates to propose_features (default behavior).
+        """
+        return self.propose_features(state)

@@ -1,3 +1,4 @@
+import contextlib
 import shutil
 import tempfile
 from collections.abc import Generator
@@ -13,6 +14,7 @@ from src.core.config import get_settings
 from src.data.rag import RAG
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
+from src.domain_models.transcript import Transcript
 from tests.conftest import DUMMY_ENV_VARS
 
 
@@ -45,10 +47,34 @@ def temp_vector_store() -> Generator[str, None, None]:
             shutil.rmtree(temp_dir)
 
         # Try to remove the base dir if empty to keep project clean
-        try:
+        with contextlib.suppress(OSError):
             base_dir.rmdir()
-        except OSError:
-            pass  # Directory not empty or busy
+
+
+@patch.dict("os.environ", DUMMY_ENV_VARS)
+def test_transcript_ingestion(temp_vector_store: str) -> None:
+    """Test that ingest_transcript works correctly."""
+    with (
+        patch("src.data.rag.OpenAI", return_value=MockLLM()),
+        patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+    ):
+        rag = RAG(persist_dir=temp_vector_store)
+        transcript = Transcript(
+            source="Test Interview",
+            content="Customer says: I hate waiting in line.",
+            date="2023-01-01"
+        )
+
+        # Test ingestion
+        rag.ingest_transcript(transcript)
+        rag.persist_index()
+
+        # Verify persistence
+        assert any(Path(temp_vector_store).iterdir())
+
+        # Reload and query
+        rag_loaded = RAG(persist_dir=temp_vector_store)
+        assert rag_loaded.index is not None
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
