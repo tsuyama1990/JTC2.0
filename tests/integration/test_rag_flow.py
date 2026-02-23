@@ -1,3 +1,4 @@
+import contextlib
 import shutil
 import tempfile
 from collections.abc import Generator
@@ -45,10 +46,8 @@ def temp_vector_store() -> Generator[str, None, None]:
             shutil.rmtree(temp_dir)
 
         # Try to remove the base dir if empty to keep project clean
-        try:
+        with contextlib.suppress(OSError):
             base_dir.rmdir()
-        except OSError:
-            pass  # Directory not empty or busy
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)

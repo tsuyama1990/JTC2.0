@@ -3,7 +3,6 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any
 
 import pybreaker
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -19,7 +18,6 @@ from src.core.constants import (
     ERR_RAG_INDEX_SIZE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
-    ERR_RATE_LIMIT,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
@@ -143,17 +141,14 @@ class RAG:
             return
 
         # Critical: Check size BEFORE loading storage context logic
-        try:
-            self._check_index_size()
-        except MemoryError:
-            raise # Propagate memory error immediately
+        self._check_index_size()
 
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to load index from %s", self.persist_dir)
             self.index = None
             # Allow continuing with fresh index unless it was a MemoryError (caught above)

@@ -11,7 +11,7 @@ from .lean_canvas import LeanCanvas
 from .metrics import Metrics
 from .mvp import MVP
 from .persona import Persona
-from .politics import InfluenceNetwork
+from .politics import InfluenceNetwork, Stakeholder
 from .simulation import AgentState, DialogueMessage, Role
 from .transcript import Transcript
 
@@ -58,6 +58,9 @@ class GlobalState(BaseModel):
 
     debate_history: list[DialogueMessage] = Field(default_factory=list)
     simulation_active: bool = False
+
+    # Track pivots for looping logic
+    pivot_count: int = Field(default=0, description="Number of times the user has pivoted.")
 
     # Updated fields for Cycle 3
     transcripts: list[Transcript] = Field(
@@ -118,3 +121,64 @@ class GlobalState(BaseModel):
         """Apply all state validators."""
         GlobalStateValidators.validate_phase_requirements(self)
         return self
+
+    def _calculate_row(self, i: int, roles: list[Role], agent: AgentState) -> list[float]:
+        """Helper to calculate a single row of the influence matrix."""
+        row = [0.0] * len(roles)
+        profile = agent.degroot_profile
+
+        # Set self-confidence
+        row[i] = profile.self_confidence
+        current_sum = row[i]
+
+        # Calculate explicit weights
+        for other_role_str, weight in profile.influence_weights.items():
+            try:
+                # Find index of other role
+                matches = [idx for idx, r in enumerate(roles) if other_role_str in (r, r.value)]
+                if matches:
+                    idx = matches[0]
+                    if idx != i:
+                        row[idx] = weight
+                        current_sum += weight
+            except (ValueError, IndexError):
+                pass
+
+        # Normalize or Distribute Remainder
+        remaining = 1.0 - current_sum
+        if remaining > 0.0001:
+            others_count = len(roles) - 1
+            if others_count > 0:
+                dist_val = remaining / others_count
+                for j in range(len(roles)):
+                    if i != j and row[j] == 0.0:
+                        row[j] += dist_val
+            else:
+                row[i] += remaining
+
+        # Final normalization
+        row_sum = sum(row)
+        return [x / row_sum for x in row] if row_sum > 0 else [1.0 / len(roles)] * len(roles)
+
+    def to_influence_network(self) -> InfluenceNetwork:
+        """
+        Convert current agent_states to an InfluenceNetwork for Nemawashi analysis.
+        If agent_states is empty, returns a default network.
+        """
+        if not self.agent_states:
+             return InfluenceNetwork(stakeholders=[], matrix=[])
+
+        roles = list(self.agent_states.keys())
+        roles.sort()
+
+        stakeholders = [
+            Stakeholder(
+                name=self.agent_states[role].role.value,
+                initial_support=self.agent_states[role].current_opinion,
+                stubbornness=self.agent_states[role].degroot_profile.self_confidence
+            )
+            for role in roles
+        ]
+
+        matrix = [self._calculate_row(i, roles, self.agent_states[role]) for i, role in enumerate(roles)]
+        return InfluenceNetwork(stakeholders=stakeholders, matrix=matrix)

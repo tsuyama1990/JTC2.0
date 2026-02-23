@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -17,8 +17,8 @@ def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     ideator = AgentFactory.get_ideator_agent()
     try:
         return ideator.run(state)
-    except Exception as e:
-        logger.error(f"Error in Ideator Agent: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error in Ideator Agent")
         return {}
 
 
@@ -27,8 +27,8 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
     # Explicit validation before transition
     try:
         GlobalStateValidators.validate_phase_requirements(state)
-    except ValueError as e:
-        logger.error(f"Validation failed for Verification transition: {e}")
+    except ValueError:
+        logger.exception("Validation failed for Verification transition")
         return {} # Or handle error state
 
     if not state.selected_idea:
@@ -52,19 +52,20 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     try:
         # invoke returns the final state dict/object
         final_state = simulation_app.invoke(state)
-        # Extract the updated debate history
-        # Depending on invoke return type (dict if input was dict, likely dict)
-        if isinstance(final_state, dict):
-            return {"debate_history": final_state.get("debate_history", [])}
-        # If it returns GlobalState object
-        if hasattr(final_state, "debate_history"):
-            return {"debate_history": final_state.debate_history}
+    except Exception:
+        logger.exception("Error in Simulation Graph")
+        return {}
 
-        logger.warning("Simulation graph returned unknown state type.")
-        return {}
-    except Exception as e:
-        logger.error(f"Error in Simulation Graph: {e}", exc_info=True)
-        return {}
+    # Extract the updated debate history
+    # Depending on invoke return type (dict if input was dict, likely dict)
+    if isinstance(final_state, dict):
+        return {"debate_history": final_state.get("debate_history", [])}
+    # If it returns GlobalState object
+    if hasattr(final_state, "debate_history"):
+        return {"debate_history": final_state.debate_history}
+
+    logger.warning("Simulation graph returned unknown state type.")
+    return {}
 
 
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
@@ -72,8 +73,8 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
     try:
         res: dict[str, Any] = cpo.run(state)
-    except Exception as e:
-        logger.error(f"Error in CPO Agent: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error in CPO Agent")
         return {}
     else:
         return res
@@ -83,8 +84,8 @@ def solution_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Solution Phase."""
     try:
         GlobalStateValidators.validate_phase_requirements(state)
-    except ValueError as e:
-        logger.error(f"Validation failed for Solution transition: {e}")
+    except ValueError:
+        logger.exception("Validation failed for Solution transition")
         # In a real app we might route to an error node or retry.
         # For now, we log and proceed (or stay in current phase implicitly if we return empty?)
         # Returning empty means no state update, effectively halting or looping.
@@ -101,8 +102,8 @@ def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
     try:
         GlobalStateValidators.validate_phase_requirements(state)
-    except ValueError as e:
-        logger.error(f"Validation failed for PMF transition: {e}")
+    except ValueError:
+        logger.exception("Validation failed for PMF transition")
         return {}
 
     if not state.mvp_definition:
@@ -110,6 +111,22 @@ def pmf_node(state: GlobalState) -> dict[str, Any]:
 
     logger.info(f"Transitioning to Phase: {Phase.PMF}")
     return {"phase": Phase.PMF}
+
+
+def route_after_pmf(state: GlobalState) -> Literal["ideator", "verification", END]:  # type: ignore
+    """Route based on user decision after PMF gate."""
+    # Since this runs AFTER interruption, the user might have updated the state.
+    # The user logic should update state.phase if they want to pivot.
+
+    if state.phase == Phase.IDEATION:
+        logger.info("Pivoting back to Ideation Phase.")
+        return "ideator"
+    if state.phase == Phase.VERIFICATION:
+        logger.info("Pivoting back to Verification Phase.")
+        return "verification"
+
+    logger.info("PMF Phase complete. Ending workflow.")
+    return END
 
 
 def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
@@ -157,7 +174,15 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     workflow.add_edge("solution", "pmf")
 
     # Gate 4: Product-Market Fit (Pivot Decision)
-    workflow.add_edge("pmf", END)
+    workflow.add_conditional_edges(
+        "pmf",
+        route_after_pmf,
+        {
+            "ideator": "ideator",
+            "verification": "verification",
+            END: END
+        }
+    )
 
     # Compile with Interrupts for HITL Gates
     return workflow.compile(interrupt_after=["ideator", "verification", "solution", "pmf"])

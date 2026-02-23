@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pybreaker
 import pytest
 
-from src.core.constants import ERR_CIRCUIT_OPEN, ERR_RAG_QUERY_TOO_LARGE, ERR_RAG_TEXT_TOO_LARGE
+from src.core.constants import ERR_CIRCUIT_OPEN, ERR_RAG_TEXT_TOO_LARGE
 from src.core.exceptions import NetworkError, ValidationError
 from src.data.rag import RAG
 from tests.conftest import DUMMY_ENV_VARS
@@ -50,6 +50,5 @@ def test_rag_input_validation() -> None:
 def test_error_formatting() -> None:
     """Verify error messages are formatted correctly."""
     # This checks the constants logic implicitly via usage
-    limit_mb = 500
     msg = ERR_RAG_TEXT_TOO_LARGE.format(size=123)
     assert "Text too large (123 chars)" in msg
