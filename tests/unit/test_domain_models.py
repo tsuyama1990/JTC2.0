@@ -81,8 +81,20 @@ def test_global_state_defaults() -> None:
     assert state.selected_idea is None
 
 
+from src.domain_models.persona import EmpathyMap, Persona
+
 def test_global_state_phase_enum() -> None:
     """Test GlobalState uses Phase enum."""
-    state = GlobalState(phase=Phase.VERIFICATION)
+    # Note: VERIFICATION phase requires a target_persona
+    persona = Persona(
+        name="Test",
+        occupation="Tester",
+        demographics="30, Testland, Test City, 12345",
+        goals=["Test"],
+        frustrations=["Bugs"],
+        bio="A tester.",
+        empathy_map=EmpathyMap(says=["Hi"], thinks=["Hmm"], does=["Test"], feels=["Good"]),
+    )
+    state = GlobalState(phase=Phase.VERIFICATION, target_persona=persona)
     assert state.phase == "verification"
     assert isinstance(state.phase, Phase)

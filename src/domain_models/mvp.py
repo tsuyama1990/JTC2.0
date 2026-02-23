@@ -2,6 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.config import settings
 from src.core.constants import (
     DESC_FEATURE_DESC,
     DESC_FEATURE_NAME,
@@ -30,7 +31,12 @@ class Feature(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., description=DESC_FEATURE_NAME, min_length=3, max_length=50)
-    description: str = Field(..., description=DESC_FEATURE_DESC, min_length=10, max_length=200)
+    description: str = Field(
+        ...,
+        description=DESC_FEATURE_DESC,
+        min_length=settings.validation.min_content_length,
+        max_length=200,
+    )
     priority: Priority = Field(..., description=DESC_FEATURE_PRIORITY)
 
 
@@ -38,7 +44,14 @@ class MVP(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: MVPType = Field(..., description=DESC_MVP_TYPE)
-    core_features: list[Feature] = Field(..., description=DESC_MVP_CORE_FEATURES, min_length=1)
+    core_features: list[Feature] = Field(
+        ...,
+        description=DESC_MVP_CORE_FEATURES,
+        min_length=settings.validation.min_list_length,
+    )
     success_criteria: str = Field(
-        ..., description=DESC_MVP_SUCCESS_CRITERIA, min_length=10, max_length=500
+        ...,
+        description=DESC_MVP_SUCCESS_CRITERIA,
+        min_length=settings.validation.min_content_length,
+        max_length=500,
     )

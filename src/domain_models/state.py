@@ -1,6 +1,9 @@
 from enum import StrEnum
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
+
+from src.core.config import settings
 
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics
@@ -29,3 +32,12 @@ class GlobalState(BaseModel):
     target_persona: Persona | None = None
     mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
+
+    @model_validator(mode="after")
+    def validate_phase_requirements(self) -> Self:
+        """Validate that required fields are present for the current phase."""
+        if self.phase == Phase.VERIFICATION and self.target_persona is None:
+            raise ValueError(settings.errors.missing_persona)
+        if self.phase == Phase.SOLUTION and self.mvp_definition is None:
+            raise ValueError(settings.errors.missing_mvp)
+        return self

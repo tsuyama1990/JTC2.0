@@ -13,13 +13,6 @@ ERR_SEARCH_FAILED: Final[str] = "Search service unavailable."
 ERR_LLM_FAILURE: Final[str] = "LLM generation failed."
 ERR_UNIQUE_ID_VIOLATION: Final[str] = "Generated ideas must have unique IDs."
 
-# Validation Constraints
-VAL_MIN_TITLE_LENGTH: Final[int] = 3
-VAL_MAX_TITLE_LENGTH: Final[int] = 100
-VAL_MIN_CONTENT_LENGTH: Final[int] = 3
-VAL_MAX_CONTENT_LENGTH: Final[int] = 1000
-VAL_MAX_CUSTOM_METRICS: Final[int] = 50
-
 # UI Messages
 MSG_NO_IDEAS: Final[str] = "\nNo ideas generated. Please try again or check logs."
 MSG_GENERATED_HEADER: Final[str] = "\n=== Generated {count} Ideas ==="

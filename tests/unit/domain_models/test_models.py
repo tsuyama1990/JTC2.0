@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.core.constants import VAL_MAX_CUSTOM_METRICS
+from src.core.config import settings
 from src.domain_models.metrics import AARRR, Metrics
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
@@ -38,11 +38,13 @@ def test_persona_validation_error() -> None:
             demographics="M",
             goals=[],  # Empty
             frustrations=[],
-            bio="Short",  # Too short (assumed default min 3 or 10)
+            bio="Sh",  # Too short
         )
     errors = exc.value.errors()
     assert any(e["loc"] == ("name",) for e in errors)
     assert any(e["loc"] == ("occupation",) for e in errors)
+    assert any(e["loc"] == ("goals",) for e in errors)
+    assert any(e["loc"] == ("bio",) for e in errors)
 
 
 def test_mvp_creation() -> None:
@@ -60,12 +62,24 @@ def test_mvp_creation() -> None:
     assert mvp.core_features[0].priority == Priority.MUST_HAVE
 
 
+def test_mvp_feature_validation() -> None:
+    """Test feature validation."""
+    # settings.validation.min_content_length is 3. "Short" is 5.
+    # We need a string shorter than 3 characters to trigger the error.
+    with pytest.raises(ValidationError):
+        Feature(
+            name="Login",
+            description="No",  # Length 2 < 3
+            priority=Priority.MUST_HAVE,
+        )
+
+
 def test_mvp_invalid_priority() -> None:
     """Test that invalid priority strings are rejected."""
     with pytest.raises(ValidationError):
         Feature(
             name="Login",
-            description="Login feature",
+            description="Login feature description.",
             priority="super-important",
         )
 
@@ -78,10 +92,22 @@ def test_metrics_creation() -> None:
     assert metrics.custom_metrics["nps"] == 9.0
 
 
+def test_metrics_numeric_validation() -> None:
+    """Test numeric range validation."""
+    with pytest.raises(ValidationError) as exc:
+        AARRR(acquisition=-10.0, retention=150.0)
+
+    errors = exc.value.errors()
+    assert any(e["loc"] == ("acquisition",) for e in errors)
+    assert any(e["loc"] == ("retention",) for e in errors)
+
+
 def test_metrics_limit_custom() -> None:
     """Test that custom metrics are limited."""
     # Create a dict with VAL_MAX_CUSTOM_METRICS + 1 entries
-    excessive_metrics = {f"metric_{i}": float(i) for i in range(VAL_MAX_CUSTOM_METRICS + 1)}
+    excessive_metrics = {
+        f"metric_{i}": float(i) for i in range(settings.validation.max_custom_metrics + 1)
+    }
 
     with pytest.raises(ValidationError) as exc:
         Metrics(custom_metrics=excessive_metrics)
@@ -89,13 +115,18 @@ def test_metrics_limit_custom() -> None:
     assert "Too many custom metrics" in str(exc.value)
 
 
-def test_global_state_lifecycle() -> None:
-    """Test GlobalState transitions and field population."""
+def test_global_state_lifecycle_validation() -> None:
+    """Test GlobalState phase transition validation."""
     state = GlobalState()
     assert state.phase == Phase.IDEATION
 
-    # Simulate transition to Verification
+    # Should allow VERIFICATION transition only with persona
     state.phase = Phase.VERIFICATION
+    with pytest.raises(ValidationError) as exc:
+        GlobalState.model_validate(state.model_dump())
+    assert settings.errors.missing_persona in str(exc.value)
+
+    # Correct transition
     state.target_persona = Persona(
         name="Alice",
         occupation="Manager",
@@ -104,19 +135,12 @@ def test_global_state_lifecycle() -> None:
         frustrations=["Slow tools"],
         bio="Experienced manager.",
     )
-    assert state.target_persona.name == "Alice"
+    state.phase = Phase.VERIFICATION
+    # Should pass now
+    GlobalState.model_validate(state.model_dump())
 
-    # Simulate transition to Solution
+    # Should allow SOLUTION transition only with MVP
     state.phase = Phase.SOLUTION
-    state.mvp_definition = MVP(
-        type=MVPType.CONCIERGE,
-        core_features=[
-            Feature(
-                name="Manual Onboarding",
-                description="We do it for them.",
-                priority=Priority.MUST_HAVE,
-            )
-        ],
-        success_criteria="5 paying customers.",
-    )
-    assert state.mvp_definition.type == "concierge"
+    with pytest.raises(ValidationError) as exc:
+        GlobalState.model_validate(state.model_dump())
+    assert settings.errors.missing_mvp in str(exc.value)

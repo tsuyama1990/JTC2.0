@@ -1,16 +1,30 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.constants import DESC_METRICS_AARRR, DESC_METRICS_CUSTOM, VAL_MAX_CUSTOM_METRICS
+from src.core.config import settings
+from src.core.constants import DESC_METRICS_AARRR, DESC_METRICS_CUSTOM
 
 
 class AARRR(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    acquisition: float = Field(0.0, ge=0.0, description="Acquisition metric")
-    activation: float = Field(0.0, ge=0.0, description="Activation metric")
-    retention: float = Field(0.0, ge=0.0, le=100.0, description="Retention percentage")
-    revenue: float = Field(0.0, ge=0.0, description="Revenue metric")
-    referral: float = Field(0.0, ge=0.0, description="Referral metric")
+    acquisition: float = Field(
+        0.0, ge=settings.validation.min_metric_value, description="Acquisition metric"
+    )
+    activation: float = Field(
+        0.0, ge=settings.validation.min_metric_value, description="Activation metric"
+    )
+    retention: float = Field(
+        0.0,
+        ge=settings.validation.min_metric_value,
+        le=settings.validation.max_percentage_value,
+        description="Retention percentage",
+    )
+    revenue: float = Field(
+        0.0, ge=settings.validation.min_metric_value, description="Revenue metric"
+    )
+    referral: float = Field(
+        0.0, ge=settings.validation.min_metric_value, description="Referral metric"
+    )
 
 
 class Metrics(BaseModel):
@@ -25,7 +39,9 @@ class Metrics(BaseModel):
     @classmethod
     def validate_custom_metrics_limit(cls, v: dict[str, float]) -> dict[str, float]:
         """Ensure the number of custom metrics does not exceed the limit."""
-        if len(v) > VAL_MAX_CUSTOM_METRICS:
-            msg = f"Too many custom metrics. Limit is {VAL_MAX_CUSTOM_METRICS}"
+        if len(v) > settings.validation.max_custom_metrics:
+            msg = settings.errors.too_many_metrics.format(
+                limit=settings.validation.max_custom_metrics
+            )
             raise ValueError(msg)
         return v

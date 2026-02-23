@@ -1,4 +1,5 @@
 import sys
+from typing import ClassVar
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -6,16 +7,52 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.core.constants import ERR_CONFIG_MISSING_OPENAI_KEY, ERR_CONFIG_MISSING_TAVILY_KEY
 
 
+class ValidationConfig(BaseSettings):
+    """Validation constraints for domain models."""
+
+    # Title & Content
+    min_title_length: int = 3
+    max_title_length: int = 100
+    min_content_length: int = 3
+    max_content_length: int = 1000
+
+    # Lists
+    min_list_length: int = 1
+    max_list_length: int = 20
+
+    # Metrics
+    max_custom_metrics: int = 50
+    min_metric_value: float = 0.0
+    max_percentage_value: float = 100.0
+
+
+class ErrorMessages(BaseSettings):
+    """Error messages for the application."""
+
+    unique_id_violation: str = "Generated ideas must have unique IDs."
+    config_missing_openai: str = ERR_CONFIG_MISSING_OPENAI_KEY
+    config_missing_tavily: str = ERR_CONFIG_MISSING_TAVILY_KEY
+    search_config_missing: str = (
+        "Search configuration error: API key is missing. Please check your .env file."
+    )
+    llm_config_missing: str = (
+        "LLM configuration error: API key is missing. Please check your .env file."
+    )
+    search_failed: str = "Search service unavailable."
+    llm_failure: str = "LLM generation failed."
+
+    # Validation Errors
+    too_many_metrics: str = "Too many custom metrics. Limit is {limit}"
+    missing_persona: str = "Target persona is required for VERIFICATION phase."
+    missing_mvp: str = "MVP definition is required for SOLUTION phase."
+
+
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # API Keys (Required - No default, but Optional here to allow instantiation
-    # before validation, though BaseSettings typically validates on init.
-    # To satisfy mypy 'Missing named argument' when calling Settings(), we can
-    # either use default=None or force them to be passed.
-    # Since we want them loaded from env, we use Optional + Validation check or default=None.)
+    # API Keys
     openai_api_key: SecretStr | None = Field(alias="OPENAI_API_KEY", default=None)
     tavily_api_key: SecretStr | None = Field(alias="TAVILY_API_KEY", default=None)
 
@@ -36,6 +73,9 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = Field(alias="LOG_LEVEL", default="INFO")
 
+    validation: ClassVar[ValidationConfig] = ValidationConfig()
+    errors: ClassVar[ErrorMessages] = ErrorMessages()
+
 
 def _validate_settings(s: Settings) -> None:
     if not s.openai_api_key:
@@ -48,15 +88,9 @@ def load_settings() -> Settings:
     """Load and validate settings."""
     try:
         s = Settings()
-        # Validation Logic:
-        # We allow missing keys ONLY if we are in a testing environment (pytest)
-        # to prevent import errors during test collection.
-        # Tests will patch the settings anyway.
         if "pytest" not in sys.modules:
             _validate_settings(s)
     except Exception as e:
-        # We use print here because logging might not be configured yet
-        # and this is a fatal startup error.
         sys.stderr.write(f"Configuration Error: {e}\n")
         sys.stderr.write("Please ensure .env file exists and contains all required keys.\n")
         sys.exit(1)
