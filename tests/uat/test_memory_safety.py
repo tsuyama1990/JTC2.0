@@ -103,10 +103,9 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
         # Length 48, chunk 10 -> ceil(4.8) -> 5 chunks
         # With batch size 20 (default code constant), and 5 chunks total,
         # insert_nodes should be called once with a list of 5 items.
-        # Alternatively, if multiple batches, call count > 1.
-        # Here we verify that insert_nodes was called, and total nodes processed is 5.
 
-        assert rag.index.insert_nodes.call_count >= 1
+        # Verify that insert_nodes was called
+        assert rag.index.insert_nodes.called
 
         # Calculate total docs passed
         total_docs = 0
