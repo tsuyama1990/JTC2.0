@@ -276,12 +276,16 @@ class Settings(BaseSettings):
         if not self.openai_api_key.get_secret_value().startswith("sk-"):
             msg = "OpenAI API Key must start with 'sk-'."
             raise ValueError(msg)
+        if len(self.openai_api_key.get_secret_value()) < 20:
+             raise ValueError("OpenAI API Key is too short.")
 
         if not self.tavily_api_key:
             raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
         if not self.tavily_api_key.get_secret_value().startswith("tvly-"):
             msg = "Tavily API Key must start with 'tvly-'."
             raise ValueError(msg)
+        if len(self.tavily_api_key.get_secret_value()) < 20:
+             raise ValueError("Tavily API Key is too short.")
 
         return self
 

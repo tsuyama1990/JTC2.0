@@ -31,10 +31,6 @@ class RAG:
     def _validate_path(self, path_str: str) -> str:
         """Ensure persist directory is safe and absolute."""
         try:
-            # Use strict=True (available in recent Python versions for resolve)
-            # if the path exists, otherwise False.
-            # We want to allow creating new paths, but they must be within root.
-            # Using resolve() handles symlinks.
             path = Path(path_str).resolve()
         except Exception as e:
             msg = f"Invalid path: {e}"
@@ -42,7 +38,8 @@ class RAG:
 
         cwd = Path.cwd().resolve()
 
-        # Strict allowlist check: Must be relative to CWD (Project Root)
+        # Strict allowlist check: Must be relative to CWD
+        # Using is_relative_to correctly handles cross-platform paths in Python 3.9+
         if not path.is_relative_to(cwd):
             msg = "Path traversal detected in persist_dir. Must be within project root."
             raise ValueError(msg)
@@ -78,34 +75,39 @@ class RAG:
         except Exception as e:
             logger.exception("Failed to load index from %s", self.persist_dir)
             self.index = None
-            # Standardized Error
             raise RuntimeError(f"RAG Index Load Error: {e}") from e
 
     def _check_index_size(self) -> None:
         """
         Check if the index is too large and raise error if unsafe.
-        Uses rglob for cleaner recursion.
+        Uses optimized scanning with early termination.
         """
         total_size = 0
         limit_mb = self.settings.rag_max_index_size_mb
         limit_bytes = limit_mb * 1024 * 1024
 
         try:
-            # Efficiently sum file sizes
-            total_size = sum(f.stat().st_size for f in Path(self.persist_dir).rglob('*') if f.is_file())
+            # Iterative approach with early exit to avoid full scan if limit hit
+            stack = [self.persist_dir]
+            while stack:
+                current_dir = stack.pop()
+                with os.scandir(current_dir) as it:
+                    for entry in it:
+                        if entry.is_file():
+                            total_size += entry.stat().st_size
+                            if total_size > limit_bytes:
+                                msg = f"Vector store size exceeds limit ({limit_mb} MB). Loading blocked."
+                                logger.error(msg)
+                                raise MemoryError(msg)
+                        elif entry.is_dir():
+                            stack.append(entry.path)
         except OSError as e:
             logger.warning(f"Error scanning index directory: {e}")
-            # Fail safe or proceed? Proceeding might be risky if we can't read.
-            # But let's warn.
-
-        if total_size > limit_bytes:
-            msg = f"Vector store size ({total_size / 1024 / 1024:.2f} MB) exceeds limit ({limit_mb} MB). Loading blocked for memory safety."
-            logger.error(msg)
-            raise MemoryError(msg)
 
     def ingest_text(self, text: str, source: str) -> None:
         """
         Ingest text into the vector store in-memory.
+        Uses batch insertion.
         """
         chunk_size = self.settings.rag_chunk_size
 
@@ -121,13 +123,15 @@ class RAG:
             if self.index is None:
                 self.index = VectorStoreIndex.from_documents(documents)
             else:
+                # Batch insertion if supported by index, otherwise loop
+                # VectorStoreIndex usually inserts one by one unless we rebuild or use refresh
+                # But insert() is generally the API.
+                # Optimization: For very large batches, creating a new index from documents might be faster,
+                # but we want to append.
                 for doc in documents:
                     self.index.insert(doc)
         except Exception as e:
             logger.error(f"Failed to ingest document from {source}: {e}")
-            # Decide whether to raise or suppress.
-            # Suppressing ensures partial success in batch ops, but usually we want to know.
-            # Let's raise to be explicit.
             raise RuntimeError(f"Ingestion failed: {e}") from e
 
     def persist_index(self) -> None:
@@ -140,7 +144,6 @@ class RAG:
         """
         Query the index for relevant context.
         """
-        # Data Integrity: Strict Type Check
         if not isinstance(question, str):
              raise ValueError("Query must be a string.")
 
@@ -152,7 +155,6 @@ class RAG:
             logger.warning(f"Query too long ({len(question)} chars). Truncating to {max_len}.")
             question = question[:max_len]
 
-        # Sanitization
         question = question.strip()
 
         if self.index is None:

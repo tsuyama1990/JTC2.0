@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.simulation import create_simulation_graph
+from src.core.simulation import create_simulation_graph, _get_cached_agent
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
@@ -43,6 +43,8 @@ def test_simulation_turn_sequence(
     Verify that the simulation graph executes the correct sequence of turns:
     Pitch -> Finance -> Defense 1 -> Sales -> Defense 2 -> END.
     """
+    _get_cached_agent.cache_clear()
+
     # Create Mock Instances
     mock_new_emp = MagicMock()
     mock_finance = MagicMock()
@@ -100,6 +102,8 @@ def test_simulation_error_handling(
     The outer graph wrapper (safe_simulation_run) handles catching,
     but the internal graph should propagate or fail.
     """
+    _get_cached_agent.cache_clear()
+
     mock_get_llm.return_value = MagicMock()
 
     # Simulate an agent raising an exception during run

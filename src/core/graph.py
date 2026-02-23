@@ -7,7 +7,7 @@ from langgraph.graph.state import CompiledStateGraph
 from src.core.factory import AgentFactory
 from src.core.simulation import create_simulation_graph
 from src.domain_models.simulation import Role
-from src.domain_models.state import GlobalState, Phase
+from src.domain_models.state import GlobalState, GlobalStateValidators, Phase
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,13 @@ def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
 
 def verification_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Verification Phase."""
+    # Explicit validation before transition
+    try:
+        GlobalStateValidators.validate_phase_requirements(state)
+    except ValueError as e:
+        logger.error(f"Validation failed for Verification transition: {e}")
+        return {} # Or handle error state
+
     if not state.selected_idea:
         logger.error("Attempted to enter Verification Phase without a selected idea.")
 
@@ -38,6 +45,9 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     Runs the full turn-based simulation (Finance vs Sales vs New Employee).
     """
     logger.info("Starting Simulation Round (Turn-based Battle)")
+
+    # We could cache the compiled graph here if needed, but it's lightweight to create
+    # given the lazy agent instantiation pattern.
     simulation_app = create_simulation_graph()
     try:
         # invoke returns the final state dict/object
@@ -71,6 +81,15 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
 
 def solution_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Solution Phase."""
+    try:
+        GlobalStateValidators.validate_phase_requirements(state)
+    except ValueError as e:
+        logger.error(f"Validation failed for Solution transition: {e}")
+        # In a real app we might route to an error node or retry.
+        # For now, we log and proceed (or stay in current phase implicitly if we return empty?)
+        # Returning empty means no state update, effectively halting or looping.
+        return {}
+
     if not state.target_persona:
         logger.warning("Entering Solution Phase without a defined target persona.")
 
@@ -80,6 +99,12 @@ def solution_node(state: GlobalState) -> dict[str, Any]:
 
 def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
+    try:
+        GlobalStateValidators.validate_phase_requirements(state)
+    except ValueError as e:
+        logger.error(f"Validation failed for PMF transition: {e}")
+        return {}
+
     if not state.mvp_definition:
         logger.warning("Entering PMF Phase without an MVP definition.")
 
