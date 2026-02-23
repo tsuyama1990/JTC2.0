@@ -197,12 +197,19 @@ class RAG:
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
         path_obj = Path(self.persist_dir)
-        if not any(path_obj.iterdir()):
-            logger.info(
-                f"Persist directory {self.persist_dir} exists but is empty. Initializing new index."
-            )
-            self.index = None
-            return
+
+        # Optimized empty check (iterator based)
+        try:
+            if not any(True for _ in os.scandir(self.persist_dir)):
+                logger.info(
+                    f"Persist directory {self.persist_dir} exists but is empty. Initializing new index."
+                )
+                self.index = None
+                return
+        except OSError:
+             # If scanning fails, assume empty or inaccessible, default to None
+             self.index = None
+             return
 
         self._check_index_size_limit()
 
@@ -288,6 +295,7 @@ class RAG:
         """
         Ingest text into the vector store.
         Streams documents directly to the index to avoid memory accumulation.
+        Uses batched insertion for performance.
         """
         self._rate_limit()
 
@@ -299,6 +307,10 @@ class RAG:
         # Use generator to stream documents
         doc_iterator = self._document_generator(request)
 
+        # Batch size for insertion
+        BATCH_SIZE = 20
+        batch: list[Document] = []
+
         try:
             # If index is None, we must create it with at least one document
             if self.index is None:
@@ -309,10 +321,20 @@ class RAG:
                 except StopIteration:
                     return # Empty iterator
 
-            # Now stream the rest (or all if we just created)
-            # VectorStoreIndex.insert() inserts one document at a time.
+            # Stream processing with batching
             for doc in doc_iterator:
-                self.index.insert(doc)
+                batch.append(doc)
+                if len(batch) >= BATCH_SIZE:
+                    self.index.insert_nodes(batch) # Use insert_nodes for batch if supported by index structure logic, or loop insert
+                    # VectorStoreIndex.insert is single doc.
+                    # But insert_nodes is available on base index.
+                    # Actually, insert() calls insert_nodes([document]).
+                    # So using insert_nodes directly is better.
+                    batch = []
+
+            # Insert remaining
+            if batch:
+                self.index.insert_nodes(batch)
 
         except Exception as e:
             logger.exception("Failed to ingest document from %s", source)

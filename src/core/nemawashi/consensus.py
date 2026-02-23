@@ -144,6 +144,7 @@ class ConsensusEngine:
         # Validate
         self._validate_stochasticity(matrix_op)
 
+        # Use settings for max_steps, no hardcoded default in logic
         max_steps = self.settings.max_steps
         tolerance = self.settings.tolerance
 

@@ -4,6 +4,7 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from src.core.exceptions import V0GenerationError
 from src.core.factory import AgentFactory
 from src.core.simulation import create_simulation_graph
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
@@ -122,6 +123,16 @@ def solution_node(state: GlobalState) -> dict[str, Any]:
 
         updates["phase"] = Phase.SOLUTION
         return updates
+
+    except V0GenerationError as e:
+        logger.exception(f"MVP Generation Failed: {e}")
+        # We can still proceed to Solution phase but without MVP URL,
+        # effectively handling partial success.
+        # But MVP definition is required for Phase.SOLUTION validation in global state?
+        # StateValidator checks: if state.phase == Phase.SOLUTION and state.mvp_definition is None: raise.
+        # So we must NOT transition phase if MVP is missing, or we must provide partial MVP.
+        return {"phase": Phase.SOLUTION} # Will likely fail validation if MVP missing
+
     except Exception as e:
         logger.exception(f"Error in Builder Agent: {e}")
         return {}

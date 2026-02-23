@@ -54,18 +54,18 @@ src/core/config.py                   141      0   100%
 src/core/constants.py                 94      0   100%
 src/core/exceptions.py                 6      0   100%
 src/core/factory.py                   33     15    55%   23-24, 35-49
-src/core/graph.py                     99     42    58%   22-24, 30-40, 62-69, 74-81, 88-90, 93, 125-127, 132-142
+src/core/graph.py                    103     45    56%   23-25, 31-41, 63-70, 75-82, 89-91, 94, 127-138, 143-153
 src/core/llm.py                        8      0   100%
 src/core/nemawashi/__init__.py         5      0   100%
 src/core/nemawashi/analytics.py       52     22    58%   26, 33, 41-45, 55-56, 80-98, 102-107
-src/core/nemawashi/consensus.py       76     10    87%   45-47, 50, 82, 115-116, 131, 142, 162
+src/core/nemawashi/consensus.py       76     10    87%   45-47, 50, 82, 115-116, 131, 142, 163
 src/core/nemawashi/engine.py          19      1    95%   34
 src/core/nemawashi/nomikai.py         42      2    95%   33-34
 src/core/simulation.py                49      1    98%   42
 src/core/theme.py                     18      0   100%
 src/core/validators.py                47     10    79%   47, 50-51, 53-54, 61, 64-65, 67-68
 src/data/__init__.py                   2      0   100%
-src/data/rag.py                      204     26    87%   58-59, 66-67, 89-90, 134-135, 144, 149-151, 187, 219-221, 257, 261-262, 296-297, 310, 364, 370-378
+src/data/rag.py                      215     31    86%   58-59, 66-67, 89-90, 134-135, 144, 149-151, 187, 209-212, 226-228, 264, 268-269, 304-305, 322, 328-333, 386, 392-400
 src/domain_models/__init__.py          6      0   100%
 src/domain_models/common.py           23      0   100%
 src/domain_models/enums.py            11      0   100%
@@ -83,5 +83,5 @@ src/tools/search.py                   34      2    94%   39, 75
 src/tools/v0_client.py                39      0   100%
 src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 128-134, 154
 ----------------------------------------------------------------
-TOTAL                               1672    193    88%
-============================= 115 passed in 19.87s =============================
+TOTAL                               1687    201    88%
+============================= 115 passed in 19.03s =============================
