@@ -5,6 +5,7 @@ This module encapsulates the structure of the MVP, including its type, core feat
 and success criteria, following the 'Lean Startup' methodology.
 """
 
+import re
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
@@ -18,7 +19,6 @@ from src.core.constants import (
     DESC_MVP_SUCCESS_CRITERIA,
     DESC_MVP_TYPE,
 )
-import re
 
 
 class MVPType(StrEnum):

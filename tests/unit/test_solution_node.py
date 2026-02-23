@@ -4,8 +4,9 @@ import pytest
 
 from src.core.graph import solution_node
 from src.domain_models.lean_canvas import LeanCanvas
+from src.domain_models.mvp import MVP, MVPSpec
 from src.domain_models.state import GlobalState, Phase
-from src.domain_models.mvp import MVPSpec, MVPType, Priority, MVP
+
 
 class TestSolutionNode:
     @pytest.fixture

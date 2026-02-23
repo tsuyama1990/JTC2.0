@@ -5,8 +5,8 @@ import pytest
 
 from src.core.config import get_settings
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.state import GlobalState
 from src.domain_models.mvp import MVPSpec
+from src.domain_models.state import GlobalState
 from tests.conftest import DUMMY_ENV_VARS
 
 # We assume integration via graph, but for UAT we can simulate the node execution
