@@ -1,21 +1,20 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.core.graph import (
     create_app,
-    nemawashi_analysis_node,
-    transcript_ingestion_node,
-    solution_proposal_node,
     mvp_generation_node,
+    nemawashi_analysis_node,
+    solution_proposal_node,
+    transcript_ingestion_node,
 )
-from src.domain_models.state import GlobalState, Phase
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.transcript import Transcript
-from src.domain_models.politics import InfluenceNetwork, Stakeholder
 from src.domain_models.mvp import MVPSpec
+from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.domain_models.state import GlobalState, Phase
+from src.domain_models.transcript import Transcript
 
 
 @pytest.fixture

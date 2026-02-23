@@ -1,4 +1,5 @@
 import logging
+import time
 
 import httpx
 import pybreaker
@@ -74,25 +75,41 @@ class V0Client:
             "stream": False
         }
 
+        max_retries = 3
+        backoff_factor = 2
+
         try:
             with httpx.Client(timeout=60.0) as client:
-                response = client.post(self.base_url, headers=headers, json=payload)
+                for attempt in range(max_retries + 1):
+                    response = client.post(self.base_url, headers=headers, json=payload)
 
-                if response.status_code != 200:
+                    if response.status_code == 200:
+                        data = response.json()
+                        if "url" in data:
+                            return str(data["url"])
+                        msg = ERR_V0_NO_URL.format(keys=list(data.keys()))
+                        logger.error(msg)
+                        raise V0GenerationError(msg)
+
+                    if response.status_code == 429:
+                        if attempt < max_retries:
+                            sleep_time = backoff_factor ** attempt
+                            logger.warning(f"Rate limited by v0.dev. Retrying in {sleep_time}s...")
+                            time.sleep(sleep_time)
+                            continue
+                        msg = "v0.dev rate limit exceeded after retries."
+                        logger.error(msg)
+                        raise V0GenerationError(msg)
+
+                    # Other non-200 errors
                     msg = ERR_V0_GENERATION_FAILED.format(status_code=response.status_code)
                     logger.error(f"v0.dev API error: {response.status_code} - {response.text}")
                     raise V0GenerationError(msg)
-
-                data = response.json()
-
-                if "url" in data:
-                    return str(data["url"])
-
-                msg = ERR_V0_NO_URL.format(keys=list(data.keys()))
-                logger.error(msg)
-                raise V0GenerationError(msg)
 
         except httpx.RequestError as e:
             msg = ERR_V0_NETWORK_ERROR.format(e=e)
             logger.exception(msg)
             raise V0GenerationError(msg) from e
+
+        # Should be unreachable if logic is correct, but for safety
+        raise V0GenerationError("Unknown error in v0 generation flow")

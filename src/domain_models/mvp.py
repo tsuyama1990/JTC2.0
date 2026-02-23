@@ -126,3 +126,12 @@ class MVPSpec(BaseModel):
                 msg = f"Invalid component name: {comp}. Must be alphanumeric."
                 raise ValueError(msg)
         return v
+
+    @field_validator("v0_prompt")
+    @classmethod
+    def validate_v0_prompt(cls, v: str | None) -> str | None:
+        """Ensure v0_prompt is non-empty if provided."""
+        if v is not None and not v.strip():
+            msg = "v0_prompt must be a non-empty string if provided."
+            raise ValueError(msg)
+        return v

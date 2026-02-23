@@ -12,61 +12,41 @@ This subgraph is invoked by the main application graph during the 'simulation_ro
 """
 
 import logging
-from functools import lru_cache
-from typing import Any
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from src.agents.personas import FinanceAgent, NewEmployeeAgent, SalesAgent
-from src.core.llm import get_llm
+from src.core.factory import AgentFactory
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
 
-# Use LRU cache to prevent memory leaks from unbounded @cache
-@lru_cache(maxsize=10)
-def _get_cached_agent(role: Role) -> Any:
-    """
-    Singleton-like access for agents to prevent recreation loops.
-    """
-    llm = get_llm()
-    if role == Role.NEW_EMPLOYEE:
-        return NewEmployeeAgent(llm)
-    if role == Role.FINANCE:
-        return FinanceAgent(llm)
-    if role == Role.SALES:
-        return SalesAgent(llm)
-    msg = f"Unknown role: {role}"
-    raise ValueError(msg)
-
-
 def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
     """Create the simulation sub-graph."""
 
-    # We use the cached factory inside node functions
+    # We use the factory which handles caching
 
     def run_pitch(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 1: New Employee Pitch")
-        return _get_cached_agent(Role.NEW_EMPLOYEE).run(state)
+        return AgentFactory.get_persona_agent(Role.NEW_EMPLOYEE).run(state)
 
     def run_finance(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 2: Finance Critique")
-        return _get_cached_agent(Role.FINANCE).run(state)
+        return AgentFactory.get_persona_agent(Role.FINANCE).run(state)
 
     def run_defense_1(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 3: New Employee Defense")
-        return _get_cached_agent(Role.NEW_EMPLOYEE).run(state)
+        return AgentFactory.get_persona_agent(Role.NEW_EMPLOYEE).run(state)
 
     def run_sales(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 4: Sales Critique")
-        return _get_cached_agent(Role.SALES).run(state)
+        return AgentFactory.get_persona_agent(Role.SALES).run(state)
 
     def run_defense_2(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 5: New Employee Final Defense")
-        return _get_cached_agent(Role.NEW_EMPLOYEE).run(state)
+        return AgentFactory.get_persona_agent(Role.NEW_EMPLOYEE).run(state)
 
     workflow = StateGraph(GlobalState)
 

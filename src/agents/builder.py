@@ -33,32 +33,46 @@ class BuilderAgent(BaseAgent):
     def _extract_features(self, solution_description: str) -> list[str]:
         """
         Extract discrete features from the solution description using LLM.
+        Implements chunking for large inputs to prevent memory overload.
         """
         if not solution_description or len(solution_description) < 10:
             logger.warning("Solution description too short for feature extraction.")
             return []
 
-        # Sanitize input (basic check)
-        if len(solution_description) > 5000:
-             logger.warning("Solution description too long, truncating.")
-             solution_description = solution_description[:5000]
+        # Chunking logic for memory safety
+        CHUNK_SIZE = 2000
+        all_features: list[str] = []
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", "You are a product manager. Extract distinct features from the solution description."),
-                ("user", f"Solution Description: {solution_description}\n\nList the features:")
-            ]
-        )
-        chain = prompt | self.llm.with_structured_output(FeatureList)
-        try:
-            result = chain.invoke({})
-        except Exception:
-            logger.exception("Failed to extract features")
-            return []
+        chunks = [
+            solution_description[i : i + CHUNK_SIZE]
+            for i in range(0, len(solution_description), CHUNK_SIZE)
+        ]
 
-        if isinstance(result, FeatureList):
-            return result.features
-        return []
+        for chunk in chunks:
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", "You are a product manager. Extract distinct features from the solution description."),
+                    ("user", f"Solution Description: {chunk}\n\nList the features:")
+                ]
+            )
+            chain = prompt | self.llm.with_structured_output(FeatureList)
+            try:
+                result = chain.invoke({})
+                if isinstance(result, FeatureList):
+                    all_features.extend(result.features)
+            except Exception:
+                logger.exception("Failed to extract features from chunk")
+                continue
+
+        # Deduplicate features while preserving order
+        seen = set()
+        unique_features = []
+        for f in all_features:
+            if f not in seen:
+                seen.add(f)
+                unique_features.append(f)
+
+        return unique_features
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """

@@ -8,7 +8,7 @@ from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.enums import Phase, Role
 from src.domain_models.validators import StateValidator
 
-__all__ = ["Phase", "GlobalState"]
+__all__ = ["GlobalState", "Phase"]
 
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics

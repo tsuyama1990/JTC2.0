@@ -26,7 +26,7 @@ class CPOAgent(PersonaAgent):
         llm: ChatOpenAI,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
-        rag_path: str = "./vector_store",
+        rag_path: str | None = None,
     ) -> None:
         system_prompt = (
             "You are the Chief Product Officer (CPO). "
@@ -38,7 +38,10 @@ class CPOAgent(PersonaAgent):
             "between the Plan and the Customer Interview."
         )
         super().__init__(llm, Role.CPO, system_prompt, search_tool, app_settings)
-        self.rag = RAG(persist_dir=rag_path)
+
+        # Use provided path or fallback to settings (not hardcoded string)
+        actual_rag_path = rag_path or self.settings.rag_persist_dir
+        self.rag = RAG(persist_dir=actual_rag_path)
 
     def _research_impl(self, topic: str) -> str:
         """

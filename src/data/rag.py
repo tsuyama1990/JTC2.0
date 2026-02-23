@@ -180,10 +180,12 @@ class RAG:
     def _sanitize_query(self, query: str) -> str:
         """
         Sanitize input query to prevent injection or processing issues.
+        Efficient implementation using list comprehension.
         """
         # Remove control characters (e.g. null bytes)
-        sanitized = "".join(ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127)
-        return sanitized.strip()
+        # Using list comprehension for performance on large strings
+        chars = [ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127]
+        return "".join(chars).strip()
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
@@ -200,7 +202,8 @@ class RAG:
 
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
-        # path_obj removed as unused (F841)
+        # Check size before any loading attempt to prevent OOM
+        self._check_index_size_limit()
 
         # Optimized empty check (iterator based)
         try:
@@ -215,16 +218,11 @@ class RAG:
              self.index = None
              return
 
-        self._check_index_size_limit()
-
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
 
-            # MEMORY SAFETY: We assume load_index_from_storage loads efficiently.
-            # LlamaIndex loads indices into memory. To prevent OOM, we should check size.
-            # We already check _current_index_size in _check_index_size_limit().
-
+            # MEMORY SAFETY: We rely on _check_index_size_limit() called above.
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
         except Exception:
