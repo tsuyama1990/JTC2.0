@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -54,4 +54,15 @@ class MVP(BaseModel):
         description=DESC_MVP_SUCCESS_CRITERIA,
         min_length=get_settings().validation.min_content_length,
         max_length=500,
+    )
+
+    # New fields for v0.dev integration
+    # Changed to HttpUrl for validation
+    v0_url: HttpUrl | None = Field(
+        default=None,
+        description="URL of the deployed MVP on v0.dev",
+    )
+    deployment_status: str = Field(
+        default="pending",
+        description="Status of the MVP deployment (e.g., pending, deployed, failed)",
     )

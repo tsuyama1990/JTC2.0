@@ -1,11 +1,19 @@
+import itertools
+import os
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from langgraph.graph.state import CompiledStateGraph
 
 # We import create_app but we will mock the LLM and Tools inside it
+from src.core.config import get_settings
 from src.core.graph import create_app
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.state import GlobalState, Phase
+from src.domain_models.mvp import MVP, MVPType, Priority, Feature
+from src.domain_models.persona import Persona, EmpathyMap
+from src.domain_models.state import GlobalState, Phase, LazyIdeaIterator
+from tests.conftest import DUMMY_ENV_VARS
 
 
 @pytest.fixture
@@ -13,76 +21,126 @@ def mock_llm_factory() -> MagicMock:
     return MagicMock()
 
 
+@pytest.fixture
+def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
+    """Yields a limited sequence of LeanCanvas objects on demand."""
+    def _gen() -> Iterator[LeanCanvas]:
+        for i in range(20):
+            yield LeanCanvas(
+                id=i,
+                title=f"Idea {i}",
+                problem="Problem statement text",
+                customer_segments="Customer Segments",
+                unique_value_prop="Unique Value Proposition",
+                solution="Solution description text",
+            )
+    return _gen()
+
+
+@patch.dict(os.environ, DUMMY_ENV_VARS)
 @patch("src.core.graph.IdeatorAgent")
 @patch("src.core.graph.get_llm")
-def test_uat_cycle01_ideation_and_selection(
-    mock_get_llm: MagicMock, mock_ideator_cls: MagicMock
+def test_ideation_scalability(
+    mock_get_llm: MagicMock,
+    mock_ideator_cls: MagicMock,
+    limited_lean_canvas_generator: Iterator[LeanCanvas]
 ) -> None:
     """
-    UAT Scenario:
-    1. User inputs topic "AI for Agriculture".
-    2. System generates 10 ideas.
-    3. User selects idea #2.
-    4. System updates state.
-
-    This integration test runs the actual LangGraph compiled app,
-    but mocks the external LLM and Search calls via the IdeatorAgent mock.
+    Verify that the Ideation phase handles large/infinite iterators safely
+    by consuming only what is needed (pagination).
     """
+    get_settings.cache_clear()
 
-    # 1. Setup Logic Mock
     mock_ideator_instance = mock_ideator_cls.return_value
+    # Return wrapped iterator as expected by strict validation
+    mock_ideator_instance.run.return_value = {"generated_ideas": LazyIdeaIterator(limited_lean_canvas_generator)}
 
-    generated_ideas = [
-        LeanCanvas(
-            id=i,
-            title=f"Idea {i}",
-            problem="Problem statement text",
-            customer_segments="Customer Segments",
-            unique_value_prop="Unique Value Proposition",
-            solution="Solution description text",
-        )
-        for i in range(10)
-    ]
-
-    # The agent run method returns a dict update
-    # IMPORTANT: We must return an iterator here because GlobalState expects Iterator[LeanCanvas]
-    mock_ideator_instance.run.return_value = {"generated_ideas": iter(generated_ideas)}
-
-    # 2. Build App
     app = create_app()
+    initial_state = GlobalState(topic="AI for Scalability")
 
-    # 3. Execution (Step 1 & 2)
-    initial_state = GlobalState(topic="AI for Agriculture")
-    final_state_dict = app.invoke(initial_state)
+    # Run to Ideation interrupt
+    result_dict = app.invoke(initial_state)
 
-    # Convert dict back to State model for assertion convenience
-    # (LangGraph returns dict by default in compiled graph unless configured otherwise)
-    if isinstance(final_state_dict, dict):
-        final_state = GlobalState(**final_state_dict)
-    else:
-        final_state = final_state_dict  # Should not happen with default LangGraph
+    ideas_iter = result_dict["generated_ideas"]
+    assert isinstance(ideas_iter, LazyIdeaIterator)
 
-    # 4. Verification
-    # Since generated_ideas is now an Iterable, we convert to list to check length
-    # Note: Consuming the iterator here means final_state.generated_ideas is exhausted
-    # unless we re-populate it or use the consumed list for further checks.
-    assert final_state.generated_ideas is not None
-    ideas_list = list(final_state.generated_ideas)
-    assert len(ideas_list) == 10
-    assert final_state.phase == Phase.IDEATION
+    # Verify consumption logic (paging)
+    page_size = 5
+    page_1 = list(itertools.islice(ideas_iter, page_size))
 
-    # Verify the agent was called
-    mock_ideator_instance.run.assert_called()
+    assert len(page_1) == 5
+    assert page_1[0].id == 0
+    assert page_1[4].id == 4
 
-    # 5. Selection (Simulated Logic)
-    # Since the Graph only runs the Ideator node currently, the Selection part is handled
-    # by the CLI logic (main.py) which updates the state.
-    # In Cycle 1, the Graph stops after Ideation.
+    # Check that we can continue consuming (it wasn't exhausted or closed)
+    next_item = next(ideas_iter)
+    assert next_item.id == 5
 
-    selected_id = 2
-    # We must select from the captured list because final_state.generated_ideas generator is consumed above
-    selected_canvas = next(idea for idea in ideas_list if idea.id == selected_id)
 
-    # Verify we can select
-    assert selected_canvas.id == 2
-    assert selected_canvas.title == "Idea 2"
+@patch.dict(os.environ, DUMMY_ENV_VARS)
+@patch("src.core.graph.IdeatorAgent")
+@patch("src.core.graph.get_llm")
+def test_gate_transitions_data_integrity(
+    mock_get_llm: MagicMock,
+    mock_ideator_cls: MagicMock
+) -> None:
+    """
+    Verify that state transitions through gates maintain data integrity
+    and validation rules hold.
+    """
+    get_settings.cache_clear()
+
+    # Setup initial state simulating post-Ideation (Gate 1 passed)
+    # We construct a valid state manually as if we just picked an idea.
+    selected_idea = LeanCanvas(
+        id=1,
+        title="Selected Idea",
+        problem="Problem statement text",
+        customer_segments="Customer Segments",
+        unique_value_prop="Unique Value Proposition",
+        solution="Solution description text"
+    )
+
+    state_after_gate_1 = GlobalState(
+        topic="AI Integrity",
+        generated_ideas=None, # Consumed or irrelevant for next phase
+        selected_idea=selected_idea
+    )
+
+    # 1. Validate Transition to Verification
+    dummy_persona = Persona(
+        name="Valid Persona",
+        occupation="Tester",
+        demographics="Data Center Worker",
+        goals=["Pass tests"],
+        frustrations=["Failures"],
+        bio="Test Bio",
+        empathy_map=EmpathyMap(says=["Hi"], thinks=["Logic"], does=["Code"], feels=["Good"])
+    )
+
+    state_ready_for_verification = state_after_gate_1.model_copy()
+    state_ready_for_verification.target_persona = dummy_persona
+    state_ready_for_verification.phase = Phase.VERIFICATION
+
+    # Should pass
+    GlobalState.model_validate(state_ready_for_verification.model_dump())
+
+    # 2. Validate Transition to Solution
+    dummy_mvp = MVP(
+        type=MVPType.LANDING_PAGE,
+        core_features=[Feature(name="Feature1", description="Description", priority=Priority.MUST_HAVE)],
+        success_criteria="Criteria",
+        v0_url="https://v0.dev/test"
+    )
+
+    state_ready_for_solution = state_ready_for_verification.model_copy()
+    state_ready_for_solution.mvp_definition = dummy_mvp
+    state_ready_for_solution.phase = Phase.SOLUTION
+
+    GlobalState.model_validate(state_ready_for_solution.model_dump())
+
+    # 3. Validate Transition to PMF
+    state_ready_for_pmf = state_ready_for_solution.model_copy()
+    state_ready_for_pmf.phase = Phase.PMF
+
+    GlobalState.model_validate(state_ready_for_pmf.model_dump())

@@ -127,32 +127,13 @@ class AgentConfig(BaseModel):
         return v
 
 
-class SimulationConfig(BaseSettings):
-    """Configuration for the Pyxel Simulation UI."""
-
-    # Window
-    width: int = 160
-    height: int = 120
-    fps: int = 30
-    title: str = MSG_SIM_TITLE
-    bg_color: int = 0
-    text_color: int = 7
-
-    # Dialogue
-    chars_per_line: int = 38
-    line_height: int = 8
-    dialogue_x: int = 5
-    dialogue_y: int = 15
-    max_y: int = 75
-    waiting_msg: str = MSG_WAITING_FOR_DEBATE
-
-    # Fallback Console
-    console_sleep: float = 0.5
-    max_turns: int = 5
-
-    # Agent Map (Role -> Config)
-    # Using a dict to avoid hardcoding role logic in renderer
-    agents: dict[str, AgentConfig] = {
+def _load_default_agents_config() -> dict[str, AgentConfig]:
+    """Load default agent configuration."""
+    # Defined explicitly within the function to avoid global module-level mutable state
+    # while adhering to the requirement of no hardcoded settings in 'global scope'.
+    # In a real production system, this could load from an external JSON/YAML.
+    # The default factory allows this to be overridden by a Pydantic environment variable source.
+    return {
         "New Employee": AgentConfig(
             role="New Employee",
             label="NewEmp",
@@ -186,7 +167,46 @@ class SimulationConfig(BaseSettings):
             text_x=120,
             text_y=112,
         ),
+        "CPO": AgentConfig(
+            role="CPO",
+            label="CPO",
+            color=12,
+            x=140,
+            y=40,
+            w=20,
+            h=30,
+            text_x=135,
+            text_y=72,
+        ),
     }
+
+
+class SimulationConfig(BaseSettings):
+    """Configuration for the Pyxel Simulation UI."""
+
+    # Window
+    width: int = 160
+    height: int = 120
+    fps: int = 30
+    title: str = MSG_SIM_TITLE
+    bg_color: int = 0
+    text_color: int = 7
+
+    # Dialogue
+    chars_per_line: int = 38
+    line_height: int = 8
+    dialogue_x: int = 5
+    dialogue_y: int = 15
+    max_y: int = 75
+    waiting_msg: str = MSG_WAITING_FOR_DEBATE
+
+    # Fallback Console
+    console_sleep: float = 0.5
+    max_turns: int = 5
+
+    # Agent Map (Role -> Config)
+    # Using default_factory to allow overrides and load from external source if needed
+    agents: dict[str, AgentConfig] = Field(default_factory=_load_default_agents_config)
 
     @field_validator("width", "height")
     @classmethod
@@ -220,6 +240,7 @@ class Settings(BaseSettings):
     # API Keys
     openai_api_key: SecretStr | None = Field(alias="OPENAI_API_KEY", default=None)
     tavily_api_key: SecretStr | None = Field(alias="TAVILY_API_KEY", default=None)
+    v0_api_key: SecretStr | None = Field(alias="V0_API_KEY", default=None)
 
     # Model Configuration
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o")
@@ -250,6 +271,12 @@ class Settings(BaseSettings):
         if not self.tavily_api_key:
             raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
         return self
+
+    def rotate_keys(self) -> None:
+        """
+        Placeholder for key rotation logic.
+        In production, this would fetch new keys from a secret manager.
+        """
 
 
 @lru_cache

@@ -25,6 +25,17 @@ class PersonaAgent(BaseAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
+        self._base_init(llm, role, system_prompt, search_tool, app_settings)
+
+    def _base_init(
+        self,
+        llm: ChatOpenAI,
+        role: Role,
+        system_prompt: str,
+        search_tool: SearchTool | None,
+        app_settings: Settings | None,
+    ) -> None:
+        """Common initialization logic."""
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
@@ -39,21 +50,25 @@ class PersonaAgent(BaseAgent):
             if self.settings.tavily_api_key
             else None
         )
+        self._research_cache: dict[str, str] = {}
+        self._last_request_time: float = 0.0
+        self._min_request_interval: float = 1.0
 
     def _build_context(self, state: GlobalState) -> str:
         """Construct the conversation history context."""
-        context = []
+        context_parts = ["\nDEBATE HISTORY:"]
+
         if state.selected_idea:
-            context.append(f"IDEA: {state.selected_idea.title}")
-            context.append(f"PROBLEM: {state.selected_idea.problem}")
-            context.append(f"SOLUTION: {state.selected_idea.solution}")
-            context.append(f"UVP: {state.selected_idea.unique_value_prop}")
+            # Efficient prepending logic or just standard order
+            context_parts.insert(0, f"UVP: {state.selected_idea.unique_value_prop}")
+            context_parts.insert(0, f"SOLUTION: {state.selected_idea.solution}")
+            context_parts.insert(0, f"PROBLEM: {state.selected_idea.problem}")
+            context_parts.insert(0, f"IDEA: {state.selected_idea.title}")
 
-        context.append("\nDEBATE HISTORY:")
-        for msg in state.debate_history:
-            context.append(f"{msg.role}: {msg.content}")
+        # Generator expression for history
+        context_parts.extend(f"{msg.role}: {msg.content}" for msg in state.debate_history)
 
-        return "\n".join(context)
+        return "\n".join(context_parts)
 
     def _generate_response(self, context: str, research_data: str = "") -> str:
         """Generate response using LLM."""
@@ -67,16 +82,40 @@ class PersonaAgent(BaseAgent):
         response = chain.invoke({})
         return str(response.content)
 
+    def _rate_limit_wait(self) -> None:
+        """Enforce rate limiting for API calls."""
+        current_time = time.time()
+        elapsed = current_time - self._last_request_time
+        if elapsed < self._min_request_interval:
+            time.sleep(self._min_request_interval - elapsed)
+        self._last_request_time = time.time()
+
+    def _cached_research(self, topic: str) -> str:
+        """Cache research results to avoid redundant API calls."""
+        if topic in self._research_cache:
+            return self._research_cache[topic]
+
+        # Removed redundant hasattr check as _base_init guarantees search_tool and logic presence
+        # But we still need to know if _research_impl exists on the subclass
+        if hasattr(self, "_research_impl"):
+            self._rate_limit_wait()
+            # Ensure return type is str
+            result: str = self._research_impl(topic)
+            self._research_cache[topic] = result
+            return result
+        return ""
+
     def run(self, state: GlobalState) -> dict[str, Any]:
         """Run the agent logic."""
         context = self._build_context(state)
         research_data = ""
 
         # Override in subclasses if research is needed
-        if hasattr(self, "_research") and state.selected_idea:
+        if hasattr(self, "_research_impl") and state.selected_idea:
              title = state.selected_idea.title
              logger.debug(f"Agent {self.role} executing research on: {title}")
-             research_data = self._research(title)
+             # Use the cached wrapper
+             research_data = self._cached_research(title)
 
         content = self._generate_response(context, research_data)
         logger.debug(f"Agent {self.role} generated response: {content[:50]}...")
@@ -111,11 +150,9 @@ class FinanceAgent(PersonaAgent):
             "You use market data to find reasons why new ideas will fail. "
             "Be critical but professional."
         )
-        super().__init__(
-            llm, Role.FINANCE, system_prompt, search_tool, app_settings
-        )
+        self._base_init(llm, Role.FINANCE, system_prompt, search_tool, app_settings)
 
-    def _research(self, topic: str) -> str:
+    def _research_impl(self, topic: str) -> str:
         """Perform market research on risks."""
         query = f"market risks and costs for {topic}"
         return self.search_tool.safe_search(query)
@@ -135,9 +172,7 @@ class SalesAgent(PersonaAgent):
             "You worry about cannibalizing existing products and whether the sales force can actually sell this. "
             "You care about immediate revenue and customer trust."
         )
-        super().__init__(
-            llm, Role.SALES, system_prompt, search_tool, app_settings
-        )
+        self._base_init(llm, Role.SALES, system_prompt, search_tool, app_settings)
 
 
 class NewEmployeeAgent(PersonaAgent):
@@ -154,6 +189,28 @@ class NewEmployeeAgent(PersonaAgent):
             "You are nervous. You try to answer questions but often falter. "
             "You defend the idea passionately but acknowledge weaknesses."
         )
-        super().__init__(
-            llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings
+        self._base_init(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)
+
+
+class CPOAgent(PersonaAgent):
+    """The silent Mentor CPO."""
+
+    def __init__(
+        self,
+        llm: ChatOpenAI,
+        search_tool: SearchTool | None = None,
+        app_settings: Settings | None = None,
+    ) -> None:
+        system_prompt = (
+            "You are the Chief Product Officer (CPO). "
+            "You are a mentor to the New Employee. "
+            "You do not speak in the main meeting. "
+            "In the rooftop phase, you provide fact-based advice using market data. "
+            "You never give the final answer, but provide 'weapons' (facts/examples) to help them win the argument."
         )
+        self._base_init(llm, Role.CPO, system_prompt, search_tool, app_settings)
+
+    def _research_impl(self, topic: str) -> str:
+        """Perform deep market research for mentoring."""
+        query = f"successful business models and case studies similar to {topic}"
+        return self.search_tool.safe_search(query)

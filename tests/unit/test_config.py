@@ -9,13 +9,19 @@ from src.core.config import AgentConfig, SimulationConfig, get_settings
 
 def test_config_loading_success() -> None:
     """Test successful configuration loading."""
-    with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-123", "TAVILY_API_KEY": "tv-123"}):
+    with patch.dict(os.environ, {
+        "OPENAI_API_KEY": "sk-123",
+        "TAVILY_API_KEY": "tv-123",
+        "V0_API_KEY": "v0-123"
+    }):
         get_settings.cache_clear()
         settings = get_settings()
         assert settings.openai_api_key is not None
         assert settings.openai_api_key.get_secret_value() == "sk-123"
         assert settings.tavily_api_key is not None
         assert settings.tavily_api_key.get_secret_value() == "tv-123"
+        assert settings.v0_api_key is not None
+        assert settings.v0_api_key.get_secret_value() == "v0-123"
 
 
 def test_config_missing_openai_key() -> None:
@@ -94,9 +100,10 @@ def test_agent_config_validation() -> None:
 def test_simulation_config_validation() -> None:
     """Test validation for SimulationConfig."""
     # Valid
-    SimulationConfig(
+    config = SimulationConfig(
         width=160, height=120, fps=30, bg_color=0, text_color=7
     )
+    assert "CPO" in config.agents
 
     # Invalid FPS
     with pytest.raises(ValidationError):

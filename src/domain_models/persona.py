@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -45,6 +45,9 @@ class EmpathyMap(BaseModel):
 
 
 class Persona(BaseModel):
+    """
+    Represents the Target Customer Persona.
+    """
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(
@@ -84,3 +87,25 @@ class Persona(BaseModel):
         max_length=get_settings().validation.max_content_length,
     )
     empathy_map: EmpathyMap | None = None
+
+    # New fields for fact-based validation
+    is_fact_based: bool = Field(
+        default=False,
+        description="True if the persona has been validated with primary research (e.g. interviews).",
+    )
+    interview_insights: list[str] = Field(
+        default_factory=list,
+        description="Key insights derived from customer interviews.",
+        min_length=0,
+        max_length=50, # Added max length limit
+    )
+
+    @field_validator("interview_insights")
+    @classmethod
+    def validate_insights_content(cls, v: list[str]) -> list[str]:
+        """Validate content of interview insights."""
+        for insight in v:
+            if len(insight.strip()) < 5:
+                msg = f"Insight '{insight}' is too short."
+                raise ValueError(msg)
+        return v
