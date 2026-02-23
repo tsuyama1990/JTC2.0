@@ -1,3 +1,4 @@
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,9 +11,14 @@ DUMMY_ENV_VARS = {
     "V0_API_KEY": "v0-dummy-test-key",
 }
 
+# Apply dummy env vars immediately for module-level imports during collection
+os.environ.update(DUMMY_ENV_VARS)
+
+
 @pytest.fixture
 def mock_llm_factory() -> MagicMock:
     return MagicMock()
+
 
 @pytest.fixture
 def dummy_env() -> dict[str, str]:

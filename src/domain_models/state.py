@@ -11,6 +11,7 @@ from .metrics import Metrics
 from .mvp import MVP
 from .persona import Persona
 from .simulation import AgentState, DialogueMessage, Role
+from .transcript import Transcript
 
 
 class Phase(StrEnum):
@@ -52,8 +53,8 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
     def __next__(self) -> LeanCanvas:
         # Delegate to the wrapped iterator
         if self._consumed:
-             # Already marked as started
-             pass
+            # Already marked as started
+            pass
         self._consumed = True
         return next(self._iterator)
 
@@ -62,6 +63,9 @@ class GlobalState(BaseModel):
     """The central state of the LangGraph workflow."""
 
     # Strict validation enabled, but arbitrary types allowed for Iterator wrapper
+    # We maintain arbitrary_types_allowed=True due to LazyIdeaIterator being a complex iterator
+    # wrapper that Pydantic cannot fully validate without generics.
+    # However, we add strict field validation where possible.
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     phase: Phase = Phase.IDEATION
@@ -80,19 +84,26 @@ class GlobalState(BaseModel):
     debate_history: list[DialogueMessage] = Field(default_factory=list)
     simulation_active: bool = False
 
-    # New fields for architecture compliance
-    transcript: str | None = Field(default=None, description="Raw transcript from PLAUD or interviews")
-    agent_states: dict[Role, AgentState] = Field(
-        default_factory=dict,
-        description="Persistent state of agents (e.g. DeGroot weights)"
+    # Updated fields for Cycle 3
+    transcripts: list[Transcript] = Field(
+        default_factory=list, description="Raw transcripts from PLAUD or interviews"
+    )
+    rag_index_path: str = Field(
+        default_factory=lambda: get_settings().rag_persist_dir,
+        description="Path to the local vector store",
     )
 
-    @field_validator("transcript")
+    agent_states: dict[Role, AgentState] = Field(
+        default_factory=dict, description="Persistent state of agents (e.g. DeGroot weights)"
+    )
+
+    @field_validator("transcripts")
     @classmethod
-    def validate_transcript(cls, v: str | None) -> str | None:
-        """Ensure transcript, if provided, is not trivial."""
-        if v is not None and len(v.strip()) < 10:
-            msg = "Transcript is too short to be valid."
+    def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
+        """Ensure transcripts are unique by source."""
+        sources = [t.source for t in v]
+        if len(sources) != len(set(sources)):
+            msg = "Duplicate transcript sources found."
             raise ValueError(msg)
         return v
 
@@ -124,7 +135,7 @@ class GlobalState(BaseModel):
 
         # Reject invalid types explicitly
         msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
-        raise ValueError(msg)
+        raise TypeError(msg)
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:

@@ -59,7 +59,7 @@ def test_cached_research_logic(mock_llm: MagicMock) -> None:
     mock_search.safe_search.side_effect = ["Result 1", "Result 2"]
 
     agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
-    agent._min_request_interval = 0.01 # Minimal delay for test speed but > 0 to test logic path
+    agent._min_request_interval = 0.01  # Minimal delay for test speed but > 0 to test logic path
 
     # First call
     res1 = agent._cached_research("Topic A")
@@ -80,6 +80,7 @@ def test_cached_research_logic(mock_llm: MagicMock) -> None:
 def test_rate_limit_wait(mock_llm: MagicMock) -> None:
     """Verify rate limiting wait behavior."""
     import time
+
     mock_search = MagicMock()
     agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
     agent._min_request_interval = 0.1
@@ -109,19 +110,21 @@ def test_simulation_graph_structure(mock_get_llm: MagicMock, mock_tavily: MagicM
 
 
 @patch("src.agents.personas.TavilySearch")
-def test_persona_agent_run(mock_tavily: MagicMock, mock_llm: MagicMock, mock_state: GlobalState) -> None:
+def test_persona_agent_run(
+    mock_tavily: MagicMock, mock_llm: MagicMock, mock_state: GlobalState
+) -> None:
     """Test PersonaAgent.run logic."""
     mock_tavily.return_value = MagicMock()
 
     agent = NewEmployeeAgent(llm=mock_llm)
 
     with patch.object(agent, "_generate_response", return_value="Defended!"):
-         result = agent.run(mock_state)
+        result = agent.run(mock_state)
 
-         assert "debate_history" in result
-         assert len(result["debate_history"]) == 1
-         assert result["debate_history"][0].content == "Defended!"
-         assert result["debate_history"][0].role == Role.NEW_EMPLOYEE
+        assert "debate_history" in result
+        assert len(result["debate_history"]) == 1
+        assert result["debate_history"][0].content == "Defended!"
+        assert result["debate_history"][0].role == Role.NEW_EMPLOYEE
 
 
 def test_metrics_boundary_conditions() -> None:

@@ -6,6 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent, SearchTool
+from src.agents.mixins import RateLimitMixin
 from src.core.config import Settings, get_settings
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
@@ -14,7 +15,7 @@ from src.tools.search import TavilySearch
 logger = logging.getLogger(__name__)
 
 
-class PersonaAgent(BaseAgent):
+class PersonaAgent(BaseAgent, RateLimitMixin):
     """Base class for persona-based agents in the simulation."""
 
     def __init__(
@@ -25,17 +26,7 @@ class PersonaAgent(BaseAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        self._base_init(llm, role, system_prompt, search_tool, app_settings)
-
-    def _base_init(
-        self,
-        llm: ChatOpenAI,
-        role: Role,
-        system_prompt: str,
-        search_tool: SearchTool | None,
-        app_settings: Settings | None,
-    ) -> None:
-        """Common initialization logic."""
+        RateLimitMixin.__init__(self)
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
@@ -51,8 +42,6 @@ class PersonaAgent(BaseAgent):
             else None
         )
         self._research_cache: dict[str, str] = {}
-        self._last_request_time: float = 0.0
-        self._min_request_interval: float = 1.0
 
     def _build_context(self, state: GlobalState) -> str:
         """Construct the conversation history context."""
@@ -75,34 +64,37 @@ class PersonaAgent(BaseAgent):
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", self.system_prompt),
-                ("user", f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:"),
+                (
+                    "user",
+                    f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:",
+                ),
             ]
         )
         chain = prompt | self.llm
         response = chain.invoke({})
         return str(response.content)
 
-    def _rate_limit_wait(self) -> None:
-        """Enforce rate limiting for API calls."""
-        current_time = time.time()
-        elapsed = current_time - self._last_request_time
-        if elapsed < self._min_request_interval:
-            time.sleep(self._min_request_interval - elapsed)
-        self._last_request_time = time.time()
-
     def _cached_research(self, topic: str) -> str:
         """Cache research results to avoid redundant API calls."""
         if topic in self._research_cache:
             return self._research_cache[topic]
 
-        # Removed redundant hasattr check as _base_init guarantees search_tool and logic presence
         # But we still need to know if _research_impl exists on the subclass
         if hasattr(self, "_research_impl"):
-            self._rate_limit_wait()
-            # Ensure return type is str
-            result: str = self._research_impl(topic)
-            self._research_cache[topic] = result
-            return result
+            try:
+                self._rate_limit_wait()
+                # Ensure return type is str
+                # We use getattr to bypass mypy 'attr-defined' error for dynamic dispatch
+                impl = self._research_impl
+                result: str = impl(topic)
+            except Exception as e:
+                logger.error(f"Research implementation failed for {topic}: {e}", exc_info=True)
+                return ""
+            else:
+                self._research_cache[topic] = result
+                return result
+
+        logger.warning(f"Agent {self.role} attempted research without implementation.")
         return ""
 
     def run(self, state: GlobalState) -> dict[str, Any]:
@@ -112,19 +104,15 @@ class PersonaAgent(BaseAgent):
 
         # Override in subclasses if research is needed
         if hasattr(self, "_research_impl") and state.selected_idea:
-             title = state.selected_idea.title
-             logger.debug(f"Agent {self.role} executing research on: {title}")
-             # Use the cached wrapper
-             research_data = self._cached_research(title)
+            title = state.selected_idea.title
+            logger.debug(f"Agent {self.role} executing research on: {title}")
+            # Use the cached wrapper
+            research_data = self._cached_research(title)
 
         content = self._generate_response(context, research_data)
         logger.debug(f"Agent {self.role} generated response: {content[:50]}...")
 
-        message = DialogueMessage(
-            role=self.role,
-            content=content,
-            timestamp=time.time()
-        )
+        message = DialogueMessage(role=self.role, content=content, timestamp=time.time())
 
         # Return state update.
         # Note: LangGraph usually appends to list if configured with reducer,
@@ -150,7 +138,7 @@ class FinanceAgent(PersonaAgent):
             "You use market data to find reasons why new ideas will fail. "
             "Be critical but professional."
         )
-        self._base_init(llm, Role.FINANCE, system_prompt, search_tool, app_settings)
+        super().__init__(llm, Role.FINANCE, system_prompt, search_tool, app_settings)
 
     def _research_impl(self, topic: str) -> str:
         """Perform market research on risks."""
@@ -172,7 +160,7 @@ class SalesAgent(PersonaAgent):
             "You worry about cannibalizing existing products and whether the sales force can actually sell this. "
             "You care about immediate revenue and customer trust."
         )
-        self._base_init(llm, Role.SALES, system_prompt, search_tool, app_settings)
+        super().__init__(llm, Role.SALES, system_prompt, search_tool, app_settings)
 
 
 class NewEmployeeAgent(PersonaAgent):
@@ -189,28 +177,4 @@ class NewEmployeeAgent(PersonaAgent):
             "You are nervous. You try to answer questions but often falter. "
             "You defend the idea passionately but acknowledge weaknesses."
         )
-        self._base_init(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)
-
-
-class CPOAgent(PersonaAgent):
-    """The silent Mentor CPO."""
-
-    def __init__(
-        self,
-        llm: ChatOpenAI,
-        search_tool: SearchTool | None = None,
-        app_settings: Settings | None = None,
-    ) -> None:
-        system_prompt = (
-            "You are the Chief Product Officer (CPO). "
-            "You are a mentor to the New Employee. "
-            "You do not speak in the main meeting. "
-            "In the rooftop phase, you provide fact-based advice using market data. "
-            "You never give the final answer, but provide 'weapons' (facts/examples) to help them win the argument."
-        )
-        self._base_init(llm, Role.CPO, system_prompt, search_tool, app_settings)
-
-    def _research_impl(self, topic: str) -> str:
-        """Perform deep market research for mentoring."""
-        query = f"successful business models and case studies similar to {topic}"
-        return self.search_tool.safe_search(query)
+        super().__init__(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)

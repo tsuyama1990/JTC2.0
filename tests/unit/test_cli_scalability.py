@@ -28,7 +28,7 @@ def test_browse_and_select_lazy(
                 problem="Problem is valid valid",
                 customer_segments="Seg",
                 unique_value_prop="UVP is valid valid",
-                solution="Solution is valid valid"
+                solution="Solution is valid valid",
             )
 
     # Mock input:

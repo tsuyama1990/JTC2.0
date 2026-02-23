@@ -4,9 +4,8 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from src.agents.ideator import IdeatorAgent
-from src.agents.personas import CPOAgent, NewEmployeeAgent
-from src.core.llm import get_llm
+from src.core.factory import AgentFactory
+from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
 
 logger = logging.getLogger(__name__)
@@ -14,19 +13,13 @@ logger = logging.getLogger(__name__)
 
 def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for Ideator execution with error handling."""
-    # We must instantiate inside or outside.
-    # For simplicity in refactoring without changing signatures too much, we re-instantiate or assume scope.
-    # To keep scope correct, we should pass agent instance.
-    # But LangGraph nodes expect state -> dict.
-    # We will use the global get_llm here or pass it via functools.partial in real app.
-    # Here we instantiate to satisfy the node signature requirement.
-    llm = get_llm()
-    ideator = IdeatorAgent(llm)
+    ideator = AgentFactory.get_ideator_agent()
     try:
         return ideator.run(state)
     except Exception as e:
         logger.error(f"Error in Ideator Agent: {e}", exc_info=True)
         return {}
+
 
 def verification_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Verification Phase."""
@@ -36,38 +29,55 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
     logger.info(f"Transitioning to Phase: {Phase.VERIFICATION}")
     return {"phase": Phase.VERIFICATION}
 
+
 def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
-    """Wrapper for Simulation execution with error handling."""
-    llm = get_llm()
-    new_employee = NewEmployeeAgent(llm)
+    """
+    Wrapper for Simulation execution with error handling.
+
+    NOTE: This implementation currently runs a single agent turn per 'round' node execution.
+    Architecture specifies a turn-based simulation. Future cycles should implement a
+    MultiAgent Orchestrator here to manage turns between Finance, Sales, and New Employee.
+    For Cycle 3, we maintain the existing behavior of running the New Employee agent logic.
+    """
+    # In Cycle 2/3, simulation usually implies turn-based.
+    # For now, we are just running the NewEmployee agent as the "simulation_round" node
+    # based on the legacy implementation.
+    # In a real turn-based system, this node would orchestrate multiple agents.
+    new_employee = AgentFactory.get_persona_agent(Role.NEW_EMPLOYEE)
     try:
-        return new_employee.run(state)
+        res: dict[str, Any] = new_employee.run(state)
     except Exception as e:
         logger.error(f"Error in Simulation Agent: {e}", exc_info=True)
         return {}
+    else:
+        return res
+
 
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
-    llm = get_llm()
-    cpo = CPOAgent(llm)
+    cpo = AgentFactory.get_persona_agent(Role.CPO, state)
     try:
-        return cpo.run(state)
+        res: dict[str, Any] = cpo.run(state)
     except Exception as e:
         logger.error(f"Error in CPO Agent: {e}", exc_info=True)
         return {}
+    else:
+        return res
+
 
 def solution_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Solution Phase."""
     if not state.target_persona:
-            logger.warning("Entering Solution Phase without a defined target persona.")
+        logger.warning("Entering Solution Phase without a defined target persona.")
 
     logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
     return {"phase": Phase.SOLUTION}
 
+
 def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
     if not state.mvp_definition:
-            logger.warning("Entering PMF Phase without an MVP definition.")
+        logger.warning("Entering PMF Phase without an MVP definition.")
 
     logger.info(f"Transitioning to Phase: {Phase.PMF}")
     return {"phase": Phase.PMF}
@@ -121,6 +131,4 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     workflow.add_edge("pmf", END)
 
     # Compile with Interrupts for HITL Gates
-    return workflow.compile(
-        interrupt_after=["ideator", "verification", "solution", "pmf"]
-    )
+    return workflow.compile(interrupt_after=["ideator", "verification", "solution", "pmf"])

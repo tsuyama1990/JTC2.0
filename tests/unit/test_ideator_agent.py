@@ -66,7 +66,7 @@ def test_ideator_agent_flow(
                 problem="Problem is valid valid",
                 customer_segments="CS",
                 unique_value_prop="UVP is valid valid",
-                solution="Solution is valid valid"
+                solution="Solution is valid valid",
             )
         ]
         mock_gen_ideas.return_value = expected_ideas

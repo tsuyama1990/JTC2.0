@@ -10,9 +10,7 @@ from src.ui.renderer import SimulationRenderer
 @pytest.fixture
 def mock_state() -> GlobalState:
     return GlobalState(
-        debate_history=[
-            DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hi", timestamp=1.0)
-        ]
+        debate_history=[DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hi", timestamp=1.0)]
     )
 
 
@@ -57,7 +55,7 @@ def test_renderer_console_loop() -> None:
     # State 3: 2 messages, inactive -> should break loop
     s3 = GlobalState(debate_history=[msg1, msg2], simulation_active=False)
 
-    states = [s1, s2, s3, s3] # extra s3 to be safe
+    states = [s1, s2, s3, s3]  # extra s3 to be safe
 
     state_iter = iter(states)
 
@@ -68,8 +66,8 @@ def test_renderer_console_loop() -> None:
     renderer.headless = True
 
     with patch("builtins.print") as mock_print:
-        with patch("time.sleep"): # Skip sleep
-             renderer.start()
+        with patch("time.sleep"):  # Skip sleep
+            renderer.start()
 
         # Verify prints
         # First iteration: count=1, last_count=0. Prints msg1.

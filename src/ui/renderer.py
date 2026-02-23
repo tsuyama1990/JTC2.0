@@ -119,10 +119,7 @@ class SimulationRenderer:
 
         self._last_msg_content = msg.content
         chars = self.settings.chars_per_line
-        self._cached_lines = [
-            msg.content[i : i + chars]
-            for i in range(0, len(msg.content), chars)
-        ]
+        self._cached_lines = [msg.content[i : i + chars] for i in range(0, len(msg.content), chars)]
         return self._cached_lines
 
     def _draw_dialogue(self, state: GlobalState) -> None:

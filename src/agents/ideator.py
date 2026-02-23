@@ -19,6 +19,7 @@ class LeanCanvasList(BaseModel):
 
     Ensures that generated ideas have unique IDs.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     canvases: list[LeanCanvas]
