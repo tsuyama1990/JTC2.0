@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
+from unittest.mock import MagicMock
+
 from src.core.exceptions import ValidationError
 from src.core.nemawashi import NemawashiEngine
 from src.domain_models.politics import InfluenceNetwork, Stakeholder
@@ -29,7 +31,12 @@ def sample_network() -> InfluenceNetwork:
 
 def test_calculate_consensus_convergence(sample_network: InfluenceNetwork) -> None:
     """Ensure opinions converge over time."""
-    engine = NemawashiEngine()
+    # Test Dependency Injection
+    mock_settings = MagicMock()
+    mock_settings.max_steps = 15
+    mock_settings.tolerance = 1e-6
+
+    engine = NemawashiEngine(settings=mock_settings)
 
     final_opinions = engine.calculate_consensus(sample_network)
 
@@ -105,14 +112,17 @@ def test_chunking_logic(sample_network: InfluenceNetwork) -> None:
     """Verify chunking logic is used when network size exceeds chunk size."""
     engine = NemawashiEngine()
 
-    # Mock _chunked_dot to verify it's called
-    with patch.object(engine, '_chunked_dot', wraps=engine._chunked_dot):
-        matrix = np.array(sample_network.matrix)
+    # Mock _chunked_dot_list to verify it's called
+    with patch.object(engine, '_chunked_dot_list', wraps=engine._chunked_dot_list):
         vector = np.array([s.initial_support for s in sample_network.stakeholders])
-        result = engine._chunked_dot(matrix, vector, chunk_size=1)
+        # Pass raw list as expected by new implementation
+        result = engine._chunked_dot_list(sample_network.matrix, vector, chunk_size=1)
+
         assert len(result) == 2
+
         # Verify it matches direct dot product
-        expected = matrix.dot(vector)
+        matrix_np = np.array(sample_network.matrix)
+        expected = matrix_np.dot(vector)
         assert np.allclose(result, expected)
 
 

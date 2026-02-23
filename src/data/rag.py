@@ -79,19 +79,22 @@ class RAG:
 
         cwd = Path.cwd().resolve()
 
-        # Strict allowlist check: Must be relative to CWD AND specifically allowed folders
+        # Strict allowlist check: Must be contained within allowed folders
         allowed_parents = [cwd / "data", cwd / "vector_store", cwd / "tests"]
+
         is_safe = False
         for parent in allowed_parents:
-            if path.is_relative_to(parent) or path == parent:
-                is_safe = True
-                break
+            # Use commonpath to ensure path is truly inside parent
+            # resolve() handles symlinks, commonpath compares real paths
+            try:
+                if os.path.commonpath([parent, path]) == str(parent):
+                    is_safe = True
+                    break
+            except ValueError:
+                # Paths on different drives or invalid
+                continue
 
-        # Removed PYTEST_CURRENT_TEST check for strict enforcement
         if not is_safe:
-             raise ConfigurationError(ERR_PATH_TRAVERSAL)
-
-        if not path.is_relative_to(cwd):
              raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         return str(path)
