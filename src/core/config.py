@@ -245,6 +245,9 @@ class Settings(BaseSettings):
     # Model Configuration
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o")
 
+    # RAG Configuration
+    rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", default="./vector_store")
+
     # Search Configuration
     search_max_results: int = Field(alias="SEARCH_MAX_RESULTS", default=5)
     search_depth: str = Field(alias="SEARCH_DEPTH", default="advanced")

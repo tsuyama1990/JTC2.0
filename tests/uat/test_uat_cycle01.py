@@ -37,8 +37,8 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.core.graph.IdeatorAgent")
-@patch("src.core.graph.get_llm")
+@patch("src.core.factory.IdeatorAgent")
+@patch("src.core.factory.get_llm")
 def test_ideation_scalability(
     mock_get_llm: MagicMock,
     mock_ideator_cls: MagicMock,
@@ -77,8 +77,8 @@ def test_ideation_scalability(
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.core.graph.IdeatorAgent")
-@patch("src.core.graph.get_llm")
+@patch("src.core.factory.IdeatorAgent")
+@patch("src.core.factory.get_llm")
 def test_gate_transitions_data_integrity(
     mock_get_llm: MagicMock,
     mock_ideator_cls: MagicMock

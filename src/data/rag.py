@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -18,20 +17,26 @@ class RAG:
     Retrieval-Augmented Generation (RAG) engine using LlamaIndex.
     """
 
-    def __init__(self, persist_dir: str = "./vector_store") -> None:
-        self.persist_dir = persist_dir
+    def __init__(self, persist_dir: str | None = None) -> None:
         self.settings = get_settings()
+        self.persist_dir = persist_dir or self.settings.rag_persist_dir
         self.index: VectorStoreIndex | None = None
         self._init_llama()
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
-        if self.settings.openai_api_key:
-            os.environ["OPENAI_API_KEY"] = self.settings.openai_api_key.get_secret_value()
+        # Validate keys via settings, but pass them explicitly to classes to avoid os.environ pollution
+        if not self.settings.openai_api_key:
+             raise ValueError(self.settings.errors.config_missing_openai)
+
+        api_key_str = self.settings.openai_api_key.get_secret_value()
 
         # Configure global settings for LlamaIndex
-        LlamaSettings.llm = OpenAI(model=self.settings.llm_model)
-        LlamaSettings.embedding = OpenAIEmbedding()  # type: ignore[attr-defined]
+        LlamaSettings.llm = OpenAI(
+            model=self.settings.llm_model,
+            api_key=api_key_str
+        )
+        LlamaSettings.embedding = OpenAIEmbedding(api_key=api_key_str)  # type: ignore[attr-defined]
 
         if Path(self.persist_dir).exists():
             try:
@@ -44,7 +49,8 @@ class RAG:
 
     def ingest_text(self, text: str, source: str) -> None:
         """
-        Ingest text into the vector store.
+        Ingest text into the vector store in-memory.
+        Call `persist_index()` explicitly to save to disk.
 
         Args:
             text: The content to index.
@@ -57,9 +63,11 @@ class RAG:
         else:
             self.index.insert(doc)
 
-        # Persist
+    def persist_index(self) -> None:
+        """Persist the index to disk."""
         if self.index:
             self.index.storage_context.persist(persist_dir=self.persist_dir)
+            logger.info(f"Index persisted to {self.persist_dir}")
 
     def query(self, question: str) -> str:
         """

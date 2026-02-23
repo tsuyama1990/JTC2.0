@@ -4,10 +4,8 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from src.agents.cpo import CPOAgent
-from src.agents.ideator import IdeatorAgent
-from src.agents.personas import NewEmployeeAgent
-from src.core.llm import get_llm
+from src.core.factory import AgentFactory
+from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
 
 logger = logging.getLogger(__name__)
@@ -15,14 +13,7 @@ logger = logging.getLogger(__name__)
 
 def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for Ideator execution with error handling."""
-    # We must instantiate inside or outside.
-    # For simplicity in refactoring without changing signatures too much, we re-instantiate or assume scope.
-    # To keep scope correct, we should pass agent instance.
-    # But LangGraph nodes expect state -> dict.
-    # We will use the global get_llm here or pass it via functools.partial in real app.
-    # Here we instantiate to satisfy the node signature requirement.
-    llm = get_llm()
-    ideator = IdeatorAgent(llm)
+    ideator = AgentFactory.get_ideator_agent()
     try:
         return ideator.run(state)
     except Exception as e:
@@ -39,23 +30,29 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
 def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for Simulation execution with error handling."""
-    llm = get_llm()
-    new_employee = NewEmployeeAgent(llm)
+    # In Cycle 2/3, simulation usually implies turn-based.
+    # For now, we are just running the NewEmployee agent as the "simulation_round" node
+    # based on the legacy implementation.
+    # In a real turn-based system, this node would orchestrate multiple agents.
+    new_employee = AgentFactory.get_persona_agent(Role.NEW_EMPLOYEE)
     try:
-        return new_employee.run(state)
+        res: dict[str, Any] = new_employee.run(state)
     except Exception as e:
         logger.error(f"Error in Simulation Agent: {e}", exc_info=True)
         return {}
+    else:
+        return res
 
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
-    llm = get_llm()
-    cpo = CPOAgent(llm, rag_path=state.rag_index_path)
+    cpo = AgentFactory.get_persona_agent(Role.CPO, state)
     try:
-        return cpo.run(state)
+        res: dict[str, Any] = cpo.run(state)
     except Exception as e:
         logger.error(f"Error in CPO Agent: {e}", exc_info=True)
         return {}
+    else:
+        return res
 
 def solution_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Solution Phase."""

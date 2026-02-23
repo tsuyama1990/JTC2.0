@@ -63,6 +63,9 @@ class GlobalState(BaseModel):
     """The central state of the LangGraph workflow."""
 
     # Strict validation enabled, but arbitrary types allowed for Iterator wrapper
+    # We maintain arbitrary_types_allowed=True due to LazyIdeaIterator being a complex iterator
+    # wrapper that Pydantic cannot fully validate without generics.
+    # However, we add strict field validation where possible.
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     phase: Phase = Phase.IDEATION
@@ -83,7 +86,7 @@ class GlobalState(BaseModel):
 
     # Updated fields for Cycle 3
     transcripts: list[Transcript] = Field(default_factory=list, description="Raw transcripts from PLAUD or interviews")
-    rag_index_path: str = Field(default="./vector_store", description="Path to the local vector store")
+    rag_index_path: str = Field(default_factory=lambda: get_settings().rag_persist_dir, description="Path to the local vector store")
 
     agent_states: dict[Role, AgentState] = Field(
         default_factory=dict,

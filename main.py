@@ -225,6 +225,7 @@ def ingest_transcript(filepath: str) -> None:
 
         rag = RAG()
         rag.ingest_text(content, source=filepath)
+        rag.persist_index()
         echo(f"Successfully ingested {filepath} into vector store.")
     except Exception as e:
         logger.exception("Ingestion failed")

@@ -25,17 +25,6 @@ class PersonaAgent(BaseAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        self._base_init(llm, role, system_prompt, search_tool, app_settings)
-
-    def _base_init(
-        self,
-        llm: ChatOpenAI,
-        role: Role,
-        system_prompt: str,
-        search_tool: SearchTool | None,
-        app_settings: Settings | None,
-    ) -> None:
-        """Common initialization logic."""
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
@@ -150,7 +139,7 @@ class FinanceAgent(PersonaAgent):
             "You use market data to find reasons why new ideas will fail. "
             "Be critical but professional."
         )
-        self._base_init(llm, Role.FINANCE, system_prompt, search_tool, app_settings)
+        super().__init__(llm, Role.FINANCE, system_prompt, search_tool, app_settings)
 
     def _research_impl(self, topic: str) -> str:
         """Perform market research on risks."""
@@ -172,7 +161,7 @@ class SalesAgent(PersonaAgent):
             "You worry about cannibalizing existing products and whether the sales force can actually sell this. "
             "You care about immediate revenue and customer trust."
         )
-        self._base_init(llm, Role.SALES, system_prompt, search_tool, app_settings)
+        super().__init__(llm, Role.SALES, system_prompt, search_tool, app_settings)
 
 
 class NewEmployeeAgent(PersonaAgent):
@@ -189,6 +178,4 @@ class NewEmployeeAgent(PersonaAgent):
             "You are nervous. You try to answer questions but often falter. "
             "You defend the idea passionately but acknowledge weaknesses."
         )
-        self._base_init(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)
-
-
+        super().__init__(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)
