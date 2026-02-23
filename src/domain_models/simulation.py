@@ -36,6 +36,7 @@ class AgentState(BaseModel):
 
     role: Role
     degroot_profile: DeGrootProfile = Field(default_factory=DeGrootProfile)
+    current_opinion: float = Field(0.5, ge=0.0, le=1.0, description="Current support level (0-1)")
 
 
 class DialogueMessage(BaseModel):

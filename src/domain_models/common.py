@@ -37,13 +37,10 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
             # Standard Python iteration protocol requires StopIteration.
             raise StopIteration
 
-        try:
-            item = next(self._iterator)
-            self._consumed = True
-            self._count += 1
-            return item
-        except StopIteration:
-            raise
+        item = next(self._iterator)
+        self._consumed = True
+        self._count += 1
+        return item
 
     @classmethod
     def __get_pydantic_core_schema__(

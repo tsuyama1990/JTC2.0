@@ -5,8 +5,10 @@ from langchain_openai import ChatOpenAI
 from src.agents.base import SearchTool
 from src.agents.personas import PersonaAgent
 from src.core.config import Settings
+from src.core.nemawashi import NemawashiEngine
 from src.data.rag import RAG
 from src.domain_models.simulation import Role
+from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,7 @@ class CPOAgent(PersonaAgent):
         )
         super().__init__(llm, Role.CPO, system_prompt, search_tool, app_settings)
         self.rag = RAG(persist_dir=rag_path)
+        self.nemawashi = NemawashiEngine()
 
     def _research_impl(self, topic: str) -> str:
         """
@@ -46,3 +49,27 @@ class CPOAgent(PersonaAgent):
         query = f"What do customers say about {topic} or related problems?"
         logger.info(f"CPO querying RAG: {query}")
         return self.rag.query(query)
+
+    def _build_context(self, state: GlobalState) -> str:
+        """Add Nemawashi analysis to the context."""
+        base_context = super()._build_context(state)
+
+        # Nemawashi Analysis
+        try:
+            network = state.to_influence_network()
+            # Check if network is valid (has stakeholders)
+            if not network.stakeholders:
+                return base_context
+
+            consensus = self.nemawashi.calculate_consensus(network)
+            influencers = self.nemawashi.identify_influencers(network)
+
+            nemawashi_context = (
+                f"\n\nPOLITICAL ANALYSIS (Nemawashi):\n"
+                f"Consensus Vector (Final Opinions): {consensus}\n"
+                f"Key Influencers: {', '.join(influencers)}\n"
+            )
+            return base_context + nemawashi_context
+        except Exception as e:
+            logger.warning(f"Nemawashi analysis failed: {e}")
+            return base_context

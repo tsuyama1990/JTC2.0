@@ -3,7 +3,6 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any
 
 import pybreaker
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -19,7 +18,6 @@ from src.core.constants import (
     ERR_RAG_INDEX_SIZE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
-    ERR_RATE_LIMIT,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
 
@@ -72,7 +70,7 @@ class RAG:
 
         # Simple Rate Limiting State
         self._last_call_time = 0.0
-        self._min_interval = 0.1 # 10 requests/second max locally initiated
+        self._min_interval = self.settings.rag_rate_limit_interval
 
         self.index: VectorStoreIndex | None = None
         self._init_llama()
@@ -81,13 +79,19 @@ class RAG:
         """
         Ensure persist directory is safe and absolute.
         Uses strict allowlist and pathlib.is_relative_to for security.
+        Also validates that the path does not traverse using '..' before resolution.
         """
         if not path_str or not isinstance(path_str, str):
             msg = "Path must be a non-empty string."
             raise ConfigurationError(msg)
 
+        if ".." in path_str:
+             msg = "Relative paths using '..' are not allowed."
+             raise ConfigurationError(msg)
+
         try:
-            path = Path(path_str).resolve()
+            # Resolve path (handles symlinks by default in newer Python, but let's be explicit if needed)
+            path = Path(path_str).resolve(strict=False)
         except Exception as e:
             msg = f"Invalid path format: {e}"
             raise ConfigurationError(msg) from e
@@ -105,6 +109,7 @@ class RAG:
         is_safe = False
         for parent in allowed_parents:
             try:
+                # Check if it is relative to parent
                 if path.is_relative_to(parent):
                     is_safe = True
                     break
@@ -143,17 +148,14 @@ class RAG:
             return
 
         # Critical: Check size BEFORE loading storage context logic
-        try:
-            self._check_index_size()
-        except MemoryError:
-            raise # Propagate memory error immediately
+        self._check_index_size()
 
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to load index from %s", self.persist_dir)
             self.index = None
             # Allow continuing with fresh index unless it was a MemoryError (caught above)
@@ -261,7 +263,9 @@ class RAG:
 
     def _query_impl(self, question: str) -> str:
         if self.index is None:
-            return "No data available."
+            # Raise exception instead of returning string for consistent error handling
+            msg = "No data available in RAG index."
+            raise ValidationError(msg)
 
         query_engine = self.index.as_query_engine()
         response = query_engine.query(question)
