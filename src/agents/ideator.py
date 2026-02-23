@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_validator
 
 from src.agents.base import BaseAgent
 from src.core.config import settings
+from src.core.constants import ERR_UNIQUE_ID_VIOLATION
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
@@ -26,8 +27,7 @@ class LeanCanvasList(BaseModel):
         """Ensure all generated canvases have unique IDs."""
         ids = [canvas.id for canvas in v]
         if len(ids) != len(set(ids)):
-            msg = "Generated ideas must have unique IDs."
-            raise ValueError(msg)
+            raise ValueError(ERR_UNIQUE_ID_VIOLATION)
         return v
 
 

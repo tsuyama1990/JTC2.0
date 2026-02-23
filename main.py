@@ -6,6 +6,21 @@ from itertools import islice
 sys.path.append(".")
 
 from src.core.config import settings
+from src.core.constants import (
+    MSG_CYCLE_COMPLETE,
+    MSG_EXECUTION_ERROR,
+    MSG_GENERATED_HEADER,
+    MSG_ID_NOT_FOUND,
+    MSG_INVALID_INPUT,
+    MSG_NO_IDEAS,
+    MSG_PHASE_START,
+    MSG_PRESS_ENTER,
+    MSG_RESEARCHING,
+    MSG_SELECT_PROMPT,
+    MSG_SELECTED,
+    MSG_TOPIC_EMPTY,
+    MSG_WAIT,
+)
 from src.core.graph import create_app
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
@@ -27,11 +42,11 @@ def display_ideas_paginated(
         page_size: Number of items per page.
     """
     if not ideas:
-        echo("\nNo ideas generated. Please try again or check logs.")
+        echo(MSG_NO_IDEAS)
         return
 
     total_ideas = len(ideas)
-    echo(f"\n=== Generated {total_ideas} Ideas ===")
+    echo(MSG_GENERATED_HEADER.format(count=total_ideas))
 
     # Use iterator to process chunks efficiently
     iterator = iter(ideas)
@@ -53,7 +68,7 @@ def display_ideas_paginated(
         shown_count += len(chunk)
 
         if shown_count < total_ideas:
-            input("\nPress Enter to see more...")
+            input(MSG_PRESS_ENTER)
 
 
 def select_idea(ideas: list[LeanCanvas]) -> LeanCanvas | None:
@@ -64,17 +79,17 @@ def select_idea(ideas: list[LeanCanvas]) -> LeanCanvas | None:
     """
     while True:
         try:
-            choice = input("\n[GATE 1] Select an Idea ID (0-9) to proceed: ")
+            choice = input(MSG_SELECT_PROMPT)
             idx = int(choice)
 
-            # O(N) search but O(1) memory
+            # O(N) search but O(1) memory - preferred for scalability constraint
             for idea in ideas:
                 if idea.id == idx:
                     return idea
 
-            echo(f"ID {idx} not found. Please try again.")
+            echo(MSG_ID_NOT_FOUND.format(idx=idx))
         except ValueError:
-            echo("Please enter a valid number.")
+            echo(MSG_INVALID_INPUT)
 
 
 def main() -> None:
@@ -91,18 +106,18 @@ def main() -> None:
             topic = input("Enter a business topic (e.g., 'AI for Agriculture'): ")
 
         if not topic.strip():
-            echo("Topic cannot be empty.")
+            echo(MSG_TOPIC_EMPTY)
             return
 
-        echo(f"\nPhase: {Phase.IDEATION}")
-        echo(f"Researching and Ideating for: '{topic}'...")
-        echo("(This may take 30-60 seconds due to search and LLM generation)...")
+        echo(MSG_PHASE_START.format(phase=Phase.IDEATION))
+        echo(MSG_RESEARCHING.format(topic=topic))
+        echo(MSG_WAIT)
 
         app = create_app()
         initial_state = GlobalState(topic=topic)
         final_state = app.invoke(initial_state)
     except Exception as e:
-        echo(f"\nError during execution: {e}")
+        echo(MSG_EXECUTION_ERROR.format(e=e))
         # In a real app, we might log the full traceback here
         return
 
@@ -123,8 +138,8 @@ def main() -> None:
 
     selected_idea = select_idea(typed_ideas)
     if selected_idea:
-        echo(f"\n✓ Selected Plan: {selected_idea.title}")
-        echo("Cycle 1 Complete. State updated.")
+        echo(MSG_SELECTED.format(title=selected_idea.title))
+        echo(MSG_CYCLE_COMPLETE)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from tenacity import (
 )
 
 from src.core.config import settings
+from src.core.constants import ERR_SEARCH_CONFIG_MISSING, ERR_SEARCH_FAILED
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,7 @@ class TavilySearch:
             settings.tavily_api_key.get_secret_value() if settings.tavily_api_key else None
         )
         if not self.api_key:
-            msg = "Search configuration error: API key is missing. Please check your .env file."
-            raise ValueError(msg)
+            raise ValueError(ERR_SEARCH_CONFIG_MISSING)
         self.client = TavilyClient(api_key=self.api_key)
 
     @retry(
@@ -99,4 +99,4 @@ class TavilySearch:
             return self.search(query)
         except Exception:
             logger.exception("Tavily search failed after retries")
-            return "Search service unavailable."
+            return ERR_SEARCH_FAILED

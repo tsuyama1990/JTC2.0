@@ -6,7 +6,7 @@ from src.core.llm import get_llm
 from src.domain_models.state import GlobalState
 
 
-def create_app() -> CompiledStateGraph:
+def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     """Create and compile the LangGraph application."""
     llm = get_llm()
     ideator = IdeatorAgent(llm)

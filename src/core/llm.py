@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
 
 from src.core.config import settings
+from src.core.constants import ERR_LLM_CONFIG_MISSING
 
 
 def get_llm(model: str | None = None) -> ChatOpenAI:
@@ -17,7 +18,6 @@ def get_llm(model: str | None = None) -> ChatOpenAI:
         ValueError: If OpenAI API key is missing.
     """
     if not settings.openai_api_key:
-        msg = "LLM configuration error: API key is missing. Please check your .env file."
-        raise ValueError(msg)
+        raise ValueError(ERR_LLM_CONFIG_MISSING)
 
     return ChatOpenAI(model=model or settings.llm_model, api_key=settings.openai_api_key)

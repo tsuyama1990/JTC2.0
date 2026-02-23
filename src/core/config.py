@@ -3,6 +3,8 @@ import sys
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.core.constants import ERR_CONFIG_MISSING_OPENAI_KEY, ERR_CONFIG_MISSING_TAVILY_KEY
+
 
 class Settings(BaseSettings):
     """Configuration settings for the application."""
@@ -41,11 +43,9 @@ class Settings(BaseSettings):
 
 def _validate_settings(s: Settings) -> None:
     if not s.openai_api_key:
-        msg = "OPENAI_API_KEY is missing"
-        raise ValueError(msg)
+        raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
     if not s.tavily_api_key:
-        msg = "TAVILY_API_KEY is missing"
-        raise ValueError(msg)
+        raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
 
 
 def load_settings() -> Settings:
@@ -58,13 +58,14 @@ def load_settings() -> Settings:
         # Tests will patch the settings anyway.
         if "pytest" not in sys.modules:
             _validate_settings(s)
-        return s
     except Exception as e:
         # We use print here because logging might not be configured yet
         # and this is a fatal startup error.
         sys.stderr.write(f"Configuration Error: {e}\n")
         sys.stderr.write("Please ensure .env file exists and contains all required keys.\n")
         sys.exit(1)
+    else:
+        return s
 
 
 # Global settings instance
