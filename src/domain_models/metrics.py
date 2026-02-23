@@ -100,4 +100,9 @@ class Metrics(BaseModel):
                 msg = f"Metric value for {key} must be numeric."
                 raise TypeError(msg)
 
+            # Value range validation
+            if value < settings.validation.min_metric_value:
+                 msg = f"Metric value for {key} must be >= {settings.validation.min_metric_value}."
+                 raise ValueError(msg)
+
         return v

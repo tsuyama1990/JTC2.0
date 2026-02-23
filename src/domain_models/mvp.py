@@ -34,6 +34,12 @@ class Priority(StrEnum):
     WONT_HAVE = "wont_have"
 
 
+class DeploymentStatus(StrEnum):
+    PENDING = "pending"
+    DEPLOYED = "deployed"
+    FAILED = "failed"
+
+
 class Feature(BaseModel):
     """
     Represents a single feature of the MVP.
@@ -83,7 +89,7 @@ class MVP(BaseModel):
         default=None,
         description="URL of the deployed MVP on v0.dev",
     )
-    deployment_status: str = Field(
-        default="pending",
+    deployment_status: DeploymentStatus = Field(
+        default=DeploymentStatus.PENDING,
         description="Status of the MVP deployment (e.g., pending, deployed, failed)",
     )

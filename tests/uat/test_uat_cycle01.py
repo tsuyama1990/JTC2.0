@@ -149,3 +149,36 @@ def test_gate_transitions_data_integrity(
     state_ready_for_pmf.phase = Phase.PMF
 
     GlobalState.model_validate(state_ready_for_pmf.model_dump())
+
+@patch.dict(os.environ, DUMMY_ENV_VARS)
+def test_large_dataset_iterator_safety() -> None:
+    """
+    Verify memory safety with a mock infinite iterator (Cycle 3 Scalability Check).
+    """
+    def infinite_generator() -> Iterator[LeanCanvas]:
+        """Yields infinite sequence."""
+        i = 0
+        while True:
+            yield LeanCanvas(
+                id=i,
+                title=f"Idea {i}",
+                problem="Problem text is long enough",
+                customer_segments="Segments text is long enough",
+                unique_value_prop="UVP text is long enough",
+                solution="Solution text is long enough",
+            )
+            i += 1
+
+    # Wrap infinite gen
+    lazy_iter = LazyIdeaIterator(infinite_generator())
+
+    # Consume a large chunk but finite
+    chunk_size = 1000
+    chunk = list(itertools.islice(lazy_iter, chunk_size))
+
+    assert len(chunk) == 1000
+    assert chunk[-1].id == 999
+
+    # Ensure next is still valid (state preserved)
+    next_item = next(lazy_iter)
+    assert next_item.id == 1000

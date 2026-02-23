@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from pathlib import Path
 
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -51,9 +52,10 @@ class RAG:
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
 
+        # Use settings for model names to avoid hardcoding
         LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
-        # Note: LlamaIndex settings typing can be tricky with mypy.
-        # We assign directly as recommended in docs, suppressing assignment error if needed.
+        # Assuming embedding model can also be configured or defaults safely.
+        # For now, we use the standard OpenAI embedding but ensure key is passed.
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
         if Path(self.persist_dir).exists():
@@ -70,7 +72,15 @@ class RAG:
         try:
             self._check_index_size()
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
+
+            # Memory Monitoring
+            logger.info(f"Loading index from {self.persist_dir}...")
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
+
+            # Rough memory check (shallow)
+            size_mb = sys.getsizeof(self.index) / (1024 * 1024)
+            logger.debug(f"Loaded index object size (shallow): {size_mb:.2f} MB")
+
         except Exception as e:
             logger.exception("Failed to load index from %s", self.persist_dir)
             self.index = None
@@ -107,23 +117,23 @@ class RAG:
         """
         Ingest text into the vector store in-memory.
 
-        Args:
-            text: The content to index.
-            source: Metadata source.
+        Chunking logic implemented to handle large inputs.
         """
-        # Scalability: Check text length
-        if len(text) > 1_000_000:
-            logger.warning(
-                f"Ingesting large text ({len(text)} chars). Consider chunking before calling ingest."
-            )
-            # We proceed, but logging helps diagnosis.
+        # Scalability: Chunk text if too large
+        chunk_size = 4000  # Reasonable chunk size for embeddings
+        if len(text) > chunk_size:
+            logger.info(f"Text too large ({len(text)} chars). Chunking...")
+            chunks = [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
+        else:
+            chunks = [text]
 
-        doc = Document(text=text, metadata={"source": source})
+        documents = [Document(text=chunk, metadata={"source": source, "chunk_index": i}) for i, chunk in enumerate(chunks)]
 
         if self.index is None:
-            self.index = VectorStoreIndex.from_documents([doc])
+            self.index = VectorStoreIndex.from_documents(documents)
         else:
-            self.index.insert(doc)
+            for doc in documents:
+                self.index.insert(doc)
 
     def persist_index(self) -> None:
         """Persist the index to disk."""
@@ -135,12 +145,16 @@ class RAG:
         """
         Query the index for relevant context.
         """
-        # Security: Sanitize input
-        if len(question) > 1000:
-            question = question[:1000]
+        # Security: Sanitize input & Length validation
+        if not question or not isinstance(question, str):
+             return "Invalid query."
 
-        # Remove potentially dangerous characters if any (e.g. control chars)
-        # For RAG, mostly length is the concern for DoS.
+        if len(question) > 500:
+            logger.warning("Query too long. Truncating.")
+            question = question[:500]
+
+        # Basic sanitization (remove potential control chars if needed, though mostly handled by LLM lib)
+        question = question.strip()
 
         if self.index is None:
             return "No data available."

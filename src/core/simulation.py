@@ -12,12 +12,14 @@ This subgraph is invoked by the main application graph during the 'simulation_ro
 """
 
 import logging
+from typing import cast
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.agents.personas import FinanceAgent, NewEmployeeAgent, SalesAgent
 from src.core.llm import get_llm
+from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
@@ -25,40 +27,52 @@ logger = logging.getLogger(__name__)
 
 def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
     """Create the simulation sub-graph."""
-    # Ensure dependencies are available
     llm = get_llm()
 
-    # Initialize agents
-    new_employee = NewEmployeeAgent(llm)
-    finance = FinanceAgent(llm)
-    sales = SalesAgent(llm)
+    # Lazy initialization: Create agents only when needed (inside the node functions)
+    # However, LangGraph nodes are functions that receive state.
+    # To avoid recreating agents on every invocation if this graph is compiled once,
+    # we can use a closure or a factory.
+    # But here, create_simulation_graph is called during app creation (or dynamically).
+    # If dynamically (as per safe_simulation_run), then we want lightweight creation.
+    #
+    # Actually, the agents are stateful (caching), so recreating them might lose cache if not shared.
+    # The requirement says "Lazy agent initialization or use dependency injection".
+    #
+    # Let's instantiate them inside the node functions using a cached factory or similar
+    # if we want strictly lazy. But these are small objects if LLM is shared.
+    # The expensive part is loading models (which get_llm does lazily/cached).
+    #
+    # Let's use a simple lazy pattern: Only init when the node runs.
+    # But wait, nodes are defined below.
+    # If we define `run_pitch` to init NewEmployeeAgent inside, it's lazy.
 
-    workflow = StateGraph(GlobalState)
-
-    # Add Nodes
-    # We use distinct node names to define the sequence,
-    # even though they reuse the same agent instances.
-
-    # Wrap agents with logging for debug visibility
     def run_pitch(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 1: New Employee Pitch")
-        return new_employee.run(state)
+        agent = NewEmployeeAgent(llm)
+        return agent.run(state)
 
     def run_finance(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 2: Finance Critique")
-        return finance.run(state)
+        agent = FinanceAgent(llm)
+        return agent.run(state)
 
     def run_defense_1(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 3: New Employee Defense")
-        return new_employee.run(state)
+        agent = NewEmployeeAgent(llm)
+        return agent.run(state)
 
     def run_sales(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 4: Sales Critique")
-        return sales.run(state)
+        agent = SalesAgent(llm)
+        return agent.run(state)
 
     def run_defense_2(state: GlobalState) -> dict[str, object]:
         logger.info("Turn 5: New Employee Final Defense")
-        return new_employee.run(state)
+        agent = NewEmployeeAgent(llm)
+        return agent.run(state)
+
+    workflow = StateGraph(GlobalState)
 
     workflow.add_node("pitch", run_pitch)
     workflow.add_node("finance_critique", run_finance)

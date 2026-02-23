@@ -45,15 +45,6 @@ def test_simulation_turn_sequence(
     """
     # Setup Logic:
     # Each agent instance needs a .run(state) method.
-    # We want to simulate the state evolution.
-    # Since the Agents in the graph are re-instantiated or reused (reused in create_simulation_graph),
-    # we need to configure the instances returned by the constructors.
-
-    # 1. New Employee Pitch
-    # 2. Finance Critique
-    # 3. Defense 1
-    # 4. Sales Critique
-    # 5. Defense 2
 
     # Create Mock Instances
     mock_new_emp = MagicMock()
@@ -63,11 +54,6 @@ def test_simulation_turn_sequence(
     mock_new_emp_cls.return_value = mock_new_emp
     mock_finance_cls.return_value = mock_finance
     mock_sales_cls.return_value = mock_sales
-
-    # We need side_effects for .run() because the output depends on the input state
-    # (appending to history).
-    # OR, since we just want to verify the SEQUENCE of calls and the final state accumulation,
-    # we can have them append a dummy message.
 
     def agent_run_side_effect(role: Role):
         def _run(state: GlobalState):
@@ -103,3 +89,32 @@ def test_simulation_turn_sequence(
     assert roles == expected_roles
     assert debate_history[0].content == f"Message from {Role.NEW_EMPLOYEE}"
     assert debate_history[1].content == f"Message from {Role.FINANCE}"
+
+
+@patch("src.core.simulation.NewEmployeeAgent")
+@patch("src.core.simulation.get_llm")
+def test_simulation_error_handling(
+    mock_get_llm: MagicMock,
+    mock_new_emp_cls: MagicMock,
+    initial_state: GlobalState
+) -> None:
+    """
+    Verify that the simulation graph handles errors gracefully if an agent fails.
+    """
+    mock_get_llm.return_value = MagicMock()
+
+    # Simulate an agent raising an exception during run
+    mock_agent = MagicMock()
+    mock_new_emp_cls.return_value = mock_agent
+    mock_agent.run.side_effect = RuntimeError("Simulation Crash")
+
+    app = create_simulation_graph()
+
+    # LangGraph doesn't catch node exceptions by default unless configured.
+    # We expect the graph invocation to raise the exception.
+    # The robustness comes from the outer 'safe_simulation_run' wrapper in graph.py,
+    # but here we are testing the inner graph.
+    # So we verify it raises correctly.
+
+    with pytest.raises(RuntimeError, match="Simulation Crash"):
+        app.invoke(initial_state)
