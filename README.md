@@ -1,6 +1,6 @@
 # The JTC 2.0: Enterprise Business Accelerator
 
-![Status](https://img.shields.io/badge/Status-Cycle_1_Complete-green)
+![Status](https://img.shields.io/badge/Status-Cycle_2_Complete-green)
 ![Python](https://img.shields.io/badge/Python-3.12+-blue)
 
 **The JTC 2.0** is a paradigm-shifting multi-agent system that fuses the rigorous methodology of **"Startup Science"** with the complex organizational dynamics of **Traditional Japanese Companies (JTCs)**. It is not just a chatbot; it is a role-playing simulation where your business ideas are subjected to "Gekizume" (harsh feedback) by AI agents, validated against real customer interviews, and automatically built into MVPs.
@@ -11,12 +11,13 @@
 -   **Why**: To help intrapreneurs navigate the "Valley of Death" in large organizations by simulating the harsh reality of corporate decision-making before pitching to real stakeholders.
 -   **How**: Uses **LangGraph** to orchestrate specialized agents (Ideator, Finance, Sales) and **Tavily** for real-time market research.
 
-## ✨ Features (Cycle 1 Verified)
+## ✨ Features
 
 -   **Automated Ideation Engine**: Generates 10 distinct, research-backed Lean Canvas business ideas from a single topic.
+-   **JTC Simulation Engine ("The Meeting")**: Watch your "New Employee" proxy defend your idea against skeptical "Finance Manager" and aggressive "Sales Manager" agents in a realistic debate.
+-   **Pyxel Retro UI**: A gamified RPG-style interface for observing the simulation without personal emotional attachment ("De-identification").
 -   **Market Research Integration**: Automatically pulls "Emerging Trends" and "Painful Problems" using Tavily Search API.
 -   **Strict Schema Validation**: All ideas are guaranteed to follow the Lean Canvas structure using Pydantic models.
--   **Interactive Selection**: CLI interface for reviewing and selecting the "Plan A" to proceed with.
 
 ## 📋 Prerequisites
 
@@ -48,7 +49,7 @@
 
 ## 🚀 Usage
 
-**Run the Ideation Engine:**
+**Start the Ideation & Simulation:**
 
 ```bash
 uv run main.py "AI for Agriculture"
@@ -61,9 +62,9 @@ uv run main.py
 ```
 
 The system will:
-1.  Research the topic.
-2.  Generate 10 Lean Canvas drafts.
-3.  Ask you to select one to proceed (Gate 1).
+1.  Research the topic and generate 10 Lean Canvas drafts.
+2.  Ask you to select one "Plan A" to proceed (Gate 1).
+3.  Launch the **JTC Simulation** in a Pyxel window (or console fallback) where agents debate the plan.
 
 ## 🏗 Architecture
 
@@ -72,10 +73,11 @@ The system will:
 ```ascii
 .
 ├── src/
-│   ├── agents/             # Agent Logic (Ideator)
-│   ├── core/               # LangGraph Workflow & Config
-│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, GlobalState)
+│   ├── agents/             # Agent Logic (Ideator, Personas)
+│   ├── core/               # LangGraph Workflow, Simulation & Config
+│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, GlobalState, Simulation)
 │   ├── tools/              # API Wrappers (Tavily)
+│   ├── ui/                 # Pyxel Renderer
 │   └── main.py             # CLI Entry Point
 ├── tests/                  # Unit & UAT Tests
 ├── dev_documents/          # Specs & Logs
@@ -85,7 +87,7 @@ The system will:
 ## 🗺 Roadmap
 
 -   **Cycle 1: Foundation & Ideation (Completed)**
--   **Cycle 2**: JTC Simulation (Proxy & Meeting)
+-   **Cycle 2: JTC Simulation (Completed)**
 -   **Cycle 3**: Real World Connection (RAG)
 -   **Cycle 4**: Consensus Building (Nemawashi)
 -   **Cycle 5**: MVP Generation

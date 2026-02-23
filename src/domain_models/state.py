@@ -10,6 +10,7 @@ from .lean_canvas import LeanCanvas
 from .metrics import Metrics
 from .mvp import MVP
 from .persona import Persona
+from .simulation import DialogueMessage
 
 
 class Phase(StrEnum):
@@ -49,6 +50,9 @@ class GlobalState(BaseModel):
     target_persona: Persona | None = None
     mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
+
+    debate_history: list[DialogueMessage] = []
+    simulation_active: bool = False
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:
