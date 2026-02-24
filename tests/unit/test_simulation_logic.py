@@ -99,7 +99,7 @@ def test_rate_limit_wait(mock_llm: MagicMock) -> None:
 
 
 @patch("src.agents.personas.TavilySearch")
-@patch("src.core.simulation.get_llm")
+@patch("src.core.factory.get_llm")
 def test_simulation_graph_structure(mock_get_llm: MagicMock, mock_tavily: MagicMock) -> None:
     """Test the structure of the simulation graph."""
     mock_get_llm.return_value = MagicMock()

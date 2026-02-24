@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -33,31 +34,53 @@ class BuilderAgent(BaseAgent):
     def _extract_features(self, solution_description: str) -> list[str]:
         """
         Extract discrete features from the solution description using LLM.
+        Implements chunking for large inputs to prevent memory overload.
         """
         if not solution_description or len(solution_description) < 10:
             logger.warning("Solution description too short for feature extraction.")
             return []
 
-        # Sanitize input (basic check)
-        if len(solution_description) > 5000:
-             logger.warning("Solution description too long, truncating.")
-             solution_description = solution_description[:5000]
+        # Sanitize input (basic check to prevent injection or malformed large inputs)
+        # Replacing potentially problematic characters if any, but mainly relying on LLM safety.
+        # Strict memory limit check before processing
+        MAX_INPUT_LENGTH = 100000 # Example limit, could be config
+        if len(solution_description) > MAX_INPUT_LENGTH:
+            logger.warning(f"Solution description truncated to {MAX_INPUT_LENGTH} chars.")
+            solution_description = solution_description[:MAX_INPUT_LENGTH]
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", "You are a product manager. Extract distinct features from the solution description."),
-                ("user", f"Solution Description: {solution_description}\n\nList the features:")
-            ]
-        )
-        chain = prompt | self.llm.with_structured_output(FeatureList)
-        try:
-            result = chain.invoke({})
-            if isinstance(result, FeatureList):
-                return result.features
-            return []
-        except Exception:
-            logger.exception("Failed to extract features")
-            return []
+        # Chunking logic for memory safety using generator
+        chunk_size = self.settings.feature_chunk_size
+        all_features: list[str] = []
+
+        def chunk_generator() -> Iterator[str]:
+            for i in range(0, len(solution_description), chunk_size):
+                yield solution_description[i : i + chunk_size]
+
+        for chunk in chunk_generator():
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", "You are a product manager. Extract distinct features from the solution description."),
+                    ("user", f"Solution Description: {chunk}\n\nList the features:")
+                ]
+            )
+            chain = prompt | self.llm.with_structured_output(FeatureList)
+            try:
+                result = chain.invoke({})
+                if isinstance(result, FeatureList):
+                    all_features.extend(result.features)
+            except Exception:
+                logger.exception("Failed to extract features from chunk")
+                continue
+
+        # Deduplicate features while preserving order
+        seen = set()
+        unique_features = []
+        for f in all_features:
+            if f not in seen:
+                seen.add(f)
+                unique_features.append(f)
+
+        return unique_features
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """
@@ -80,44 +103,41 @@ class BuilderAgent(BaseAgent):
             logger.exception("Failed to create MVP Spec")
             return MVPSpec(app_name=app_name, core_feature=feature)
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def propose_features(self, state: GlobalState) -> dict[str, Any]:
         """
-        Execute the Builder Agent logic.
-
-        1. If selected_feature is set, proceed to generation.
-        2. If not, extract features.
-        3. If multiple features, return them for user selection (Gate 3).
-        4. If single feature, auto-select and proceed.
+        Gate 3 Preparation: Extract features for user selection.
         """
         if not state.selected_idea:
             logger.warning("No idea selected for Builder Agent.")
             return {}
 
-        # 1. Handle Selection Logic
-        selected_feature = state.selected_feature
         candidate_features = state.candidate_features
+        if not candidate_features:
+            candidate_features = self._extract_features(state.selected_idea.solution)
 
+        if not candidate_features:
+            logger.warning("No features extracted from solution.")
+            return {}
+
+        logger.info(f"Proposed features: {candidate_features}")
+        return {"candidate_features": candidate_features}
+
+    def generate_mvp(self, state: GlobalState) -> dict[str, Any]:
+        """
+        Execute MVP Generation (Cycle 5) for the selected feature.
+        """
+        if not state.selected_idea:
+            logger.warning("No idea selected for MVP Generation.")
+            return {}
+
+        selected_feature = state.selected_feature
         if not selected_feature:
-            if not candidate_features:
-                # Extract features if not already done
-                candidate_features = self._extract_features(state.selected_idea.solution)
-
-            if not candidate_features:
-                logger.warning("No features extracted from solution.")
+            # Fallback: Check if there's only one candidate
+            if state.candidate_features and len(state.candidate_features) == 1:
+                selected_feature = state.candidate_features[0]
+            else:
+                logger.error("No feature selected for MVP Generation.")
                 return {}
-
-            if len(candidate_features) > 1:
-                # Gate 3: Multiple features found, require user selection
-                logger.info(f"Multiple features found: {candidate_features}. Waiting for selection.")
-                return {"candidate_features": candidate_features}
-
-            # Single feature: Auto-select
-            selected_feature = candidate_features[0]
-            logger.info(f"Single feature auto-selected: {selected_feature}")
-            # We continue execution with this feature, but we also update state return
-
-        # 2. Generation Logic (Optimization: V0 Generation)
-        # At this point we have a selected_feature (either from state or auto-selected)
 
         logger.info(f"Generating MVP for feature: {selected_feature}")
 
@@ -127,31 +147,35 @@ class BuilderAgent(BaseAgent):
             idea_context=f"{state.selected_idea.problem} -> {state.selected_idea.unique_value_prop}"
         )
 
+        # Construct a prompt for v0 from the spec
+        v0_prompt = (
+            f"Create a {spec.ui_style} React component using Tailwind CSS for '{spec.app_name}'. "
+            f"Core Feature: {spec.core_feature}. "
+            f"Include components: {', '.join(spec.components)}."
+        )
+        spec.v0_prompt = v0_prompt
+
         try:
             v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None)
-
-            # Construct a prompt for v0 from the spec
-            v0_prompt = (
-                f"Create a {spec.ui_style} React component using Tailwind CSS for '{spec.app_name}'. "
-                f"Core Feature: {spec.core_feature}. "
-                f"Include components: {', '.join(spec.components)}."
-            )
-
             url = v0_client.generate_ui(v0_prompt)
-            logger.info(f"MVP Generated: {url}")
-
-            return {
-                "mvp_spec": spec,
-                "mvp_url": url,
-                "selected_feature": selected_feature, # Ensure state reflects selection
-                "candidate_features": candidate_features # Ensure candidates are persisted if newly found
-            }
-
         except Exception:
             logger.exception("Failed to generate MVP via v0")
             # Return partial state (spec created but generation failed)
             return {
                 "mvp_spec": spec,
                 "selected_feature": selected_feature,
-                "candidate_features": candidate_features
             }
+        else:
+            logger.info(f"MVP Generated: {url}")
+
+            return {
+                "mvp_spec": spec,
+                "mvp_url": url,
+                "selected_feature": selected_feature,
+            }
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        """
+        Legacy run method. Delegates to propose_features (default behavior).
+        """
+        return self.propose_features(state)

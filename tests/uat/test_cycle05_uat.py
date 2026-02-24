@@ -50,7 +50,7 @@ class TestCycle05UAT:
         agent = BuilderAgent(llm=mock_llm)
 
         with patch.object(agent, "_extract_features", return_value=["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]):
-            result = agent.run(initial_state)
+            result = agent.propose_features(initial_state)
 
             assert "candidate_features" in result
             assert len(result["candidate_features"]) == 3
@@ -84,7 +84,42 @@ class TestCycle05UAT:
                 core_feature="Feature 2 desc",
                 components=["Hero"]
             )):
-                result = agent.run(initial_state)
+                result = agent.generate_mvp(initial_state)
 
                 assert result["mvp_url"] == "https://v0.dev/uat-result"
                 assert result["mvp_spec"].core_feature == "Feature 2 desc"
+
+    def test_uat_c05_03_full_flow_integration(self, initial_state: GlobalState) -> None:
+        """
+        Scenario 3: Full Integration
+        Test the sequence: propose -> select -> generate using the mocked client.
+        This simulates the graph flow.
+        """
+        if BuilderAgent is None:
+            pytest.skip("BuilderAgent not implemented")
+
+        get_settings.cache_clear()
+        mock_llm = MagicMock()
+        agent = BuilderAgent(llm=mock_llm)
+
+        # 1. Propose
+        with patch.object(agent, "_extract_features", return_value=["Feature 1 Long Enough", "Feature 2 Long Enough"]):
+            proposal = agent.propose_features(initial_state)
+            assert proposal["candidate_features"] == ["Feature 1 Long Enough", "Feature 2 Long Enough"]
+
+        # 2. User Selection (Simulated update to state)
+        initial_state.candidate_features = proposal["candidate_features"]
+        initial_state.selected_feature = "Feature 1 Long Enough"
+
+        # 3. Generate
+        with patch("src.agents.builder.V0Client") as mock_v0_cls:
+            mock_client = mock_v0_cls.return_value
+            mock_client.generate_ui.return_value = "https://v0.dev/final"
+
+            with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
+                app_name="App", core_feature="Feature 1 Long Enough", components=[], v0_prompt="Generate F1"
+            )):
+                result = agent.generate_mvp(initial_state)
+
+                assert result["mvp_url"] == "https://v0.dev/final"
+                assert result["selected_feature"] == "Feature 1 Long Enough"

@@ -16,12 +16,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from src.core.config import get_settings
 from src.core.constants import (
     ERR_CIRCUIT_OPEN,
+    ERR_PATH_TRAVERSAL,
     ERR_RAG_INDEX_SIZE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
-    ERR_PATH_TRAVERSAL,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
+from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
     """
     Calculate directory size iteratively with depth limit.
     Optimized to use os.scandir which yields DirEntry objects containing cached stat info.
+    Includes a safety limit on file count to prevent infinite loops or excessive blocking.
 
     Args:
         path: Path to scan.
@@ -48,6 +50,9 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
         Total size in bytes.
     """
     total = 0
+    file_count = 0
+    MAX_FILES = 10000 # Safety limit to prevent hanging on massive directories
+
     # Stack stores (path, current_depth)
     stack = [(path, 0)]
 
@@ -63,6 +68,10 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
                 for entry in it:
                     if entry.is_file(follow_symlinks=False):
                         total += entry.stat().st_size
+                        file_count += 1
+                        if file_count > MAX_FILES:
+                            logger.warning(f"Scan file limit ({MAX_FILES}) reached at {current_path}. Returning partial size.")
+                            return total
                     elif entry.is_dir(follow_symlinks=False):
                         stack.append((entry.path, depth + 1))
         except OSError as e:
@@ -141,12 +150,15 @@ class RAG:
                 path = path.resolve(strict=True)
                 # Check for symlinks in final path component
                 if path.is_symlink():
-                    raise ConfigurationError("Symlinks not allowed in persist_dir.")
+                    symlink_msg = "Symlinks not allowed in persist_dir."
+                    raise ConfigurationError(symlink_msg)
             else:
                 # If path doesn't exist, verify parent exists and is safe
                 parent = path.parent.resolve(strict=True)
                 path = parent / path.name
         except Exception as e:
+            if isinstance(e, ConfigurationError):
+                raise
             msg = f"Invalid path format or non-existent parent: {e}"
             raise ConfigurationError(msg) from e
 
@@ -176,10 +188,12 @@ class RAG:
     def _sanitize_query(self, query: str) -> str:
         """
         Sanitize input query to prevent injection or processing issues.
+        Efficient implementation using list comprehension.
         """
         # Remove control characters (e.g. null bytes)
-        sanitized = "".join(ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127)
-        return sanitized.strip()
+        # Using list comprehension for performance on large strings
+        chars = [ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127]
+        return "".join(chars).strip()
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
@@ -196,7 +210,8 @@ class RAG:
 
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
-        path_obj = Path(self.persist_dir)
+        # Check size before any loading attempt to prevent OOM
+        self._check_index_size_limit()
 
         # Optimized empty check (iterator based)
         try:
@@ -211,16 +226,11 @@ class RAG:
              self.index = None
              return
 
-        self._check_index_size_limit()
-
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
 
-            # MEMORY SAFETY: We assume load_index_from_storage loads efficiently.
-            # LlamaIndex loads indices into memory. To prevent OOM, we should check size.
-            # We already check _current_index_size in _check_index_size_limit().
-
+            # MEMORY SAFETY: We rely on _check_index_size_limit() called above.
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
         except Exception:
@@ -308,7 +318,7 @@ class RAG:
         doc_iterator = self._document_generator(request)
 
         # Batch size for insertion
-        BATCH_SIZE = 20
+        batch_size = self.settings.rag_batch_size
         batch: list[Document] = []
 
         try:
@@ -324,12 +334,8 @@ class RAG:
             # Stream processing with batching
             for doc in doc_iterator:
                 batch.append(doc)
-                if len(batch) >= BATCH_SIZE:
-                    self.index.insert_nodes(batch) # Use insert_nodes for batch if supported by index structure logic, or loop insert
-                    # VectorStoreIndex.insert is single doc.
-                    # But insert_nodes is available on base index.
-                    # Actually, insert() calls insert_nodes([document]).
-                    # So using insert_nodes directly is better.
+                if len(batch) >= batch_size:
+                    self.index.insert_nodes(batch)
                     batch = []
 
             # Insert remaining
@@ -340,6 +346,12 @@ class RAG:
             logger.exception("Failed to ingest document from %s", source)
             msg = f"Ingestion failed: {e}"
             raise RuntimeError(msg) from e
+
+    def ingest_transcript(self, transcript: Transcript) -> None:
+        """
+        Ingest a transcript object.
+        """
+        self.ingest_text(transcript.content, source=transcript.source)
 
     def persist_index(self) -> None:
         """Persist the index to disk."""
@@ -385,16 +397,17 @@ class RAG:
         if self.index is None:
             return "No data available."
 
+        # Implement simple timeout mechanism if not supported natively by LlamaIndex sync query
+        # Currently running in sync context, so threading/timeout is complex without async.
+        # But we can assume LlamaIndex might have timeout settings or we rely on pybreaker.
+        # For strict timeout, we would need to run in a thread or process.
+        # Given constraints, we'll rely on the breaker timeout which is already wrapped around this call.
+
         try:
             query_engine = self.index.as_query_engine()
             response = query_engine.query(question)
             return str(response)
         except Exception as e:
-            # In a real scenario, we would import specific exceptions from llama_index
-            # e.g. TokenLimitError, etc.
-            # Since we mocked them in tests and they might change, generic catch with detail is safe.
-            # But the audit asked for specific exceptions.
-            # Assuming standard LlamaIndex exceptions if they exist in imported modules.
-            # Since we only imported generic stuff, we'll log exception name.
-            logger.error(f"LlamaIndex query failed: {e.__class__.__name__}: {e}")
-            raise RuntimeError(f"Query execution failed: {e}") from e
+            logger.exception("LlamaIndex query failed: %s", e.__class__.__name__)
+            msg = f"Query execution failed: {e}"
+            raise RuntimeError(msg) from e

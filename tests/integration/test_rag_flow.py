@@ -1,3 +1,4 @@
+import contextlib
 import shutil
 import tempfile
 from collections.abc import Generator
@@ -13,6 +14,7 @@ from src.core.config import get_settings
 from src.data.rag import RAG
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
+from src.domain_models.transcript import Transcript
 from tests.conftest import DUMMY_ENV_VARS
 
 
@@ -45,10 +47,45 @@ def temp_vector_store() -> Generator[str, None, None]:
             shutil.rmtree(temp_dir)
 
         # Try to remove the base dir if empty to keep project clean
-        try:
+        with contextlib.suppress(OSError):
             base_dir.rmdir()
-        except OSError:
-            pass  # Directory not empty or busy
+
+
+@patch.dict("os.environ", DUMMY_ENV_VARS)
+def test_transcript_ingestion(temp_vector_store: str) -> None:
+    """Test that ingest_transcript works correctly."""
+    # Using LlamaIndex's MockLLM and MockEmbedding directly injected via Settings
+    # This avoids patching the class definition, allowing RAG to instantiate normally.
+    from llama_index.core import Settings as LlamaSettings
+    LlamaSettings.llm = MockLLM()
+    LlamaSettings.embed_model = MockEmbedding(embed_dim=1536)
+
+    # We still patch the constructor call in RAG._init_llama to avoid re-overwriting settings with real OpenAI
+    # However, since we set global LlamaSettings, we can just ensure RAG uses them.
+    # But RAG._init_llama explicitly sets LlamaSettings.llm = OpenAI(...).
+    # We must patch OpenAI class to return our MockLLM instance.
+
+    with (
+        patch("src.data.rag.OpenAI", return_value=MockLLM()),
+        patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+    ):
+        rag = RAG(persist_dir=temp_vector_store)
+        transcript = Transcript(
+            source="Test Interview",
+            content="Customer says: I hate waiting in line.",
+            date="2023-01-01"
+        )
+
+        # Test ingestion
+        rag.ingest_transcript(transcript)
+        rag.persist_index()
+
+        # Verify persistence
+        assert any(Path(temp_vector_store).iterdir())
+
+        # Reload and query
+        rag_loaded = RAG(persist_dir=temp_vector_store)
+        assert rag_loaded.index is not None
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
@@ -58,12 +95,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     Uses real LlamaIndex components (mocked LLM/Embeddings to avoid API calls).
     """
     get_settings.cache_clear()
-    # Mocking secret value getter for Pydantic SecretStr (via cached settings is hard,
-    # but DUMMY_ENV_VARS ensures keys exist)
 
-    # We mock OpenAI and OpenAIEmbedding to avoid real API calls.
-    # We patch them where they are used in src.data.rag to ensure RAG uses the mocks
-    # even if already imported.
     with (
         patch("src.data.rag.OpenAI", return_value=MockLLM()),
         patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
@@ -80,26 +112,19 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 
         # Verify files created
         from pathlib import Path
-
         assert any(Path(temp_vector_store).iterdir())
 
         # 3. Reload (simulate new instance)
         rag_loaded = RAG(persist_dir=temp_vector_store)
         assert rag_loaded.index is not None
 
-        # 4. Query (Mock the query engine response since we don't have real embeddings)
-        # Real query would fail with fake embeddings matching nothing or erroring on mock.
-        # But we verified index loading.
+        # 4. Query - We trust the index is built.
+        # With MockEmbedding, queries might return low scores or nothing,
+        # but the machinery works.
+        # We assume LlamaIndex works. We check if .query() executes without error.
 
-        # We can mock the query engine on the loaded instance to verify connection
-        with patch.object(rag_loaded.index, "as_query_engine") as mock_engine:
-            mock_response = MagicMock()
-            # Explicit assignment for return value of str()
-            mock_response.__str__ = MagicMock(return_value="Verified answer.")  # type: ignore[method-assign]
-            mock_engine.return_value.query.return_value = mock_response
-
-            answer = rag_loaded.query("What do customers prefer?")
-            assert answer == "Verified answer."
+        response = rag_loaded.query("What do customers prefer?")
+        assert isinstance(response, str)
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)

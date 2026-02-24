@@ -1,5 +1,6 @@
 import logging
-from typing import Any
+import re
+import time
 
 import httpx
 import pybreaker
@@ -51,15 +52,30 @@ class V0Client:
             logger.error(ERR_V0_API_KEY_MISSING)
             raise V0GenerationError(ERR_V0_API_KEY_MISSING)
 
+        # Basic validation for API key format to prevent header injection or malformed keys
+        # Assuming typical bearer token format (alphanumeric, dashes, underscores, dots)
+        if not re.match(r"^[A-Za-z0-9\-\._]+$", self.api_key):
+            msg = "Invalid API key format"
+            logger.error(msg)
+            raise V0GenerationError(msg)
+
         return self.breaker.call(self._generate_ui_impl, prompt)
 
+    def _sanitize_header(self, value: str) -> str:
+        """Prevent header injection by stripping newlines."""
+        return value.replace("\n", "").replace("\r", "")
+
     def _generate_ui_impl(self, prompt: str) -> str:
+        # Sanitize headers
+        sanitized_api_key = self._sanitize_header(self.api_key) # type: ignore # checked in public method
+
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {sanitized_api_key}",
             "Content-Type": "application/json",
         }
 
         # Structure payload for v0.dev (assuming OpenAI-compatible chat format)
+        # Prompt is user content in JSON body, requests handles escaping, but strict hygiene is good.
         payload = {
             "model": "v0-preview", # or similar model name
             "messages": [
@@ -75,25 +91,42 @@ class V0Client:
             "stream": False
         }
 
+        max_retries = self.settings.v0.retry_max
+        backoff_factor = self.settings.v0.retry_backoff
+
         try:
             with httpx.Client(timeout=60.0) as client:
-                response = client.post(self.base_url, headers=headers, json=payload)
+                for attempt in range(max_retries + 1):
+                    response = client.post(self.base_url, headers=headers, json=payload)
 
-                if response.status_code != 200:
+                    if response.status_code == 200:
+                        data = response.json()
+                        if "url" in data:
+                            return str(data["url"])
+                        msg = ERR_V0_NO_URL.format(keys=list(data.keys()))
+                        logger.error(msg)
+                        raise V0GenerationError(msg)
+
+                    if response.status_code == 429:
+                        if attempt < max_retries:
+                            sleep_time = backoff_factor ** attempt
+                            logger.warning(f"Rate limited by v0.dev. Retrying in {sleep_time}s...")
+                            time.sleep(sleep_time)
+                            continue
+                        msg = "v0.dev rate limit exceeded after retries."
+                        logger.error(msg)
+                        raise V0GenerationError(msg)
+
+                    # Other non-200 errors
                     msg = ERR_V0_GENERATION_FAILED.format(status_code=response.status_code)
                     logger.error(f"v0.dev API error: {response.status_code} - {response.text}")
                     raise V0GenerationError(msg)
-
-                data = response.json()
-
-                if "url" in data:
-                    return str(data["url"])
-
-                msg = ERR_V0_NO_URL.format(keys=list(data.keys()))
-                logger.error(msg)
-                raise V0GenerationError(msg)
 
         except httpx.RequestError as e:
             msg = ERR_V0_NETWORK_ERROR.format(e=e)
             logger.exception(msg)
             raise V0GenerationError(msg) from e
+
+        # Should be unreachable if logic is correct, but for safety
+        msg = "Unknown error in v0 generation flow"
+        raise V0GenerationError(msg)

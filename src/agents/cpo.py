@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from langchain_openai import ChatOpenAI
 
@@ -7,6 +8,7 @@ from src.agents.personas import PersonaAgent
 from src.core.config import Settings
 from src.data.rag import RAG
 from src.domain_models.simulation import Role
+from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ class CPOAgent(PersonaAgent):
         llm: ChatOpenAI,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
-        rag_path: str = "./vector_store",
+        rag_path: str | None = None,
     ) -> None:
         system_prompt = (
             "You are the Chief Product Officer (CPO). "
@@ -36,13 +38,60 @@ class CPOAgent(PersonaAgent):
             "between the Plan and the Customer Interview."
         )
         super().__init__(llm, Role.CPO, system_prompt, search_tool, app_settings)
-        self.rag = RAG(persist_dir=rag_path)
+
+        # Use provided path or fallback to settings (not hardcoded string)
+        actual_rag_path = rag_path or self.settings.rag_persist_dir
+        self.rag = RAG(persist_dir=actual_rag_path)
 
     def _research_impl(self, topic: str) -> str:
         """
         Query the RAG engine for relevant customer insights.
         Overrides the default web search behavior.
         """
-        query = f"What do customers say about {topic} or related problems?"
-        logger.info(f"CPO querying RAG: {query}")
-        return self.rag.query(query)
+        try:
+            query = f"What do customers say about {topic} or related problems?"
+            logger.info(f"CPO querying RAG: {query}")
+            return self.rag.query(query)
+        except Exception:
+            logger.exception("Error querying RAG")
+            return "No customer insights available due to error."
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        """
+        Run the CPO agent logic with Nemawashi context.
+        """
+        try:
+            # 1. Build Standard Context
+            context = self._build_context(state)
+
+            # 2. Get Research Data (RAG)
+            research_data = ""
+            if state.selected_idea:
+                research_data = self._cached_research(state.selected_idea.title)
+
+            # 3. Inject Nemawashi (Influence) Data
+            if state.influence_network:
+                stakeholders_info = ["\nSTAKEHOLDER ANALYSIS (Nemawashi):"]
+                for s in state.influence_network.stakeholders:
+                    status = "Supportive" if s.initial_support > 0.7 else "Resistant" if s.initial_support < 0.3 else "Neutral"
+                    stakeholders_info.append(
+                        f"- {s.name}: {status} (Support={s.initial_support:.2f}, Stubbornness={s.stubbornness:.2f})"
+                    )
+
+                research_data += "\n".join(stakeholders_info)
+
+            content = self._generate_response(context, research_data)
+
+            # We return the standard dict update.
+            import time
+
+            from src.domain_models.simulation import DialogueMessage
+
+            message = DialogueMessage(role=self.role, content=content, timestamp=time.time())
+
+        except Exception:
+            logger.exception("Error in CPO Agent Run")
+            return {}
+
+        new_history = [*list(state.debate_history), message]
+        return {"debate_history": new_history}

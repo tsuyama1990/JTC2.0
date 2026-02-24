@@ -5,6 +5,7 @@ This module encapsulates the structure of the MVP, including its type, core feat
 and success criteria, following the 'Lean Startup' methodology.
 """
 
+import re
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
@@ -18,7 +19,9 @@ from src.core.constants import (
     DESC_MVP_SUCCESS_CRITERIA,
     DESC_MVP_TYPE,
 )
-import re
+
+# Pre-compiled regex pattern at module level
+COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-]+$")
 
 
 class MVPType(StrEnum):
@@ -106,6 +109,10 @@ class MVPSpec(BaseModel):
     app_name: str = Field(..., description="Name of the application", min_length=1, max_length=50)
     core_feature: str = Field(..., description="The single core feature to implement", min_length=10)
     ui_style: str = Field(default="Modern, Clean, Corporate", description="Visual style of the UI")
+    v0_prompt: str | None = Field(
+        default=None,
+        description="The prompt used to generate the UI via v0.dev",
+    )
     components: list[str] = Field(
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
         description="Key UI components to include",
@@ -115,9 +122,19 @@ class MVPSpec(BaseModel):
     @classmethod
     def validate_components(cls, v: list[str]) -> list[str]:
         """Validate component names to prevent injection/malformed input."""
-        # Allow alphanumeric, spaces, hyphens
-        pattern = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+        # Using pre-compiled pattern constant could be better, but re.compile here is locally cached by Python's re module.
+        # However, to be explicit about optimization:
         for comp in v:
-            if not pattern.match(comp):
-                raise ValueError(f"Invalid component name: {comp}. Must be alphanumeric.")
+            if not COMPONENT_PATTERN.match(comp):
+                msg = f"Invalid component name: {comp}. Must be alphanumeric."
+                raise ValueError(msg)
+        return v
+
+    @field_validator("v0_prompt")
+    @classmethod
+    def validate_v0_prompt(cls, v: str | None) -> str | None:
+        """Ensure v0_prompt is non-empty if provided."""
+        if v is not None and not v.strip():
+            msg = "v0_prompt must be a non-empty string if provided."
+            raise ValueError(msg)
         return v

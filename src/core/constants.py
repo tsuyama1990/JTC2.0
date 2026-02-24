@@ -112,9 +112,13 @@ DEFAULT_CB_RESET_TIMEOUT: Final[int] = 60
 DEFAULT_MIN_TITLE_LENGTH: Final[int] = 3
 DEFAULT_MAX_TITLE_LENGTH: Final[int] = 100
 DEFAULT_ITERATOR_SAFETY_LIMIT: Final[int] = 10000
+DEFAULT_FEATURE_CHUNK_SIZE: Final[int] = 2000
+DEFAULT_RAG_BATCH_SIZE: Final[int] = 20
 
 # Configuration Defaults (API)
 DEFAULT_V0_API_URL: Final[str] = "https://api.v0.dev/chat/completions"
+DEFAULT_V0_RETRY_MAX: Final[int] = 3
+DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
 
 # UI Defaults
 DEFAULT_PAGE_SIZE: Final[int] = 5

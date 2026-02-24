@@ -9,9 +9,9 @@ from src.core.constants import (
     DEFAULT_CB_RESET_TIMEOUT,
     DEFAULT_CHARS_PER_LINE,
     DEFAULT_CONSOLE_SLEEP,
-    DEFAULT_V0_API_URL,
     DEFAULT_DIALOGUE_X,
     DEFAULT_DIALOGUE_Y,
+    DEFAULT_FEATURE_CHUNK_SIZE,
     DEFAULT_FPS,
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
@@ -25,10 +25,14 @@ from src.core.constants import (
     DEFAULT_NEMAWASHI_REDUCTION,
     DEFAULT_NEMAWASHI_TOLERANCE,
     DEFAULT_PAGE_SIZE,
+    DEFAULT_RAG_BATCH_SIZE,
     DEFAULT_RAG_CHUNK_SIZE,
     DEFAULT_RAG_MAX_DOC_LENGTH,
     DEFAULT_RAG_MAX_INDEX_SIZE_MB,
     DEFAULT_RAG_MAX_QUERY_LENGTH,
+    DEFAULT_V0_API_URL,
+    DEFAULT_V0_RETRY_BACKOFF,
+    DEFAULT_V0_RETRY_MAX,
     DEFAULT_WIDTH,
     ERR_CONFIG_MISSING_OPENAI_KEY,
     ERR_CONFIG_MISSING_TAVILY_KEY,
@@ -150,15 +154,6 @@ class AgentConfig(BaseModel):
         return ConfigValidators.validate_dimension(v)
 
 
-def _default_agents() -> dict[str, AgentConfig]:
-    return {
-        "New Employee": AgentConfig(role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP),
-        "Finance Manager": AgentConfig(role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE),
-        "Sales Manager": AgentConfig(role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES),
-        "CPO": AgentConfig(role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO),
-    }
-
-
 class NemawashiConfig(BaseSettings):
     """Configuration for Nemawashi Consensus Building."""
 
@@ -166,6 +161,13 @@ class NemawashiConfig(BaseSettings):
     tolerance: float = Field(alias="NEMAWASHI_TOLERANCE", default=DEFAULT_NEMAWASHI_TOLERANCE, description="Convergence tolerance")
     nomikai_boost: float = Field(alias="NEMAWASHI_NOMIKAI_BOOST", default=DEFAULT_NEMAWASHI_BOOST, description="Boost factor from Nomikai")
     nomikai_reduction: float = Field(alias="NEMAWASHI_NOMIKAI_REDUCTION", default=DEFAULT_NEMAWASHI_REDUCTION, description="Stubbornness reduction from Nomikai")
+
+
+class V0Config(BaseSettings):
+    """Configuration for v0.dev integration."""
+
+    retry_max: int = Field(alias="V0_RETRY_MAX", default=DEFAULT_V0_RETRY_MAX, description="Max retries for API calls")
+    retry_backoff: float = Field(alias="V0_RETRY_BACKOFF", default=DEFAULT_V0_RETRY_BACKOFF, description="Exponential backoff factor")
 
 
 class SimulationConfig(BaseSettings):
@@ -188,7 +190,41 @@ class SimulationConfig(BaseSettings):
     console_sleep: float = Field(default=DEFAULT_CONSOLE_SLEEP, description="Sleep time for console fallback")
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
-    agents: dict[str, AgentConfig] = Field(default_factory=_default_agents, description="Configuration for agents")
+    # Explicit fields for individual agents to allow env var overrides
+    agent_new_emp: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP
+        ),
+        description="Configuration for New Employee Agent"
+    )
+    agent_finance: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE
+        ),
+        description="Configuration for Finance Agent"
+    )
+    agent_sales: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES
+        ),
+        description="Configuration for Sales Agent"
+    )
+    agent_cpo: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO
+        ),
+        description="Configuration for CPO Agent"
+    )
+
+    @property
+    def agents(self) -> dict[str, AgentConfig]:
+        """Backwards compatibility accessor for agents dict."""
+        return {
+            "New Employee": self.agent_new_emp,
+            "Finance Manager": self.agent_finance,
+            "Sales Manager": self.agent_sales,
+            "CPO": self.agent_cpo,
+        }
 
     @field_validator("width", "height")
     @classmethod
@@ -226,6 +262,9 @@ class Settings(BaseSettings):
     rag_allowed_paths: list[str] = Field(default_factory=lambda: ["data", "vector_store", "tests"], description="Allowed directories for RAG")
     rag_rate_limit_interval: float = Field(alias="RAG_RATE_LIMIT_INTERVAL", default=0.1, description="Min interval between RAG calls in seconds")
     rag_scan_depth_limit: int = Field(alias="RAG_SCAN_DEPTH_LIMIT", default=10, description="Max recursion depth for directory scanning")
+    rag_batch_size: int = Field(alias="RAG_BATCH_SIZE", default=DEFAULT_RAG_BATCH_SIZE, description="Batch size for RAG ingestion")
+
+    feature_chunk_size: int = Field(alias="FEATURE_CHUNK_SIZE", default=DEFAULT_FEATURE_CHUNK_SIZE, description="Chunk size for feature extraction")
 
     circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold")
     circuit_breaker_reset_timeout: int = Field(alias="CB_RESET_TIMEOUT", default=DEFAULT_CB_RESET_TIMEOUT, description="Circuit breaker reset timeout")
@@ -249,6 +288,7 @@ class Settings(BaseSettings):
     ui: UIConfig = Field(default_factory=UIConfig)
     simulation: SimulationConfig = Field(default_factory=SimulationConfig)
     nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
+    v0: V0Config = Field(default_factory=V0Config)
 
     def model_post_init(self, __context: object) -> None:
         """Validate API keys on initialization."""
