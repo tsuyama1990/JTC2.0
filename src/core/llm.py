@@ -1,12 +1,16 @@
+from functools import lru_cache
+
 from langchain_openai import ChatOpenAI
 
 from src.core.config import get_settings
 from src.core.constants import ERR_LLM_CONFIG_MISSING
 
 
+@lru_cache
 def get_llm(model: str | None = None) -> ChatOpenAI:
     """
     Factory to get the LLM client.
+    Cached to prevent resource waste (Architecture constraint).
 
     Args:
         model: Optional model name override. Defaults to config settings.

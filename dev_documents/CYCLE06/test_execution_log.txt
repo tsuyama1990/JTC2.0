@@ -8,7 +8,7 @@ collected 136 items
 
 tests/integration/test_rag_flow.py ...                                   [  2%]
 tests/uat/test_cycle05_uat.py ...                                        [  4%]
-tests/uat/test_cycle06_uat.py ..                                         [  5%]
+tests/uat/test_cycle06_uat.py FF                                         [  5%]
 tests/uat/test_memory_safety.py ...                                      [  8%]
 tests/uat/test_nemawashi_uat.py ..                                       [  9%]
 tests/uat/test_uat_cycle01.py ...                                        [ 11%]
@@ -27,7 +27,7 @@ tests/unit/test_core_graph.py .....                                      [ 54%]
 tests/unit/test_cpo_agent.py ..                                          [ 55%]
 tests/unit/test_domain_models.py .......                                 [ 61%]
 tests/unit/test_file_service.py ...                                      [ 63%]
-tests/unit/test_governance_agent.py .                                    [ 63%]
+tests/unit/test_governance_agent.py F                                    [ 63%]
 tests/unit/test_governance_memory.py ..                                  [ 65%]
 tests/unit/test_ideator_agent.py ...                                     [ 67%]
 tests/unit/test_metrics_logic.py .........                               [ 74%]
@@ -41,6 +41,301 @@ tests/unit/test_tools.py ...                                             [ 94%]
 tests/unit/test_ui.py .....                                              [ 97%]
 tests/unit/test_v0_client.py ...                                         [100%]
 
+=================================== FAILURES ===================================
+______________ TestCycle06UAT.test_uat_c06_01_financial_viability ______________
+
+self = <test_cycle06_uat.TestCycle06UAT object at 0x7fbf5cca4980>
+initial_state = GlobalState(phase=<Phase.IDEATION: 'ideation'>, topic='UAT Cycle 6', generated_ideas=None, selected_idea=LeanCanvas(id...active=False, transcripts=[], rag_index_path='./vector_store', agent_states={}, influence_network=None, ringi_sho=None)
+
+    def test_uat_c06_01_financial_viability(self, initial_state: GlobalState) -> None:
+        """
+        Scenario 1: Financial Viability Check
+        Verify that the system calculates financials and flags unviable business models.
+        """
+        agent = GovernanceAgent()
+
+        # Define mock inputs
+        mock_cac = 500.0
+        mock_arpu = 20.0
+        mock_churn = 0.05
+
+        # Calculate expected derived values based on logic in src/core/metrics.py
+        # LTV = ARPU / Churn
+        expected_ltv = mock_arpu / mock_churn # 400.0
+        # ROI = LTV / CAC
+        expected_roi = expected_ltv / mock_cac # 0.8
+
+        # Mock dependencies
+        with patch("src.agents.governance.TavilySearch") as mock_search_cls:
+             mock_search = mock_search_cls.return_value
+             mock_search.safe_search.return_value = "Search result"
+
+             with patch("src.agents.governance.get_llm") as mock_llm_factory, \
+                  patch("src.agents.governance.GovernanceAgent._save_to_file"):
+                 mock_llm = mock_llm_factory.return_value
+
+                 # Mock LLM returns specifically tailored JSON
+                 mock_msg_fin = MagicMock()
+                 mock_msg_fin.content = f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
+
+                 mock_msg_ringi = MagicMock()
+                 mock_msg_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea.", "risks": ["High churn"]}'
+
+                 mock_llm.invoke.side_effect = [mock_msg_fin, mock_msg_ringi]
+
+                 # Run agent
+                 result = agent.run(initial_state)
+
+                 # Verify RingiSho created
+                 if "ringi_sho" in result:
+                     ringi_sho = result["ringi_sho"]
+                     assert isinstance(ringi_sho, RingiSho)
+                     assert ringi_sho.approval_status == "Rejected"
+
+                     # Verify mathematical correctness dynamically
+                     # Use approximate assertion for float comparison
+>                    assert abs(ringi_sho.financial_projection.ltv - expected_ltv) < 0.01
+E                    AssertionError: assert 600.0 < 0.01
+E                     +  where 600.0 = abs((1000.0 - 400.0))
+E                     +    where 1000.0 = Financials(cac=500.0, ltv=1000.0, payback_months=10.0, roi=2.0).ltv
+E                     +      where Financials(cac=500.0, ltv=1000.0, payback_months=10.0, roi=2.0) = RingiSho(title='Proposal for UAT App', executive_summary='Auto-generated summary failed.', financial_projection=Financials(cac=500.0, ltv=1000.0, payback_months=10.0, roi=2.0), risks=['Generation Error'], approval_status='Rejected').financial_projection
+
+tests/uat/test_cycle06_uat.py:83: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    src.agents.governance:governance.py:102 Financial estimation failed. Using defaults.
+Traceback (most recent call last):
+  File "/app/src/agents/governance.py", line 99, in _estimate_financials
+    estimates = self._safe_llm_call(prompt, FinancialEstimates)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 184, in _safe_llm_call
+    data_dict = self._parse_json(content)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 209, in _parse_json
+    return json.loads(text) # type: ignore
+           ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 338, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 356, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+ERROR    src.agents.governance:governance.py:144 Ringi-Sho generation failed. Using fallback.
+Traceback (most recent call last):
+  File "/app/src/agents/governance.py", line 134, in _generate_ringi_sho
+    partial = self._safe_llm_call(prompt, PartialRingi)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 184, in _safe_llm_call
+    data_dict = self._parse_json(content)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 209, in _parse_json
+    return json.loads(text) # type: ignore
+           ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 338, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 356, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+_____________ TestCycle06UAT.test_uat_c06_02_ringi_sho_generation ______________
+
+self = <test_cycle06_uat.TestCycle06UAT object at 0x7fbf5d381a00>
+initial_state = GlobalState(phase=<Phase.IDEATION: 'ideation'>, topic='UAT Cycle 6', generated_ideas=None, selected_idea=LeanCanvas(id...active=False, transcripts=[], rag_index_path='./vector_store', agent_states={}, influence_network=None, ringi_sho=None)
+
+    def test_uat_c06_02_ringi_sho_generation(self, initial_state: GlobalState) -> None:
+        """
+        Scenario 2: Ringi-sho Generation
+        Verify generation of the final approval document.
+        """
+        agent = GovernanceAgent()
+
+        # Define mock inputs for SUCCESS case
+        mock_cac = 600.0
+        mock_arpu = 100.0
+        mock_churn = 0.02
+
+        # Expected
+        expected_ltv = mock_arpu / mock_churn # 5000.0
+        expected_roi = expected_ltv / mock_cac # 8.33...
+
+        with patch("src.agents.governance.TavilySearch") as mock_search_cls:
+             mock_search = mock_search_cls.return_value
+             mock_search.safe_search.return_value = "Search result"
+
+             with patch("src.agents.governance.get_llm") as mock_llm_factory, \
+                  patch("src.agents.governance.GovernanceAgent._save_to_file"):
+                 mock_llm = mock_llm_factory.return_value
+
+                 mock_msg_fin = MagicMock()
+                 mock_msg_fin.content = f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
+
+                 mock_msg_ringi = MagicMock()
+                 mock_msg_ringi.content = '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
+
+                 mock_llm.invoke.side_effect = [mock_msg_fin, mock_msg_ringi]
+
+                 result = agent.run(initial_state)
+
+                 if "ringi_sho" in result:
+                     ringi_sho = result["ringi_sho"]
+>                    assert ringi_sho.approval_status == "Approved"
+E                    AssertionError: assert 'Rejected' == 'Approved'
+E
+E                      - Approved
+E                      + Rejected
+
+tests/uat/test_cycle06_uat.py:124: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    src.agents.governance:governance.py:102 Financial estimation failed. Using defaults.
+Traceback (most recent call last):
+  File "/app/src/agents/governance.py", line 99, in _estimate_financials
+    estimates = self._safe_llm_call(prompt, FinancialEstimates)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 184, in _safe_llm_call
+    data_dict = self._parse_json(content)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 209, in _parse_json
+    return json.loads(text) # type: ignore
+           ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 338, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 356, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+ERROR    src.agents.governance:governance.py:144 Ringi-Sho generation failed. Using fallback.
+Traceback (most recent call last):
+  File "/app/src/agents/governance.py", line 134, in _generate_ringi_sho
+    partial = self._safe_llm_call(prompt, PartialRingi)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 184, in _safe_llm_call
+    data_dict = self._parse_json(content)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 209, in _parse_json
+    return json.loads(text) # type: ignore
+           ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 338, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 356, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+_______________ TestGovernanceAgent.test_run_populates_ringi_sho _______________
+
+self = <test_governance_agent.TestGovernanceAgent object at 0x7fbf509ed9a0>
+mock_roi = <MagicMock name='calculate_roi' id='140459626813328'>
+mock_payback = <MagicMock name='calculate_payback_period' id='140459626817600'>
+mock_ltv = <MagicMock name='calculate_ltv' id='140459626821392'>
+mock_search_cls = <MagicMock name='TavilySearch' id='140459626874256'>
+mock_state = GlobalState(phase=<Phase.IDEATION: 'ideation'>, topic='AI Productivity Tool', generated_ideas=None, selected_idea=None...Network(stakeholders=[Stakeholder(name='CEO', initial_support=0.8, stubbornness=0.1)], matrix=[[1.0]]), ringi_sho=None)
+
+    @patch("src.agents.governance.TavilySearch")
+    @patch("src.core.metrics.calculate_ltv")
+    @patch("src.core.metrics.calculate_payback_period")
+    @patch("src.core.metrics.calculate_roi")
+    def test_run_populates_ringi_sho(
+        self,
+        mock_roi: MagicMock,
+        mock_payback: MagicMock,
+        mock_ltv: MagicMock,
+        mock_search_cls: MagicMock,
+        mock_state: GlobalState
+    ) -> None:
+        """Test that run method populates RingiSho in the returned dictionary."""
+        # Setup mocks
+        mock_search_instance = mock_search_cls.return_value
+        mock_search_instance.safe_search.return_value = "CAC: $500\nChurn: 5%\nARPU: $100"
+
+        mock_ltv.return_value = 2000.0
+        mock_payback.return_value = 5.0
+        mock_roi.return_value = 4.0
+
+        # Mock File Service
+        mock_file_service = MagicMock(spec=FileService)
+
+        agent = GovernanceAgent(file_service=mock_file_service)
+
+        # Check `src/core/llm.py` later. For now, let's assume it runs.
+
+        with patch("src.agents.governance.get_llm") as mock_llm_factory:
+            mock_llm = mock_llm_factory.return_value
+
+            # Mock LLM responses (called twice: financials, then ringi-sho)
+            mock_msg_fin = MagicMock()
+            mock_msg_fin.content = '{"cac": 500.0, "arpu": 100.0, "churn_rate": 0.05}'
+
+            mock_msg_ringi = MagicMock()
+            mock_msg_ringi.content = '{"title": "AI Tool", "executive_summary": "Great tool.", "risks": ["Risk 1"]}'
+
+            mock_llm.invoke.side_effect = [mock_msg_fin, mock_msg_ringi]
+
+            result = agent.run(mock_state)
+
+            # Expectation: RingiSho and metrics populated
+            assert isinstance(result, dict)
+            assert "ringi_sho" in result
+            assert "metrics_data" in result
+
+            # Verify FileService call
+            mock_file_service.save_text_async.assert_called_once()
+            args, _ = mock_file_service.save_text_async.call_args
+>           assert "# AI Tool" in args[0] # Verify content
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: assert '# AI Tool' in '# Proposal for Untitled Idea\n\n**Status:** Rejected\n\n## Executive Summary\nAuto-generated summary failed.\n\n## Fi...n- **ROI:** 2.00x\n- **LTV:** $1000.00\n- **CAC:** $500.00\n- **Payback:** 10.0 months\n\n## Risks\n- Generation Error'
+
+tests/unit/test_governance_agent.py:83: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    src.agents.governance:governance.py:102 Financial estimation failed. Using defaults.
+Traceback (most recent call last):
+  File "/app/src/agents/governance.py", line 99, in _estimate_financials
+    estimates = self._safe_llm_call(prompt, FinancialEstimates)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 184, in _safe_llm_call
+    data_dict = self._parse_json(content)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 209, in _parse_json
+    return json.loads(text) # type: ignore
+           ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 338, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 356, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+ERROR    src.agents.governance:governance.py:144 Ringi-Sho generation failed. Using fallback.
+Traceback (most recent call last):
+  File "/app/src/agents/governance.py", line 134, in _generate_ringi_sho
+    partial = self._safe_llm_call(prompt, PartialRingi)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 184, in _safe_llm_call
+    data_dict = self._parse_json(content)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/agents/governance.py", line 209, in _parse_json
+    return json.loads(text) # type: ignore
+           ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 338, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/json/decoder.py", line 356, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 ================================ tests coverage ================================
 _______________ coverage: platform linux, python 3.12.12-final-0 _______________
 
@@ -51,7 +346,7 @@ src/agents/__init__.py                  6      0   100%
 src/agents/base.py                      9      0   100%
 src/agents/builder.py                  95     10    89%   40-41, 48-49, 101, 130-131, 139-140, 181
 src/agents/cpo.py                      45     11    76%   55-57, 74-81, 92-94
-src/agents/governance.py              102      7    93%   99-103, 194, 199
+src/agents/governance.py              105      5    95%   100, 136, 185, 200, 205
 src/agents/ideator.py                  47     12    74%   31-34, 97-107
 src/agents/mixins.py                   23      6    74%   28, 31-35
 src/agents/personas.py                 79     10    87%   90-92, 97-98, 107-110, 158-163
@@ -61,7 +356,7 @@ src/core/constants.py                 100      0   100%
 src/core/exceptions.py                  6      0   100%
 src/core/factory.py                    42     19    55%   24-25, 30, 43-49, 57-68
 src/core/graph.py                     145     32    78%   28-30, 49-55, 65-66, 103-107, 119-120, 146-147, 157-159, 162, 215-221, 229-238
-src/core/llm.py                         8      0   100%
+src/core/llm.py                        10      0   100%
 src/core/metrics.py                    17      0   100%
 src/core/nemawashi/__init__.py          5      0   100%
 src/core/nemawashi/analytics.py        52     22    58%   26, 33, 41-45, 55-56, 80-98, 102-107
@@ -69,7 +364,7 @@ src/core/nemawashi/consensus.py        76     10    87%   45-47, 50, 82, 115-116
 src/core/nemawashi/engine.py           19      1    95%   34
 src/core/nemawashi/nomikai.py          42      2    95%   33-34
 src/core/services/__init__.py           0      0   100%
-src/core/services/file_service.py      22      3    86%   35, 38-39
+src/core/services/file_service.py      31      5    84%   42-43, 49-51
 src/core/simulation.py                 24      0   100%
 src/core/theme.py                      18      0   100%
 src/core/validators.py                 47     10    79%   47, 50-51, 53-54, 61, 64-65, 67-68
@@ -92,5 +387,9 @@ src/tools/search.py                    34      4    88%   39, 75, 90-91
 src/tools/v0_client.py                 61     19    69%   58-60, 106-108, 111-118, 126-132
 src/ui/renderer.py                     96     10    90%   87, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------
-TOTAL                                1998    250    87%
-============================= 136 passed in 18.45s =============================
+TOTAL                                2012    250    88%
+=========================== short test summary info ============================
+FAILED tests/uat/test_cycle06_uat.py::TestCycle06UAT::test_uat_c06_01_financial_viability
+FAILED tests/uat/test_cycle06_uat.py::TestCycle06UAT::test_uat_c06_02_ringi_sho_generation
+FAILED tests/unit/test_governance_agent.py::TestGovernanceAgent::test_run_populates_ringi_sho
+======================== 3 failed, 133 passed in 18.16s ========================

@@ -42,6 +42,7 @@ class GovernanceAgent(BaseAgent):
         search_result = search.safe_search(query)
 
         # Limit search result size to prevent Context Window overflow
+        # Explicit truncation as per audit requirement
         limit = settings.governance.max_search_result_size
         if len(search_result) > limit:
             logger.warning(f"Search result truncated to {limit} characters.")
@@ -78,8 +79,9 @@ class GovernanceAgent(BaseAgent):
         if state.selected_idea:
              industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
-        # Security: Whitelist characters to prevent injection attacks (alphanumeric, spaces, basic punctuation)
-        sanitized = re.sub(r"[^a-zA-Z0-9\s\-\.\,]", "", industry)
+        # Security: Whitelist characters to prevent injection attacks (alphanumeric and spaces only)
+        # As per audit requirement to remove dangerous chars like . and ,
+        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", industry)
         return sanitized.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
@@ -150,7 +152,7 @@ class GovernanceAgent(BaseAgent):
 
     def _safe_llm_call(self, prompt: str, model_class: type[T]) -> T:
         """
-        Execute LLM call safely with size validation and Pydantic parsing.
+        Execute LLM call safely with streaming size validation and Pydantic parsing.
 
         Args:
             prompt: Input prompt.
@@ -167,13 +169,17 @@ class GovernanceAgent(BaseAgent):
         settings = get_settings()
         llm = get_llm()
 
-        response = llm.invoke(prompt)
-        content = str(response.content)
+        content = ""
+        max_bytes = settings.governance.max_llm_response_size
 
-        # Memory Safety: Check response size
-        if len(content.encode('utf-8')) > settings.governance.max_llm_response_size:
-            logger.error(ERR_LLM_RESPONSE_TOO_LARGE)
-            raise ValueError(ERR_LLM_RESPONSE_TOO_LARGE)
+        # Memory Safety: Stream and check incremental size
+        # Note: llm.stream() returns an iterator of chunks (AIMessageChunk)
+        for chunk in llm.stream(prompt):
+            chunk_content = str(chunk.content)
+            content += chunk_content
+            if len(content.encode('utf-8')) > max_bytes:
+                logger.error(ERR_LLM_RESPONSE_TOO_LARGE)
+                raise ValueError(ERR_LLM_RESPONSE_TOO_LARGE)
 
         data_dict = self._parse_json(content)
         return model_class.model_validate(data_dict)

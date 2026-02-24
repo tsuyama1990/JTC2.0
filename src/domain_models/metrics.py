@@ -84,8 +84,8 @@ class FinancialEstimates(BaseModel):
     """
     model_config = ConfigDict(extra="forbid")
 
-    cac: float = Field(..., description="Estimated CAC")
-    arpu: float = Field(..., description="Estimated ARPU")
+    cac: float = Field(..., gt=0.0, description="Estimated CAC")
+    arpu: float = Field(..., gt=0.0, description="Estimated ARPU")
     churn_rate: float = Field(..., ge=0.0, le=1.0, description="Estimated monthly churn rate")
 
 
@@ -145,7 +145,7 @@ class RingiSho(BaseModel):
     title: str = Field(..., min_length=1, description="Title of the proposal")
     executive_summary: str = Field(..., min_length=10, description="Executive summary")
     financial_projection: Financials = Field(..., description="Financial projections")
-    risks: list[str] = Field(default_factory=list, description="List of identified risks")
+    risks: list[str] = Field(default_factory=list, min_length=1, description="List of identified risks")
     approval_status: str = Field(
         "Draft", pattern="^(Draft|Approved|Rejected)$", description="Approval status"
     )

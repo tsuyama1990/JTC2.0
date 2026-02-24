@@ -26,14 +26,19 @@ class TestGovernanceMemorySafety:
         """Verify that _safe_llm_call raises ValueError for oversized responses."""
         mock_llm = mock_llm_factory.return_value
 
-        # Configure a small limit for testing
+        # Mock streaming response
+        # Create chunks that sum up to > limit
+        # Limit set to 10 bytes for testing
         settings = get_settings()
-        original_limit = settings.governance.max_llm_response_size
+
+        chunk1 = MagicMock()
+        chunk1.content = "12345"
+        chunk2 = MagicMock()
+        chunk2.content = "678901" # Total 11 chars
 
         # Patch the settings object instance directly
         with patch.object(settings.governance, "max_llm_response_size", 10):
-            # Return a response larger than 10 bytes
-            mock_llm.invoke.return_value.content = '{"value": "This is too long"}'
+            mock_llm.stream.return_value = iter([chunk1, chunk2])
 
             with pytest.raises(ValueError, match=ERR_LLM_RESPONSE_TOO_LARGE):
                 agent._safe_llm_call("prompt", DummyModel)
@@ -52,12 +57,9 @@ class TestGovernanceMemorySafety:
 
         state = GlobalState(topic="Test")
 
-        # We need to mock _estimate_financials because it's called inside run
-        # We want to verify it receives the truncated string
-        # BUT we also need to return a valid Financials object (or mock) because `run` uses `financials.roi` immediately after
-
+        # Return a valid object so run() doesn't crash on property access
         mock_financials = MagicMock()
-        mock_financials.roi = 5.0 # Ensure it's a float for comparison
+        mock_financials.roi = 5.0
 
         with patch.object(agent, "_estimate_financials", return_value=mock_financials) as mock_estimate:
             # Mock other calls to prevent full execution
