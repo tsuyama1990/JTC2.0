@@ -155,24 +155,18 @@ class BuilderAgent(BaseAgent):
         )
         spec.v0_prompt = v0_prompt
 
-        try:
-            v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None)
-            url = v0_client.generate_ui(v0_prompt)
-        except Exception:
-            logger.exception("Failed to generate MVP via v0")
-            # Return partial state (spec created but generation failed)
-            return {
-                "mvp_spec": spec,
-                "selected_feature": selected_feature,
-            }
-        else:
-            logger.info(f"MVP Generated: {url}")
+        # We rely on exceptions propagating to the caller (safe_node wrapper)
+        # Standardized Error Handling: Do not swallow critical failures here.
+        v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None)
+        url = v0_client.generate_ui(v0_prompt)
 
-            return {
-                "mvp_spec": spec,
-                "mvp_url": url,
-                "selected_feature": selected_feature,
-            }
+        logger.info(f"MVP Generated: {url}")
+
+        return {
+            "mvp_spec": spec,
+            "mvp_url": url,
+            "selected_feature": selected_feature,
+        }
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """

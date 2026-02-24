@@ -21,7 +21,9 @@ from src.core.constants import (
 )
 
 # Pre-compiled regex pattern at module level
-COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+# Allow alphanumeric, spaces, hyphens, underscores.
+# Deny special chars often used in injection: < > ; & ' "
+COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_]+$")
 
 
 class MVPType(StrEnum):
@@ -137,8 +139,10 @@ class MVPSpec(BaseModel):
         # Using pre-compiled pattern constant could be better, but re.compile here is locally cached by Python's re module.
         # However, to be explicit about optimization:
         for comp in v:
+            if len(comp) > 50:
+                 raise ValueError(f"Component name too long: {comp}")
             if not COMPONENT_PATTERN.match(comp):
-                msg = f"Invalid component name: {comp}. Must be alphanumeric."
+                msg = f"Invalid component name: {comp}. Must be alphanumeric/safe chars only."
                 raise ValueError(msg)
         return v
 

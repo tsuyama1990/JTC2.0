@@ -1,6 +1,7 @@
 import functools
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine

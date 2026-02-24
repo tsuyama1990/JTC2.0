@@ -20,6 +20,7 @@ from src.core.constants import (
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
     DEFAULT_MAX_LLM_RESPONSE_SIZE,
+    DEFAULT_MAX_SEARCH_RESULT_SIZE,
     DEFAULT_MAX_TITLE_LENGTH,
     DEFAULT_MAX_TURNS,
     DEFAULT_MAX_Y,
@@ -261,7 +262,7 @@ class GovernanceConfig(BaseSettings):
         default="average CAC churn ARPU LTV for {industry} startups benchmarks",
         description="Template for financial search"
     )
-    max_search_result_size: int = Field(alias="MAX_SEARCH_RESULT_SIZE", default=5000, description="Max chars for search result context")
+    max_search_result_size: int = Field(alias="MAX_SEARCH_RESULT_SIZE", default=DEFAULT_MAX_SEARCH_RESULT_SIZE, description="Max chars for search result context")
 
 
 class Settings(BaseSettings):
@@ -285,6 +286,7 @@ class Settings(BaseSettings):
     rag_rate_limit_interval: float = Field(alias="RAG_RATE_LIMIT_INTERVAL", default=0.1, description="Min interval between RAG calls in seconds")
     rag_scan_depth_limit: int = Field(alias="RAG_SCAN_DEPTH_LIMIT", default=10, description="Max recursion depth for directory scanning")
     rag_batch_size: int = Field(alias="RAG_BATCH_SIZE", default=DEFAULT_RAG_BATCH_SIZE, description="Batch size for RAG ingestion")
+    rag_query_timeout: float = Field(alias="RAG_QUERY_TIMEOUT", default=30.0, description="Timeout for RAG queries in seconds")
 
     feature_chunk_size: int = Field(alias="FEATURE_CHUNK_SIZE", default=DEFAULT_FEATURE_CHUNK_SIZE, description="Chunk size for feature extraction")
 

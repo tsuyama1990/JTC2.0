@@ -7,6 +7,7 @@ from scipy.sparse import coo_matrix, csgraph, csr_matrix
 from scipy.sparse.linalg import eigs
 
 from src.core.exceptions import CalculationError, ValidationError
+from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
 
 logger = logging.getLogger(__name__)
@@ -31,10 +32,21 @@ class InfluenceAnalyzer:
             if network.matrix and isinstance(network.matrix[0], list):
                 # Dense matrix (list of lists)
                 matrix_dense = cast(list[list[float]], network.matrix)
-                centrality = self._eigen_centrality_dense(matrix_dense)
+                # Validation
+                NemawashiUtils.validate_stochasticity(matrix_dense)
+
+                # Check size to decide strategy
+                if n > 1000:
+                     # Convert to sparse for efficiency
+                     centrality = self._eigen_centrality_sparse(csr_matrix(matrix_dense))
+                else:
+                     centrality = self._eigen_centrality_dense(matrix_dense)
             else:
                 # Sparse matrix (list of entries) or empty
                 entries = cast(list[SparseMatrixEntry], network.matrix)
+                # Validation (Dimensions checked, stochasticity check harder on raw entries without building matrix)
+                # We build matrix first then validate
+
                 centrality = self._eigen_centrality_sparse_entries(entries, n)
 
             # Rank stakeholders
@@ -74,6 +86,20 @@ class InfluenceAnalyzer:
 
         return typing.cast(np.ndarray, centrality)
 
+    def _eigen_centrality_sparse(self, sparse_mat: csr_matrix) -> np.ndarray:
+        """Compute centrality from pre-built CSR matrix."""
+        mat_t = sparse_mat.T
+        try:
+            vals, vecs = eigs(mat_t, k=1, which='LM')
+            centrality = np.abs(vecs.flatten())
+            s = np.sum(centrality)
+            if s > 0:
+                centrality = centrality / s
+            return typing.cast(np.ndarray, centrality)
+        except Exception as e:
+             logger.warning(f"Sparse eig failed, falling back? {e}")
+             raise CalculationError("Sparse eigen calculation failed") from e
+
     def _eigen_centrality_sparse_entries(self, entries: list[SparseMatrixEntry], n: int) -> np.ndarray:
         """
         Compute eigenvector centrality from sparse entries.
@@ -88,31 +114,10 @@ class InfluenceAnalyzer:
 
         sparse_mat = coo_matrix((data, (rows, cols)), shape=(n, n), dtype=float).tocsr()
 
-        # Transpose for left eigenvector
-        mat_t = sparse_mat.T
+        # Validate stochasticity on the built matrix
+        NemawashiUtils.validate_stochasticity(sparse_mat)
 
-        # Calculate 1 eigenvector with eigenvalue close to 1
-        # 'LM' = Largest Magnitude.
-        try:
-            vals, vecs = eigs(mat_t, k=1, which='LM')
-            centrality = np.abs(vecs.flatten())
-        except Exception:
-            # Fallback for very small matrices or convergence issues
-            # Convert to dense if small enough?
-            if n < 1000:
-                dense = sparse_mat.toarray()
-                evals, evecs = np.linalg.eig(dense.T)
-                idx = np.argmin(np.abs(evals - 1.0))
-                centrality = np.abs(evecs[:, idx])
-            else:
-                return np.zeros(n)
-
-        # Normalize
-        s = np.sum(centrality)
-        if s > 0:
-            centrality = centrality / s
-
-        return typing.cast(np.ndarray, centrality)
+        return self._eigen_centrality_sparse(sparse_mat)
 
     def is_connected(self, matrix_list: list[list[float]]) -> bool:
         """Check if graph has a single component (weakly connected)."""

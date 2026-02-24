@@ -4,19 +4,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.core.config import get_settings
+from src.core.exceptions import V0GenerationError
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVPSpec
 from src.domain_models.state import GlobalState
 from tests.conftest import DUMMY_ENV_VARS
 
-# We assume integration via graph, but for UAT we can simulate the node execution
-# since we don't have the full graph running in main.py yet.
-# However, we should test the graph node integration if possible.
-
+# We import the real V0Client to mock its internals, not the class itself if possible
 try:
     from src.agents.builder import BuilderAgent
+    from src.tools.v0_client import V0Client
 except ImportError:
-    BuilderAgent = None # type: ignore
+    BuilderAgent = None
+    V0Client = None # type: ignore
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 class TestCycle05UAT:
@@ -45,10 +45,10 @@ class TestCycle05UAT:
         get_settings.cache_clear()
 
         # 1. Run Builder Agent (First Pass)
-        # It should detect multiple features and return candidates
         mock_llm = MagicMock()
         agent = BuilderAgent(llm=mock_llm)
 
+        # Mock the internal LLM call for extraction
         with patch.object(agent, "_extract_features", return_value=["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]):
             result = agent.propose_features(initial_state)
 
@@ -56,13 +56,13 @@ class TestCycle05UAT:
             assert len(result["candidate_features"]) == 3
             assert "mvp_url" not in result # Should NOT generate yet
 
-    def test_uat_c05_02_mvp_generation(self, initial_state: GlobalState) -> None:
+    def test_uat_c05_02_mvp_generation_integration(self, initial_state: GlobalState) -> None:
         """
-        Scenario 2: MVP Generation
-        Verify v0.dev call after selection.
+        Scenario 2: MVP Generation Integration
+        Verify v0.dev call after selection, mocking at the network level (httpx) rather than the client class.
         """
-        if BuilderAgent is None:
-            pytest.skip("BuilderAgent not implemented")
+        if BuilderAgent is None or V0Client is None:
+            pytest.skip("Components not available")
 
         get_settings.cache_clear()
 
@@ -73,53 +73,60 @@ class TestCycle05UAT:
         mock_llm = MagicMock()
         agent = BuilderAgent(llm=mock_llm)
 
-        # Mock V0
-        with patch("src.agents.builder.V0Client") as mock_v0_cls:
-            mock_v0 = mock_v0_cls.return_value
-            mock_v0.generate_ui.return_value = "https://v0.dev/uat-result"
+        # Mock Spec Creation to return a valid spec
+        with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
+            app_name="UAT App",
+            core_feature="Feature 2 desc",
+            components=["Hero"],
+            v0_prompt="Generate UI"
+        )):
+            # Mock httpx in V0Client to simulate real API interaction
+            with patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = {"url": "https://v0.dev/uat-result"}
 
-            # Mock Spec Creation
-            with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
-                app_name="UAT App",
-                core_feature="Feature 2 desc",
-                components=["Hero"]
-            )):
+                mock_client_instance = mock_http_cls.return_value.__enter__.return_value
+                mock_client_instance.post.return_value = mock_response
+
+                # Execute
                 result = agent.generate_mvp(initial_state)
 
                 assert result["mvp_url"] == "https://v0.dev/uat-result"
                 assert result["mvp_spec"].core_feature == "Feature 2 desc"
 
-    def test_uat_c05_03_full_flow_integration(self, initial_state: GlobalState) -> None:
+                # Verify network call was made
+                mock_client_instance.post.assert_called_once()
+
+    def test_uat_c05_03_error_handling(self, initial_state: GlobalState) -> None:
         """
-        Scenario 3: Full Integration
-        Test the sequence: propose -> select -> generate using the mocked client.
-        This simulates the graph flow.
+        Scenario 3: Error Handling
+        Simulate API failure.
         """
         if BuilderAgent is None:
             pytest.skip("BuilderAgent not implemented")
 
-        get_settings.cache_clear()
+        initial_state.selected_feature = "Feature 1"
         mock_llm = MagicMock()
         agent = BuilderAgent(llm=mock_llm)
 
-        # 1. Propose
-        with patch.object(agent, "_extract_features", return_value=["Feature 1 Long Enough", "Feature 2 Long Enough"]):
-            proposal = agent.propose_features(initial_state)
-            assert proposal["candidate_features"] == ["Feature 1 Long Enough", "Feature 2 Long Enough"]
+        # Ensure Feature string meets length validation (>10 chars)
+        long_feature = "Feature 1 must be very long indeed"
 
-        # 2. User Selection (Simulated update to state)
-        initial_state.candidate_features = proposal["candidate_features"]
-        initial_state.selected_feature = "Feature 1 Long Enough"
+        with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
+            app_name="App", core_feature=long_feature, components=[]
+        )), patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
+           mock_response = MagicMock()
+           mock_response.status_code = 500
+           mock_response.text = "Internal Server Error"
 
-        # 3. Generate
-        with patch("src.agents.builder.V0Client") as mock_v0_cls:
-            mock_client = mock_v0_cls.return_value
-            mock_client.generate_ui.return_value = "https://v0.dev/final"
+           mock_client_instance = mock_http_cls.return_value.__enter__.return_value
+           mock_client_instance.post.return_value = mock_response
 
-            with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
-                app_name="App", core_feature="Feature 1 Long Enough", components=[], v0_prompt="Generate F1"
-            )):
-                result = agent.generate_mvp(initial_state)
+           # Should handle V0GenerationError internally or expose it?
+           # The agent catches exceptions? Let's check agent implementation.
+           # Actually agent.generate_mvp raises V0GenerationError?
+           # Safe node wrapper handles it. But here we test agent directly.
 
-                assert result["mvp_url"] == "https://v0.dev/final"
-                assert result["selected_feature"] == "Feature 1 Long Enough"
+           with pytest.raises(V0GenerationError):
+               agent.generate_mvp(initial_state)

@@ -8,14 +8,17 @@ logger = logging.getLogger(__name__)
 class FileService:
     """
     Service for handling file operations securely and efficiently.
+    Uses ThreadPoolExecutor for non-blocking I/O in async contexts.
     """
 
     def __init__(self) -> None:
+        # Max workers limited to avoid thread exhaustion
         self._executor = ThreadPoolExecutor(max_workers=5)
 
     def save_text_async(self, content: str, path: str | Path) -> None:
         """
         Save text to a file asynchronously using a thread pool.
+        This prevents blocking the main event loop during file I/O.
 
         Args:
             content: The string content to write.
@@ -32,6 +35,11 @@ class FileService:
         for attempt in range(attempts):
             try:
                 target_path = Path(path)
+                # Atomic write pattern: write to temp then rename could be better,
+                # but simple write is acceptable for this scope.
+                # Ensure parent exists
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+
                 target_path.write_text(content, encoding="utf-8")
                 logger.info(f"File saved successfully to {target_path.resolve()}")
                 break

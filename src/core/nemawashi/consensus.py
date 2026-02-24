@@ -2,10 +2,11 @@ import logging
 from typing import cast
 
 import numpy as np
-from scipy.sparse import coo_matrix, csr_matrix, spmatrix
+from scipy.sparse import coo_matrix, csr_matrix
 
 from src.core.config import NemawashiConfig, get_settings
 from src.core.exceptions import ValidationError
+from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
 
 logger = logging.getLogger(__name__)
@@ -83,36 +84,6 @@ class ConsensusEngine:
             msg = f"Failed to build sparse matrix: {e}"
             raise ValidationError(msg) from e
 
-    def _validate_stochasticity(self, matrix: spmatrix) -> None:
-        """
-        Validate that matrix rows sum to approximately 1.0.
-        Uses sparse operations where possible.
-
-        Args:
-            matrix: The sparse influence matrix.
-
-        Raises:
-            ValidationError: If any row sum deviates from 1.0 beyond tolerance.
-        """
-        try:
-            # Calculate row sums
-            # For sparse matrix, sum(axis=1) returns a dense matrix (n x 1)
-            row_sums = matrix.sum(axis=1)
-
-            # Convert to 1D array
-            row_sums = row_sums.A1 if hasattr(row_sums, "A1") else np.array(row_sums).flatten()
-
-        except Exception as e:
-            msg = f"Stochasticity calculation failed: {e}"
-            raise ValidationError(msg) from e
-
-        if not np.allclose(row_sums, 1.0, atol=1e-5):
-             # Log first few errors
-             invalid_indices = np.where(~np.isclose(row_sums, 1.0, atol=1e-5))[0]
-             logger.error(f"Matrix row sums invalid at indices: {invalid_indices[:5]}... Values: {row_sums[invalid_indices][:5]}")
-             msg = "Influence matrix rows must sum to 1.0"
-             raise ValidationError(msg)
-
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """
         Run the DeGroot model to calculate final opinion distribution.
@@ -139,8 +110,8 @@ class ConsensusEngine:
                  raise
              raise ValidationError(str(e)) from e
 
-        # Validate
-        self._validate_stochasticity(matrix_op)
+        # Validate using shared utility
+        NemawashiUtils.validate_stochasticity(matrix_op, self.settings.tolerance)
 
         # Use settings for max_steps, no hardcoded default in logic
         max_steps = self.settings.max_steps

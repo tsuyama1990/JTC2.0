@@ -38,42 +38,48 @@ def _scan_dir_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -
 
 def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
     """
-    Calculate directory size iteratively with depth limit.
-    Optimized to use os.scandir which yields DirEntry objects containing cached stat info.
-    Includes a safety limit on file count to prevent infinite loops or excessive blocking.
+    Calculate directory size iteratively with depth limit and strict file count.
 
     Args:
         path: Path to scan.
-        depth_limit: Maximum recursion depth (simulated via stack item).
+        depth_limit: Maximum recursion depth.
 
     Returns:
         Total size in bytes.
     """
     total = 0
     file_count = 0
-    MAX_FILES = 10000 # Safety limit to prevent hanging on massive directories
+    MAX_FILES = 10000
 
-    # Stack stores (path, current_depth)
-    stack = [(path, 0)]
+    # Queue for BFS traversal: (path, current_depth)
+    queue = [(path, 0)]
 
-    while stack:
-        current_path, depth = stack.pop()
+    # Track visited inodes to prevent loops via hardlinks/symlinks if followed (though we disable symlinks)
+    visited_inodes = set()
+
+    while queue:
+        current_path, depth = queue.pop(0)
 
         if depth > depth_limit:
-            logger.warning(f"Scan depth limit reached at {current_path}")
             continue
 
         try:
             with os.scandir(current_path) as it:
                 for entry in it:
                     if entry.is_file(follow_symlinks=False):
-                        total += entry.stat().st_size
+                        stat = entry.stat()
+                        if stat.st_ino in visited_inodes:
+                            continue
+                        visited_inodes.add(stat.st_ino)
+
+                        total += stat.st_size
                         file_count += 1
                         if file_count > MAX_FILES:
-                            logger.warning(f"Scan file limit ({MAX_FILES}) reached at {current_path}. Returning partial size.")
+                            logger.warning(f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size.")
                             return total
+
                     elif entry.is_dir(follow_symlinks=False):
-                        stack.append((entry.path, depth + 1))
+                        queue.append((entry.path, depth + 1))
         except OSError as e:
             logger.warning(f"Error scanning index directory {current_path}: {e}")
 
@@ -144,44 +150,35 @@ class RAG:
             raise ConfigurationError(msg)
 
         try:
-            path = Path(path_str)
-            # Normalize path strictly
+            # Resolve the path strictly
+            path = Path(path_str).resolve(strict=False) # Allow non-existent yet
+
+            # Check for allowed parents
+            cwd = Path.cwd().resolve(strict=True)
+            allowed_rel_paths = self.settings.rag_allowed_paths
+            allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
+
+            is_safe = False
+            for parent in allowed_parents:
+                if str(path).startswith(str(parent)):
+                    is_safe = True
+                    break
+
+            if not is_safe:
+                logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
+                raise ConfigurationError(ERR_PATH_TRAVERSAL)
+
+            # Final check if path exists
             if path.exists():
                 path = path.resolve(strict=True)
-                # Check for symlinks in final path component
                 if path.is_symlink():
-                    symlink_msg = "Symlinks not allowed in persist_dir."
-                    raise ConfigurationError(symlink_msg)
-            else:
-                # If path doesn't exist, verify parent exists and is safe
-                parent = path.parent.resolve(strict=True)
-                path = parent / path.name
+                     raise ConfigurationError("Symlinks not allowed in persist_dir.")
+
         except Exception as e:
             if isinstance(e, ConfigurationError):
                 raise
             msg = f"Invalid path format or non-existent parent: {e}"
             raise ConfigurationError(msg) from e
-
-        cwd = Path.cwd().resolve(strict=True)
-
-        # Load allowed paths from settings
-        # These are relative to CWD
-        allowed_rel_paths = self.settings.rag_allowed_paths
-        allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
-
-        is_safe = False
-        for parent in allowed_parents:
-            # Check strictly if path starts with allowed parent path
-            # str(path) gives absolute path string.
-            # We must verify it's UNDER the parent.
-            # Use strict string prefix check to prevent traversal
-            if str(path).startswith(str(parent)):
-                is_safe = True
-                break
-
-        if not is_safe:
-            logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
-            raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         return str(path)
 
@@ -190,8 +187,6 @@ class RAG:
         Sanitize input query to prevent injection or processing issues.
         Efficient implementation using list comprehension.
         """
-        # Remove control characters (e.g. null bytes)
-        # Using list comprehension for performance on large strings
         chars = [ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127]
         return "".join(chars).strip()
 
@@ -210,10 +205,8 @@ class RAG:
 
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
-        # Check size before any loading attempt to prevent OOM
         self._check_index_size_limit()
 
-        # Optimized empty check (iterator based)
         try:
             if not any(True for _ in os.scandir(self.persist_dir)):
                 logger.info(
@@ -222,15 +215,12 @@ class RAG:
                 self.index = None
                 return
         except OSError:
-             # If scanning fails, assume empty or inaccessible, default to None
              self.index = None
              return
 
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
-
-            # MEMORY SAFETY: We rely on _check_index_size_limit() called above.
             self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
 
         except Exception:
@@ -270,7 +260,6 @@ class RAG:
                     raise ValidationError(ERR_RAG_TEXT_TOO_LARGE.format(size=len(request.text)))
                 yield request.text
             else:
-                # If iterator, just yield
                 yield from request.text
 
         for content_part in content_generator():
@@ -278,7 +267,6 @@ class RAG:
                 logger.warning(f"Skipping non-string content in iterator from {request.source}")
                 continue
 
-            # Chunking logic
             if len(content_part) > chunk_size:
                 chunks = [
                     content_part[i : i + chunk_size]
@@ -289,9 +277,6 @@ class RAG:
 
             for chunk in chunks:
                 size_bytes = len(chunk.encode("utf-8"))
-
-                # Check limit before yielding
-                # We optimistically update size here. If ingestion fails downstream, it's safer to overestimate.
                 self._current_index_size += size_bytes
                 self._check_index_size_limit()
 
@@ -314,32 +299,37 @@ class RAG:
         except Exception as e:
             raise ValidationError(str(e)) from e
 
-        # Use generator to stream documents
         doc_iterator = self._document_generator(request)
-
-        # Batch size for insertion
         batch_size = self.settings.rag_batch_size
-        batch: list[Document] = []
 
-        try:
-            # If index is None, we must create it with at least one document
-            if self.index is None:
-                try:
-                    # Only peek the first document to initialize index
-                    first_doc = next(doc_iterator)
-                    self.index = VectorStoreIndex.from_documents([first_doc])
-                except StopIteration:
-                    return # Empty iterator
-
-            # Stream processing with batching
+        # Generator that yields batches of documents
+        def batch_generator() -> Iterator[list[Document]]:
+            batch: list[Document] = []
             for doc in doc_iterator:
                 batch.append(doc)
                 if len(batch) >= batch_size:
-                    self.index.insert_nodes(batch)
+                    yield batch
                     batch = []
-
-            # Insert remaining
             if batch:
+                yield batch
+
+        try:
+            # If index is None, verify we have at least one doc to init
+            batched_docs = batch_generator()
+
+            # Get first batch to initialize
+            try:
+                first_batch = next(batched_docs)
+            except StopIteration:
+                return # Empty input
+
+            if self.index is None:
+                self.index = VectorStoreIndex.from_documents(first_batch)
+            else:
+                self.index.insert_nodes(first_batch)
+
+            # Process remaining batches
+            for batch in batched_docs:
                 self.index.insert_nodes(batch)
 
         except Exception as e:
@@ -358,7 +348,6 @@ class RAG:
         if self.index:
             self.index.storage_context.persist(persist_dir=self.persist_dir)
             logger.info(f"Index persisted to {self.persist_dir}")
-            # Invalidate cache for next load
             _scan_dir_size_cached.cache_clear()
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
@@ -397,20 +386,18 @@ class RAG:
         if self.index is None:
             return "No data available."
 
-        # Simple rate limiting using blocking sleep
         import time
-        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import TimeoutError as FuturesTimeoutError
 
         if self.settings.rag_rate_limit_interval > 0:
             time.sleep(self.settings.rag_rate_limit_interval)
 
-        # Default timeout to 30 seconds if not in settings
         timeout = getattr(self.settings, "rag_query_timeout", 30.0)
 
         try:
             query_engine = self.index.as_query_engine()
 
-            # Enforce strict timeout on the query execution
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(query_engine.query, question)
                 response = future.result(timeout=timeout)
@@ -419,9 +406,6 @@ class RAG:
 
         except FuturesTimeoutError:
             logger.error("RAG Query timed out after %s seconds", timeout)
-            # We raise RuntimeError to be caught by the safe_node wrapper eventually
-            # or maybe NetworkError. But Timeout is distinct.
-            # For now, let's stick to RuntimeError with clear message.
             msg = "Query execution timed out"
             raise RuntimeError(msg) from None
         except Exception as e:

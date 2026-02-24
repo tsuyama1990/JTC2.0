@@ -174,10 +174,9 @@ class TestBuilderAgent:
             # Raise specific V0 exception
             mock_v0_cls.return_value.generate_ui.side_effect = V0GenerationError("API Failure")
 
-            result = agent.generate_mvp(state_with_idea)
-            # Should return partial state
-            assert "mvp_spec" in result
-            assert "mvp_url" not in result
+            # Expect the exception to propagate now that we removed swallowing
+            with pytest.raises(V0GenerationError):
+                agent.generate_mvp(state_with_idea)
 
     def test_chunking_large_input(self, agent: BuilderAgent) -> None:
         """Test that _extract_features handles large inputs by chunking."""

@@ -28,6 +28,8 @@ def mock_settings() -> Generator[MagicMock, None, None]:
         mock.return_value.rag_allowed_paths = ["data", "vector_store", "tests"]
         mock.return_value.rag_rate_limit_interval = 0.1
         mock.return_value.rag_scan_depth_limit = 10
+        # Ensure batch size is int
+        mock.return_value.rag_batch_size = 100
         yield mock
 
 
@@ -68,6 +70,9 @@ def test_rag_initialization(
 
 def test_rag_ingest_text(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
     """Test text ingestion."""
+    # Ensure rag_batch_size is a real int
+    mock_settings.return_value.rag_batch_size = 100
+
     rag = RAG()
     text = "Customer says: I hate this."
     rag.ingest_text(text, source="interview.txt")
