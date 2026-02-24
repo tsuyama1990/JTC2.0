@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from langgraph.graph.state import CompiledStateGraph
 
-from src.core.graph import (
-    create_app,
+from src.core.graph import create_app
+from src.core.nodes import (
     mvp_generation_node,
     nemawashi_analysis_node,
     solution_proposal_node,
@@ -12,6 +12,7 @@ from src.core.graph import (
 )
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVPSpec
+from src.domain_models.persona import Persona
 from src.domain_models.politics import InfluenceNetwork, Stakeholder
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.transcript import Transcript
@@ -41,7 +42,7 @@ def test_create_app_structure() -> None:
     # but we can check if it compiles without error.
 
 
-@patch("src.core.graph.RAG")
+@patch("src.core.nodes.RAG")
 def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalState) -> None:
     """Test transcript ingestion logic."""
     mock_rag = mock_rag_cls.return_value
@@ -58,7 +59,7 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     mock_rag.persist_index.assert_called_once()
 
 
-@patch("src.core.graph.NemawashiEngine")
+@patch("src.core.nodes.NemawashiEngine")
 def test_nemawashi_analysis_node(mock_engine_cls: MagicMock, mock_state: GlobalState) -> None:
     """Test Nemawashi analysis logic."""
     mock_engine = mock_engine_cls.return_value
@@ -85,22 +86,23 @@ def test_nemawashi_analysis_node(mock_engine_cls: MagicMock, mock_state: GlobalS
     mock_engine.calculate_consensus.assert_called_once()
 
 
-@patch("src.core.graph.AgentFactory.get_builder_agent")
+@patch("src.core.nodes.AgentFactory.get_builder_agent")
 def test_solution_proposal_node(mock_get_builder: MagicMock, mock_state: GlobalState) -> None:
     """Test solution proposal (feature extraction)."""
     # Setup requirements
-    mock_state.target_persona = MagicMock() # Required for validation
+    mock_state.target_persona = MagicMock(spec=Persona) # Required for validation
 
     mock_builder = mock_get_builder.return_value
     mock_builder.propose_features.return_value = {"candidate_features": ["F1", "F2"]}
 
     result = solution_proposal_node(mock_state)
 
+    # Note: solution_proposal_node now returns result of _solution_proposal_impl which sets phase
     assert result["phase"] == Phase.SOLUTION
     assert result["candidate_features"] == ["F1", "F2"]
 
 
-@patch("src.core.graph.AgentFactory.get_builder_agent")
+@patch("src.core.nodes.AgentFactory.get_builder_agent")
 def test_mvp_generation_node(mock_get_builder: MagicMock, mock_state: GlobalState) -> None:
     """Test MVP generation."""
     mock_builder = mock_get_builder.return_value

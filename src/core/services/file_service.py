@@ -34,7 +34,7 @@ class FileService:
                 target_path = Path(path)
                 target_path.write_text(content, encoding="utf-8")
                 logger.info(f"File saved successfully to {target_path.resolve()}")
-                return
+                break
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
                 break # No point retrying permission error

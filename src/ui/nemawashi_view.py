@@ -1,4 +1,5 @@
 import math
+from typing import cast
 
 import pyxel
 
@@ -14,7 +15,7 @@ from src.core.theme import (
     COLOR_SUPPORT_BAR_FILL,
     COLOR_TEXT,
 )
-from src.domain_models.politics import InfluenceNetwork
+from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
 
 
 class NemawashiView:
@@ -58,15 +59,26 @@ class NemawashiView:
         # Draw edges (influence)
         # matrix[i][j] is influence of j on i (i listens to j)
         # Draw arrow from j to i with thickness/color proportional to weight
-        matrix = network.matrix
-        for i in range(n):
-            for j in range(n):
-                weight = matrix[i][j]
-                if i != j and weight > 0.1:  # Threshold to avoid clutter
-                    start = nodes[j]
-                    end = nodes[i]
-                    col = COLOR_EDGE_WEAK if weight < 0.5 else COLOR_EDGE_STRONG
-                    pyxel.line(start[0], start[1], end[0], end[1], col)
+
+        def draw_edge(i: int, j: int, weight: float) -> None:
+            if i != j and weight > 0.1:  # Threshold to avoid clutter
+                start = nodes[j]
+                end = nodes[i]
+                col = COLOR_EDGE_WEAK if weight < 0.5 else COLOR_EDGE_STRONG
+                pyxel.line(start[0], start[1], end[0], end[1], col)
+
+        if network.matrix and isinstance(network.matrix[0], list):
+            # Dense
+            matrix_dense = cast(list[list[float]], network.matrix)
+            for i in range(n):
+                for j in range(n):
+                     weight = matrix_dense[i][j]
+                     draw_edge(i, j, weight)
+        else:
+            # Sparse
+            entries = cast(list[SparseMatrixEntry], network.matrix)
+            for e in entries:
+                draw_edge(e.row, e.col, e.val)
 
         # Draw nodes
         for nx, ny, s in nodes:

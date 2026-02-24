@@ -1,3 +1,4 @@
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -101,7 +102,9 @@ class TestBuilderAgent:
              mock_prompt.return_value = mock_prompt_tmpl
 
              mock_model_runnable = MagicMock()
-             agent.llm.with_structured_output.return_value = mock_model_runnable
+             # Cast to MagicMock to avoid mypy error
+             mock_llm = cast(MagicMock, agent.llm)
+             mock_llm.with_structured_output.return_value = mock_model_runnable
 
              mock_chain = MagicMock()
              mock_prompt_tmpl.__or__.return_value = mock_chain
@@ -187,7 +190,9 @@ class TestBuilderAgent:
              mock_prompt.return_value = mock_prompt_tmpl
 
              mock_model_runnable = MagicMock()
-             agent.llm.with_structured_output.return_value = mock_model_runnable
+
+             mock_llm = cast(MagicMock, agent.llm)
+             mock_llm.with_structured_output.return_value = mock_model_runnable
 
              mock_chain = MagicMock()
              mock_prompt_tmpl.__or__.return_value = mock_chain

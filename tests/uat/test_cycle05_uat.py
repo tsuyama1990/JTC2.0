@@ -16,7 +16,7 @@ from tests.conftest import DUMMY_ENV_VARS
 try:
     from src.agents.builder import BuilderAgent
 except ImportError:
-    BuilderAgent = None
+    BuilderAgent = None # type: ignore
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 class TestCycle05UAT:

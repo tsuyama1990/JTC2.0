@@ -148,12 +148,12 @@ def test_metrics_boundary_conditions() -> None:
     assert any(e["loc"] == ("retention",) for e in exc.value.errors())
 
 
-@patch("src.core.graph.create_simulation_graph")
+@patch("src.core.nodes.create_simulation_graph")
 def test_safe_simulation_run_integration(
     mock_create_sim: MagicMock, mock_state: GlobalState
 ) -> None:
     """Test that safe_simulation_run invokes the subgraph correctly."""
-    from src.core.graph import safe_simulation_run
+    from src.core.nodes import safe_simulation_run
 
     # Mock the compiled graph returned by create_simulation_graph
     mock_graph_app = MagicMock()

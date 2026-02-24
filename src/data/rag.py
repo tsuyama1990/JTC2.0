@@ -397,21 +397,33 @@ class RAG:
         if self.index is None:
             return "No data available."
 
-        # Implement simple timeout mechanism if not supported natively by LlamaIndex sync query
-        # Currently running in sync context, so threading/timeout is complex without async.
-        # But we can assume LlamaIndex might have timeout settings or we rely on pybreaker.
-        # For strict timeout, we would need to run in a thread or process.
-        # Given constraints, we'll rely on the breaker timeout which is already wrapped around this call.
-
         # Simple rate limiting using blocking sleep
         import time
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+
         if self.settings.rag_rate_limit_interval > 0:
             time.sleep(self.settings.rag_rate_limit_interval)
 
+        # Default timeout to 30 seconds if not in settings
+        timeout = getattr(self.settings, "rag_query_timeout", 30.0)
+
         try:
             query_engine = self.index.as_query_engine()
-            response = query_engine.query(question)
+
+            # Enforce strict timeout on the query execution
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(query_engine.query, question)
+                response = future.result(timeout=timeout)
+
             return str(response)
+
+        except FuturesTimeoutError:
+            logger.error("RAG Query timed out after %s seconds", timeout)
+            # We raise RuntimeError to be caught by the safe_node wrapper eventually
+            # or maybe NetworkError. But Timeout is distinct.
+            # For now, let's stick to RuntimeError with clear message.
+            msg = "Query execution timed out"
+            raise RuntimeError(msg) from None
         except Exception as e:
             logger.exception("LlamaIndex query failed: %s", e.__class__.__name__)
             msg = f"Query execution failed: {e}"

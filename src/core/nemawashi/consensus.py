@@ -102,18 +102,16 @@ class ConsensusEngine:
             # Convert to 1D array
             row_sums = row_sums.A1 if hasattr(row_sums, "A1") else np.array(row_sums).flatten()
 
-            if not np.allclose(row_sums, 1.0, atol=1e-5):
-                 # Log first few errors
-                 invalid_indices = np.where(~np.isclose(row_sums, 1.0, atol=1e-5))[0]
-                 logger.error(f"Matrix row sums invalid at indices: {invalid_indices[:5]}... Values: {row_sums[invalid_indices][:5]}")
-                 msg = "Influence matrix rows must sum to 1.0"
-                 raise ValidationError(msg)
-
         except Exception as e:
-            if isinstance(e, ValidationError):
-                raise
-            msg = f"Stochasticity check failed: {e}"
+            msg = f"Stochasticity calculation failed: {e}"
             raise ValidationError(msg) from e
+
+        if not np.allclose(row_sums, 1.0, atol=1e-5):
+             # Log first few errors
+             invalid_indices = np.where(~np.isclose(row_sums, 1.0, atol=1e-5))[0]
+             logger.error(f"Matrix row sums invalid at indices: {invalid_indices[:5]}... Values: {row_sums[invalid_indices][:5]}")
+             msg = "Influence matrix rows must sum to 1.0"
+             raise ValidationError(msg)
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """

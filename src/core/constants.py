@@ -104,6 +104,7 @@ MSG_WAIT: Final[str] = "Please wait..."
 MSG_EXECUTION_ERROR: Final[str] = "Execution error occurred."
 MSG_SIM_TITLE: Final[str] = "JTC 2.0 Simulation"
 MSG_WAITING_FOR_DEBATE: Final[str] = "Waiting for debate..."
+MSG_NEMAWASHI_TITLE: Final[str] = "Nemawashi Influence Network"
 
 # --- Metrics Descriptions ---
 DESC_METRICS_AARRR: Final[str] = "Pirate Metrics (Acquisition, Activation, Retention, Revenue, Referral)"

@@ -47,7 +47,7 @@ def test_simulation_turn_sequence(
     # So we need our mock to simulate that or we just check the calls.
 
     # Let's mock the agent to return an updated debate history with a new message
-    def side_effect(state):
+    def side_effect(state: GlobalState) -> dict[str, list[object]]:
         import time
 
         from src.domain_models.simulation import DialogueMessage

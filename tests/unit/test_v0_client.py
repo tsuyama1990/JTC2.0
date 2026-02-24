@@ -1,4 +1,5 @@
 import re
+from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,7 +16,7 @@ except ImportError:
 
 class TestV0Client:
     @pytest.fixture
-    def mock_settings(self) -> MagicMock:
+    def mock_settings(self) -> Generator[MagicMock, None, None]:
         with patch("src.tools.v0_client.get_settings") as mock:
             yield mock.return_value
 
