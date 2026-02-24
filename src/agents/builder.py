@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
+from src.core.utils import chunk_text
 from src.domain_models.mvp import MVPSpec
 from src.domain_models.state import GlobalState
 from src.tools.v0_client import V0Client
@@ -31,32 +32,32 @@ class BuilderAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
 
-    def _extract_features(self, solution_description: str) -> list[str]:
+    def _extract_features(self, solution_description: str | Iterator[str]) -> list[str]:
         """
         Extract discrete features from the solution description using LLM.
         Implements chunking for large inputs to prevent memory overload.
+        Accepts string or iterator for scalability.
         """
-        if not solution_description or len(solution_description) < 10:
-            logger.warning("Solution description too short for feature extraction.")
-            return []
-
-        # Sanitize input (basic check to prevent injection or malformed large inputs)
-        # Replacing potentially problematic characters if any, but mainly relying on LLM safety.
-        # Strict memory limit check before processing
-        MAX_INPUT_LENGTH = 100000 # Example limit, could be config
-        if len(solution_description) > MAX_INPUT_LENGTH:
-            logger.warning(f"Solution description truncated to {MAX_INPUT_LENGTH} chars.")
-            solution_description = solution_description[:MAX_INPUT_LENGTH]
-
         # Chunking logic for memory safety using generator
         chunk_size = self.settings.feature_chunk_size
         all_features: list[str] = []
 
-        def chunk_generator() -> Iterator[str]:
-            for i in range(0, len(solution_description), chunk_size):
-                yield solution_description[i : i + chunk_size]
+        def content_stream() -> Iterator[str]:
+            if isinstance(solution_description, str):
+                if not solution_description or len(solution_description) < 10:
+                    logger.warning("Solution description too short for feature extraction.")
+                    return
+                # Sanitize/Truncate check on full string if given, but ideally we process stream
+                # If string is massive, this slicing copies memory, but we have to work with what we get.
+                # Assuming caller handles massive strings by passing iterator if needed.
+                yield from chunk_text(solution_description, chunk_size)
+            else:
+                yield from solution_description
 
-        for chunk in chunk_generator():
+        for chunk in content_stream():
+            if not chunk.strip():
+                continue
+
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", "You are a product manager. Extract distinct features from the solution description."),
@@ -113,6 +114,7 @@ class BuilderAgent(BaseAgent):
 
         candidate_features = state.candidate_features
         if not candidate_features:
+            # Pass the string directly; _extract_features handles streaming/chunking
             candidate_features = self._extract_features(state.selected_idea.solution)
 
         if not candidate_features:
