@@ -32,19 +32,18 @@ class BuilderAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
 
-    def _extract_features(self, solution_description: str | Iterator[str]) -> list[str]:
+    def _extract_features(self, solution_description: str | Iterator[str]) -> Iterator[str]:
         """
         Extract discrete features from the solution description using LLM.
         Implements chunking for large inputs to prevent memory overload.
         Accepts string or iterator for scalability.
-        Uses incremental set for deduplication to avoid loading all features into memory.
+        Yields unique features as they are found to avoid loading all into memory.
         """
         # Chunking logic for memory safety using generator
         chunk_size = self.settings.feature_chunk_size
 
         # Use a set to stream deduplication as we process chunks
         unique_features: set[str] = set()
-        ordered_features: list[str] = [] # Maintain order for UX
 
         def content_stream() -> Iterator[str]:
             if isinstance(solution_description, str):
@@ -70,16 +69,14 @@ class BuilderAgent(BaseAgent):
             try:
                 result = chain.invoke({})
                 if isinstance(result, FeatureList):
-                    # Process features immediately
+                    # Yield unique features immediately
                     for feature in result.features:
                         if feature not in unique_features:
                             unique_features.add(feature)
-                            ordered_features.append(feature)
+                            yield feature
             except Exception:
                 logger.exception("Failed to extract features from chunk")
                 continue
-
-        return ordered_features
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """
@@ -112,8 +109,21 @@ class BuilderAgent(BaseAgent):
 
         candidate_features = state.candidate_features
         if not candidate_features:
-            # Pass the string directly; _extract_features handles streaming/chunking
-            candidate_features = self._extract_features(state.selected_idea.solution)
+            # Consume generator up to a reasonable limit to prevent unbounded memory usage
+            # even if the LLM hallucinates an infinite stream (unlikely but safe).
+            MAX_FEATURES = 100
+            feature_gen = self._extract_features(state.selected_idea.solution)
+
+            candidate_features = []
+            try:
+                for _ in range(MAX_FEATURES):
+                    feature = next(feature_gen)
+                    candidate_features.append(feature)
+            except StopIteration:
+                pass
+
+            # Warn if truncated?
+            # if next(feature_gen, None) is not None: ...
 
         if not candidate_features:
             logger.warning("No features extracted from solution.")
