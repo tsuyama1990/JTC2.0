@@ -215,6 +215,23 @@ def pmf_node(state: GlobalState) -> dict[str, Any]:
     return {"phase": Phase.PMF}
 
 
+@safe_node("Error in Governance Check")
+def governance_node(state: GlobalState) -> dict[str, Any]:
+    """
+    Run Governance Agent for Cycle 6 (Ringi-sho).
+    """
+    logger.info("Running Governance Check...")
+
+    # We transition to GOVERNANCE phase explicitly or just run the check?
+    # Usually we transition first. But here the node does the work.
+
+    agent = AgentFactory.get_governance_agent()
+    updates = agent.run(state)
+
+    updates["phase"] = Phase.GOVERNANCE
+    return updates
+
+
 def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     """
     Create and compile the LangGraph application.
@@ -233,6 +250,7 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     workflow.add_node("solution_proposal", solution_proposal_node)
     workflow.add_node("mvp_generation", mvp_generation_node)
     workflow.add_node("pmf", pmf_node)
+    workflow.add_node("governance", governance_node)
 
     # --- EDGE DEFINITIONS ---
     workflow.set_entry_point("ideator")
@@ -263,7 +281,11 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
 
     # Gate 4: Product-Market Fit (Pivot Decision)
     # Interrupt happens after 'pmf' returns.
-    workflow.add_edge("pmf", END)
+    # User validates PMF, then we proceed to Governance.
+    workflow.add_edge("pmf", "governance")
+
+    # Governance -> End (Report generated)
+    workflow.add_edge("governance", END)
 
     # Compile with Interrupts for HITL Gates
     return workflow.compile(

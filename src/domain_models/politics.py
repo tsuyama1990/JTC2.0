@@ -42,12 +42,15 @@ class InfluenceNetwork(BaseModel):
     @classmethod
     def validate_matrix_values(cls, v: list[list[float]] | list[SparseMatrixEntry]) -> list[list[float]] | list[SparseMatrixEntry]:
         """Ensure all values are between 0 and 1."""
+        # Check if it's a dense matrix (list of lists)
         if isinstance(v, list) and v and isinstance(v[0], list):
             # Dense matrix
-            for row in v:  # type: ignore
-                for val in row:
-                    if not (0.0 <= val <= 1.0):
-                        raise ValueError(ERR_MATRIX_VALUES)
+            for row in v:
+                # Check if row is indeed a list (double check for mypy)
+                if isinstance(row, list):
+                    for val in row:
+                        if not (0.0 <= val <= 1.0):
+                            raise ValueError(ERR_MATRIX_VALUES)
         # Sparse matrix validation handled by SparseMatrixEntry validators (ge=0.0, le=1.0)
         return v
 
@@ -56,21 +59,21 @@ class InfluenceNetwork(BaseModel):
         """Ensure matrix is square and matches stakeholder count."""
         n = len(self.stakeholders)
 
+        # Check if matrix is dense
         if isinstance(self.matrix, list) and self.matrix and isinstance(self.matrix[0], list):
             # Dense matrix check
             if len(self.matrix) != n:
                 raise ValueError(ERR_STAKEHOLDER_MISMATCH)
 
-            for row in self.matrix:  # type: ignore
-                if len(row) != n:
+            for row in self.matrix:
+                if isinstance(row, list) and len(row) != n:
                     raise ValueError(ERR_MATRIX_SHAPE)
+
         elif isinstance(self.matrix, list):
              # Sparse matrix check
              # Check that row/col indices are within [0, n-1]
-             for entry in self.matrix:  # type: ignore
-                 if not isinstance(entry, SparseMatrixEntry):
-                     continue # Should be caught by type check, but safe guard
-                 if not (0 <= entry.row < n) or not (0 <= entry.col < n):
+             for entry in self.matrix:
+                 if isinstance(entry, SparseMatrixEntry) and (not (0 <= entry.row < n) or not (0 <= entry.col < n)):
                      raise ValueError(ERR_MATRIX_SHAPE)
 
         return self
@@ -85,15 +88,16 @@ class InfluenceNetwork(BaseModel):
 
         if isinstance(self.matrix, list) and self.matrix and isinstance(self.matrix[0], list):
             # Dense matrix
-            for row in self.matrix:  # type: ignore
-                row_sum = sum(row)
-                if not (1.0 - TOLERANCE <= row_sum <= 1.0 + TOLERANCE):
-                    raise ValueError(ERR_MATRIX_STOCHASTICITY)
+            for row in self.matrix:
+                if isinstance(row, list):
+                    row_sum = sum(row)
+                    if not (1.0 - TOLERANCE <= row_sum <= 1.0 + TOLERANCE):
+                        raise ValueError(ERR_MATRIX_STOCHASTICITY)
         else:
             # Sparse matrix
             # Initialize row sums
             row_sums = [0.0] * n
-            for entry in self.matrix:  # type: ignore
+            for entry in self.matrix:
                 if isinstance(entry, SparseMatrixEntry):
                     row_sums[entry.row] += entry.val
 
