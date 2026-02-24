@@ -19,6 +19,7 @@
 -   **CPO Mentor Agent**: A silent observer who provides fact-based, data-driven advice ("The Mom Test") using ingested transcripts to validate or pivot your idea.
 -   **Nemawashi (Root-Binding) Engine**: Analyze the invisible influence network within the organization. Identify "Key Influencers" and simulate "Nomikai" (drinking parties) to build consensus behind the scenes using the French-DeGroot model.
 -   **Automated MVP Construction**: Generate high-fidelity React/Tailwind UI from your Lean Canvas using v0.dev.
+-   **Business Governance & Ringi-sho**: Automated financial analysis (LTV/CAC, ROI) and generation of a formal "Ringi-sho" approval document to secure executive buy-in.
 -   **Pyxel Retro UI**: A gamified RPG-style interface for observing the simulation without personal emotional attachment ("De-identification").
 -   **Modular Architecture**: Designed for scalability and maintainability with strict schema validation and separated responsibilities.
 
@@ -105,7 +106,7 @@ The system will:
 -   **Cycle 3: Real World Connection (RAG) (Completed)**
 -   **Cycle 4: Consensus Building (Nemawashi) (Completed)**
 -   **Cycle 5: MVP Generation (Completed)**
--   **Cycle 6**: Governance & Finalization
+-   **Cycle 6: Governance & Finalization (Completed)**
 
 ## 📄 License
 

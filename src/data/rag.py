@@ -403,6 +403,11 @@ class RAG:
         # For strict timeout, we would need to run in a thread or process.
         # Given constraints, we'll rely on the breaker timeout which is already wrapped around this call.
 
+        # Simple rate limiting using blocking sleep
+        import time
+        if self.settings.rag_rate_limit_interval > 0:
+            time.sleep(self.settings.rag_rate_limit_interval)
+
         try:
             query_engine = self.index.as_query_engine()
             response = query_engine.query(question)

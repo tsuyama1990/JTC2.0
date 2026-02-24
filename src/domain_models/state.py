@@ -11,7 +11,7 @@ from src.domain_models.validators import StateValidator
 __all__ = ["GlobalState", "Phase"]
 
 from .lean_canvas import LeanCanvas
-from .metrics import Metrics
+from .metrics import Metrics, RingiSho
 from .mvp import MVP, MVPSpec
 from .persona import Persona
 from .politics import InfluenceNetwork
@@ -62,6 +62,7 @@ class GlobalState(BaseModel):
         default_factory=dict, description="Persistent state of agents (e.g. DeGroot weights)"
     )
     influence_network: InfluenceNetwork | None = None
+    ringi_sho: RingiSho | None = None
 
     @field_validator("transcripts")
     @classmethod

@@ -70,5 +70,6 @@ def test_tavily_safe_search_error(mock_get_settings: MagicMock, mock_client_cls:
     search = TavilySearch()
 
     # safe_search should catch the RetryError (or underlying) and return error message
+    # Updated to match constant ERR_SEARCH_FAILED in Cycle 06
     result = search.safe_search("query")
-    assert "Search service unavailable." in result
+    assert "Search operation failed" in result

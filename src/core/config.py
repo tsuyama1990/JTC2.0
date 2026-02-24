@@ -5,9 +5,12 @@ from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
+    DEFAULT_ARPU,
+    DEFAULT_CAC,
     DEFAULT_CB_FAIL_MAX,
     DEFAULT_CB_RESET_TIMEOUT,
     DEFAULT_CHARS_PER_LINE,
+    DEFAULT_CHURN,
     DEFAULT_CONSOLE_SLEEP,
     DEFAULT_DIALOGUE_X,
     DEFAULT_DIALOGUE_Y,
@@ -16,9 +19,11 @@ from src.core.constants import (
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
+    DEFAULT_MAX_LLM_RESPONSE_SIZE,
     DEFAULT_MAX_TITLE_LENGTH,
     DEFAULT_MAX_TURNS,
     DEFAULT_MAX_Y,
+    DEFAULT_MIN_ROI_THRESHOLD,
     DEFAULT_MIN_TITLE_LENGTH,
     DEFAULT_NEMAWASHI_BOOST,
     DEFAULT_NEMAWASHI_MAX_STEPS,
@@ -242,6 +247,23 @@ class SimulationConfig(BaseSettings):
         return ConfigValidators.validate_color(v)
 
 
+class GovernanceConfig(BaseSettings):
+    """Configuration for Governance and Financials."""
+
+    min_roi_threshold: float = Field(alias="MIN_ROI_THRESHOLD", default=DEFAULT_MIN_ROI_THRESHOLD, description="Minimum ROI for approval")
+    default_cac: float = Field(alias="DEFAULT_CAC", default=DEFAULT_CAC, description="Fallback CAC")
+    default_arpu: float = Field(alias="DEFAULT_ARPU", default=DEFAULT_ARPU, description="Fallback ARPU")
+    default_churn: float = Field(alias="DEFAULT_CHURN", default=DEFAULT_CHURN, description="Fallback Churn Rate")
+    max_llm_response_size: int = Field(alias="MAX_LLM_RESPONSE_SIZE", default=DEFAULT_MAX_LLM_RESPONSE_SIZE, description="Max bytes for LLM JSON response")
+    output_path: str = Field(alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output")
+    search_query_template: str = Field(
+        alias="GOV_SEARCH_QUERY_TEMPLATE",
+        default="average CAC churn ARPU LTV for {industry} startups benchmarks",
+        description="Template for financial search"
+    )
+    max_search_result_size: int = Field(alias="MAX_SEARCH_RESULT_SIZE", default=5000, description="Max chars for search result context")
+
+
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
@@ -289,6 +311,7 @@ class Settings(BaseSettings):
     simulation: SimulationConfig = Field(default_factory=SimulationConfig)
     nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
     v0: V0Config = Field(default_factory=V0Config)
+    governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
     def model_post_init(self, __context: object) -> None:
         """Validate API keys on initialization."""

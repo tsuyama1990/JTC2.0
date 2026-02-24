@@ -2,6 +2,7 @@ from typing import Any
 
 from src.agents.builder import BuilderAgent
 from src.agents.cpo import CPOAgent
+from src.agents.governance import GovernanceAgent
 from src.agents.ideator import IdeatorAgent
 from src.agents.personas import FinanceAgent, NewEmployeeAgent, SalesAgent
 from src.core.config import get_settings
@@ -22,6 +23,11 @@ class AgentFactory:
     def get_builder_agent() -> BuilderAgent:
         llm = get_llm()
         return BuilderAgent(llm)
+
+    @staticmethod
+    def get_governance_agent() -> GovernanceAgent:
+        """Create a new Governance Agent."""
+        return GovernanceAgent()
 
     @staticmethod
     def get_persona_agent(role: Role, state: GlobalState | None = None) -> Any:

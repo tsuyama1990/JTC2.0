@@ -65,9 +65,33 @@ class DetailedMetrics(BaseModel):
     cognitive_load: float = Field(0.0, description="Score for cognitive load management")
 
 
+class Financials(BaseModel):
+    """
+    Financial projections and viability metrics.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    cac: float = Field(0.0, description="Customer Acquisition Cost")
+    ltv: float = Field(0.0, description="Lifetime Value")
+    payback_months: float = Field(0.0, description="Months to recover CAC")
+    roi: float = Field(0.0, description="Return on Investment (LTV/CAC ratio)")
+
+
+class FinancialEstimates(BaseModel):
+    """
+    Structured response for LLM financial estimation.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    cac: float = Field(..., gt=0.0, description="Estimated CAC")
+    arpu: float = Field(..., gt=0.0, description="Estimated ARPU")
+    churn_rate: float = Field(..., ge=0.0, le=1.0, description="Estimated monthly churn rate")
+
+
 class Metrics(BaseModel):
     """
-    Aggregates all metrics (AARRR, Detailed, and Custom).
+    Aggregates all metrics (AARRR, Detailed, Custom, and Financials).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -75,6 +99,9 @@ class Metrics(BaseModel):
     aarrr: AARRR = Field(default_factory=AARRR, description=DESC_METRICS_AARRR)
     detailed: DetailedMetrics = Field(
         default_factory=DetailedMetrics, description="Detailed simulation metrics"
+    )
+    financials: Financials = Field(
+        default_factory=Financials, description="Financial projections"
     )
     custom_metrics: dict[str, float] = Field(default_factory=dict, description=DESC_METRICS_CUSTOM)
 
@@ -106,3 +133,19 @@ class Metrics(BaseModel):
                  raise ValueError(msg)
 
         return v
+
+
+class RingiSho(BaseModel):
+    """
+    Formal approval document (Ringi-sho).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(..., min_length=1, description="Title of the proposal")
+    executive_summary: str = Field(..., min_length=10, description="Executive summary")
+    financial_projection: Financials = Field(..., description="Financial projections")
+    risks: list[str] = Field(default_factory=list, min_length=1, description="List of identified risks")
+    approval_status: str = Field(
+        "Draft", pattern="^(Draft|Approved|Rejected)$", description="Approval status"
+    )
