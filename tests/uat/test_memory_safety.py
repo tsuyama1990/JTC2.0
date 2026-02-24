@@ -75,7 +75,8 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     with (
         patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
         patch.object(get_settings(), "rag_max_index_size_mb", 1),
-        pytest.raises(MemoryError, match="Vector store size exceeds limit"),
+            # Updated error message constant in Cycle 06
+            pytest.raises(MemoryError, match="Index size limit exceeded"),
     ):
         # Expect MemoryError directly
         RAG(persist_dir=temp_rag_dir)

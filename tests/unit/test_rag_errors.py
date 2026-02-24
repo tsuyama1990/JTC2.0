@@ -79,5 +79,6 @@ def test_rag_input_validation() -> None:
 def test_error_formatting() -> None:
     """Verify error messages are formatted correctly."""
     # This checks the constants logic implicitly via usage
-    msg = ERR_RAG_TEXT_TOO_LARGE.format(size=123)
-    assert "Text too large (123 chars)" in msg
+    # In Cycle 06, ERR_RAG_TEXT_TOO_LARGE became static "Document text too large."
+    msg = ERR_RAG_TEXT_TOO_LARGE
+    assert "Document text too large" in msg

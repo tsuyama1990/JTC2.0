@@ -41,11 +41,7 @@ class TestCycle06UAT:
         agent = GovernanceAgent()
 
         # Mock dependencies
-        with patch("src.agents.governance.TavilySearch") as mock_search_cls, \
-             patch("src.core.metrics.calculate_ltv", return_value=100.0), \
-             patch("src.core.metrics.calculate_payback_period", return_value=24.0), \
-             patch("src.core.metrics.calculate_roi", return_value=0.2): # Low ROI
-
+        with patch("src.agents.governance.TavilySearch") as mock_search_cls:
              mock_search = mock_search_cls.return_value
              mock_search.safe_search.return_value = "CAC: $500\nChurn: 5%\nARPU: $20"
 
@@ -55,6 +51,8 @@ class TestCycle06UAT:
                  mock_llm = mock_llm_factory.return_value
 
                  # Mock 2 LLM calls: 1. Financials, 2. RingiSho
+                 # We return realistic but unviable numbers for this scenario
+                 # LTV = 20 / 0.05 = 400. ROI = 400 / 500 = 0.8 (< 3.0 threshold)
                  mock_msg_fin = MagicMock()
                  mock_msg_fin.content = '{"cac": 500.0, "arpu": 20.0, "churn_rate": 0.05}'
 
@@ -72,7 +70,9 @@ class TestCycle06UAT:
                      ringi_sho = result["ringi_sho"]
                      assert isinstance(ringi_sho, RingiSho)
                      assert ringi_sho.approval_status == "Rejected"
+                     # Verify ACTUAL calculation logic was used
                      # LTV = 20 / 0.05 = 400. ROI = 400 / 500 = 0.8
+                     assert ringi_sho.financial_projection.ltv == 400.0
                      assert ringi_sho.financial_projection.roi == 0.8
                  else:
                      # Fail explicitly if logic not implemented (TDD)
@@ -86,11 +86,7 @@ class TestCycle06UAT:
         agent = GovernanceAgent()
 
         # Mock dependencies for SUCCESS case
-        with patch("src.agents.governance.TavilySearch") as mock_search_cls, \
-             patch("src.core.metrics.calculate_ltv", return_value=3000.0), \
-             patch("src.core.metrics.calculate_payback_period", return_value=5.0), \
-             patch("src.core.metrics.calculate_roi", return_value=5.0): # High ROI
-
+        with patch("src.agents.governance.TavilySearch") as mock_search_cls:
              mock_search = mock_search_cls.return_value
              mock_search.safe_search.return_value = "CAC: $600\nChurn: 2%\nARPU: $100"
 
@@ -99,6 +95,7 @@ class TestCycle06UAT:
                  mock_llm = mock_llm_factory.return_value
 
                  # Mock 2 LLM calls
+                 # LTV = 100 / 0.02 = 5000. ROI = 5000 / 600 = 8.33
                  mock_msg_fin = MagicMock()
                  mock_msg_fin.content = '{"cac": 600.0, "arpu": 100.0, "churn_rate": 0.02}'
 
@@ -113,6 +110,7 @@ class TestCycle06UAT:
                      ringi_sho = result["ringi_sho"]
                      assert ringi_sho.approval_status == "Approved"
                      # LTV = 100 / 0.02 = 5000. ROI = 5000 / 600 = 8.333
+                     assert ringi_sho.financial_projection.ltv == 5000.0
                      assert ringi_sho.financial_projection.roi > 8.0
                  else:
                      pytest.fail("RingiSho not generated")

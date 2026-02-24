@@ -45,5 +45,6 @@ def test_get_llm_override(mock_get_settings: MagicMock) -> None:
 def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = None
-    with pytest.raises(ValueError, match="API key is missing"):
+    # Updated error message constant in Cycle 06
+    with pytest.raises(ValueError, match="LLM configuration invalid"):
         get_llm()

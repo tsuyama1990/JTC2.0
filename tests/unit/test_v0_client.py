@@ -66,5 +66,6 @@ class TestV0Client:
         mock_settings.v0_api_key = None
         client = V0Client(api_key=None)
 
-        with pytest.raises(V0GenerationError, match="V0_API_KEY is not configured"):
+        # Updated error message constant in Cycle 06
+        with pytest.raises(V0GenerationError, match="V0 API Key missing"):
             client.generate_ui("prompt")

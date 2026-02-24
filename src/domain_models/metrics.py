@@ -78,6 +78,17 @@ class Financials(BaseModel):
     roi: float = Field(0.0, description="Return on Investment (LTV/CAC ratio)")
 
 
+class FinancialEstimates(BaseModel):
+    """
+    Structured response for LLM financial estimation.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    cac: float = Field(..., description="Estimated CAC")
+    arpu: float = Field(..., description="Estimated ARPU")
+    churn_rate: float = Field(..., ge=0.0, le=1.0, description="Estimated monthly churn rate")
+
+
 class Metrics(BaseModel):
     """
     Aggregates all metrics (AARRR, Detailed, Custom, and Financials).

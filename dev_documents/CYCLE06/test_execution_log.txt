@@ -4,34 +4,34 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 128 items
+collected 131 items
 
 tests/integration/test_rag_flow.py ...                                   [  2%]
 tests/uat/test_cycle05_uat.py ...                                        [  4%]
 tests/uat/test_cycle06_uat.py ..                                         [  6%]
 tests/uat/test_memory_safety.py ...                                      [  8%]
-tests/uat/test_nemawashi_uat.py ..                                       [ 10%]
+tests/uat/test_nemawashi_uat.py ..                                       [  9%]
 tests/uat/test_uat_cycle01.py ...                                        [ 12%]
-tests/uat/test_uat_cycle02.py .                                          [ 13%]
+tests/uat/test_uat_cycle02.py .                                          [ 12%]
 tests/uat/test_uat_cycle03.py ..                                         [ 14%]
-tests/unit/domain_models/test_models.py ...........                      [ 23%]
-tests/unit/domain_models/test_politics.py .....                          [ 27%]
-tests/unit/domain_models/test_simulation_models.py .....                 [ 31%]
-tests/unit/domain_models/test_transcript.py ...                          [ 33%]
-tests/unit/test_builder_agent.py ...........                             [ 42%]
-tests/unit/test_cli_input.py ...                                         [ 44%]
-tests/unit/test_cli_scalability.py .                                     [ 45%]
-tests/unit/test_config.py .......                                        [ 50%]
-tests/unit/test_core.py ....                                             [ 53%]
-tests/unit/test_core_graph.py .....                                      [ 57%]
-tests/unit/test_cpo_agent.py ..                                          [ 59%]
-tests/unit/test_domain_models.py .......                                 [ 64%]
-tests/unit/test_governance_agent.py .                                    [ 65%]
-tests/unit/test_ideator_agent.py ...                                     [ 67%]
-tests/unit/test_metrics_logic.py ......                                  [ 72%]
-tests/unit/test_nemawashi.py ....                                        [ 75%]
-tests/unit/test_rag.py .....                                             [ 79%]
-tests/unit/test_rag_errors.py ....                                       [ 82%]
+tests/unit/domain_models/test_models.py ...........                      [ 22%]
+tests/unit/domain_models/test_politics.py .....                          [ 26%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 30%]
+tests/unit/domain_models/test_transcript.py ...                          [ 32%]
+tests/unit/test_builder_agent.py ...........                             [ 41%]
+tests/unit/test_cli_input.py ...                                         [ 43%]
+tests/unit/test_cli_scalability.py .                                     [ 44%]
+tests/unit/test_config.py .......                                        [ 49%]
+tests/unit/test_core.py ....                                             [ 52%]
+tests/unit/test_core_graph.py .....                                      [ 56%]
+tests/unit/test_cpo_agent.py ..                                          [ 58%]
+tests/unit/test_domain_models.py .......                                 [ 63%]
+tests/unit/test_governance_agent.py .                                    [ 64%]
+tests/unit/test_ideator_agent.py ...                                     [ 66%]
+tests/unit/test_metrics_logic.py .........                               [ 73%]
+tests/unit/test_nemawashi.py ....                                        [ 76%]
+tests/unit/test_rag.py .....                                             [ 80%]
+tests/unit/test_rag_errors.py ....                                       [ 83%]
 tests/unit/test_rag_refactored.py .                                      [ 83%]
 tests/unit/test_simulation_integration.py ..                             [ 85%]
 tests/unit/test_simulation_logic.py ........                             [ 91%]
@@ -49,13 +49,13 @@ src/agents/__init__.py                 6      0   100%
 src/agents/base.py                     9      0   100%
 src/agents/builder.py                 95     10    89%   40-41, 48-49, 101, 130-131, 139-140, 181
 src/agents/cpo.py                     45     11    76%   55-57, 74-81, 92-94
-src/agents/governance.py              72     14    81%   58-60, 142, 144, 146, 151-169
+src/agents/governance.py             111     31    72%   60-61, 99-108, 153-155, 167-168, 179, 181, 183, 192-215
 src/agents/ideator.py                 47     12    74%   31-34, 97-107
 src/agents/mixins.py                  23      6    74%   28, 31-35
 src/agents/personas.py                79     10    87%   90-92, 97-98, 107-110, 158-163
 src/core/__init__.py                   0      0   100%
-src/core/config.py                   151      0   100%
-src/core/constants.py                 98      0   100%
+src/core/config.py                   158      0   100%
+src/core/constants.py                 99      0   100%
 src/core/exceptions.py                 6      0   100%
 src/core/factory.py                   42     19    55%   24-25, 30, 43-49, 57-68
 src/core/graph.py                    145     32    78%   28-30, 49-55, 65-66, 97-101, 113-114, 140-141, 151-153, 156, 209-215, 223-232
@@ -75,7 +75,7 @@ src/domain_models/__init__.py          8      0   100%
 src/domain_models/common.py           23      0   100%
 src/domain_models/enums.py            12      0   100%
 src/domain_models/lean_canvas.py      24      0   100%
-src/domain_models/metrics.py          55      6    89%   111-112, 116-117, 121-122
+src/domain_models/metrics.py          60      6    90%   122-123, 127-128, 132-133
 src/domain_models/mvp.py              54      4    93%   129-130, 138-139
 src/domain_models/persona.py          28      2    93%   124-125
 src/domain_models/politics.py         59      3    95%   77, 95, 106
@@ -88,5 +88,5 @@ src/tools/search.py                   34      4    88%   39, 75, 90-91
 src/tools/v0_client.py                61     19    69%   58-60, 106-108, 111-118, 126-132
 src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 128-134, 154
 ----------------------------------------------------------------
-TOTAL                               1929    254    87%
-============================= 128 passed in 20.49s =============================
+TOTAL                               1981    271    86%
+============================= 131 passed in 17.65s =============================
