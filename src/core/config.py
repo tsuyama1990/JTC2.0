@@ -255,6 +255,7 @@ class GovernanceConfig(BaseSettings):
     default_arpu: float = Field(alias="DEFAULT_ARPU", default=DEFAULT_ARPU, description="Fallback ARPU")
     default_churn: float = Field(alias="DEFAULT_CHURN", default=DEFAULT_CHURN, description="Fallback Churn Rate")
     max_llm_response_size: int = Field(alias="MAX_LLM_RESPONSE_SIZE", default=DEFAULT_MAX_LLM_RESPONSE_SIZE, description="Max bytes for LLM JSON response")
+    output_path: str = Field(alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output")
 
 
 class Settings(BaseSettings):

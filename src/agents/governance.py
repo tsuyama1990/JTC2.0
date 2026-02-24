@@ -37,6 +37,12 @@ class GovernanceAgent(BaseAgent):
         query = f"average CAC churn ARPU LTV for {industry} startups benchmarks"
         search_result = search.safe_search(query)
 
+        # Limit search result size to prevent Context Window overflow
+        # Truncate to first 5000 chars (approx 1250 tokens), which is plenty for financial summaries
+        if len(search_result) > 5000:
+            logger.warning("Search result truncated to 5000 characters.")
+            search_result = search_result[:5000]
+
         # 2. Estimate Financials
         logger.info("Estimating financials using LLM...")
         financials = self._estimate_financials(industry, search_result)
@@ -70,9 +76,16 @@ class GovernanceAgent(BaseAgent):
         }
 
     def _get_industry_context(self, state: GlobalState) -> str:
+        import re
+
+        industry = state.topic
         if state.selected_idea:
-             return f"{state.selected_idea.customer_segments} related to {state.topic}"
-        return state.topic
+             industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
+
+        # Security: Whitelist characters to prevent injection attacks (alphanumeric, spaces, basic punctuation)
+        # We allow a broad range of safe chars for search queries.
+        sanitized = re.sub(r"[^a-zA-Z0-9\s\-\.\,]", "", industry)
+        return sanitized.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
         settings = get_settings()
@@ -170,17 +183,25 @@ class GovernanceAgent(BaseAgent):
     def _parse_json(self, text: str) -> dict[str, Any]:
         """
         Helper to parse JSON from LLM response.
+        Uses regex to extract JSON block for robustness.
 
         Raises:
             JSONDecodeError: If parsing fails.
         """
+        import re
+
+        # Try finding JSON block first
+        match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
+        if match:
+            text = match.group(1)
+        else:
+            # Fallback: Try finding any code block
+            match = re.search(r"```\s*(.*?)\s*```", text, re.DOTALL)
+            if match:
+                text = match.group(1)
+
+        # Strip whitespace
         text = text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
         return json.loads(text) # type: ignore
 
     def _save_to_file(self, ringi: RingiSho) -> None:
@@ -205,9 +226,10 @@ class GovernanceAgent(BaseAgent):
                 content += f"- {risk}\n"
 
             # Safe write using pathlib
-            output_path = Path("RINGI_SHO.md")
+            settings = get_settings()
+            output_path = Path(settings.governance.output_path)
             output_path.write_text(content, encoding="utf-8")
-            logger.info(f"RINGI_SHO.md saved successfully to {output_path.resolve()}")
+            logger.info(f"Ringi-Sho saved successfully to {output_path.resolve()}")
 
         except OSError:
             logger.exception("Failed to write output file")

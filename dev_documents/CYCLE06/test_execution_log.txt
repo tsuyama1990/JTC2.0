@@ -49,16 +49,16 @@ src/agents/__init__.py                 6      0   100%
 src/agents/base.py                     9      0   100%
 src/agents/builder.py                 95     10    89%   40-41, 48-49, 101, 130-131, 139-140, 181
 src/agents/cpo.py                     45     11    76%   55-57, 74-81, 92-94
-src/agents/governance.py             111     31    72%   60-61, 99-108, 153-155, 167-168, 179, 181, 183, 192-215
+src/agents/governance.py             119     33    72%   43-44, 66-67, 112-121, 166-168, 180-181, 196, 201, 213-237
 src/agents/ideator.py                 47     12    74%   31-34, 97-107
 src/agents/mixins.py                  23      6    74%   28, 31-35
 src/agents/personas.py                79     10    87%   90-92, 97-98, 107-110, 158-163
 src/core/__init__.py                   0      0   100%
-src/core/config.py                   158      0   100%
+src/core/config.py                   159      0   100%
 src/core/constants.py                 99      0   100%
 src/core/exceptions.py                 6      0   100%
 src/core/factory.py                   42     19    55%   24-25, 30, 43-49, 57-68
-src/core/graph.py                    145     32    78%   28-30, 49-55, 65-66, 97-101, 113-114, 140-141, 151-153, 156, 209-215, 223-232
+src/core/graph.py                    145     32    78%   28-30, 49-55, 65-66, 103-107, 119-120, 146-147, 157-159, 162, 215-221, 229-238
 src/core/llm.py                        8      0   100%
 src/core/metrics.py                   17      0   100%
 src/core/nemawashi/__init__.py         5      0   100%
@@ -88,5 +88,5 @@ src/tools/search.py                   34      4    88%   39, 75, 90-91
 src/tools/v0_client.py                61     19    69%   58-60, 106-108, 111-118, 126-132
 src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 128-134, 154
 ----------------------------------------------------------------
-TOTAL                               1981    271    86%
-============================= 131 passed in 17.65s =============================
+TOTAL                               1990    273    86%
+============================= 131 passed in 20.55s =============================

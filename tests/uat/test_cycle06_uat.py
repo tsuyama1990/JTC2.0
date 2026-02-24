@@ -40,21 +40,29 @@ class TestCycle06UAT:
         """
         agent = GovernanceAgent()
 
+        # Define mock inputs
+        mock_cac = 500.0
+        mock_arpu = 20.0
+        mock_churn = 0.05
+
+        # Calculate expected derived values based on logic in src/core/metrics.py
+        # LTV = ARPU / Churn
+        expected_ltv = mock_arpu / mock_churn # 400.0
+        # ROI = LTV / CAC
+        expected_roi = expected_ltv / mock_cac # 0.8
+
         # Mock dependencies
         with patch("src.agents.governance.TavilySearch") as mock_search_cls:
              mock_search = mock_search_cls.return_value
-             mock_search.safe_search.return_value = "CAC: $500\nChurn: 5%\nARPU: $20"
+             mock_search.safe_search.return_value = "Search result"
 
-             # Mock LLM generation for RingiSho to include "Rejected" or "Approved"
              with patch("src.agents.governance.get_llm") as mock_llm_factory, \
                   patch("src.agents.governance.GovernanceAgent._save_to_file"):
                  mock_llm = mock_llm_factory.return_value
 
-                 # Mock 2 LLM calls: 1. Financials, 2. RingiSho
-                 # We return realistic but unviable numbers for this scenario
-                 # LTV = 20 / 0.05 = 400. ROI = 400 / 500 = 0.8 (< 3.0 threshold)
+                 # Mock LLM returns specifically tailored JSON
                  mock_msg_fin = MagicMock()
-                 mock_msg_fin.content = '{"cac": 500.0, "arpu": 20.0, "churn_rate": 0.05}'
+                 mock_msg_fin.content = f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
 
                  mock_msg_ringi = MagicMock()
                  mock_msg_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea.", "risks": ["High churn"]}'
@@ -65,17 +73,16 @@ class TestCycle06UAT:
                  result = agent.run(initial_state)
 
                  # Verify RingiSho created
-                 # Note: Implementation logic will put it in result dict or update state
                  if "ringi_sho" in result:
                      ringi_sho = result["ringi_sho"]
                      assert isinstance(ringi_sho, RingiSho)
                      assert ringi_sho.approval_status == "Rejected"
-                     # Verify ACTUAL calculation logic was used
-                     # LTV = 20 / 0.05 = 400. ROI = 400 / 500 = 0.8
-                     assert ringi_sho.financial_projection.ltv == 400.0
-                     assert ringi_sho.financial_projection.roi == 0.8
+
+                     # Verify mathematical correctness dynamically
+                     # Use approximate assertion for float comparison
+                     assert abs(ringi_sho.financial_projection.ltv - expected_ltv) < 0.01
+                     assert abs(ringi_sho.financial_projection.roi - expected_roi) < 0.01
                  else:
-                     # Fail explicitly if logic not implemented (TDD)
                      pytest.fail("RingiSho not generated")
 
     def test_uat_c06_02_ringi_sho_generation(self, initial_state: GlobalState) -> None:
@@ -85,19 +92,25 @@ class TestCycle06UAT:
         """
         agent = GovernanceAgent()
 
-        # Mock dependencies for SUCCESS case
+        # Define mock inputs for SUCCESS case
+        mock_cac = 600.0
+        mock_arpu = 100.0
+        mock_churn = 0.02
+
+        # Expected
+        expected_ltv = mock_arpu / mock_churn # 5000.0
+        expected_roi = expected_ltv / mock_cac # 8.33...
+
         with patch("src.agents.governance.TavilySearch") as mock_search_cls:
              mock_search = mock_search_cls.return_value
-             mock_search.safe_search.return_value = "CAC: $600\nChurn: 2%\nARPU: $100"
+             mock_search.safe_search.return_value = "Search result"
 
              with patch("src.agents.governance.get_llm") as mock_llm_factory, \
                   patch("src.agents.governance.GovernanceAgent._save_to_file"):
                  mock_llm = mock_llm_factory.return_value
 
-                 # Mock 2 LLM calls
-                 # LTV = 100 / 0.02 = 5000. ROI = 5000 / 600 = 8.33
                  mock_msg_fin = MagicMock()
-                 mock_msg_fin.content = '{"cac": 600.0, "arpu": 100.0, "churn_rate": 0.02}'
+                 mock_msg_fin.content = f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
 
                  mock_msg_ringi = MagicMock()
                  mock_msg_ringi.content = '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
@@ -109,8 +122,7 @@ class TestCycle06UAT:
                  if "ringi_sho" in result:
                      ringi_sho = result["ringi_sho"]
                      assert ringi_sho.approval_status == "Approved"
-                     # LTV = 100 / 0.02 = 5000. ROI = 5000 / 600 = 8.333
-                     assert ringi_sho.financial_projection.ltv == 5000.0
-                     assert ringi_sho.financial_projection.roi > 8.0
+                     assert abs(ringi_sho.financial_projection.ltv - expected_ltv) < 0.01
+                     assert abs(ringi_sho.financial_projection.roi - expected_roi) < 0.01
                  else:
                      pytest.fail("RingiSho not generated")

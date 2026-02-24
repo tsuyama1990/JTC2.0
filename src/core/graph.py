@@ -70,13 +70,19 @@ def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
 @safe_node("Error during transcript ingestion")
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     rag = RAG(persist_dir=state.rag_index_path)
-    for transcript in state.transcripts:
-        # We assume RAG handles duplicates or is stateless per run for now.
-        # In a real system, we'd check existence.
-        logger.info(f"Ingesting transcript from: {transcript.source}")
+
+    # Process transcripts safely by iterating and persisting periodically if needed.
+    # Given the scale, we assume transcripts fit in memory as objects, but
+    # ingestion should be robust.
+    for i, transcript in enumerate(state.transcripts):
+        logger.info(f"Ingesting transcript {i+1}/{len(state.transcripts)} from: {transcript.source}")
         rag.ingest_transcript(transcript)
 
-    # Persist the index after ingestion
+        # Optional: Persist every N items if list is huge (e.g., > 100)
+        # For now, we persist once at the end as per standard requirement,
+        # but this loop structure allows for future chunked persistence.
+
+    # Persist the index after all ingestion
     rag.persist_index()
     return {}
 
