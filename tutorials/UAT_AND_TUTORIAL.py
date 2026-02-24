@@ -5,7 +5,13 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-def intro(mo):
+def intro():
+    import marimo as mo
+    return mo,
+
+
+@app.cell
+def explanation(mo):
     mo.md(
         r"""
         # 🚀 The JTC 2.0: Ultimate UAT & Tutorial
@@ -25,11 +31,38 @@ def intro(mo):
 
 
 @app.cell
-def imports():
-    import marimo as mo
+def imports(mo):
     import os
+    import sys
     import unittest.mock
     from unittest.mock import MagicMock, patch
+
+    # Ensure src is in python path
+    if os.getcwd() not in sys.path:
+        sys.path.append(os.getcwd())
+
+    # 1. Setup Environment (Mock Keys) EARLY
+    # This must happen before imports to pass Settings validation
+    # Use valid-looking dummy keys to pass regex validation
+    # Tavily keys must start with "tvly-"
+    # OpenAI keys must be long enough
+
+    mock_env_vars = {
+        "OPENAI_API_KEY": "sk-mock-openai-key-which-is-long-enough-to-pass-validation-rules-mocking-is-fun",
+        "TAVILY_API_KEY": "tvly-mock-tavily-key-which-is-long-enough",
+        "V0_API_KEY": "mock-v0-key"
+    }
+
+    used_mocks = []
+    for key, val in mock_env_vars.items():
+        if not os.environ.get(key):
+            os.environ[key] = val
+            used_mocks.append(key)
+
+    if used_mocks:
+        mo.md(f"✅ **Mock Keys Injected:** {', '.join(used_mocks)}")
+    else:
+        mo.md("✅ **Using Existing API Keys** from environment.")
 
     # Try importing project modules
     try:
@@ -43,7 +76,7 @@ def imports():
         from src.domain_models.lean_canvas import LeanCanvas
         from langchain_core.messages import AIMessage
     except ImportError as e:
-        mo.md(f"### ❌ Critical Error: Missing Dependencies\nCould not import required modules from . Ensure you are running this from the project root and have run .\nError: {e}")
+        mo.md(f"### ❌ Critical Error: Missing Dependencies\nCould not import required modules from `src/`. Ensure you are running this from the project root and have run `uv sync`.\nError: {e}")
         raise e
 
     return (
@@ -59,40 +92,10 @@ def imports():
         Phase,
         Transcript,
         create_app,
-        mo,
         os,
         patch,
         unittest,
     )
-
-
-@app.cell
-def setup_environment(mo, os):
-    mo.md(
-        r"""
-        ## 1. Setup Environment
-
-        First, we initialize the environment. If you haven't set your API keys in , we will inject **Mock Keys** to ensure the tutorial runs smoothly.
-        """
-    )
-
-    # 1. Setup Environment (Mock Keys)
-    # Only set if missing to avoid overwriting user keys
-    env_vars_set = []
-    if not os.environ.get("OPENAI_API_KEY"):
-        os.environ["OPENAI_API_KEY"] = "sk-mock-openai-key"
-        env_vars_set.append("OPENAI_API_KEY")
-    if not os.environ.get("TAVILY_API_KEY"):
-        os.environ["TAVILY_API_KEY"] = "tv-mock-tavily-key"
-        env_vars_set.append("TAVILY_API_KEY")
-    if not os.environ.get("V0_API_KEY"):
-        os.environ["V0_API_KEY"] = "mock-v0-key"
-        env_vars_set.append("V0_API_KEY")
-
-    if env_vars_set:
-        return mo.md(f"✅ **Mock Keys Injected:** {', '.join(env_vars_set)}")
-    else:
-        return mo.md("✅ **Using Existing API Keys** from environment.")
 
 
 @app.cell
@@ -173,7 +176,7 @@ def configure_llm_responses(
         r"""
         ## 3. Configure Smart LLM Responses
 
-        The JTC 2.0 uses **Structured Output** (Pydantic models) extensively. We configure our mock LLM to return valid Pydantic objects (, , ) when requested, ensuring the agents can parse the "AI" response correctly.
+        The JTC 2.0 uses **Structured Output** (Pydantic models) extensively. We configure our mock LLM to return valid Pydantic objects (`LeanCanvasList`, `FeatureList`, `MVPSpec`) when requested, ensuring the agents can parse the "AI" response correctly.
         """
     )
 
@@ -242,7 +245,7 @@ def init_app(MemorySaver, create_app, mo):
         r"""
         ## 4. Initialize the Application
 
-        We load the **LangGraph** workflow application. We use  to persist state between steps in-memory, which allows us to pause and resume execution at the **Decision Gates**.
+        We load the **LangGraph** workflow application. We use `MemorySaver` to persist state between steps in-memory, which allows us to pause and resume execution at the **Decision Gates**.
         """
     )
 
@@ -264,11 +267,11 @@ def run_scenario_1(GlobalState, config, mo, workflow):
 
         **Goal:** Generate 10 diverse business ideas for the topic "AI for Cats".
 
-        **Action:** The  will research the topic using (mocked) Tavily and generate 10 Lean Canvases. The workflow will then **interrupt** at  waiting for user selection.
+        **Action:** The `IdeatorAgent` will research the topic using (mocked) Tavily and generate 10 Lean Canvases. The workflow will then **interrupt** at `Gate 1` waiting for user selection.
         """
     )
 
-    print("\n--- 🏁 Starting Scenario 1: Ideation ---")
+    # print("\n--- 🏁 Starting Scenario 1: Ideation ---")
 
     try:
         initial_state = GlobalState(topic="AI for Cats")
@@ -284,24 +287,19 @@ def run_scenario_1(GlobalState, config, mo, workflow):
 
         # Display ideas
         idea_list = [{"ID": i.id, "Problem": i.problem[0], "UVP": i.unique_value_prop} for i in ideas]
-        return mo.ui.table(idea_list, label="Generated Ideas")
+
+        return mo.ui.table(idea_list, label="Generated Ideas"), current_state, ideas
 
     except Exception as e:
-        return mo.md(f"### ❌ Scenario 1 Failed\nError: {e}")
+        return mo.md(f"### ❌ Scenario 1 Failed\nError: {e}"), None, None
 
 
 @app.cell
-def run_scenario_2(Phase, Transcript, config, mo, workflow):
+def run_scenario_2(Phase, Transcript, config, ideas, mo, workflow):
     # Get current state to fetch ideas
     try:
-        current_state = workflow.get_state(config).values
-        ideas_iter = current_state.get("generated_ideas")
-        ideas = list(ideas_iter) if ideas_iter else []
-
         if not ideas:
-             # If scenario 1 failed, we mock ideas for continuity? Or just fail.
-             # Better to fail fast in a tutorial.
-             return mo.md("### ❌ Prerequisite Failed: No ideas generated in previous step.")
+             return mo.md("### ❌ Prerequisite Failed: No ideas generated in previous step."), None
 
         selected_idea = ideas[0]
 
@@ -311,11 +309,11 @@ def run_scenario_2(Phase, Transcript, config, mo, workflow):
 
             **Goal:** Select an idea and subject it to "Gekizume" (harsh debate).
 
-            **Action:** We simulate the user selecting **Idea #0**. The system transitions to  and then, after we inject a mock transcript (Gate 2), it runs the **Simulation**.
+            **Action:** We simulate the user selecting **Idea #0**. The system transitions to `Phase.VERIFICATION` and then, after we inject a mock transcript (Gate 2), it runs the **Simulation**.
             """
         )
 
-        print("\n--- 🏁 Starting Scenario 2: Simulation ---")
+        # print("\n--- 🏁 Starting Scenario 2: Simulation ---")
 
         # User selects idea 0
         workflow.update_state(config, {"selected_idea": selected_idea})
@@ -329,7 +327,7 @@ def run_scenario_2(Phase, Transcript, config, mo, workflow):
              raise AssertionError(f"Expected Phase.VERIFICATION, got {state_after_select.get('phase')}")
 
         # Inject transcript (Gate 2)
-        print("Injecting customer transcript...")
+        # print("Injecting customer transcript...")
         transcript = Transcript(source="interview_1.txt", content="Customer says: I love cats but hate the smell.")
         workflow.update_state(config, {"transcripts": [transcript]})
 
@@ -344,16 +342,18 @@ def run_scenario_2(Phase, Transcript, config, mo, workflow):
         if phase_3 != Phase.SOLUTION:
              raise AssertionError(f"Expected Phase.SOLUTION, got {phase_3}")
 
-        return mo.md(f"✅ Simulation complete. Debate history length: **{len(history)}** turns.")
+        return mo.md(f"✅ Simulation complete. Debate history length: **{len(history)}** turns."), current_state_3
 
     except Exception as e:
-        return mo.md(f"### ❌ Scenario 2 Failed\nError: {e}")
+        return mo.md(f"### ❌ Scenario 2 Failed\nError: {e}"), None
 
 
 @app.cell
-def run_scenario_3(config, mo, workflow):
+def run_scenario_3(config, current_state_3, mo, workflow):
     try:
-        current_state_3 = workflow.get_state(config).values
+        if not current_state_3:
+            return mo.md("### ❌ Prerequisite Failed: Previous step failed."), None
+
         features = current_state_3.get("candidate_features")
 
         mo.md(
@@ -362,22 +362,22 @@ def run_scenario_3(config, mo, workflow):
 
             **Goal:** Review CPO advice and select a feature for the MVP.
 
-            **Action:** The  has proposed features based on the debate and solution. We verify these features exist and simulate the user selecting **"Cat Translation"**.
+            **Action:** The `BuilderAgent` has proposed features based on the debate and solution. We verify these features exist and simulate the user selecting **"Cat Translation"**.
             """
         )
 
         if not features:
             raise AssertionError("No candidate features extracted by Builder Agent.")
 
-        print(f"Proposed Features: {features}")
+        # print(f"Proposed Features: {features}")
 
         # User selects a feature
         workflow.update_state(config, {"selected_feature": "Cat Translation"})
 
-        return mo.md(f"✅ Feature **'Cat Translation'** selected from candidates: {features}")
+        return mo.md(f"✅ Feature **'Cat Translation'** selected from candidates: {features}"), features
 
     except Exception as e:
-        return mo.md(f"### ❌ Scenario 3 Failed\nError: {e}")
+        return mo.md(f"### ❌ Scenario 3 Failed\nError: {e}"), None
 
 
 @app.cell
@@ -392,7 +392,7 @@ def run_scenario_4(config, mo, workflow):
         """
     )
 
-    print("\n--- 🏁 Starting Scenario 4: MVP Generation ---")
+    # print("\n--- 🏁 Starting Scenario 4: MVP Generation ---")
 
     try:
         # Resume -> MVP Generation
@@ -405,10 +405,10 @@ def run_scenario_4(config, mo, workflow):
         if mvp_url != "https://v0.dev/mock-result":
             raise AssertionError(f"Unexpected MVP URL: {mvp_url}")
 
-        return mo.md(f"### ✅ MVP Generated Successfully\nURL: **[{mvp_url}]({mvp_url})**")
+        return mo.md(f"### ✅ MVP Generated Successfully\nURL: **[{mvp_url}]({mvp_url})**"), current_state_4, mvp_url
 
     except Exception as e:
-        return mo.md(f"### ❌ Scenario 4 Failed\nError: {e}")
+        return mo.md(f"### ❌ Scenario 4 Failed\nError: {e}"), None, None
 
 
 @app.cell
