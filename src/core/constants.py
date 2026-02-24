@@ -39,7 +39,6 @@ DEFAULT_NEMAWASHI_BOOST: Final[float] = 0.2
 DEFAULT_NEMAWASHI_REDUCTION: Final[float] = 0.1
 
 # --- V0 Defaults ---
-DEFAULT_V0_API_URL: Final[str] = "https://api.v0.dev/chat/completions" # Hypothetical endpoint
 DEFAULT_V0_RETRY_MAX: Final[int] = 3
 DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
 
