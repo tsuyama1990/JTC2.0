@@ -7,7 +7,7 @@ app = marimo.App(width="medium")
 @app.cell
 def intro():
     import marimo as mo
-    return mo,
+    return mo
 
 
 @app.cell
@@ -31,38 +31,34 @@ def explanation(mo):
 
 
 @app.cell
+def configuration(mo):
+    # Configuration Constants
+    THREAD_ID = "tutorial_user_1"
+
+    mo.md(f"**Configuration:**\n- Thread ID: `{THREAD_ID}`")
+    return THREAD_ID
+
+
+@app.cell
 def imports(mo):
     import os
     import sys
     import unittest.mock
     from unittest.mock import MagicMock, patch
 
-    # Ensure src is in python path
-    if os.getcwd() not in sys.path:
-        sys.path.append(os.getcwd())
-
     # 1. Setup Environment (Mock Keys) EARLY
     # This must happen before imports to pass Settings validation
     # Use valid-looking dummy keys to pass regex validation
-    # Tavily keys must start with "tvly-"
-    # OpenAI keys must be long enough
+    if not os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = "sk-mock-openai-key-which-is-long-enough-to-pass-validation"
+    if not os.environ.get("TAVILY_API_KEY"):
+        os.environ["TAVILY_API_KEY"] = "tvly-mock-tavily-key-which-is-long-enough"
+    if not os.environ.get("V0_API_KEY"):
+        os.environ["V0_API_KEY"] = "mock-v0-key"
 
-    mock_env_vars = {
-        "OPENAI_API_KEY": "sk-mock-openai-key-which-is-long-enough-to-pass-validation-rules-mocking-is-fun",
-        "TAVILY_API_KEY": "tvly-mock-tavily-key-which-is-long-enough",
-        "V0_API_KEY": "mock-v0-key"
-    }
-
-    used_mocks = []
-    for key, val in mock_env_vars.items():
-        if not os.environ.get(key):
-            os.environ[key] = val
-            used_mocks.append(key)
-
-    if used_mocks:
-        mo.md(f"✅ **Mock Keys Injected:** {', '.join(used_mocks)}")
-    else:
-        mo.md("✅ **Using Existing API Keys** from environment.")
+    # Ensure src is in python path
+    if os.getcwd() not in sys.path:
+        sys.path.append(os.getcwd())
 
     # Try importing project modules
     try:
@@ -99,12 +95,41 @@ def imports(mo):
 
 
 @app.cell
+def setup_environment(mo, os):
+    # Determine which keys are mocks
+    env_vars_set = []
+    if "sk-mock-openai-key" in os.environ.get("OPENAI_API_KEY", ""):
+        env_vars_set.append("OPENAI_API_KEY")
+    if "tvly-mock-tavily-key" in os.environ.get("TAVILY_API_KEY", ""):
+        env_vars_set.append("TAVILY_API_KEY")
+    if "mock-v0-key" in os.environ.get("V0_API_KEY", ""):
+        env_vars_set.append("V0_API_KEY")
+
+    msg = mo.md(
+        r"""
+        ## 1. Setup Environment
+
+        First, we initialize the environment. If you haven't set your API keys in , we will inject **Mock Keys** to ensure the tutorial runs smoothly.
+        """
+    )
+
+    if env_vars_set:
+        status = mo.md(f"✅ **Mock Keys Injected:** {', '.join(env_vars_set)}")
+    else:
+        status = mo.md("✅ **Using Existing API Keys** from environment.")
+
+    return msg, status
+
+
+@app.cell
 def mock_services(mo, patch):
     mo.md(
         r"""
         ## 2. Mock External Services
 
-        To guarantee reliability and speed during this tutorial, we mock the external API calls (OpenAI, Tavily, v0.dev). This allows us to verify the **internal logic** and **state transitions** of the JTC 2.0 system without network dependencies.
+        To guarantee reliability and speed during this tutorial, we mock the external API calls (OpenAI, Tavily, v0.dev).
+
+        **Note:** We use `patch.start()` here to persist mocks across multiple Marimo cells.
         """
     )
 
@@ -240,7 +265,7 @@ def configure_llm_responses(
 
 
 @app.cell
-def init_app(MemorySaver, create_app, mo):
+def init_app(MemorySaver, THREAD_ID, create_app, mo):
     mo.md(
         r"""
         ## 4. Initialize the Application
@@ -254,7 +279,7 @@ def init_app(MemorySaver, create_app, mo):
     workflow = create_app(checkpointer=memory)
 
     # Config for thread (simulating a unique user session)
-    config = {"configurable": {"thread_id": "tutorial_user_1"}}
+    config = {"configurable": {"thread_id": THREAD_ID}}
 
     return config, memory, workflow
 
