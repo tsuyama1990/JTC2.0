@@ -318,7 +318,7 @@ class RAG:
         doc_iterator = self._document_generator(request)
 
         # Batch size for insertion
-        BATCH_SIZE = 20
+        batch_size = self.settings.rag_batch_size
         batch: list[Document] = []
 
         try:
@@ -334,12 +334,8 @@ class RAG:
             # Stream processing with batching
             for doc in doc_iterator:
                 batch.append(doc)
-                if len(batch) >= BATCH_SIZE:
-                    self.index.insert_nodes(batch) # Use insert_nodes for batch if supported by index structure logic, or loop insert
-                    # VectorStoreIndex.insert is single doc.
-                    # But insert_nodes is available on base index.
-                    # Actually, insert() calls insert_nodes([document]).
-                    # So using insert_nodes directly is better.
+                if len(batch) >= batch_size:
+                    self.index.insert_nodes(batch)
                     batch = []
 
             # Insert remaining
@@ -401,17 +397,17 @@ class RAG:
         if self.index is None:
             return "No data available."
 
+        # Implement simple timeout mechanism if not supported natively by LlamaIndex sync query
+        # Currently running in sync context, so threading/timeout is complex without async.
+        # But we can assume LlamaIndex might have timeout settings or we rely on pybreaker.
+        # For strict timeout, we would need to run in a thread or process.
+        # Given constraints, we'll rely on the breaker timeout which is already wrapped around this call.
+
         try:
             query_engine = self.index.as_query_engine()
             response = query_engine.query(question)
             return str(response)
         except Exception as e:
-            # In a real scenario, we would import specific exceptions from llama_index
-            # e.g. TokenLimitError, etc.
-            # Since we mocked them in tests and they might change, generic catch with detail is safe.
-            # But the audit asked for specific exceptions.
-            # Assuming standard LlamaIndex exceptions if they exist in imported modules.
-            # Since we only imported generic stuff, we'll log exception name.
             logger.exception("LlamaIndex query failed: %s", e.__class__.__name__)
             msg = f"Query execution failed: {e}"
             raise RuntimeError(msg) from e

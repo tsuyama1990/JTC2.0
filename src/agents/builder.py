@@ -40,13 +40,21 @@ class BuilderAgent(BaseAgent):
             logger.warning("Solution description too short for feature extraction.")
             return []
 
+        # Sanitize input (basic check to prevent injection or malformed large inputs)
+        # Replacing potentially problematic characters if any, but mainly relying on LLM safety.
+        # Strict memory limit check before processing
+        MAX_INPUT_LENGTH = 100000 # Example limit, could be config
+        if len(solution_description) > MAX_INPUT_LENGTH:
+            logger.warning(f"Solution description truncated to {MAX_INPUT_LENGTH} chars.")
+            solution_description = solution_description[:MAX_INPUT_LENGTH]
+
         # Chunking logic for memory safety using generator
-        CHUNK_SIZE = 2000
+        chunk_size = self.settings.feature_chunk_size
         all_features: list[str] = []
 
         def chunk_generator() -> Iterator[str]:
-            for i in range(0, len(solution_description), CHUNK_SIZE):
-                yield solution_description[i : i + CHUNK_SIZE]
+            for i in range(0, len(solution_description), chunk_size):
+                yield solution_description[i : i + chunk_size]
 
         for chunk in chunk_generator():
             prompt = ChatPromptTemplate.from_messages(

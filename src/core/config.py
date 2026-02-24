@@ -11,6 +11,7 @@ from src.core.constants import (
     DEFAULT_CONSOLE_SLEEP,
     DEFAULT_DIALOGUE_X,
     DEFAULT_DIALOGUE_Y,
+    DEFAULT_FEATURE_CHUNK_SIZE,
     DEFAULT_FPS,
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
@@ -24,6 +25,7 @@ from src.core.constants import (
     DEFAULT_NEMAWASHI_REDUCTION,
     DEFAULT_NEMAWASHI_TOLERANCE,
     DEFAULT_PAGE_SIZE,
+    DEFAULT_RAG_BATCH_SIZE,
     DEFAULT_RAG_CHUNK_SIZE,
     DEFAULT_RAG_MAX_DOC_LENGTH,
     DEFAULT_RAG_MAX_INDEX_SIZE_MB,
@@ -189,7 +191,6 @@ class SimulationConfig(BaseSettings):
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
     # Explicit fields for individual agents to allow env var overrides
-    # e.g. SIMULATION__AGENT_NEW_EMP__X=50
     agent_new_emp: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
             role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP
@@ -261,6 +262,9 @@ class Settings(BaseSettings):
     rag_allowed_paths: list[str] = Field(default_factory=lambda: ["data", "vector_store", "tests"], description="Allowed directories for RAG")
     rag_rate_limit_interval: float = Field(alias="RAG_RATE_LIMIT_INTERVAL", default=0.1, description="Min interval between RAG calls in seconds")
     rag_scan_depth_limit: int = Field(alias="RAG_SCAN_DEPTH_LIMIT", default=10, description="Max recursion depth for directory scanning")
+    rag_batch_size: int = Field(alias="RAG_BATCH_SIZE", default=DEFAULT_RAG_BATCH_SIZE, description="Batch size for RAG ingestion")
+
+    feature_chunk_size: int = Field(alias="FEATURE_CHUNK_SIZE", default=DEFAULT_FEATURE_CHUNK_SIZE, description="Chunk size for feature extraction")
 
     circuit_breaker_fail_max: int = Field(alias="CB_FAIL_MAX", default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold")
     circuit_breaker_reset_timeout: int = Field(alias="CB_RESET_TIMEOUT", default=DEFAULT_CB_RESET_TIMEOUT, description="Circuit breaker reset timeout")
