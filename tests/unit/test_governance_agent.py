@@ -62,13 +62,15 @@ class TestGovernanceAgent:
             mock_llm = mock_llm_factory.return_value
 
             # Mock LLM responses (called twice: financials, then ringi-sho)
-            mock_msg_fin = MagicMock()
-            mock_msg_fin.content = '{"cac": 500.0, "arpu": 100.0, "churn_rate": 0.05}'
+            # Use stream instead of invoke because the agent uses stream for memory safety
+            mock_chunk_fin = MagicMock()
+            mock_chunk_fin.content = '{"cac": 500.0, "arpu": 100.0, "churn_rate": 0.05}'
 
-            mock_msg_ringi = MagicMock()
-            mock_msg_ringi.content = '{"title": "AI Tool", "executive_summary": "Great tool.", "risks": ["Risk 1"]}'
+            mock_chunk_ringi = MagicMock()
+            mock_chunk_ringi.content = '{"title": "AI Tool", "executive_summary": "Great tool.", "risks": ["Risk 1"]}'
 
-            mock_llm.invoke.side_effect = [mock_msg_fin, mock_msg_ringi]
+            # stream returns an iterator. We simulate it with a list.
+            mock_llm.stream.side_effect = [[mock_chunk_fin], [mock_chunk_ringi]]
 
             result = agent.run(mock_state)
 

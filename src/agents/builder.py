@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
+from src.core.utils import chunk_text
 from src.domain_models.mvp import MVPSpec
 from src.domain_models.state import GlobalState
 from src.tools.v0_client import V0Client
@@ -31,32 +32,33 @@ class BuilderAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
 
-    def _extract_features(self, solution_description: str) -> list[str]:
+    def _extract_features(self, solution_description: str | Iterator[str]) -> Iterator[str]:
         """
         Extract discrete features from the solution description using LLM.
         Implements chunking for large inputs to prevent memory overload.
+        Accepts string or iterator for scalability.
+        Yields unique features as they are found to avoid loading all into memory.
         """
-        if not solution_description or len(solution_description) < 10:
-            logger.warning("Solution description too short for feature extraction.")
-            return []
-
-        # Sanitize input (basic check to prevent injection or malformed large inputs)
-        # Replacing potentially problematic characters if any, but mainly relying on LLM safety.
-        # Strict memory limit check before processing
-        MAX_INPUT_LENGTH = 100000 # Example limit, could be config
-        if len(solution_description) > MAX_INPUT_LENGTH:
-            logger.warning(f"Solution description truncated to {MAX_INPUT_LENGTH} chars.")
-            solution_description = solution_description[:MAX_INPUT_LENGTH]
-
         # Chunking logic for memory safety using generator
         chunk_size = self.settings.feature_chunk_size
-        all_features: list[str] = []
 
-        def chunk_generator() -> Iterator[str]:
-            for i in range(0, len(solution_description), chunk_size):
-                yield solution_description[i : i + chunk_size]
+        # Use a set to stream deduplication as we process chunks
+        unique_features: set[str] = set()
 
-        for chunk in chunk_generator():
+        def content_stream() -> Iterator[str]:
+            if isinstance(solution_description, str):
+                if not solution_description or len(solution_description) < 10:
+                    logger.warning("Solution description too short for feature extraction.")
+                    return
+                # Sanitize/Truncate check on full string if given, but ideally we process stream
+                yield from chunk_text(solution_description, chunk_size)
+            else:
+                yield from solution_description
+
+        for chunk in content_stream():
+            if not chunk.strip():
+                continue
+
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", "You are a product manager. Extract distinct features from the solution description."),
@@ -67,20 +69,14 @@ class BuilderAgent(BaseAgent):
             try:
                 result = chain.invoke({})
                 if isinstance(result, FeatureList):
-                    all_features.extend(result.features)
+                    # Yield unique features immediately
+                    for feature in result.features:
+                        if feature not in unique_features:
+                            unique_features.add(feature)
+                            yield feature
             except Exception:
                 logger.exception("Failed to extract features from chunk")
                 continue
-
-        # Deduplicate features while preserving order
-        seen = set()
-        unique_features = []
-        for f in all_features:
-            if f not in seen:
-                seen.add(f)
-                unique_features.append(f)
-
-        return unique_features
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """
@@ -113,7 +109,21 @@ class BuilderAgent(BaseAgent):
 
         candidate_features = state.candidate_features
         if not candidate_features:
-            candidate_features = self._extract_features(state.selected_idea.solution)
+            # Consume generator up to a reasonable limit to prevent unbounded memory usage
+            # even if the LLM hallucinates an infinite stream (unlikely but safe).
+            MAX_FEATURES = 100
+            feature_gen = self._extract_features(state.selected_idea.solution)
+
+            candidate_features = []
+            try:
+                for _ in range(MAX_FEATURES):
+                    feature = next(feature_gen)
+                    candidate_features.append(feature)
+            except StopIteration:
+                pass
+
+            # Warn if truncated?
+            # if next(feature_gen, None) is not None: ...
 
         if not candidate_features:
             logger.warning("No features extracted from solution.")
@@ -155,24 +165,18 @@ class BuilderAgent(BaseAgent):
         )
         spec.v0_prompt = v0_prompt
 
-        try:
-            v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None)
-            url = v0_client.generate_ui(v0_prompt)
-        except Exception:
-            logger.exception("Failed to generate MVP via v0")
-            # Return partial state (spec created but generation failed)
-            return {
-                "mvp_spec": spec,
-                "selected_feature": selected_feature,
-            }
-        else:
-            logger.info(f"MVP Generated: {url}")
+        # We rely on exceptions propagating to the caller (safe_node wrapper)
+        # Standardized Error Handling: Do not swallow critical failures here.
+        v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None)
+        url = v0_client.generate_ui(v0_prompt)
 
-            return {
-                "mvp_spec": spec,
-                "mvp_url": url,
-                "selected_feature": selected_feature,
-            }
+        logger.info(f"MVP Generated: {url}")
+
+        return {
+            "mvp_spec": spec,
+            "mvp_url": url,
+            "selected_feature": selected_feature,
+        }
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """

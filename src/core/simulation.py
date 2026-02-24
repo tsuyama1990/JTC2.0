@@ -1,14 +1,8 @@
 """
 Implements the turn-based simulation logic for the 'JTC 2.0' architecture.
 
-This module defines the 'Battle' subgraph where:
-- The New Employee pitches their idea.
-- The Finance Manager critiques it (Turn 2).
-- The New Employee defends (Turn 3).
-- The Sales Manager critiques it (Turn 4).
-- The New Employee defends again (Turn 5).
-
-This subgraph is invoked by the main application graph during the 'simulation_round' node.
+This module defines the 'Battle' subgraph where agents debate.
+The sequence is loaded from configuration to allow flexibility.
 """
 
 import logging
@@ -16,6 +10,7 @@ import logging
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from src.core.config import get_settings
 from src.core.factory import AgentFactory
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
@@ -28,36 +23,35 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
     Create the simulation sub-graph based on configured turn sequence.
     Dynamically builds nodes and edges from Settings.
     """
-    # Default sequence if not in settings (though settings handles defaults)
-    # Pitch -> Finance -> Defense -> Sales -> Defense -> End
-    # For now, we will stick to the specified turn logic but map it dynamically if possible.
-    # However, the graph structure requires distinct node names.
-    # We will use a defined sequence for now but allow the role mapping to be more flexible if needed.
+    settings = get_settings()
 
-    # Actually, to make it truly configurable, we should iterate a list of steps.
-    # Let's assume a fixed structure for JTC 2.0 but use settings to define participation?
-    # The requirement says "Make turn sequence configurable".
-    # We will define the sequence here as a list of (node_name, role, description).
+    # Load sequence from settings.
+    # Settings.simulation.turn_sequence is a list of dicts.
+    # We validate the role strings against the Role enum.
 
-    # Ideally this list comes from settings, but `Role` enum is code-bound.
-    # We will define a standard sequence here but allow extension.
-
-    steps = [
-        ("pitch", Role.NEW_EMPLOYEE, "New Employee Pitch"),
-        ("finance_critique", Role.FINANCE, "Finance Critique"),
-        ("defense_1", Role.NEW_EMPLOYEE, "New Employee Defense"),
-        ("sales_critique", Role.SALES, "Sales Critique"),
-        ("defense_2", Role.NEW_EMPLOYEE, "New Employee Final Defense"),
-    ]
+    steps = settings.simulation.turn_sequence
 
     workflow = StateGraph(GlobalState)
     previous_node = None
 
-    for node_name, role, desc in steps:
+    for step in steps:
+        node_name = step["node_name"]
+        role_str = step["role"]
+        desc = step["description"]
+
+        # Ensure role is a valid Role enum member
+        try:
+            role = Role(role_str)
+        except ValueError:
+            logger.error(f"Invalid role '{role_str}' in simulation config. Skipping step {node_name}.")
+            continue
+
         # Create a closure for the node function
-        def step_runner(state: GlobalState, role: Role = role, desc: str = desc) -> dict[str, object]:
-            logger.info(desc)
-            return AgentFactory.get_persona_agent(role).run(state)
+        # We must bind defaults to capture the current iteration's values
+        def step_runner(state: GlobalState, _role: Role = role, _desc: str = desc) -> dict[str, object]:
+            logger.info(_desc)
+            # Add type ignore for Any return from run
+            return AgentFactory.get_persona_agent(_role).run(state) # type: ignore[no-any-return]
 
         # Name the function for debugging
         step_runner.__name__ = f"run_{node_name}"

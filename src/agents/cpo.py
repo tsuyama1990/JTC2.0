@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 
 from langchain_openai import ChatOpenAI
@@ -7,7 +8,7 @@ from src.agents.base import SearchTool
 from src.agents.personas import PersonaAgent
 from src.core.config import Settings
 from src.data.rag import RAG
-from src.domain_models.simulation import Role
+from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
@@ -82,16 +83,13 @@ class CPOAgent(PersonaAgent):
 
             content = self._generate_response(context, research_data)
 
-            # We return the standard dict update.
-            import time
-
-            from src.domain_models.simulation import DialogueMessage
-
+            # Create message
             message = DialogueMessage(role=self.role, content=content, timestamp=time.time())
 
         except Exception:
             logger.exception("Error in CPO Agent Run")
             return {}
-
-        new_history = [*list(state.debate_history), message]
-        return {"debate_history": new_history}
+        else:
+            # Construct new history
+            new_history = [*list(state.debate_history), message]
+            return {"debate_history": new_history}
