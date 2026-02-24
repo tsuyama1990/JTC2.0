@@ -1,5 +1,7 @@
 import logging
 
+from typing import Any
+
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
@@ -20,7 +22,7 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
+def create_app(checkpointer: Any | None = None) -> CompiledStateGraph:  # type: ignore[type-arg]
     """
     Create and compile the LangGraph application.
 
@@ -77,6 +79,7 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
 
     # Compile with Interrupts for HITL Gates
     return workflow.compile(
+        checkpointer=checkpointer,
         interrupt_after=[
             "ideator",
             "verification",

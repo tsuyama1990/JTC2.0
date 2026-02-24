@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -194,6 +194,17 @@ class SimulationConfig(BaseSettings):
 
     console_sleep: float = Field(default=DEFAULT_CONSOLE_SLEEP, description="Sleep time for console fallback")
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
+    turn_sequence: list[dict[str, Any]] = Field(
+        default_factory=lambda: [
+            {"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"},
+            {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"},
+            {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"},
+            {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"},
+            {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Final Defense"},
+        ],
+        description="List of simulation steps defining the turn sequence."
+    )
+
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
