@@ -1,13 +1,8 @@
 import logging
-from typing import cast
-
-import numpy as np
-from scipy.sparse import coo_matrix, csr_matrix
 
 from src.core.config import NemawashiConfig, get_settings
-from src.core.exceptions import ValidationError
 from src.core.nemawashi.utils import NemawashiUtils
-from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
+from src.domain_models.politics import InfluenceNetwork
 
 logger = logging.getLogger(__name__)
 
@@ -26,64 +21,6 @@ class ConsensusEngine:
         """
         self.settings = settings or get_settings().nemawashi
 
-    def _build_sparse_matrix(self, network: InfluenceNetwork, n: int) -> csr_matrix:
-        """
-        Construct a CSR matrix from the network data efficiently.
-        Uses generators to avoid large intermediate lists.
-
-        Args:
-            network: The influence network domain model.
-            n: Number of stakeholders (dimension).
-
-        Returns:
-            A sparse CSR matrix representing the influence graph.
-
-        Raises:
-            ValidationError: If matrix construction fails.
-        """
-        # Memory Safety: Check dimension limit
-        if n > 10000:
-            msg = f"Network size {n} exceeds limit of 10,000 stakeholders."
-            logger.error(msg)
-            raise ValueError(msg)
-
-        if not network.matrix:
-            return csr_matrix((n, n), dtype=float)
-
-        # Check if input is dense (list of lists)
-        if isinstance(network.matrix[0], list):
-            try:
-                # Convert dense to sparse immediately
-                return csr_matrix(network.matrix, shape=(n, n), dtype=float)
-            except Exception as e:
-                msg = f"Failed to convert dense matrix: {e}"
-                raise ValidationError(msg) from e
-
-        # Sparse input (list of SparseMatrixEntry)
-        entries = cast(list[SparseMatrixEntry], network.matrix)
-        count = len(entries)
-
-        try:
-            # Create generators
-            rows_gen = (e.row for e in entries)
-            cols_gen = (e.col for e in entries)
-            data_gen = (e.val for e in entries)
-
-            # Efficiently create numpy arrays from generators
-            rows = np.fromiter(rows_gen, dtype=int, count=count)
-            cols = np.fromiter(cols_gen, dtype=int, count=count)
-            data = np.fromiter(data_gen, dtype=float, count=count)
-
-            # Create COO matrix then convert to CSR
-            coo = coo_matrix((data, (rows, cols)), shape=(n, n), dtype=float)
-            return coo.tocsr()
-
-        except Exception as e:
-            if isinstance(e, ValidationError):
-                raise
-            msg = f"Failed to build sparse matrix: {e}"
-            raise ValidationError(msg) from e
-
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """
         Run the DeGroot model to calculate final opinion distribution.
@@ -100,15 +37,11 @@ class ConsensusEngine:
             return []
 
         # Convert opinions to numpy array
+        import numpy as np
         opinions = np.array([s.initial_support for s in network.stakeholders], dtype=float)
 
-        # Build Sparse Matrix
-        try:
-            matrix_op = self._build_sparse_matrix(network, n)
-        except Exception as e:
-             if isinstance(e, ValidationError):
-                 raise
-             raise ValidationError(str(e)) from e
+        # Build Sparse Matrix using shared utility
+        matrix_op = NemawashiUtils.build_sparse_matrix(network, n)
 
         # Validate using shared utility
         NemawashiUtils.validate_stochasticity(matrix_op, self.settings.tolerance)
@@ -121,12 +54,11 @@ class ConsensusEngine:
 
         for _ in range(max_steps):
             # Sparse Matrix-Vector Multiplication
-            # matrix_op is CSR matrix
             next_ops = matrix_op.dot(current_ops)
 
             if np.allclose(current_ops, next_ops, atol=tolerance):
                 logger.info("Consensus converged.")
-                return cast(list[float], next_ops.tolist())
+                return list(next_ops) # type: ignore
             current_ops = next_ops
 
-        return cast(list[float], current_ops.tolist())
+        return list(current_ops) # type: ignore

@@ -37,10 +37,14 @@ class BuilderAgent(BaseAgent):
         Extract discrete features from the solution description using LLM.
         Implements chunking for large inputs to prevent memory overload.
         Accepts string or iterator for scalability.
+        Uses incremental set for deduplication to avoid loading all features into memory.
         """
         # Chunking logic for memory safety using generator
         chunk_size = self.settings.feature_chunk_size
-        all_features: list[str] = []
+
+        # Use a set to stream deduplication as we process chunks
+        unique_features: set[str] = set()
+        ordered_features: list[str] = [] # Maintain order for UX
 
         def content_stream() -> Iterator[str]:
             if isinstance(solution_description, str):
@@ -48,8 +52,6 @@ class BuilderAgent(BaseAgent):
                     logger.warning("Solution description too short for feature extraction.")
                     return
                 # Sanitize/Truncate check on full string if given, but ideally we process stream
-                # If string is massive, this slicing copies memory, but we have to work with what we get.
-                # Assuming caller handles massive strings by passing iterator if needed.
                 yield from chunk_text(solution_description, chunk_size)
             else:
                 yield from solution_description
@@ -68,20 +70,16 @@ class BuilderAgent(BaseAgent):
             try:
                 result = chain.invoke({})
                 if isinstance(result, FeatureList):
-                    all_features.extend(result.features)
+                    # Process features immediately
+                    for feature in result.features:
+                        if feature not in unique_features:
+                            unique_features.add(feature)
+                            ordered_features.append(feature)
             except Exception:
                 logger.exception("Failed to extract features from chunk")
                 continue
 
-        # Deduplicate features while preserving order
-        seen = set()
-        unique_features = []
-        for f in all_features:
-            if f not in seen:
-                seen.add(f)
-                unique_features.append(f)
-
-        return unique_features
+        return ordered_features
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """

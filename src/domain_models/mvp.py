@@ -130,14 +130,13 @@ class MVPSpec(BaseModel):
     components: list[str] = Field(
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
         description="Key UI components to include",
+        max_length=20  # Security: Limit max components to prevent memory exhaustion
     )
 
     @field_validator("components")
     @classmethod
     def validate_components(cls, v: list[str]) -> list[str]:
         """Validate component names to prevent injection/malformed input."""
-        # Using pre-compiled pattern constant could be better, but re.compile here is locally cached by Python's re module.
-        # However, to be explicit about optimization:
         for comp in v:
             if len(comp) > 50:
                  raise ValueError(f"Component name too long: {comp}")
