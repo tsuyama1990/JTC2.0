@@ -175,3 +175,26 @@ class TestBuilderAgent:
             # Should return partial state
             assert "mvp_spec" in result
             assert "mvp_url" not in result
+
+    def test_chunking_large_input(self, agent: BuilderAgent) -> None:
+        """Test that _extract_features handles large inputs by chunking."""
+        # Config has default CHUNK_SIZE = 2000
+        # Create input larger than 2000 chars
+        large_input = "A" * 2500
+
+        with patch("src.agents.builder.ChatPromptTemplate.from_messages") as mock_prompt:
+             mock_prompt_tmpl = MagicMock()
+             mock_prompt.return_value = mock_prompt_tmpl
+
+             mock_model_runnable = MagicMock()
+             agent.llm.with_structured_output.return_value = mock_model_runnable
+
+             mock_chain = MagicMock()
+             mock_prompt_tmpl.__or__.return_value = mock_chain
+             mock_chain.invoke.return_value = FeatureList(features=["F1"])
+
+             features = agent._extract_features(large_input)
+
+             # Should be called at least twice due to chunking (2000 + 500)
+             assert mock_chain.invoke.call_count >= 2
+             assert features == ["F1"]
