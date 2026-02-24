@@ -53,6 +53,19 @@
     V0_API_KEY=v0-...
     ```
 
+
+## 📚 Tutorials & UAT
+
+We use **Marimo** for interactive tutorials and User Acceptance Testing.
+
+### Running the Unified Tutorial
+
+To run the full end-to-end simulation (Ideation -> Simulation -> Pivot -> MVP) in a browser-based notebook:
+
+
+
+This notebook runs in **Mock Mode** by default if API keys are missing, simulating all external API calls (OpenAI, Tavily, v0.dev) to demonstrate the system flow without cost.
+
 ## 🚀 Usage
 
 **Ingest Customer Transcripts:**
