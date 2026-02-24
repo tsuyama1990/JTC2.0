@@ -256,6 +256,12 @@ class GovernanceConfig(BaseSettings):
     default_churn: float = Field(alias="DEFAULT_CHURN", default=DEFAULT_CHURN, description="Fallback Churn Rate")
     max_llm_response_size: int = Field(alias="MAX_LLM_RESPONSE_SIZE", default=DEFAULT_MAX_LLM_RESPONSE_SIZE, description="Max bytes for LLM JSON response")
     output_path: str = Field(alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output")
+    search_query_template: str = Field(
+        alias="GOV_SEARCH_QUERY_TEMPLATE",
+        default="average CAC churn ARPU LTV for {industry} startups benchmarks",
+        description="Template for financial search"
+    )
+    max_search_result_size: int = Field(alias="MAX_SEARCH_RESULT_SIZE", default=5000, description="Max chars for search result context")
 
 
 class Settings(BaseSettings):

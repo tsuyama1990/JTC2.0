@@ -49,6 +49,7 @@ DEFAULT_CAC: Final[float] = 500.0
 DEFAULT_ARPU: Final[float] = 50.0
 DEFAULT_CHURN: Final[float] = 0.05
 DEFAULT_MAX_LLM_RESPONSE_SIZE: Final[int] = 10_000  # Bytes
+DEFAULT_MAX_SEARCH_RESULT_SIZE: Final[int] = 5000
 
 # --- Error Messages ---
 ERR_UNIQUE_ID_VIOLATION: Final[str] = "Duplicate ID detected."

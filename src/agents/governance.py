@@ -1,8 +1,8 @@
 import json
 import logging
-from typing import Any
+from typing import Any, TypeVar
 
-from pydantic import ValidationError
+from pydantic import BaseModel
 
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
@@ -15,6 +15,8 @@ from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class GovernanceAgent(BaseAgent):
@@ -36,14 +38,14 @@ class GovernanceAgent(BaseAgent):
         industry = self._get_industry_context(state)
         logger.info(f"Searching benchmarks for: {industry}")
         search = TavilySearch()
-        query = f"average CAC churn ARPU LTV for {industry} startups benchmarks"
+        query = settings.governance.search_query_template.format(industry=industry)
         search_result = search.safe_search(query)
 
         # Limit search result size to prevent Context Window overflow
-        # Truncate to first 5000 chars (approx 1250 tokens), which is plenty for financial summaries
-        if len(search_result) > 5000:
-            logger.warning("Search result truncated to 5000 characters.")
-            search_result = search_result[:5000]
+        limit = settings.governance.max_search_result_size
+        if len(search_result) > limit:
+            logger.warning(f"Search result truncated to {limit} characters.")
+            search_result = search_result[:limit]
 
         # 2. Estimate Financials
         logger.info("Estimating financials using LLM...")
@@ -58,7 +60,6 @@ class GovernanceAgent(BaseAgent):
         ringi_sho = self._generate_ringi_sho(state, financials, approval_status)
 
         # 5. Save to Disk (Async wrapper)
-        # Using FileService to handle non-blocking I/O
         self._save_to_file(ringi_sho)
 
         # 6. Update State
@@ -78,13 +79,11 @@ class GovernanceAgent(BaseAgent):
              industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
         # Security: Whitelist characters to prevent injection attacks (alphanumeric, spaces, basic punctuation)
-        # We allow a broad range of safe chars for search queries.
         sanitized = re.sub(r"[^a-zA-Z0-9\s\-\.\,]", "", industry)
         return sanitized.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
         settings = get_settings()
-        llm = get_llm()
 
         prompt = (
             f"Context: Startup idea in {industry}.\n"
@@ -95,22 +94,10 @@ class GovernanceAgent(BaseAgent):
         )
 
         try:
-            response = llm.invoke(prompt)
-            content = str(response.content)
-            self._validate_response_size(content)
-
-            fin_data_dict = self._parse_json(content)
-            estimates = FinancialEstimates.model_validate(fin_data_dict)
-
+            estimates = self._safe_llm_call(prompt, FinancialEstimates)
             cac, arpu, churn = estimates.cac, estimates.arpu, estimates.churn_rate
-
-        except (json.JSONDecodeError, ValidationError, ValueError):
-            logger.exception("Failed to parse financial estimates. Using defaults.")
-            cac = settings.governance.default_cac
-            arpu = settings.governance.default_arpu
-            churn = settings.governance.default_churn
         except Exception:
-            logger.exception("Unexpected error in financial estimation. Using defaults.")
+            logger.exception("Financial estimation failed. Using defaults.")
             cac = settings.governance.default_cac
             arpu = settings.governance.default_arpu
             churn = settings.governance.default_churn
@@ -122,7 +109,6 @@ class GovernanceAgent(BaseAgent):
         return Financials(cac=cac, ltv=ltv, payback_months=payback, roi=roi)
 
     def _generate_ringi_sho(self, state: GlobalState, financials: Financials, status: str) -> RingiSho:
-        llm = get_llm()
         mvp_url = state.mvp_url or "N/A"
         idea_title = state.selected_idea.title if state.selected_idea else "Untitled Idea"
 
@@ -136,30 +122,24 @@ class GovernanceAgent(BaseAgent):
         )
 
         try:
-            response = llm.invoke(prompt)
-            content = str(response.content)
-            self._validate_response_size(content)
+            # We use a temporary Pydantic model for parsing the specific Ringi-Sho structure expected from LLM
+            # Since RingiSho model requires 'financial_projection', we parse a partial model first
+            class PartialRingi(BaseModel):
+                title: str
+                executive_summary: str
+                risks: list[str]
 
-            ringi_data = self._parse_json(content)
+            partial = self._safe_llm_call(prompt, PartialRingi)
 
             return RingiSho(
-                title=ringi_data.get("title", f"Proposal for {idea_title}"),
-                executive_summary=ringi_data.get("executive_summary", "Summary not generated."),
+                title=partial.title,
+                executive_summary=partial.executive_summary,
                 financial_projection=financials,
-                risks=ringi_data.get("risks", []),
-                approval_status=status
-            )
-        except (json.JSONDecodeError, ValueError):
-            logger.exception("Failed to generate Ringi-Sho content.")
-            return RingiSho(
-                title=f"Proposal for {idea_title}",
-                executive_summary="Auto-generated summary failed.",
-                financial_projection=financials,
-                risks=["Generation Error"],
+                risks=partial.risks,
                 approval_status=status
             )
         except Exception:
-            logger.exception("Unexpected error in Ringi-Sho generation.")
+            logger.exception("Ringi-Sho generation failed. Using fallback.")
             return RingiSho(
                 title=f"Proposal for {idea_title}",
                 executive_summary="Auto-generated summary failed.",
@@ -168,12 +148,35 @@ class GovernanceAgent(BaseAgent):
                 approval_status=status
             )
 
-    def _validate_response_size(self, content: str) -> None:
-        """Ensure LLM response is within safe limits."""
+    def _safe_llm_call(self, prompt: str, model_class: type[T]) -> T:
+        """
+        Execute LLM call safely with size validation and Pydantic parsing.
+
+        Args:
+            prompt: Input prompt.
+            model_class: Pydantic model to validate response against.
+
+        Returns:
+            Validated Pydantic model instance.
+
+        Raises:
+            ValueError: If response is too large.
+            JSONDecodeError: If parsing fails.
+            ValidationError: If schema validation fails.
+        """
         settings = get_settings()
+        llm = get_llm()
+
+        response = llm.invoke(prompt)
+        content = str(response.content)
+
+        # Memory Safety: Check response size
         if len(content.encode('utf-8')) > settings.governance.max_llm_response_size:
             logger.error(ERR_LLM_RESPONSE_TOO_LARGE)
             raise ValueError(ERR_LLM_RESPONSE_TOO_LARGE)
+
+        data_dict = self._parse_json(content)
+        return model_class.model_validate(data_dict)
 
     def _parse_json(self, text: str) -> dict[str, Any]:
         """
