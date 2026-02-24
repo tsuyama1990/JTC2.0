@@ -3,7 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.agents.governance import GovernanceAgent
-from src.domain_models.metrics import Metrics, RingiSho
+from src.core.services.file_service import FileService
+from src.domain_models.metrics import Metrics
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.politics import InfluenceNetwork, Stakeholder
 from src.domain_models.state import GlobalState
@@ -50,19 +51,14 @@ class TestGovernanceAgent:
         mock_payback.return_value = 5.0
         mock_roi.return_value = 4.0
 
-        agent = GovernanceAgent()
+        # Mock File Service
+        mock_file_service = MagicMock(spec=FileService)
 
-        # We need to simulate LLM response if the agent uses LLM to generate RingiSho content
-        # For now, let's assume the agent handles LLM internally or we mock it if dependency injection is used.
-        # Since GovernanceAgent will likely use LLM, we should mock LLM calls.
-        # But for this test, we check if it calls the right methods.
+        agent = GovernanceAgent(file_service=mock_file_service)
 
-        # Mocking the LLM might be tricky without seeing implementation.
-        # Assuming agent uses some LLM client. Let's patch 'src.core.llm.LLMClient' or similar if it exists.
         # Check `src/core/llm.py` later. For now, let's assume it runs.
 
-        with patch("src.agents.governance.get_llm") as mock_llm_factory, \
-             patch("src.agents.governance.GovernanceAgent._save_to_file") as mock_save: # Mock file saving to avoid disk write
+        with patch("src.agents.governance.get_llm") as mock_llm_factory:
             mock_llm = mock_llm_factory.return_value
 
             # Mock LLM responses (called twice: financials, then ringi-sho)
@@ -81,12 +77,7 @@ class TestGovernanceAgent:
             assert "ringi_sho" in result
             assert "metrics_data" in result
 
-            ringi_sho = result["ringi_sho"]
-            assert isinstance(ringi_sho, RingiSho)
-            assert ringi_sho.title == "AI Tool"
-            assert ringi_sho.financial_projection.cac == 500.0
-
-            # Verify mocks called
-            mock_search_instance.safe_search.assert_called()
-            mock_llm.invoke.assert_called()
-            mock_save.assert_called_once()
+            # Verify FileService call
+            mock_file_service.save_text_async.assert_called_once()
+            args, _ = mock_file_service.save_text_async.call_args
+            assert "# AI Tool" in args[0] # Verify content

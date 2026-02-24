@@ -1,7 +1,5 @@
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
@@ -11,6 +9,7 @@ from src.core.config import get_settings
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
 from src.core.llm import get_llm
 from src.core.metrics import calculate_ltv, calculate_payback_period, calculate_roi
+from src.core.services.file_service import FileService
 from src.domain_models.metrics import FinancialEstimates, Financials, Metrics, RingiSho
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
@@ -22,6 +21,9 @@ class GovernanceAgent(BaseAgent):
     """
     Agent responsible for Governance and Ringi-sho generation.
     """
+
+    def __init__(self, file_service: FileService | None = None) -> None:
+        self.file_service = file_service or FileService()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
@@ -56,15 +58,8 @@ class GovernanceAgent(BaseAgent):
         ringi_sho = self._generate_ringi_sho(state, financials, approval_status)
 
         # 5. Save to Disk (Async wrapper)
-        # Using run_in_executor to avoid blocking the main thread during file I/O
-        # Although run() is synchronous, this is a best-practice pattern for I/O in agents.
-        # We block here waiting for the result, but the operation happens in a separate thread.
-        try:
-            with ThreadPoolExecutor() as executor:
-                future = executor.submit(self._save_to_file, ringi_sho)
-                future.result() # Wait for completion to ensure data persistence before returning
-        except Exception:
-             logger.exception("Failed to schedule file save operation.")
+        # Using FileService to handle non-blocking I/O
+        self._save_to_file(ringi_sho)
 
         # 6. Update State
         updated_metrics = state.metrics_data.model_copy() if state.metrics_data else Metrics()
@@ -206,32 +201,29 @@ class GovernanceAgent(BaseAgent):
 
     def _save_to_file(self, ringi: RingiSho) -> None:
         """
-        Save Ringi-Sho to RINGI_SHO.md.
-        Uses pathlib for safe file operations.
-        Executed in a separate thread to demonstrate non-blocking pattern availability.
+        Save Ringi-Sho to file using FileService.
         """
-        try:
-            content = (
-                f"# {ringi.title}\n\n"
-                f"**Status:** {ringi.approval_status}\n\n"
-                f"## Executive Summary\n{ringi.executive_summary}\n\n"
-                f"## Financial Projections\n"
-                f"- **ROI:** {ringi.financial_projection.roi:.2f}x\n"
-                f"- **LTV:** ${ringi.financial_projection.ltv:.2f}\n"
-                f"- **CAC:** ${ringi.financial_projection.cac:.2f}\n"
-                f"- **Payback:** {ringi.financial_projection.payback_months:.1f} months\n\n"
-                f"## Risks\n"
-            )
-            for risk in ringi.risks:
-                content += f"- {risk}\n"
+        settings = get_settings()
 
-            # Safe write using pathlib
-            settings = get_settings()
-            output_path = Path(settings.governance.output_path)
-            output_path.write_text(content, encoding="utf-8")
-            logger.info(f"Ringi-Sho saved successfully to {output_path.resolve()}")
+        # Optimize string construction
+        lines = [
+            f"# {ringi.title}",
+            "",
+            f"**Status:** {ringi.approval_status}",
+            "",
+            "## Executive Summary",
+            f"{ringi.executive_summary}",
+            "",
+            "## Financial Projections",
+            f"- **ROI:** {ringi.financial_projection.roi:.2f}x",
+            f"- **LTV:** ${ringi.financial_projection.ltv:.2f}",
+            f"- **CAC:** ${ringi.financial_projection.cac:.2f}",
+            f"- **Payback:** {ringi.financial_projection.payback_months:.1f} months",
+            "",
+            "## Risks",
+        ]
+        lines.extend([f"- {risk}" for risk in ringi.risks])
 
-        except OSError:
-            logger.exception("Failed to write output file")
-        except Exception:
-            logger.exception("Unexpected error saving RINGI_SHO.md")
+        content = "\n".join(lines)
+
+        self.file_service.save_text_async(content, settings.governance.output_path)
