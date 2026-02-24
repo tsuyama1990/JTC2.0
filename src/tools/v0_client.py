@@ -128,4 +128,5 @@ class V0Client:
             raise V0GenerationError(msg) from e
 
         # Should be unreachable if logic is correct, but for safety
-        raise V0GenerationError("Unknown error in v0 generation flow")
+        msg = "Unknown error in v0 generation flow"
+        raise V0GenerationError(msg)

@@ -48,54 +48,50 @@ class CPOAgent(PersonaAgent):
         Query the RAG engine for relevant customer insights.
         Overrides the default web search behavior.
         """
-        query = f"What do customers say about {topic} or related problems?"
-        logger.info(f"CPO querying RAG: {query}")
-        return self.rag.query(query)
+        try:
+            query = f"What do customers say about {topic} or related problems?"
+            logger.info(f"CPO querying RAG: {query}")
+            return self.rag.query(query)
+        except Exception:
+            logger.exception("Error querying RAG")
+            return "No customer insights available due to error."
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
         Run the CPO agent logic with Nemawashi context.
         """
-        # 1. Build Standard Context
-        context = self._build_context(state)
+        try:
+            # 1. Build Standard Context
+            context = self._build_context(state)
 
-        # 2. Get Research Data (RAG)
-        research_data = ""
-        if state.selected_idea:
-            research_data = self._cached_research(state.selected_idea.title)
+            # 2. Get Research Data (RAG)
+            research_data = ""
+            if state.selected_idea:
+                research_data = self._cached_research(state.selected_idea.title)
 
-        # 3. Inject Nemawashi (Influence) Data
-        if state.influence_network:
-            # Check for consensus data which might be injected by the Nemawashi engine node
-            # The node calculates consensus and updates support levels.
+            # 3. Inject Nemawashi (Influence) Data
+            if state.influence_network:
+                stakeholders_info = ["\nSTAKEHOLDER ANALYSIS (Nemawashi):"]
+                for s in state.influence_network.stakeholders:
+                    status = "Supportive" if s.initial_support > 0.7 else "Resistant" if s.initial_support < 0.3 else "Neutral"
+                    stakeholders_info.append(
+                        f"- {s.name}: {status} (Support={s.initial_support:.2f}, Stubbornness={s.stubbornness:.2f})"
+                    )
 
-            # We provide a summary of the political landscape.
-            # Ideally, we would use the Engine here to get fresh analytics, but to avoid
-            # heavy computation inside the agent, we rely on the state being up to date.
+                research_data += "\n".join(stakeholders_info)
 
-            stakeholders_info = ["\nSTAKEHOLDER ANALYSIS (Nemawashi):"]
-            for s in state.influence_network.stakeholders:
-                status = "Supportive" if s.initial_support > 0.7 else "Resistant" if s.initial_support < 0.3 else "Neutral"
-                stakeholders_info.append(
-                    f"- {s.name}: {status} (Support={s.initial_support:.2f}, Stubbornness={s.stubbornness:.2f})"
-                )
+            content = self._generate_response(context, research_data)
 
-            research_data += "\n".join(stakeholders_info)
+            # We return the standard dict update.
+            import time
 
-        content = self._generate_response(context, research_data)
+            from src.domain_models.simulation import DialogueMessage
 
-        # CPO doesn't speak in the debate history usually?
-        # The prompt says "In the rooftop phase... provide advice".
-        # So we return the message.
-        # But wait, does CPO output go to debate_history?
-        # The graph wrapper `safe_cpo_run` returns it.
-        # If we append to debate_history, it shows up as a message.
+            message = DialogueMessage(role=self.role, content=content, timestamp=time.time())
 
-        # We return the standard dict update.
-        import time
+        except Exception:
+            logger.exception("Error in CPO Agent Run")
+            return {}
 
-        from src.domain_models.simulation import DialogueMessage
-
-        message = DialogueMessage(role=self.role, content=content, timestamp=time.time())
         new_history = [*list(state.debate_history), message]
         return {"debate_history": new_history}
