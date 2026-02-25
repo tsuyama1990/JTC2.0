@@ -1,0 +1,54 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
+collected 54 items
+
+tests/uat/test_uat_cycle01.py .                                          [  1%]
+tests/uat/test_uat_cycle02.py .                                          [  3%]
+tests/unit/domain_models/test_models.py .........                        [ 20%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 29%]
+tests/unit/test_cli_input.py ...                                         [ 35%]
+tests/unit/test_cli_scalability.py .                                     [ 37%]
+tests/unit/test_config.py .......                                        [ 50%]
+tests/unit/test_core.py ....                                             [ 57%]
+tests/unit/test_domain_models.py .......                                 [ 70%]
+tests/unit/test_ideator_agent.py ...                                     [ 75%]
+tests/unit/test_memory_safety.py .                                       [ 77%]
+tests/unit/test_simulation_logic.py ....                                 [ 85%]
+tests/unit/test_tools.py ...                                             [ 90%]
+tests/unit/test_ui.py .....                                              [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.12-final-0 _______________
+
+Name                               Stmts   Miss  Cover   Missing
+----------------------------------------------------------------
+src/__init__.py                        0      0   100%
+src/agents/__init__.py                 0      0   100%
+src/agents/base.py                     9      0   100%
+src/agents/ideator.py                 47     12    74%   30-33, 96-106
+src/agents/personas.py                63      8    87%   54, 60-68, 77-79
+src/core/__init__.py                   0      0   100%
+src/core/config.py                   121      1    99%   209
+src/core/constants.py                 49      0   100%
+src/core/graph.py                     13      0   100%
+src/core/llm.py                        8      0   100%
+src/core/simulation.py                40     10    75%   30-31, 34-35, 38-39, 42-43, 46-47
+src/domain_models/__init__.py          3      0   100%
+src/domain_models/lean_canvas.py      24      0   100%
+src/domain_models/metrics.py          26      2    92%   60-61
+src/domain_models/mvp.py              24      0   100%
+src/domain_models/persona.py          18      0   100%
+src/domain_models/simulation.py       12      0   100%
+src/domain_models/state.py            40      0   100%
+src/tools/__init__.py                  0      0   100%
+src/tools/search.py                   34      5    85%   35, 39, 75, 90-91
+src/ui/renderer.py                    96     10    90%   87, 90-94, 118, 131-137, 157
+----------------------------------------------------------------
+TOTAL                                627     48    92%
+============================= 54 passed in 11.82s ==============================
+/app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
+  self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")
