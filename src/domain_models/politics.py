@@ -22,6 +22,7 @@ class Stakeholder(BaseModel):
 
 class SparseMatrixEntry(BaseModel):
     """Represents a non-zero entry in a sparse influence matrix."""
+
     row: int
     col: int
     val: float = Field(..., ge=0.0, le=1.0)
@@ -40,7 +41,9 @@ class InfluenceNetwork(BaseModel):
 
     @field_validator("matrix")
     @classmethod
-    def validate_matrix_values(cls, v: list[list[float]] | list[SparseMatrixEntry]) -> list[list[float]] | list[SparseMatrixEntry]:
+    def validate_matrix_values(
+        cls, v: list[list[float]] | list[SparseMatrixEntry]
+    ) -> list[list[float]] | list[SparseMatrixEntry]:
         """Ensure all values are between 0 and 1."""
         # Check if it's a dense matrix (list of lists)
         if isinstance(v, list) and v and isinstance(v[0], list):
@@ -70,11 +73,13 @@ class InfluenceNetwork(BaseModel):
                     raise ValueError(ERR_MATRIX_SHAPE)
 
         elif isinstance(self.matrix, list):
-             # Sparse matrix check
-             # Check that row/col indices are within [0, n-1]
-             for entry in self.matrix:
-                 if isinstance(entry, SparseMatrixEntry) and (not (0 <= entry.row < n) or not (0 <= entry.col < n)):
-                     raise ValueError(ERR_MATRIX_SHAPE)
+            # Sparse matrix check
+            # Check that row/col indices are within [0, n-1]
+            for entry in self.matrix:
+                if isinstance(entry, SparseMatrixEntry) and (
+                    not (0 <= entry.row < n) or not (0 <= entry.col < n)
+                ):
+                    raise ValueError(ERR_MATRIX_SHAPE)
 
         return self
 

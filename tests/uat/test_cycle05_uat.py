@@ -15,8 +15,9 @@ try:
     from src.agents.builder import BuilderAgent
     from src.tools.v0_client import V0Client
 except ImportError:
-    BuilderAgent = None # type: ignore
-    V0Client = None # type: ignore
+    BuilderAgent = None  # type: ignore
+    V0Client = None  # type: ignore
+
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 class TestCycle05UAT:
@@ -49,12 +50,16 @@ class TestCycle05UAT:
         agent = BuilderAgent(llm=mock_llm)
 
         # Mock the internal LLM call for extraction
-        with patch.object(agent, "_extract_features", return_value=iter(["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"])):
+        with patch.object(
+            agent,
+            "_extract_features",
+            return_value=iter(["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]),
+        ):
             result = agent.propose_features(initial_state)
 
             assert "candidate_features" in result
             assert len(result["candidate_features"]) == 3
-            assert "mvp_url" not in result # Should NOT generate yet
+            assert "mvp_url" not in result  # Should NOT generate yet
 
     def test_uat_c05_02_mvp_generation_integration(self, initial_state: GlobalState) -> None:
         """
@@ -74,27 +79,34 @@ class TestCycle05UAT:
         agent = BuilderAgent(llm=mock_llm)
 
         # Mock Spec Creation to return a valid spec
-        with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
-            app_name="UAT App",
-            core_feature="Feature 2 desc",
-            components=["Hero"],
-            v0_prompt="Generate UI"
-        )), patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
-                mock_response = MagicMock()
-                mock_response.status_code = 200
-                mock_response.json.return_value = {"url": "https://v0.dev/uat-result"}
+        with (
+            patch.object(
+                agent,
+                "_create_mvp_spec",
+                return_value=MVPSpec(
+                    app_name="UAT App",
+                    core_feature="Feature 2 desc",
+                    components=["Hero"],
+                    v0_prompt="Generate UI",
+                ),
+            ),
+            patch("src.tools.v0_client.httpx.Client") as mock_http_cls,
+        ):
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"url": "https://v0.dev/uat-result"}
 
-                mock_client_instance = mock_http_cls.return_value.__enter__.return_value
-                mock_client_instance.post.return_value = mock_response
+            mock_client_instance = mock_http_cls.return_value.__enter__.return_value
+            mock_client_instance.post.return_value = mock_response
 
-                # Execute
-                result = agent.generate_mvp(initial_state)
+            # Execute
+            result = agent.generate_mvp(initial_state)
 
-                assert result["mvp_url"] == "https://v0.dev/uat-result"
-                assert result["mvp_spec"].core_feature == "Feature 2 desc"
+            assert result["mvp_url"] == "https://v0.dev/uat-result"
+            assert result["mvp_spec"].core_feature == "Feature 2 desc"
 
-                # Verify network call was made
-                mock_client_instance.post.assert_called_once()
+            # Verify network call was made
+            mock_client_instance.post.assert_called_once()
 
     def test_uat_c05_03_error_handling(self, initial_state: GlobalState) -> None:
         """
@@ -111,20 +123,25 @@ class TestCycle05UAT:
         # Ensure Feature string meets length validation (>10 chars)
         long_feature = "Feature 1 must be very long indeed"
 
-        with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
-            app_name="App", core_feature=long_feature, components=[]
-        )), patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
-           mock_response = MagicMock()
-           mock_response.status_code = 500
-           mock_response.text = "Internal Server Error"
+        with (
+            patch.object(
+                agent,
+                "_create_mvp_spec",
+                return_value=MVPSpec(app_name="App", core_feature=long_feature, components=[]),
+            ),
+            patch("src.tools.v0_client.httpx.Client") as mock_http_cls,
+        ):
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+            mock_response.text = "Internal Server Error"
 
-           mock_client_instance = mock_http_cls.return_value.__enter__.return_value
-           mock_client_instance.post.return_value = mock_response
+            mock_client_instance = mock_http_cls.return_value.__enter__.return_value
+            mock_client_instance.post.return_value = mock_response
 
-           # Should handle V0GenerationError internally or expose it?
-           # The agent catches exceptions? Let's check agent implementation.
-           # Actually agent.generate_mvp raises V0GenerationError?
-           # Safe node wrapper handles it. But here we test agent directly.
+            # Should handle V0GenerationError internally or expose it?
+            # The agent catches exceptions? Let's check agent implementation.
+            # Actually agent.generate_mvp raises V0GenerationError?
+            # Safe node wrapper handles it. But here we test agent directly.
 
-           with pytest.raises(V0GenerationError):
-               agent.generate_mvp(initial_state)
+            with pytest.raises(V0GenerationError):
+                agent.generate_mvp(initial_state)

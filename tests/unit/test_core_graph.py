@@ -48,7 +48,9 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     mock_rag = mock_rag_cls.return_value
 
     # Setup state with transcripts
-    t1 = Transcript(source="Interview 1", content="Content 1 is long enough for validation.", date="2023-01-01")
+    t1 = Transcript(
+        source="Interview 1", content="Content 1 is long enough for validation.", date="2023-01-01"
+    )
     mock_state.transcripts = [t1]
 
     result = transcript_ingestion_node(mock_state)
@@ -90,7 +92,7 @@ def test_nemawashi_analysis_node(mock_engine_cls: MagicMock, mock_state: GlobalS
 def test_solution_proposal_node(mock_get_builder: MagicMock, mock_state: GlobalState) -> None:
     """Test solution proposal (feature extraction)."""
     # Setup requirements
-    mock_state.target_persona = MagicMock(spec=Persona) # Required for validation
+    mock_state.target_persona = MagicMock(spec=Persona)  # Required for validation
 
     mock_builder = mock_get_builder.return_value
     mock_builder.propose_features.return_value = {"candidate_features": ["F1", "F2"]}
@@ -111,11 +113,11 @@ def test_mvp_generation_node(mock_get_builder: MagicMock, mock_state: GlobalStat
     mock_builder.generate_mvp.return_value = {
         "mvp_spec": spec,
         "mvp_url": "https://v0.dev/123",
-        "selected_feature": "Feature is long enough"
+        "selected_feature": "Feature is long enough",
     }
 
     result = mvp_generation_node(mock_state)
 
     assert "mvp_definition" in result
-    assert str(result["mvp_definition"].v0_url).rstrip('/') == "https://v0.dev/123"
+    assert str(result["mvp_definition"].v0_url).rstrip("/") == "https://v0.dev/123"
     assert result["mvp_definition"].core_features[0].name == "Feature is long enough"

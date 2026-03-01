@@ -150,11 +150,13 @@ def test_gate_transitions_data_integrity(
 
     GlobalState.model_validate(state_ready_for_pmf.model_dump())
 
+
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 def test_large_dataset_iterator_safety() -> None:
     """
     Verify memory safety with a mock infinite iterator (Cycle 3 Scalability Check).
     """
+
     def infinite_generator() -> Iterator[LeanCanvas]:
         """Yields infinite sequence."""
         i = 0

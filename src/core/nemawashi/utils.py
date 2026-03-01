@@ -11,7 +11,9 @@ class NemawashiUtils:
     """Shared utility functions for Nemawashi calculations."""
 
     @staticmethod
-    def validate_stochasticity(matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6) -> None:
+    def validate_stochasticity(
+        matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6
+    ) -> None:
         """
         Validate that matrix rows sum to approximately 1.0.
         Supports both sparse (csr_matrix) and dense (list[list[float]]) inputs.

@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 
 class FeatureList(BaseModel):
     """List of extracted features."""
-    features: list[str] = Field(..., description="List of distinct features found in the solution description")
+
+    features: list[str] = Field(
+        ..., description="List of distinct features found in the solution description"
+    )
 
 
 class BuilderAgent(BaseAgent):
@@ -61,8 +64,11 @@ class BuilderAgent(BaseAgent):
 
             prompt = ChatPromptTemplate.from_messages(
                 [
-                    ("system", "You are a product manager. Extract distinct features from the solution description."),
-                    ("user", f"Solution Description: {chunk}\n\nList the features:")
+                    (
+                        "system",
+                        "You are a product manager. Extract distinct features from the solution description.",
+                    ),
+                    ("user", f"Solution Description: {chunk}\n\nList the features:"),
                 ]
             )
             chain = prompt | self.llm.with_structured_output(FeatureList)
@@ -84,8 +90,14 @@ class BuilderAgent(BaseAgent):
         """
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", "You are an expert UI/UX designer. Create a detailed MVP specification for v0.dev generation."),
-                ("user", f"App Name: {app_name}\nCore Feature: {feature}\nContext: {idea_context}\n\nGenerate MVPSpec:")
+                (
+                    "system",
+                    "You are an expert UI/UX designer. Create a detailed MVP specification for v0.dev generation.",
+                ),
+                (
+                    "user",
+                    f"App Name: {app_name}\nCore Feature: {feature}\nContext: {idea_context}\n\nGenerate MVPSpec:",
+                ),
             ]
         )
         chain = prompt | self.llm.with_structured_output(MVPSpec)
@@ -122,7 +134,6 @@ class BuilderAgent(BaseAgent):
             except StopIteration:
                 pass
 
-
         if not candidate_features:
             logger.warning("No features extracted from solution.")
             return {}
@@ -152,7 +163,7 @@ class BuilderAgent(BaseAgent):
         spec = self._create_mvp_spec(
             app_name=state.selected_idea.title,
             feature=selected_feature,
-            idea_context=f"{state.selected_idea.problem} -> {state.selected_idea.unique_value_prop}"
+            idea_context=f"{state.selected_idea.problem} -> {state.selected_idea.unique_value_prop}",
         )
 
         # Construct a prompt for v0 from the spec
@@ -165,7 +176,11 @@ class BuilderAgent(BaseAgent):
 
         # We rely on exceptions propagating to the caller (safe_node wrapper)
         # Standardized Error Handling: Do not swallow critical failures here.
-        v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None)
+        v0_client = V0Client(
+            api_key=self.settings.v0_api_key.get_secret_value()
+            if self.settings.v0_api_key
+            else None
+        )
         url = v0_client.generate_ui(v0_prompt)
 
         logger.info(f"MVP Generated: {url}")

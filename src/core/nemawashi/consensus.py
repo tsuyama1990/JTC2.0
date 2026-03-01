@@ -38,6 +38,7 @@ class ConsensusEngine:
 
         # Convert opinions to numpy array
         import numpy as np
+
         opinions = np.array([s.initial_support for s in network.stakeholders], dtype=float)
 
         # Build Sparse Matrix using shared utility

@@ -82,6 +82,7 @@ class FinancialEstimates(BaseModel):
     """
     Structured response for LLM financial estimation.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     cac: float = Field(..., gt=0.0, description="Estimated CAC")
@@ -100,9 +101,7 @@ class Metrics(BaseModel):
     detailed: DetailedMetrics = Field(
         default_factory=DetailedMetrics, description="Detailed simulation metrics"
     )
-    financials: Financials = Field(
-        default_factory=Financials, description="Financial projections"
-    )
+    financials: Financials = Field(default_factory=Financials, description="Financial projections")
     custom_metrics: dict[str, float] = Field(default_factory=dict, description=DESC_METRICS_CUSTOM)
 
     @field_validator("custom_metrics")
@@ -129,8 +128,8 @@ class Metrics(BaseModel):
 
             # Value range validation
             if value < settings.validation.min_metric_value:
-                 msg = f"Metric value for {key} must be >= {settings.validation.min_metric_value}."
-                 raise ValueError(msg)
+                msg = f"Metric value for {key} must be >= {settings.validation.min_metric_value}."
+                raise ValueError(msg)
 
         return v
 
@@ -145,7 +144,9 @@ class RingiSho(BaseModel):
     title: str = Field(..., min_length=1, description="Title of the proposal")
     executive_summary: str = Field(..., min_length=10, description="Executive summary")
     financial_projection: Financials = Field(..., description="Financial projections")
-    risks: list[str] = Field(default_factory=list, min_length=1, description="List of identified risks")
+    risks: list[str] = Field(
+        default_factory=list, min_length=1, description="List of identified risks"
+    )
     approval_status: str = Field(
         "Draft", pattern="^(Draft|Approved|Rejected)$", description="Approval status"
     )

@@ -49,7 +49,6 @@ class NomikaiSimulator:
         new_supp = min(1.0, current_supp + (1.0 - current_supp) * boost)
         network.stakeholders[idx].initial_support = new_supp
 
-
     def _redistribute_dense(self, network: InfluenceNetwork, idx: int, reduction: float) -> None:
         matrix = cast(list[list[float]], network.matrix)
         row = matrix[idx]
@@ -80,18 +79,20 @@ class NomikaiSimulator:
                     e.val += add_per_person
             else:
                 self_entry.val = old_self
-                logger.warning(f"Cannot reduce stubbornness for {idx} in sparse mode: no other outgoing edges.")
+                logger.warning(
+                    f"Cannot reduce stubbornness for {idx} in sparse mode: no other outgoing edges."
+                )
 
     def _update_stubbornness_field(self, network: InfluenceNetwork, idx: int) -> None:
         if not network.matrix:
             return
         if isinstance(network.matrix[0], list):
-             matrix = cast(list[list[float]], network.matrix)
-             new_val = matrix[idx][idx]
+            matrix = cast(list[list[float]], network.matrix)
+            new_val = matrix[idx][idx]
         else:
-             entries = cast(list[SparseMatrixEntry], network.matrix)
-             self_entry = next((e for e in entries if e.row == idx and e.col == idx), None)
-             new_val = self_entry.val if self_entry else 1.0
+            entries = cast(list[SparseMatrixEntry], network.matrix)
+            self_entry = next((e for e in entries if e.row == idx and e.col == idx), None)
+            new_val = self_entry.val if self_entry else 1.0
         network.stakeholders[idx].stubbornness = new_val
 
     def _redistribute_stubbornness(self, network: InfluenceNetwork, idx: int) -> None:

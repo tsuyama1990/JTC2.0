@@ -66,10 +66,12 @@ class FileService:
                 break
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
-                break # No point retrying permission error
+                break  # No point retrying permission error
             except OSError:
                 if attempt < attempts - 1:
-                    logger.warning(f"OS error writing to {path}, retrying... ({attempt+1}/{attempts})")
+                    logger.warning(
+                        f"OS error writing to {path}, retrying... ({attempt + 1}/{attempts})"
+                    )
                     continue
                 logger.exception(f"OS error writing to {path} after {attempts} attempts")
             except Exception:

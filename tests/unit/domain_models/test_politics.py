@@ -14,10 +14,7 @@ def test_valid_network() -> None:
     s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.2)
     s2 = Stakeholder(name="Bob", initial_support=0.8, stubbornness=0.1)
 
-    matrix = [
-        [1.0, 0.0],
-        [0.5, 0.5]
-    ]
+    matrix = [[1.0, 0.0], [0.5, 0.5]]
 
     net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
     assert len(net.stakeholders) == 2
@@ -27,7 +24,7 @@ def test_valid_network() -> None:
 def test_invalid_matrix_values() -> None:
     """Test that matrix values must be [0, 1]."""
     s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.2)
-    matrix = [[1.5]] # Invalid value
+    matrix = [[1.5]]  # Invalid value
 
     with pytest.raises(ValidationError) as exc:
         InfluenceNetwork(stakeholders=[s1], matrix=matrix)
@@ -53,10 +50,7 @@ def test_matrix_shape_mismatch() -> None:
     s2 = Stakeholder(name="Bob", initial_support=0.8, stubbornness=0.1)
 
     # 2x1 matrix
-    matrix = [
-        [1.0],
-        [0.5]
-    ]
+    matrix = [[1.0], [0.5]]
 
     with pytest.raises(ValidationError) as exc:
         InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)

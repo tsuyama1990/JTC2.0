@@ -75,7 +75,9 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
                         total += stat.st_size
                         file_count += 1
                         if file_count > MAX_FILES:
-                            logger.warning(f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size.")
+                            logger.warning(
+                                f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size."
+                            )
                             return total
 
                     elif entry.is_dir(follow_symlinks=False):
@@ -134,7 +136,7 @@ class RAG:
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
                 depth_limit=self.settings.rag_scan_depth_limit,
-                ttl_hash=int(time.time() // 60) # Refresh every minute
+                ttl_hash=int(time.time() // 60),  # Refresh every minute
             )
 
         self.index: VectorStoreIndex | None = None
@@ -170,7 +172,9 @@ class RAG:
                 break
 
         if not is_safe:
-            logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
+            logger.error(
+                f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}"
+            )
             raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         if is_symlink:
@@ -212,8 +216,8 @@ class RAG:
                 self.index = None
                 return
         except OSError:
-             self.index = None
-             return
+            self.index = None
+            return
 
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
@@ -318,7 +322,7 @@ class RAG:
             try:
                 first_batch = next(batched_docs)
             except StopIteration:
-                return # Empty input
+                return  # Empty input
 
             if self.index is None:
                 self.index = VectorStoreIndex.from_documents(first_batch)
@@ -349,7 +353,7 @@ class RAG:
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
                 self.settings.rag_scan_depth_limit,
-                ttl_hash=int(time.time() // 60)
+                ttl_hash=int(time.time() // 60),
             )
 
     def query(self, question: str) -> str:
