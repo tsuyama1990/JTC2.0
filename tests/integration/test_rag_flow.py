@@ -43,7 +43,7 @@ def temp_vector_store() -> Generator[str, None, None]:
         yield temp_dir
     finally:
         # Cleanup
-        if 'temp_dir' in locals() and Path(temp_dir).exists():
+        if "temp_dir" in locals() and Path(temp_dir).exists():
             shutil.rmtree(temp_dir)
 
         # Try to remove the base dir if empty to keep project clean
@@ -57,6 +57,7 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
     # Using LlamaIndex's MockLLM and MockEmbedding directly injected via Settings
     # This avoids patching the class definition, allowing RAG to instantiate normally.
     from llama_index.core import Settings as LlamaSettings
+
     LlamaSettings.llm = MockLLM()
     LlamaSettings.embed_model = MockEmbedding(embed_dim=1536)
 
@@ -73,7 +74,7 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
         transcript = Transcript(
             source="Test Interview",
             content="Customer says: I hate waiting in line.",
-            date="2023-01-01"
+            date="2023-01-01",
         )
 
         # Test ingestion
@@ -112,6 +113,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 
         # Verify files created
         from pathlib import Path
+
         assert any(Path(temp_vector_store).iterdir())
 
         # 3. Reload (simulate new instance)

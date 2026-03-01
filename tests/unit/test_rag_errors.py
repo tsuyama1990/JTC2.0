@@ -31,7 +31,7 @@ def test_rag_memory_limit() -> None:
     rag = RAG(persist_dir="./tests/temp_rag_mem")
 
     # Mock settings to have a small limit
-    rag.settings.rag_max_index_size_mb = 1 # 1 MB
+    rag.settings.rag_max_index_size_mb = 1  # 1 MB
     limit_bytes = 1 * 1024 * 1024
 
     # Simulate current index size exceeding limit

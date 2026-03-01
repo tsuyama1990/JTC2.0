@@ -22,7 +22,9 @@ class TestGovernanceMemorySafety:
         return GovernanceAgent(file_service=MagicMock(spec=FileService))
 
     @patch("src.agents.governance.get_llm")
-    def test_safe_llm_call_rejects_large_response(self, mock_llm_factory: MagicMock, agent: GovernanceAgent) -> None:
+    def test_safe_llm_call_rejects_large_response(
+        self, mock_llm_factory: MagicMock, agent: GovernanceAgent
+    ) -> None:
         """Verify that _safe_llm_call raises ValueError for oversized responses."""
         mock_llm = mock_llm_factory.return_value
 
@@ -34,7 +36,7 @@ class TestGovernanceMemorySafety:
         chunk1 = MagicMock()
         chunk1.content = "12345"
         chunk2 = MagicMock()
-        chunk2.content = "678901" # Total 11 chars
+        chunk2.content = "678901"  # Total 11 chars
 
         # Patch the settings object instance directly
         with patch.object(settings.governance, "max_llm_response_size", 10):
@@ -45,7 +47,9 @@ class TestGovernanceMemorySafety:
                 agent._safe_llm_call("prompt", DummyModel)
 
     @patch("src.agents.governance.TavilySearch")
-    def test_search_result_truncation(self, mock_search_cls: MagicMock, agent: GovernanceAgent) -> None:
+    def test_search_result_truncation(
+        self, mock_search_cls: MagicMock, agent: GovernanceAgent
+    ) -> None:
         """Verify search results are truncated before processing."""
         settings = get_settings()
         limit = settings.governance.max_search_result_size
@@ -62,15 +66,18 @@ class TestGovernanceMemorySafety:
         mock_financials = MagicMock()
         mock_financials.roi = 5.0
 
-        with patch.object(agent, "_estimate_financials", return_value=mock_financials) as mock_estimate:
-            # Mock other calls to prevent full execution
-            with patch.object(agent, "_generate_ringi_sho"), patch.object(agent, "_save_to_file"):
-                agent.run(state)
+        with (
+            patch.object(
+                agent, "_estimate_financials", return_value=mock_financials
+            ) as mock_estimate,
+            patch.object(agent, "_generate_ringi_sho"),
+            patch.object(agent, "_save_to_file"),
+        ):
+            agent.run(state)
 
-                # Check arguments passed to _estimate_financials
-                args, _ = mock_estimate.call_args
-                # args[0] is industry, args[1] is search_result
-                passed_search_result = args[1]
+            # Check arguments passed to _estimate_financials
+            args, _ = mock_estimate.call_args
+            passed_search_result = args[1]
 
-                assert len(passed_search_result) == limit
-                assert passed_search_result == "A" * limit
+            assert len(passed_search_result) == limit
+            assert passed_search_result == "A" * limit

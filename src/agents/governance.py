@@ -67,17 +67,14 @@ class GovernanceAgent(BaseAgent):
         updated_metrics = state.metrics_data.model_copy() if state.metrics_data else Metrics()
         updated_metrics.financials = financials
 
-        return {
-            "ringi_sho": ringi_sho,
-            "metrics_data": updated_metrics
-        }
+        return {"ringi_sho": ringi_sho, "metrics_data": updated_metrics}
 
     def _get_industry_context(self, state: GlobalState) -> str:
         import re
 
         industry = state.topic
         if state.selected_idea:
-             industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
+            industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
         # Security: Whitelist characters to prevent injection attacks (alphanumeric and spaces only)
         # As per audit requirement to remove dangerous chars like . and ,
@@ -110,7 +107,9 @@ class GovernanceAgent(BaseAgent):
 
         return Financials(cac=cac, ltv=ltv, payback_months=payback, roi=roi)
 
-    def _generate_ringi_sho(self, state: GlobalState, financials: Financials, status: str) -> RingiSho:
+    def _generate_ringi_sho(
+        self, state: GlobalState, financials: Financials, status: str
+    ) -> RingiSho:
         mvp_url = state.mvp_url or "N/A"
         idea_title = state.selected_idea.title if state.selected_idea else "Untitled Idea"
 
@@ -138,7 +137,7 @@ class GovernanceAgent(BaseAgent):
                 executive_summary=partial.executive_summary,
                 financial_projection=financials,
                 risks=partial.risks,
-                approval_status=status
+                approval_status=status,
             )
         except Exception:
             logger.exception("Ringi-Sho generation failed. Using fallback.")
@@ -147,7 +146,7 @@ class GovernanceAgent(BaseAgent):
                 executive_summary="Auto-generated summary failed.",
                 financial_projection=financials,
                 risks=["Generation Error"],
-                approval_status=status
+                approval_status=status,
             )
 
     def _safe_llm_call(self, prompt: str, model_class: type[T]) -> T:
@@ -177,7 +176,7 @@ class GovernanceAgent(BaseAgent):
         for chunk in llm.stream(prompt):
             chunk_content = str(chunk.content)
             content += chunk_content
-            if len(content.encode('utf-8')) > max_bytes:
+            if len(content.encode("utf-8")) > max_bytes:
                 logger.error(ERR_LLM_RESPONSE_TOO_LARGE)
                 raise ValueError(ERR_LLM_RESPONSE_TOO_LARGE)
 
@@ -206,7 +205,7 @@ class GovernanceAgent(BaseAgent):
 
         # Strip whitespace
         text = text.strip()
-        return json.loads(text) # type: ignore
+        return json.loads(text)  # type: ignore
 
     def _save_to_file(self, ringi: RingiSho) -> None:
         """

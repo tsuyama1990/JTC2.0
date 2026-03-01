@@ -64,6 +64,7 @@ def test_rag_initialization(
     assert rag.index is None
     # Path is resolved to absolute
     from pathlib import Path
+
     expected = str(Path("tests/mock_vector_store").resolve())
     assert rag.persist_dir == expected
 
@@ -92,6 +93,7 @@ def test_rag_persist_index(
 
     rag.persist_index()
     from pathlib import Path
+
     expected = str(Path("tests/mock_vector_store").resolve())
     rag.index.storage_context.persist.assert_called_with(persist_dir=expected)
 
@@ -115,12 +117,14 @@ def test_rag_query(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMo
     rag.index.as_query_engine.assert_called_once()
 
 
-def test_rag_query_validation(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
+def test_rag_query_validation(
+    mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
+) -> None:
     """Test query input validation."""
     rag = RAG()
 
     with pytest.raises(TypeError, match="Query must be a string"):
-        rag.query(123) # type: ignore
+        rag.query(123)  # type: ignore
 
     with pytest.raises(ValueError, match="Query cannot be empty"):
         rag.query("   ")

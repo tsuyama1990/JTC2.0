@@ -43,15 +43,19 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
         try:
             role = Role(role_str)
         except ValueError:
-            logger.error(f"Invalid role '{role_str}' in simulation config. Skipping step {node_name}.")
+            logger.exception(
+                f"Invalid role '{role_str}' in simulation config. Skipping step {node_name}."
+            )
             continue
 
         # Create a closure for the node function
         # We must bind defaults to capture the current iteration's values
-        def step_runner(state: GlobalState, _role: Role = role, _desc: str = desc) -> dict[str, object]:
+        def step_runner(
+            state: GlobalState, _role: Role = role, _desc: str = desc
+        ) -> dict[str, object]:
             logger.info(_desc)
             # Add type ignore for Any return from run
-            return AgentFactory.get_persona_agent(_role).run(state) # type: ignore[no-any-return]
+            return AgentFactory.get_persona_agent(_role).run(state)  # type: ignore[no-any-return]
 
         # Name the function for debugging
         step_runner.__name__ = f"run_{node_name}"

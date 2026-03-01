@@ -24,19 +24,17 @@ class FileService:
         Validate path to prevent traversal.
         """
         try:
-            # Allow creating new files, so don't resolve strictly for existence yet
             target_path = Path(path).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
-
-            # Simple allowlist check: must be within CWD
-            if not str(target_path).startswith(str(cwd)):
-                 raise ConfigurationError(f"Path traversal detected: {target_path}")
-
-            return target_path
         except Exception as e:
-            if isinstance(e, ConfigurationError):
-                raise
-            raise ConfigurationError(f"Invalid path: {e}") from e
+            msg = f"Invalid path: {e}"
+            raise ConfigurationError(msg) from e
+
+        if not str(target_path).startswith(str(cwd)):
+            msg = f"Path traversal detected: {target_path}"
+            raise ConfigurationError(msg)
+
+        return target_path
 
     def save_text_async(self, content: str, path: str | Path) -> None:
         """
@@ -68,10 +66,12 @@ class FileService:
                 break
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
-                break # No point retrying permission error
+                break  # No point retrying permission error
             except OSError:
                 if attempt < attempts - 1:
-                    logger.warning(f"OS error writing to {path}, retrying... ({attempt+1}/{attempts})")
+                    logger.warning(
+                        f"OS error writing to {path}, retrying... ({attempt + 1}/{attempts})"
+                    )
                     continue
                 logger.exception(f"OS error writing to {path} after {attempts} attempts")
             except Exception:

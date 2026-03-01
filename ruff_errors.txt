@@ -1,0 +1,199 @@
+ERA001 Found commented-out code
+   --> src/agents/builder.py:126:13
+    |
+125 |             # Warn if truncated?
+126 |             # if next(feature_gen, None) is not None: ...
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+127 |
+128 |         if not candidate_features:
+    |
+help: Remove commented-out code
+
+PLR0912 Too many branches (13 > 12)
+  --> src/core/nemawashi/nomikai.py:52:9
+   |
+50 |         network.stakeholders[idx].initial_support = new_supp
+51 |
+52 |     def _redistribute_stubbornness(self, network: InfluenceNetwork, idx: int) -> None:
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+53 |         """Reduce self-weight and redistribute to others."""
+54 |         reduction = self.settings.nomikai_reduction
+   |
+
+TRY301 Abstract `raise` to an inner function
+  --> src/core/nemawashi/utils.py:32:18
+   |
+30 |             if not np.allclose(row_sums, 1.0, atol=tolerance):
+31 |                  msg = "Influence matrix rows must sum to 1.0"
+32 |                  raise ValidationError(msg)
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |
+34 |         except Exception as e:
+   |
+
+TRY301 Abstract `raise` to an inner function
+  --> src/core/services/file_service.py:34:18
+   |
+32 |             if not str(target_path).startswith(str(cwd)):
+33 |                  msg = f"Path traversal detected: {target_path}"
+34 |                  raise ConfigurationError(msg)
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+35 |
+36 |             return target_path
+   |
+
+TRY300 Consider moving this statement to an `else` block
+  --> src/core/services/file_service.py:36:13
+   |
+34 |                  raise ConfigurationError(msg)
+35 |
+36 |             return target_path
+   |             ^^^^^^^^^^^^^^^^^^
+37 |         except Exception as e:
+38 |             if isinstance(e, ConfigurationError):
+   |
+
+TRY301 Abstract `raise` to an inner function
+   --> src/data/rag.py:169:17
+    |
+167 |             if not is_safe:
+168 |                 logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
+169 |                 raise ConfigurationError(ERR_PATH_TRAVERSAL)
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+170 |
+171 |             # Final check if path exists
+    |
+
+TRY301 Abstract `raise` to an inner function
+   --> src/data/rag.py:176:22
+    |
+174 |                 if path.is_symlink():
+175 |                      msg = "Symlinks not allowed in persist_dir."
+176 |                      raise ConfigurationError(msg)
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+177 |
+178 |         except Exception as e:
+    |
+
+C901 `draw` is too complex (12 > 10)
+  --> src/ui/nemawashi_view.py:31:9
+   |
+29 |         self.settings = get_settings()
+30 |
+31 |     def draw(self, network: InfluenceNetwork | None) -> None:
+   |         ^^^^
+32 |         """Draw the network graph."""
+33 |         # Draw background
+   |
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/uat/test_cycle05_uat.py:77:9
+   |
+76 |           # Mock Spec Creation to return a valid spec
+77 | /         with patch.object(agent, "_create_mvp_spec", return_value=MVPSpec(
+78 | |             app_name="UAT App",
+79 | |             core_feature="Feature 2 desc",
+80 | |             components=["Hero"],
+81 | |             v0_prompt="Generate UI"
+82 | |         )):
+83 | |             # Mock httpx in V0Client to simulate real API interaction
+84 | |             with patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
+   | |____________________________________________________________________________^
+85 |                   mock_response = MagicMock()
+86 |                   mock_response.status_code = 200
+   |
+help: Combine `with` statements
+
+ERA001 Found commented-out code
+  --> tests/uat/test_cycle06_uat.py:49:9
+   |
+48 |         # Calculate expected derived values based on logic in src/core/metrics.py
+49 |         # LTV = ARPU / Churn
+   |         ^^^^^^^^^^^^^^^^^^^^
+50 |         expected_ltv = mock_arpu / mock_churn # 400.0
+51 |         # ROI = LTV / CAC
+   |
+help: Remove commented-out code
+
+ERA001 Found commented-out code
+  --> tests/uat/test_cycle06_uat.py:51:9
+   |
+49 |         # LTV = ARPU / Churn
+50 |         expected_ltv = mock_arpu / mock_churn # 400.0
+51 |         # ROI = LTV / CAC
+   |         ^^^^^^^^^^^^^^^^^
+52 |         expected_roi = expected_ltv / mock_cac # 0.8
+   |
+help: Remove commented-out code
+
+ERA001 Found commented-out code
+  --> tests/unit/test_builder_agent.py:54:14
+   |
+53 |              mock_chain = MagicMock()
+54 |              # Logic: chain = prompt | model
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+55 |              mock_prompt_tmpl.__or__.return_value = mock_chain
+   |
+help: Remove commented-out code
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/unit/test_governance_memory.py:65:9
+   |
+63 |           mock_financials.roi = 5.0
+64 |
+65 | /         with patch.object(agent, "_estimate_financials", return_value=mock_financials) as mock_estimate:
+66 | |             # Mock other calls to prevent full execution
+67 | |             with patch.object(agent, "_generate_ringi_sho"), patch.object(agent, "_save_to_file"):
+   | |__________________________________________________________________________________________________^
+68 |                   agent.run(state)
+   |
+help: Combine `with` statements
+
+ERA001 Found commented-out code
+  --> tests/unit/test_governance_memory.py:72:17
+   |
+70 |                 # Check arguments passed to _estimate_financials
+71 |                 args, _ = mock_estimate.call_args
+72 |                 # args[0] is industry, args[1] is search_result
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+73 |                 passed_search_result = args[1]
+   |
+help: Remove commented-out code
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/unit/test_nemawashi.py:26:5
+   |
+24 |       engine = ConsensusEngine()
+25 |
+26 | /     with patch("src.core.nemawashi.consensus.coo_matrix", side_effect=Exception("Conversion Boom")):
+27 | |         with pytest.raises(ValidationError, match="Failed to build sparse matrix"):
+   | |___________________________________________________________________________________^
+28 |               engine.calculate_consensus(network)
+   |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/unit/test_nemawashi.py:41:5
+   |
+39 |       engine = ConsensusEngine()
+40 |
+41 | /     with patch("src.core.nemawashi.consensus.csr_matrix", side_effect=Exception("Dense Boom")):
+42 | |         with pytest.raises(ValidationError, match="Failed to convert dense matrix"):
+   | |____________________________________________________________________________________^
+43 |               engine.calculate_consensus(network)
+   |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/unit/test_nemawashi.py:59:5
+   |
+57 |       bad_matrix = csr_matrix([[0.9]]) # Sum is 0.9
+58 |
+59 | /     with patch.object(engine, "_build_sparse_matrix", return_value=bad_matrix):
+60 | |         with pytest.raises(ValidationError, match="Influence matrix rows must sum to 1.0"):
+   | |___________________________________________________________________________________________^
+61 |               engine.calculate_consensus(network)
+   |
+help: Combine `with` statements
+
+Found 17 errors.

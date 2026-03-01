@@ -121,7 +121,9 @@ class MVPSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     app_name: str = Field(..., description="Name of the application", min_length=1, max_length=50)
-    core_feature: str = Field(..., description="The single core feature to implement", min_length=10)
+    core_feature: str = Field(
+        ..., description="The single core feature to implement", min_length=10
+    )
     ui_style: str = Field(default="Modern, Clean, Corporate", description="Visual style of the UI")
     v0_prompt: str | None = Field(
         default=None,
@@ -130,7 +132,7 @@ class MVPSpec(BaseModel):
     components: list[str] = Field(
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
         description="Key UI components to include",
-        max_length=20  # Security: Limit max components to prevent memory exhaustion
+        max_length=20,  # Security: Limit max components to prevent memory exhaustion
     )
 
     @field_validator("components")
@@ -139,7 +141,8 @@ class MVPSpec(BaseModel):
         """Validate component names to prevent injection/malformed input."""
         for comp in v:
             if len(comp) > 50:
-                 raise ValueError(f"Component name too long: {comp}")
+                msg = f"Component name too long: {comp}"
+                raise ValueError(msg)
             if not COMPONENT_PATTERN.match(comp):
                 msg = f"Invalid component name: {comp}. Must be alphanumeric/safe chars only."
                 raise ValueError(msg)
