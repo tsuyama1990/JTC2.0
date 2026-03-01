@@ -15,7 +15,7 @@ try:
     from src.agents.builder import BuilderAgent
     from src.tools.v0_client import V0Client
 except ImportError:
-    BuilderAgent = None
+    BuilderAgent = None # type: ignore
     V0Client = None # type: ignore
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
@@ -49,7 +49,7 @@ class TestCycle05UAT:
         agent = BuilderAgent(llm=mock_llm)
 
         # Mock the internal LLM call for extraction
-        with patch.object(agent, "_extract_features", return_value=["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]):
+        with patch.object(agent, "_extract_features", return_value=iter(["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"])):
             result = agent.propose_features(initial_state)
 
             assert "candidate_features" in result
@@ -79,9 +79,7 @@ class TestCycle05UAT:
             core_feature="Feature 2 desc",
             components=["Hero"],
             v0_prompt="Generate UI"
-        )):
-            # Mock httpx in V0Client to simulate real API interaction
-            with patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
+        )), patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
                 mock_response = MagicMock()
                 mock_response.status_code = 200
                 mock_response.json.return_value = {"url": "https://v0.dev/uat-result"}

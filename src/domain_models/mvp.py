@@ -139,7 +139,8 @@ class MVPSpec(BaseModel):
         """Validate component names to prevent injection/malformed input."""
         for comp in v:
             if len(comp) > 50:
-                 raise ValueError(f"Component name too long: {comp}")
+                 msg = f"Component name too long: {comp}"
+                 raise ValueError(msg)
             if not COMPONENT_PATTERN.match(comp):
                 msg = f"Invalid component name: {comp}. Must be alphanumeric/safe chars only."
                 raise ValueError(msg)

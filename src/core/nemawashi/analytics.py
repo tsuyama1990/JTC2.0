@@ -98,7 +98,8 @@ class InfluenceAnalyzer:
             return typing.cast(np.ndarray, centrality)
         except Exception as e:
              logger.warning(f"Sparse eig failed, falling back? {e}")
-             raise CalculationError("Sparse eigen calculation failed") from e
+             msg = "Sparse eigen calculation failed"
+             raise CalculationError(msg) from e
 
     def _eigen_centrality_sparse_entries(self, entries: list[SparseMatrixEntry], n: int) -> np.ndarray:
         """

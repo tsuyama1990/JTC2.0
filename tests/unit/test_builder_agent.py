@@ -51,7 +51,6 @@ class TestBuilderAgent:
              mock_llm.with_structured_output.return_value = mock_model_runnable
 
              mock_chain = MagicMock()
-             # Logic: chain = prompt | model
              mock_prompt_tmpl.__or__.return_value = mock_chain
 
              # Mock the invoke result
@@ -59,7 +58,7 @@ class TestBuilderAgent:
 
              # Execute with input long enough to pass short-check
              input_text = "solution that is sufficiently long to pass the length validation check"
-             features = agent._extract_features(input_text)
+             features = list(agent._extract_features(input_text))
 
              assert features == ["F1", "F2"]
              # Verify invocation happened

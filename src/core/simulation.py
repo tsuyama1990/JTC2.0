@@ -43,7 +43,7 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
         try:
             role = Role(role_str)
         except ValueError:
-            logger.error(f"Invalid role '{role_str}' in simulation config. Skipping step {node_name}.")
+            logger.exception(f"Invalid role '{role_str}' in simulation config. Skipping step {node_name}.")
             continue
 
         # Create a closure for the node function

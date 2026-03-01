@@ -23,8 +23,8 @@ def test_consensus_conversion_failure() -> None:
 
     engine = ConsensusEngine()
 
-    with patch("src.core.nemawashi.consensus.coo_matrix", side_effect=Exception("Conversion Boom")):
-        with pytest.raises(ValidationError, match="Failed to build sparse matrix"):
+    with patch("src.core.nemawashi.utils.coo_matrix", side_effect=Exception("Conversion Boom")), \
+         pytest.raises(ValidationError, match="Failed to build sparse matrix"):
             engine.calculate_consensus(network)
 
 def test_consensus_dense_conversion_failure() -> None:
@@ -38,8 +38,8 @@ def test_consensus_dense_conversion_failure() -> None:
 
     engine = ConsensusEngine()
 
-    with patch("src.core.nemawashi.consensus.csr_matrix", side_effect=Exception("Dense Boom")):
-        with pytest.raises(ValidationError, match="Failed to convert dense matrix"):
+    with patch("src.core.nemawashi.utils.csr_matrix", side_effect=Exception("Dense Boom")), \
+         pytest.raises(ValidationError, match="Failed to convert dense matrix"):
             engine.calculate_consensus(network)
 
 def test_consensus_stochasticity_check_failure() -> None:
@@ -56,8 +56,8 @@ def test_consensus_stochasticity_check_failure() -> None:
     # We can patch _build_sparse_matrix to return a bad matrix
     bad_matrix = csr_matrix([[0.9]]) # Sum is 0.9
 
-    with patch.object(engine, "_build_sparse_matrix", return_value=bad_matrix):
-        with pytest.raises(ValidationError, match="Influence matrix rows must sum to 1.0"):
+    with patch("src.core.nemawashi.consensus.NemawashiUtils.build_sparse_matrix", return_value=bad_matrix), \
+         pytest.raises(ValidationError, match="Influence matrix rows must sum to 1.0"):
             engine.calculate_consensus(network)
 
 def test_consensus_calculation() -> None:

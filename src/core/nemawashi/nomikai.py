@@ -49,72 +49,61 @@ class NomikaiSimulator:
         new_supp = min(1.0, current_supp + (1.0 - current_supp) * boost)
         network.stakeholders[idx].initial_support = new_supp
 
-    def _redistribute_stubbornness(self, network: InfluenceNetwork, idx: int) -> None:
-        """Reduce self-weight and redistribute to others."""
-        reduction = self.settings.nomikai_reduction
 
-        # Check for empty matrix
-        if not network.matrix:
-            return
+    def _redistribute_dense(self, network: InfluenceNetwork, idx: int, reduction: float) -> None:
+        matrix = cast(list[list[float]], network.matrix)
+        row = matrix[idx]
+        old_self = row[idx]
+        new_self = max(0.0, old_self - reduction)
+        diff = old_self - new_self
+        n = len(row)
+        if n > 1:
+            add_per_person = diff / (n - 1)
+            for j in range(n):
+                if j == idx:
+                    row[j] = new_self
+                else:
+                    row[j] += add_per_person
 
-        if isinstance(network.matrix[0], list):
-            # Dense Logic
-            matrix = cast(list[list[float]], network.matrix)
-            row = matrix[idx]
-            old_self = row[idx]
-
+    def _redistribute_sparse(self, network: InfluenceNetwork, idx: int, reduction: float) -> None:
+        entries = cast(list[SparseMatrixEntry], network.matrix)
+        self_entry = next((e for e in entries if e.row == idx and e.col == idx), None)
+        if self_entry:
+            old_self = self_entry.val
             new_self = max(0.0, old_self - reduction)
             diff = old_self - new_self
+            self_entry.val = new_self
+            row_entries = [e for e in entries if e.row == idx and e.col != idx]
+            if row_entries:
+                add_per_person = diff / len(row_entries)
+                for e in row_entries:
+                    e.val += add_per_person
+            else:
+                self_entry.val = old_self
+                logger.warning(f"Cannot reduce stubbornness for {idx} in sparse mode: no other outgoing edges.")
 
-            # Distribute diff to others
-            n = len(row)
-            if n > 1:
-                others_count = n - 1
-                add_per_person = diff / others_count
-                for j in range(n):
-                    if j == idx:
-                        row[j] = new_self
-                    else:
-                        row[j] += add_per_person
-        else:
-            # Sparse Logic
-            entries = cast(list[SparseMatrixEntry], network.matrix)
-
-            # Find self-loop entry
-            self_entry = next((e for e in entries if e.row == idx and e.col == idx), None)
-
-            if self_entry:
-                old_self = self_entry.val
-                new_self = max(0.0, old_self - reduction)
-                diff = old_self - new_self
-
-                self_entry.val = new_self
-
-                # Distribute diff to others in the same row
-                row_entries = [e for e in entries if e.row == idx and e.col != idx]
-                if row_entries:
-                    add_per_person = diff / len(row_entries)
-                    for e in row_entries:
-                        e.val += add_per_person
-                else:
-                    # If no other edges, we cannot redistribute to maintain stochasticity without creating edges.
-                    # For simplicty in sparse mode, we just give back the diff to self to maintain stochasticity (no change effectively, but avoid invalid state)
-                    # Or we just accept the change and let it re-normalize?
-                    # DeGroot requires row sum = 1.
-                    # Reverting is safer.
-                    self_entry.val = old_self
-                    logger.warning(f"Cannot reduce stubbornness for {idx} in sparse mode: no other outgoing edges.")
-
-        # Update stakeholder stubborness field too for consistency
-        # In sparse mode, we might have reverted, but we update the field anyway?
-        # Ideally this field mirrors the diagonal.
-        # Let's re-read the diagonal to be sure.
+    def _update_stubbornness_field(self, network: InfluenceNetwork, idx: int) -> None:
+        if not network.matrix:
+            return
         if isinstance(network.matrix[0], list):
              matrix = cast(list[list[float]], network.matrix)
              new_val = matrix[idx][idx]
         else:
              entries = cast(list[SparseMatrixEntry], network.matrix)
              self_entry = next((e for e in entries if e.row == idx and e.col == idx), None)
-             new_val = self_entry.val if self_entry else 1.0 # Default if missing?
-
+             new_val = self_entry.val if self_entry else 1.0
         network.stakeholders[idx].stubbornness = new_val
+
+    def _redistribute_stubbornness(self, network: InfluenceNetwork, idx: int) -> None:
+        """Reduce self-weight and redistribute to others."""
+        reduction = self.settings.nomikai_reduction
+
+        if not network.matrix:
+            return
+
+        if isinstance(network.matrix[0], list):
+            self._redistribute_dense(network, idx, reduction)
+        else:
+            self._redistribute_sparse(network, idx, reduction)
+
+        self._update_stubbornness_field(network, idx)

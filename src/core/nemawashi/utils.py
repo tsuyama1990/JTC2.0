@@ -19,26 +19,20 @@ class NemawashiUtils:
         try:
             if hasattr(matrix, "sum"):
                 # Sparse or numpy matrix
-                row_sums = matrix.sum(axis=1) # type: ignore
+                row_sums = matrix.sum(axis=1)
                 # Convert to 1D array
-                if hasattr(row_sums, "A1"):
-                    row_sums = row_sums.A1
-                else:
-                    row_sums = np.array(row_sums).flatten()
+                row_sums = row_sums.A1 if hasattr(row_sums, "A1") else np.array(row_sums).flatten()
             else:
                 # List of lists
                 dense = cast(list[list[float]], matrix)
                 row_sums = np.array([sum(row) for row in dense])
-
-            if not np.allclose(row_sums, 1.0, atol=tolerance):
-                 msg = "Influence matrix rows must sum to 1.0"
-                 raise ValidationError(msg)
-
         except Exception as e:
-            if isinstance(e, ValidationError):
-                raise
             msg = f"Stochasticity check failed: {e}"
             raise ValidationError(msg) from e
+
+        if not np.allclose(row_sums, 1.0, atol=tolerance):
+            msg = "Influence matrix rows must sum to 1.0"
+            raise ValidationError(msg)
 
     @staticmethod
     def build_sparse_matrix(network: InfluenceNetwork, n: int) -> csr_matrix:
@@ -47,7 +41,8 @@ class NemawashiUtils:
         Handles both dense and sparse input formats.
         """
         if n > 10000:
-            raise ValueError(f"Network size {n} exceeds limit of 10,000 stakeholders.")
+            msg = f"Network size {n} exceeds limit of 10,000 stakeholders."
+            raise ValueError(msg)
 
         if not network.matrix:
             return csr_matrix((n, n), dtype=float)
@@ -56,7 +51,8 @@ class NemawashiUtils:
             try:
                 return csr_matrix(network.matrix, shape=(n, n), dtype=float)
             except Exception as e:
-                raise ValidationError(f"Failed to convert dense matrix: {e}") from e
+                msg = f"Failed to convert dense matrix: {e}"
+                raise ValidationError(msg) from e
 
         # Sparse input
         entries = cast(list[SparseMatrixEntry], network.matrix)
@@ -69,4 +65,5 @@ class NemawashiUtils:
 
             return coo_matrix((data, (rows, cols)), shape=(n, n), dtype=float).tocsr()
         except Exception as e:
-            raise ValidationError(f"Failed to build sparse matrix: {e}") from e
+            msg = f"Failed to build sparse matrix: {e}"
+            raise ValidationError(msg) from e

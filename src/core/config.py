@@ -192,6 +192,17 @@ class SimulationConfig(BaseSettings):
     max_y: int = Field(default=DEFAULT_MAX_Y, description="Max Y for scrolling")
     waiting_msg: str = Field(default=MSG_WAITING_FOR_DEBATE, description="Message when waiting")
 
+    turn_sequence: list[dict[str, str]] = Field(
+        default_factory=lambda: [
+            {"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"},
+            {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"},
+            {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"},
+            {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"},
+            {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Final Defense"},
+        ],
+        description="List of simulation steps defining the turn sequence."
+    )
+
     console_sleep: float = Field(default=DEFAULT_CONSOLE_SLEEP, description="Sleep time for console fallback")
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 

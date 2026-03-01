@@ -62,14 +62,13 @@ class TestGovernanceMemorySafety:
         mock_financials = MagicMock()
         mock_financials.roi = 5.0
 
-        with patch.object(agent, "_estimate_financials", return_value=mock_financials) as mock_estimate:
-            # Mock other calls to prevent full execution
-            with patch.object(agent, "_generate_ringi_sho"), patch.object(agent, "_save_to_file"):
+        with patch.object(agent, "_estimate_financials", return_value=mock_financials) as mock_estimate, \
+             patch.object(agent, "_generate_ringi_sho"), \
+             patch.object(agent, "_save_to_file"):
                 agent.run(state)
 
                 # Check arguments passed to _estimate_financials
                 args, _ = mock_estimate.call_args
-                # args[0] is industry, args[1] is search_result
                 passed_search_result = args[1]
 
                 assert len(passed_search_result) == limit

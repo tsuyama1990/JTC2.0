@@ -122,8 +122,6 @@ class BuilderAgent(BaseAgent):
             except StopIteration:
                 pass
 
-            # Warn if truncated?
-            # if next(feature_gen, None) is not None: ...
 
         if not candidate_features:
             logger.warning("No features extracted from solution.")

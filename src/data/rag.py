@@ -150,35 +150,32 @@ class RAG:
             raise ConfigurationError(msg)
 
         try:
-            # Resolve the path strictly
-            path = Path(path_str).resolve(strict=False) # Allow non-existent yet
-
-            # Check for allowed parents
+            path = Path(path_str).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
             allowed_rel_paths = self.settings.rag_allowed_paths
             allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
 
-            is_safe = False
-            for parent in allowed_parents:
-                if str(path).startswith(str(parent)):
-                    is_safe = True
-                    break
-
-            if not is_safe:
-                logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
-                raise ConfigurationError(ERR_PATH_TRAVERSAL)
-
-            # Final check if path exists
-            if path.exists():
+            path_exists = path.exists()
+            is_symlink = path.is_symlink() if path_exists else False
+            if path_exists:
                 path = path.resolve(strict=True)
-                if path.is_symlink():
-                     raise ConfigurationError("Symlinks not allowed in persist_dir.")
-
         except Exception as e:
-            if isinstance(e, ConfigurationError):
-                raise
             msg = f"Invalid path format or non-existent parent: {e}"
             raise ConfigurationError(msg) from e
+
+        is_safe = False
+        for parent in allowed_parents:
+            if str(path).startswith(str(parent)):
+                is_safe = True
+                break
+
+        if not is_safe:
+            logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
+            raise ConfigurationError(ERR_PATH_TRAVERSAL)
+
+        if is_symlink:
+            msg = "Symlinks not allowed in persist_dir."
+            raise ConfigurationError(msg)
 
         return str(path)
 
@@ -405,7 +402,7 @@ class RAG:
             return str(response)
 
         except FuturesTimeoutError:
-            logger.error("RAG Query timed out after %s seconds", timeout)
+            logger.exception("RAG Query timed out after %s seconds", timeout)
             msg = "Query execution timed out"
             raise RuntimeError(msg) from None
         except Exception as e:

@@ -46,9 +46,7 @@ class TestCycle06UAT:
         mock_churn = 0.05
 
         # Calculate expected derived values based on logic in src/core/metrics.py
-        # LTV = ARPU / Churn
         expected_ltv = mock_arpu / mock_churn # 400.0
-        # ROI = LTV / CAC
         expected_roi = expected_ltv / mock_cac # 0.8
 
         # Mock dependencies
