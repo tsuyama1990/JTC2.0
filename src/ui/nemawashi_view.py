@@ -28,7 +28,9 @@ class NemawashiView:
         self.h = h
         self.settings = get_settings()
 
-    def _draw_edges(self, network: InfluenceNetwork, nodes: list[tuple[int, int, Stakeholder]], n: int) -> None:
+    def _draw_edges(
+        self, network: InfluenceNetwork, nodes: list[tuple[int, int, Stakeholder]], n: int
+    ) -> None:
         def draw_edge(i: int, j: int, weight: float) -> None:
             if i != j and weight > 0.1:
                 start = nodes[j]
