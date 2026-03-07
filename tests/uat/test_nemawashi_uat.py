@@ -16,11 +16,7 @@ def test_identify_key_influencer_uat() -> None:
     # Sales listens to Finance (0.5) and self (0.5)
     # CEO listens to Finance (0.8) and self (0.2) -> Finance is KEY
 
-    matrix = [
-        [0.9, 0.0, 0.1],
-        [0.5, 0.5, 0.0],
-        [0.8, 0.0, 0.2]
-    ]
+    matrix = [[0.9, 0.0, 0.1], [0.5, 0.5, 0.0], [0.8, 0.0, 0.2]]
 
     net = InfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
     state = GlobalState(influence_network=net)
@@ -28,7 +24,7 @@ def test_identify_key_influencer_uat() -> None:
     engine = NemawashiEngine()
 
     try:
-        influencers = engine.identify_influencers(state.influence_network) # type: ignore
+        influencers = engine.identify_influencers(state.influence_network)  # type: ignore
         # Verify Finance is top
         assert influencers[0] == "Finance Manager"
     except NotImplementedError:
@@ -43,10 +39,7 @@ def test_nomikai_effect_uat() -> None:
 
     # Finance listens to self 0.9, CEO 0.1
     # CEO listens to Finance 0.8, self 0.2
-    matrix = [
-        [0.9, 0.1],
-        [0.8, 0.2]
-    ]
+    matrix = [[0.9, 0.1], [0.8, 0.2]]
 
     net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
 

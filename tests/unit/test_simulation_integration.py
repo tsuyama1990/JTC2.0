@@ -39,7 +39,7 @@ def test_simulation_turn_sequence(
     """
     # Setup mock agents for each role
     mock_agent = MagicMock()
-    mock_agent.run.return_value = {"debate_history": []} # State update
+    mock_agent.run.return_value = {"debate_history": []}  # State update
 
     # We need the graph to actually append messages.
     # But currently the graph nodes call agent.run() which returns state update.
@@ -51,6 +51,7 @@ def test_simulation_turn_sequence(
         import time
 
         from src.domain_models.simulation import DialogueMessage
+
         # Determine role from last call? No, side_effect doesn't know.
         # But we can inspect the call args of get_persona_agent?
         # Actually, get_persona_agent is called, returns mock_agent, then .run(state) is called.
@@ -80,10 +81,7 @@ def test_simulation_turn_sequence(
 
 
 @patch("src.core.factory.AgentFactory.get_persona_agent")
-def test_simulation_error_handling(
-    mock_get_persona: MagicMock,
-    initial_state: GlobalState
-) -> None:
+def test_simulation_error_handling(mock_get_persona: MagicMock, initial_state: GlobalState) -> None:
     """
     Verify that the simulation graph raises exceptions if an agent fails.
     """

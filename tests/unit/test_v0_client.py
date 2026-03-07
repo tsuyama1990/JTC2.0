@@ -10,15 +10,15 @@ from src.core.exceptions import V0GenerationError
 try:
     from src.tools.v0_client import V0Client
 except ImportError:
-    V0Client = None # type: ignore
+    V0Client = None  # type: ignore
 
 
 class TestV0Client:
     @pytest.fixture
     def mock_settings(self) -> Generator[MagicMock, None, None]:
         with patch("src.tools.v0_client.get_settings") as mock:
-            mock.return_value.v0.retry_max = 1 # Speed up tests
-            mock.return_value.v0.retry_backoff = 0.0 # No wait
+            mock.return_value.v0.retry_max = 1  # Speed up tests
+            mock.return_value.v0.retry_backoff = 0.0  # No wait
             yield mock.return_value
 
     @patch("src.tools.v0_client.pybreaker.CircuitBreaker")
@@ -28,7 +28,7 @@ class TestV0Client:
         mock_settings.v0_api_url = "https://api.v0.dev"
 
         client = V0Client()
-        client.breaker.call = lambda func, *args: func(*args) # type: ignore
+        client.breaker.call = lambda func, *args: func(*args)  # type: ignore
 
         with patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
             mock_response = MagicMock()
@@ -42,11 +42,13 @@ class TestV0Client:
             assert url == "https://v0.dev/test-ui"
 
     @patch("src.tools.v0_client.pybreaker.CircuitBreaker")
-    def test_generate_ui_network_error(self, mock_breaker: MagicMock, mock_settings: MagicMock) -> None:
+    def test_generate_ui_network_error(
+        self, mock_breaker: MagicMock, mock_settings: MagicMock
+    ) -> None:
         """Test network failure handling (Timeout/ConnectionError)."""
         mock_settings.v0_api_key = SecretStr("valid-key")
         client = V0Client()
-        client.breaker.call = lambda func, *args: func(*args) # type: ignore
+        client.breaker.call = lambda func, *args: func(*args)  # type: ignore
 
         with patch("src.tools.v0_client.httpx.Client") as mock_http_cls:
             mock_client_instance = mock_http_cls.return_value.__enter__.return_value

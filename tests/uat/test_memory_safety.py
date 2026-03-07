@@ -30,6 +30,7 @@ def test_lazy_iterator_safety_limit() -> None:
     """
     Verify that LazyIdeaIterator raises StopIteration if the safety limit is exceeded.
     """
+
     def infinite_generator() -> Iterator[LeanCanvas]:
         """Yields infinite sequence."""
         i = 0
@@ -75,8 +76,8 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     with (
         patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
         patch.object(get_settings(), "rag_max_index_size_mb", 1),
-            # Updated error message constant in Cycle 06
-            pytest.raises(MemoryError, match="Index size limit exceeded"),
+        # Updated error message constant in Cycle 06
+        pytest.raises(MemoryError, match="Index size limit exceeded"),
     ):
         # Expect MemoryError directly
         RAG(persist_dir=temp_rag_dir)

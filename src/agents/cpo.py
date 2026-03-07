@@ -74,7 +74,13 @@ class CPOAgent(PersonaAgent):
             if state.influence_network:
                 stakeholders_info = ["\nSTAKEHOLDER ANALYSIS (Nemawashi):"]
                 for s in state.influence_network.stakeholders:
-                    status = "Supportive" if s.initial_support > 0.7 else "Resistant" if s.initial_support < 0.3 else "Neutral"
+                    status = (
+                        "Supportive"
+                        if s.initial_support > 0.7
+                        else "Resistant"
+                        if s.initial_support < 0.3
+                        else "Neutral"
+                    )
                     stakeholders_info.append(
                         f"- {s.name}: {status} (Support={s.initial_support:.2f}, Stubbornness={s.stubbornness:.2f})"
                     )

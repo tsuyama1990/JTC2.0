@@ -15,8 +15,11 @@ from src.domain_models.validators import StateValidator
 logger = logging.getLogger(__name__)
 
 
-def safe_node(error_msg: str = "Error in graph node") -> Callable[..., dict[str, Any]]:
+def safe_node(
+    error_msg: str = "Error in graph node",
+) -> Callable[[Callable[..., Any]], Callable[..., dict[str, Any]]]:
     """Decorator to wrap graph nodes with consistent error handling."""
+
     def decorator(func: Callable[..., Any]) -> Callable[..., dict[str, Any]]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
@@ -25,7 +28,9 @@ def safe_node(error_msg: str = "Error in graph node") -> Callable[..., dict[str,
             except Exception:
                 logger.exception(error_msg)
                 return {}
+
         return wrapper
+
     return decorator
 
 
@@ -141,7 +146,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    return cpo.run(state)
+    return cpo.run(state)  # type: ignore
 
 
 @safe_node("Error in Solution Proposal")
@@ -194,7 +199,7 @@ def mvp_generation_node(state: GlobalState) -> dict[str, Any]:
                 )
             ],
             success_criteria="User engagement and feedback.",
-            v0_url=updates.get("mvp_url") # Map URL if present
+            v0_url=updates.get("mvp_url"),  # Map URL if present
         )
         updates["mvp_definition"] = mvp
 

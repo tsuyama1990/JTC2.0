@@ -21,12 +21,16 @@ class TestGovernanceAgent:
         state.metrics_data = Metrics()
         state.mvp_definition = MVP(
             type=MVPType.SINGLE_FEATURE,
-            core_features=[Feature(name="AI Summarizer", description="Summarizes text", priority=Priority.MUST_HAVE)],
-            success_criteria="User saves time"
+            core_features=[
+                Feature(
+                    name="AI Summarizer", description="Summarizes text", priority=Priority.MUST_HAVE
+                )
+            ],
+            success_criteria="User saves time",
         )
         state.influence_network = InfluenceNetwork(
             stakeholders=[Stakeholder(name="CEO", initial_support=0.8, stubbornness=0.1)],
-            matrix=[[1.0]]
+            matrix=[[1.0]],
         )
         return state
 
@@ -40,7 +44,7 @@ class TestGovernanceAgent:
         mock_payback: MagicMock,
         mock_ltv: MagicMock,
         mock_search_cls: MagicMock,
-        mock_state: GlobalState
+        mock_state: GlobalState,
     ) -> None:
         """Test that run method populates RingiSho in the returned dictionary."""
         # Setup mocks
@@ -67,7 +71,9 @@ class TestGovernanceAgent:
             mock_chunk_fin.content = '{"cac": 500.0, "arpu": 100.0, "churn_rate": 0.05}'
 
             mock_chunk_ringi = MagicMock()
-            mock_chunk_ringi.content = '{"title": "AI Tool", "executive_summary": "Great tool.", "risks": ["Risk 1"]}'
+            mock_chunk_ringi.content = (
+                '{"title": "AI Tool", "executive_summary": "Great tool.", "risks": ["Risk 1"]}'
+            )
 
             # stream returns an iterator. We simulate it with a list.
             mock_llm.stream.side_effect = [[mock_chunk_fin], [mock_chunk_ringi]]
@@ -82,4 +88,4 @@ class TestGovernanceAgent:
             # Verify FileService call
             mock_file_service.save_text_async.assert_called_once()
             args, _ = mock_file_service.save_text_async.call_args
-            assert "# AI Tool" in args[0] # Verify content
+            assert "# AI Tool" in args[0]  # Verify content

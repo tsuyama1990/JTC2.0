@@ -10,11 +10,12 @@ from src.core.config import AgentConfig, SimulationConfig, get_settings
 def test_config_loading_success() -> None:
     """Test successful configuration loading."""
     with patch.dict(
-        os.environ, {
+        os.environ,
+        {
             "OPENAI_API_KEY": "sk-12345678901234567890",
             "TAVILY_API_KEY": "tvly-12345678901234567890",
-            "V0_API_KEY": "v0-12345678901234567890"
-        }
+            "V0_API_KEY": "v0-12345678901234567890",
+        },
     ):
         get_settings.cache_clear()
         settings = get_settings()
@@ -45,15 +46,18 @@ def test_config_missing_tavily_key() -> None:
         get_settings.cache_clear()
 
         with pytest.raises(ValueError, match=".*"):
-             get_settings()
+            get_settings()
 
 
 def test_config_caching() -> None:
     """Test that configuration is cached."""
-    with patch.dict(os.environ, {
-        "OPENAI_API_KEY": "sk-12345678901234567890",
-        "TAVILY_API_KEY": "tvly-12345678901234567890"
-    }):
+    with patch.dict(
+        os.environ,
+        {
+            "OPENAI_API_KEY": "sk-12345678901234567890",
+            "TAVILY_API_KEY": "tvly-12345678901234567890",
+        },
+    ):
         get_settings.cache_clear()
         s1 = get_settings()
         s2 = get_settings()
@@ -67,7 +71,7 @@ def test_invalid_log_level() -> None:
         {
             "OPENAI_API_KEY": "sk-12345678901234567890",
             "TAVILY_API_KEY": "tvly-12345678901234567890",
-            "LOG_LEVEL": "INVALID"
+            "LOG_LEVEL": "INVALID",
         },
     ):
         get_settings.cache_clear()

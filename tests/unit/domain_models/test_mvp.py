@@ -14,7 +14,7 @@ class TestMVPSpec:
             core_feature="User Authentication System",
             ui_style="Minimalist",
             v0_prompt="Create a login screen.",
-            components=["Login Form", "Sign Up Button"]
+            components=["Login Form", "Sign Up Button"],
         )
         assert spec.app_name == "Test App"
         assert spec.core_feature == "User Authentication System"
@@ -26,7 +26,7 @@ class TestMVPSpec:
             MVPSpec(
                 app_name="Test",
                 core_feature="Login",
-                components=["Login <script>alert(1)</script>"] # XSS attempt
+                components=["Login <script>alert(1)</script>"],  # XSS attempt
             )
         assert "Invalid component name" in str(exc.value)
 
@@ -36,15 +36,12 @@ class TestMVPSpec:
             MVPSpec(
                 app_name="Test",
                 core_feature="Login",
-                v0_prompt="   " # Empty string
+                v0_prompt="   ",  # Empty string
             )
         assert "v0_prompt must be a non-empty string" in str(exc.value)
 
     def test_mvp_spec_default_components(self) -> None:
         """Test default components."""
-        spec = MVPSpec(
-            app_name="Test App",
-            core_feature="User Authentication System"
-        )
+        spec = MVPSpec(app_name="Test App", core_feature="User Authentication System")
         assert len(spec.components) == 3
         assert "Hero Section" in spec.components

@@ -37,10 +37,10 @@ class InfluenceAnalyzer:
 
                 # Check size to decide strategy
                 if n > 1000:
-                     # Convert to sparse for efficiency
-                     centrality = self._eigen_centrality_sparse(csr_matrix(matrix_dense))
+                    # Convert to sparse for efficiency
+                    centrality = self._eigen_centrality_sparse(csr_matrix(matrix_dense))
                 else:
-                     centrality = self._eigen_centrality_dense(matrix_dense)
+                    centrality = self._eigen_centrality_dense(matrix_dense)
             else:
                 # Sparse matrix (list of entries) or empty
                 entries = cast(list[SparseMatrixEntry], network.matrix)
@@ -90,22 +90,25 @@ class InfluenceAnalyzer:
         """Compute centrality from pre-built CSR matrix."""
         mat_t = sparse_mat.T
         try:
-            vals, vecs = eigs(mat_t, k=1, which='LM')
+            vals, vecs = eigs(mat_t, k=1, which="LM")
             centrality = np.abs(vecs.flatten())
             s = np.sum(centrality)
             if s > 0:
                 centrality = centrality / s
             return typing.cast(np.ndarray, centrality)
         except Exception as e:
-             logger.warning(f"Sparse eig failed, falling back? {e}")
-             raise CalculationError("Sparse eigen calculation failed") from e
+            logger.warning(f"Sparse eig failed, falling back? {e}")
+            msg = "Sparse eigen calculation failed"
+            raise CalculationError(msg) from e
 
-    def _eigen_centrality_sparse_entries(self, entries: list[SparseMatrixEntry], n: int) -> np.ndarray:
+    def _eigen_centrality_sparse_entries(
+        self, entries: list[SparseMatrixEntry], n: int
+    ) -> np.ndarray:
         """
         Compute eigenvector centrality from sparse entries.
         """
         if not entries:
-             return np.zeros(n)
+            return np.zeros(n)
 
         # Build sparse matrix
         rows = [e.row for e in entries]

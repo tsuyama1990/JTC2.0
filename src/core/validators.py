@@ -1,4 +1,3 @@
-
 from pydantic import SecretStr
 
 from src.core.constants import (

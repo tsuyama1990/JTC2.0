@@ -8,6 +8,7 @@ class Phase(StrEnum):
     PMF = "pmf"
     GOVERNANCE = "governance"
 
+
 class Role(StrEnum):
     NEW_EMPLOYEE = "New Employee"
     FINANCE = "Finance Manager"

@@ -106,7 +106,9 @@ MSG_WAITING_FOR_DEBATE: Final[str] = "Waiting for debate..."
 MSG_NEMAWASHI_TITLE: Final[str] = "Nemawashi Influence Network"
 
 # --- Metrics Descriptions ---
-DESC_METRICS_AARRR: Final[str] = "Pirate Metrics (Acquisition, Activation, Retention, Revenue, Referral)"
+DESC_METRICS_AARRR: Final[str] = (
+    "Pirate Metrics (Acquisition, Activation, Retention, Revenue, Referral)"
+)
 DESC_METRICS_CUSTOM: Final[str] = "Custom metrics defined by the simulation"
 
 # --- Feature Descriptions ---

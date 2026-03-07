@@ -75,7 +75,9 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
                         total += stat.st_size
                         file_count += 1
                         if file_count > MAX_FILES:
-                            logger.warning(f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size.")
+                            logger.warning(
+                                f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size."
+                            )
                             return total
 
                     elif entry.is_dir(follow_symlinks=False):
@@ -134,7 +136,7 @@ class RAG:
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
                 depth_limit=self.settings.rag_scan_depth_limit,
-                ttl_hash=int(time.time() // 60) # Refresh every minute
+                ttl_hash=int(time.time() // 60),  # Refresh every minute
             )
 
         self.index: VectorStoreIndex | None = None
@@ -150,35 +152,34 @@ class RAG:
             raise ConfigurationError(msg)
 
         try:
-            # Resolve the path strictly
-            path = Path(path_str).resolve(strict=False) # Allow non-existent yet
-
-            # Check for allowed parents
+            path = Path(path_str).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
             allowed_rel_paths = self.settings.rag_allowed_paths
             allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
 
-            is_safe = False
-            for parent in allowed_parents:
-                if str(path).startswith(str(parent)):
-                    is_safe = True
-                    break
-
-            if not is_safe:
-                logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
-                raise ConfigurationError(ERR_PATH_TRAVERSAL)
-
-            # Final check if path exists
-            if path.exists():
+            path_exists = path.exists()
+            is_symlink = path.is_symlink() if path_exists else False
+            if path_exists:
                 path = path.resolve(strict=True)
-                if path.is_symlink():
-                     raise ConfigurationError("Symlinks not allowed in persist_dir.")
-
         except Exception as e:
-            if isinstance(e, ConfigurationError):
-                raise
             msg = f"Invalid path format or non-existent parent: {e}"
             raise ConfigurationError(msg) from e
+
+        is_safe = False
+        for parent in allowed_parents:
+            if str(path).startswith(str(parent)):
+                is_safe = True
+                break
+
+        if not is_safe:
+            logger.error(
+                f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}"
+            )
+            raise ConfigurationError(ERR_PATH_TRAVERSAL)
+
+        if is_symlink:
+            msg = "Symlinks not allowed in persist_dir."
+            raise ConfigurationError(msg)
 
         return str(path)
 
@@ -215,8 +216,8 @@ class RAG:
                 self.index = None
                 return
         except OSError:
-             self.index = None
-             return
+            self.index = None
+            return
 
         try:
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
@@ -321,7 +322,7 @@ class RAG:
             try:
                 first_batch = next(batched_docs)
             except StopIteration:
-                return # Empty input
+                return  # Empty input
 
             if self.index is None:
                 self.index = VectorStoreIndex.from_documents(first_batch)
@@ -352,7 +353,7 @@ class RAG:
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
                 self.settings.rag_scan_depth_limit,
-                ttl_hash=int(time.time() // 60)
+                ttl_hash=int(time.time() // 60),
             )
 
     def query(self, question: str) -> str:
@@ -405,7 +406,7 @@ class RAG:
             return str(response)
 
         except FuturesTimeoutError:
-            logger.error("RAG Query timed out after %s seconds", timeout)
+            logger.exception("RAG Query timed out after %s seconds", timeout)
             msg = "Query execution timed out"
             raise RuntimeError(msg) from None
         except Exception as e:

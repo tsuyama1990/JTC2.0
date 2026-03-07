@@ -76,11 +76,4 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     workflow.add_edge("governance", END)
 
     # Compile with Interrupts for HITL Gates
-    return workflow.compile(
-        interrupt_after=[
-            "ideator",
-            "verification",
-            "solution_proposal",
-            "pmf"
-        ]
-    )
+    return workflow.compile(interrupt_after=["ideator", "verification", "solution_proposal", "pmf"])

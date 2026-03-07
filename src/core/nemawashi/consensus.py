@@ -38,6 +38,7 @@ class ConsensusEngine:
 
         # Convert opinions to numpy array
         import numpy as np
+
         opinions = np.array([s.initial_support for s in network.stakeholders], dtype=float)
 
         # Build Sparse Matrix using shared utility
@@ -58,7 +59,7 @@ class ConsensusEngine:
 
             if np.allclose(current_ops, next_ops, atol=tolerance):
                 logger.info("Consensus converged.")
-                return list(next_ops) # type: ignore
+                return list(next_ops)
             current_ops = next_ops
 
-        return list(current_ops) # type: ignore
+        return list(current_ops)

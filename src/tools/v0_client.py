@@ -67,7 +67,7 @@ class V0Client:
 
     def _generate_ui_impl(self, prompt: str) -> str:
         # Sanitize headers
-        sanitized_api_key = self._sanitize_header(self.api_key) # type: ignore # checked in public method
+        sanitized_api_key = self._sanitize_header(self.api_key)  # type: ignore # checked in public method
 
         headers = {
             "Authorization": f"Bearer {sanitized_api_key}",
@@ -77,18 +77,15 @@ class V0Client:
         # Structure payload for v0.dev (assuming OpenAI-compatible chat format)
         # Prompt is user content in JSON body, requests handles escaping, but strict hygiene is good.
         payload = {
-            "model": "v0-preview", # or similar model name
+            "model": "v0-preview",  # or similar model name
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a UI generator. Generate a React component using Tailwind CSS."
+                    "content": "You are a UI generator. Generate a React component using Tailwind CSS.",
                 },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ],
-            "stream": False
+            "stream": False,
         }
 
         max_retries = self.settings.v0.retry_max
@@ -109,7 +106,7 @@ class V0Client:
 
                     if response.status_code == 429:
                         if attempt < max_retries:
-                            sleep_time = backoff_factor ** attempt
+                            sleep_time = backoff_factor**attempt
                             logger.warning(f"Rate limited by v0.dev. Retrying in {sleep_time}s...")
                             time.sleep(sleep_time)
                             continue

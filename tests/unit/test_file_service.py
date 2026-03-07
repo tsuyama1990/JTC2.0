@@ -12,10 +12,14 @@ class TestFileService:
     def file_service(self) -> FileService:
         return FileService()
 
+    @patch("src.core.services.file_service.FileService._validate_path")
     @patch("src.core.services.file_service.Path")
-    def test_save_text_async_success(self, mock_path: MagicMock, file_service: FileService) -> None:
+    def test_save_text_async_success(
+        self, mock_path: MagicMock, mock_validate: MagicMock, file_service: FileService
+    ) -> None:
+        mock_validate.return_value = mock_path.return_value
+        mock_validate.return_value.__str__.return_value = "protected.md"
         """Verify save_text_async writes content correctly."""
-        mock_path_obj = mock_path.return_value
 
         # Call the method
         file_service.save_text_async("content", "test.md")
@@ -24,25 +28,41 @@ class TestFileService:
         file_service._executor.shutdown(wait=True)
 
         # Assertions
-        mock_path.assert_called_with("test.md")
-        mock_path_obj.write_text.assert_called_with("content", encoding="utf-8")
+        mock_validate.assert_called_with("test.md")
+        mock_validate.return_value.write_text.assert_called_with("content", encoding="utf-8")
 
+    @patch("src.core.services.file_service.FileService._validate_path")
     @patch("src.core.services.file_service.Path")
-    def test_save_text_async_permission_error(self, mock_path: MagicMock, file_service: FileService, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_text_async_permission_error(
+        self,
+        mock_path: MagicMock,
+        mock_validate: MagicMock,
+        file_service: FileService,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
         """Verify handling of PermissionError."""
-        mock_path_obj = mock_path.return_value
-        mock_path_obj.write_text.side_effect = PermissionError("Access denied")
+        mock_validate.return_value = mock_path.return_value
+        mock_validate.return_value.__str__.return_value = "protected.md"
+        mock_validate.return_value.write_text.side_effect = PermissionError("Access denied")
 
         file_service.save_text_async("content", "protected.md")
         file_service._executor.shutdown(wait=True)
 
         assert "Permission denied writing to protected.md" in caplog.text
 
+    @patch("src.core.services.file_service.FileService._validate_path")
     @patch("src.core.services.file_service.Path")
-    def test_save_text_async_os_error(self, mock_path: MagicMock, file_service: FileService, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_text_async_os_error(
+        self,
+        mock_path: MagicMock,
+        mock_validate: MagicMock,
+        file_service: FileService,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
         """Verify handling of generic OSError."""
-        mock_path_obj = mock_path.return_value
-        mock_path_obj.write_text.side_effect = OSError("Disk full")
+        mock_validate.return_value = mock_path.return_value
+        mock_validate.return_value.__str__.return_value = "file.md"
+        mock_validate.return_value.write_text.side_effect = OSError("Disk full")
 
         file_service.save_text_async("content", "file.md")
         file_service._executor.shutdown(wait=True)
