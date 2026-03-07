@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.config import get_settings
+
 
 class CustomerProfile(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -22,4 +24,6 @@ class ValuePropositionCanvas(BaseModel):
 
     customer_profile: CustomerProfile
     value_map: ValueMap
-    fit_evaluation: str = Field(..., min_length=10)
+    fit_evaluation: str = Field(
+        ..., min_length=get_settings().validation.min_title_length
+    )

@@ -47,4 +47,4 @@ def test_value_proposition_canvas() -> None:
     assert vpc.fit_evaluation.startswith("The scheduling")
 
     with pytest.raises(ValidationError):
-        ValuePropositionCanvas(customer_profile=profile, value_map=vmap, fit_evaluation="Too short")
+        ValuePropositionCanvas(customer_profile=profile, value_map=vmap, fit_evaluation="No")
