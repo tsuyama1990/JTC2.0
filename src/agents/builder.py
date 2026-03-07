@@ -109,15 +109,19 @@ class BuilderAgent(BaseAgent):
             logger.exception("Failed to extract features from chunk")
 
     def _sanitize_input(self, text: str) -> str:
-        """Sanitize input to prevent prompt injection and remove malicious patterns."""
+        """Sanitize input to prevent prompt injection using strict whitelisting via bleach."""
         import re
+
+        import bleach
+
         if not text:
             return ""
-        # Remove markdown tags, scripts, and potential injection keywords
-        sanitized = re.sub(r'<(script|style|iframe|object|embed)[^>]*>.*?</\1>', '', text, flags=re.IGNORECASE)
-        sanitized = re.sub(r'<[^>]+>', '', sanitized)
+        # Strip all HTML tags entirely (whitelist is empty)
+        sanitized = bleach.clean(text, tags=[], attributes={}, strip=True)
         # Prevent prompt escape sequences (e.g. Ignore all previous instructions)
-        sanitized = re.sub(r'(?i)(ignore.*instructions|system prompt|you are now)', '[REDACTED]', sanitized)
+        sanitized = re.sub(
+            r"(?i)(ignore.*instructions|system prompt|you are now)", "[REDACTED]", sanitized
+        )
         return sanitized.strip()[:2000]  # Hard truncate to prevent token overflow
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
@@ -230,7 +234,9 @@ class BuilderAgent(BaseAgent):
             url = v0_client.generate_ui(v0_prompt)
             logger.info(f"MVP Generated: {url}")
         except Exception:
-            logger.exception("Failed to generate MVP via v0.dev API. Falling back to local placeholder.")
+            logger.exception(
+                "Failed to generate MVP via v0.dev API. Falling back to local placeholder."
+            )
             url = "https://v0.dev/fallback-generated-ui"
 
         return {
@@ -241,13 +247,19 @@ class BuilderAgent(BaseAgent):
 
     def _get_v0_api_key(self) -> str:
         """Securely get V0 API key with validation."""
+        import re
+
         if not self.settings.v0_api_key:
             msg = "V0_API_KEY is missing from configuration."
             raise ValueError(msg)
+
         key = self.settings.v0_api_key.get_secret_value()
-        if not key or len(key) < 10:
-            msg = "V0_API_KEY is invalid or improperly formatted."
+
+        # Stricter regex validation (e.g. alphanumeric with typical token separators)
+        if not key or not re.match(r"^[A-Za-z0-9_\-\.]{20,}$", key):
+            msg = "V0_API_KEY failed security validation."
             raise ValueError(msg)
+
         return key
 
     def run(self, state: GlobalState) -> dict[str, Any]:

@@ -19,6 +19,7 @@ dependencies = [
     "scipy>=1.13.0",
     "pybreaker>=1.2.0",
     "httpx>=0.28.1",
+    "bleach>=6.3.0",
 ]
 
 [dependency-groups]
@@ -28,6 +29,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.15.2",
     "memory-profiler>=0.61.0",
+    "types-bleach>=6.3.0.20251115",
 ]
 
 [tool.ruff]

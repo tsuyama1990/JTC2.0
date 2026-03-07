@@ -16,8 +16,6 @@ from src.domain_models.validators import StateValidator
 logger = logging.getLogger(__name__)
 
 
-
-
 def safe_node(
     error_msg: str = "Error in graph node",
 ) -> Callable[[Callable[..., Any]], Callable[..., dict[str, Any]]]:
@@ -33,11 +31,12 @@ def safe_node(
                 correlation_id = str(uuid.uuid4())
                 logger.error(
                     f"{error_msg} | Correlation ID: {correlation_id} | Exception Type: {type(e).__name__} | Error: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
                 # Do not swallow V0 API key exceptions entirely if it's required to halt
                 from src.core.exceptions import V0GenerationError
+
                 if isinstance(e, V0GenerationError):
                     raise
 
@@ -76,31 +75,45 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     rag = RAG(persist_dir=state.rag_index_path)
 
-    # Process transcripts in chunks to manage memory
-    chunk_size = 10
-    transcripts_list = list(state.transcripts)
-    total = len(transcripts_list)
-
+    import itertools
     import re
+
+    import bleach
 
     def sanitize_transcript(text: str) -> str:
         if not text:
             return ""
-        # Strip potential HTML/script injections
-        sanitized = re.sub(r'<(script|style|iframe|object|embed)[^>]*>.*?</\1>', '', text, flags=re.IGNORECASE)
-        sanitized = re.sub(r'<[^>]+>', '', sanitized)
+        # Use bleach to completely strip HTML tags (whitelist is empty)
+        sanitized = bleach.clean(text, tags=[], attributes={}, strip=True)
         # Prevent prompt injection escapes in RAG retrieval
-        sanitized = re.sub(r'(?i)(ignore.*instructions|system prompt|you are now)', '[REDACTED]', sanitized)
+        sanitized = re.sub(
+            r"(?i)(ignore.*instructions|system prompt|you are now)", "[REDACTED]", sanitized
+        )
         return sanitized.strip()
 
-    for i in range(0, total, chunk_size):
-        chunk = transcripts_list[i : i + chunk_size]
-        logger.info(f"Ingesting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
+    from collections.abc import Iterable, Iterator
+    from typing import Any
+
+    def chunked_iterable(iterable: Iterable[Any], size: int) -> Iterator[tuple[Any, ...]]:
+        it = iter(iterable)
+        while True:
+            chunk = tuple(itertools.islice(it, size))
+            if not chunk:
+                break
+            yield chunk
+
+    # Process transcripts in chunks using an iterator pattern to prevent OOM
+    chunk_size = 10
+    batch_num = 1
+    for chunk in chunked_iterable(state.transcripts, chunk_size):
+        logger.info(f"Ingesting batch {batch_num}: {len(chunk)} transcripts")
 
         for transcript in chunk:
             # Sanitize content before passing to DB to avoid injection
             transcript.content = sanitize_transcript(transcript.content)
             rag.ingest_transcript(transcript)
+
+        batch_num += 1
 
     # Persist index only once after all chunks are processed for optimal I/O
     rag.persist_index()
@@ -140,13 +153,19 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
 
     import concurrent.futures
 
-    # Run the graph invoke with a 300 second hard timeout watchdog
+    from src.core.config import get_settings
+
+    timeout_sec = getattr(get_settings().simulation, "execution_timeout_sec", 300)
+
+    # Run the graph invoke with a configurable timeout watchdog
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(simulation_app.invoke, state)
         try:
-            final_state = future.result(timeout=300)
+            final_state = future.result(timeout=timeout_sec)
         except concurrent.futures.TimeoutError:
-            logger.exception("Simulation execution exceeded 300 seconds limit. Terminating.")
+            logger.exception(
+                f"Simulation execution exceeded {timeout_sec} seconds limit. Terminating."
+            )
             return {"_node_error": "Simulation timeout exceeded."}
 
     if isinstance(final_state, dict):
@@ -170,10 +189,14 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
         logger.warning("No influence network found. Skipping Nemawashi analysis.")
         return {}
 
+    from src.core.config import get_settings
+
     # Network Size Hard Limit / Optimization check
-    MAX_NETWORK_SIZE = 50
-    if len(state.influence_network.stakeholders) > MAX_NETWORK_SIZE:
-        logger.error(f"Influence network exceeds maximum supported size ({MAX_NETWORK_SIZE}). Halting Nemawashi.")
+    max_network_size = getattr(get_settings().simulation, "max_network_size", 50)
+    if len(state.influence_network.stakeholders) > max_network_size:
+        logger.error(
+            f"Influence network exceeds maximum supported size ({max_network_size}). Halting Nemawashi."
+        )
         return {"_node_error": "Influence network too large for bounded computation"}
 
     engine = NemawashiEngine()
@@ -181,8 +204,9 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
     # Calculate new consensus (opinions)
     new_opinions = engine.calculate_consensus(state.influence_network)
 
-    # Update the influence network in state
-    updated_network = state.influence_network.model_copy(deep=True)
+    # Update the influence network in state using shallow copy for better performance on large networks
+    # Deep copy is only needed if we are mutating nested objects, but we only mutate initial_support here.
+    updated_network = state.influence_network.model_copy()
 
     for i, stakeholder in enumerate(updated_network.stakeholders):
         if i < len(new_opinions):

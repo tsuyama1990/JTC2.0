@@ -39,7 +39,11 @@ class GlobalState(BaseModel):
     generated_ideas: LazyIdeaIterator | None = None
 
     selected_idea: LeanCanvas | None = None
-    messages: deque[str] = Field(default_factory=lambda: deque(maxlen=1000))
+    messages: deque[str] = Field(
+        default_factory=lambda: deque(
+            maxlen=getattr(get_settings().simulation, "max_messages", 1000)
+        )
+    )
 
     target_persona: Persona | None = None
     value_proposition_canvas: ValuePropositionCanvas | None = None
@@ -99,7 +103,7 @@ class GlobalState(BaseModel):
         seen_sources: set[str] = set()
         for t in v:
             if t.source in seen_sources:
-                msg = "Duplicate transcript sources found."
+                msg = f"Duplicate transcript source found: {t.source}"
                 raise ValueError(msg)
             seen_sources.add(t.source)
         return v
@@ -108,8 +112,9 @@ class GlobalState(BaseModel):
     @classmethod
     def validate_agent_states(cls, v: dict[Role, AgentState]) -> dict[Role, AgentState]:
         """Ensure agent_states keys match the AgentState role."""
-        if len(v) > 50:
-            msg = "Too many agent states. Exceeds memory safety limits."
+        limit = getattr(get_settings().simulation, "max_agents", 50)
+        if len(v) > limit:
+            msg = f"Too many agent states ({len(v)}). Exceeds memory safety limits ({limit})."
             raise ValueError(msg)
         for role, state in v.items():
             if role != state.role:
@@ -140,8 +145,9 @@ class GlobalState(BaseModel):
     @model_validator(mode="after")
     def auto_validate_state(self) -> Self:
         """Lightweight automatic validation hooks on state change."""
-        if len(self.messages) > 1000:
-            msg = "Messages list exceeded safety limit."
+        limit = getattr(get_settings().simulation, "max_messages", 1000)
+        if len(self.messages) > limit:
+            msg = f"Messages list ({len(self.messages)}) exceeded safety limit ({limit})."
             raise ValueError(msg)
         return self
 

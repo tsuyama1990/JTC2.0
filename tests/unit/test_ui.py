@@ -68,21 +68,13 @@ def test_renderer_console_loop() -> None:
     renderer = SimulationRenderer(state_getter)
     renderer.headless = True
 
-    with patch("builtins.print") as mock_print:
+    with patch("src.ui.renderer.logger.info") as mock_log:
         with patch("time.sleep"):  # Skip sleep
             renderer.start()
 
-        # Verify prints
-        # First iteration: count=1, last_count=0. Prints msg1.
-        # Second iteration: count=2, last_count=1. Prints msg2.
-        # Third iteration: count=2. simulation_active=False. Breaks.
-
-        # Check calls. print calls might be complex due to logging or other prints.
-        # We look for specific content.
-
-        # Argument of print is f"[{msg.role}]: {msg.content}"
-        mock_print.assert_any_call(f"[{Role.NEW_EMPLOYEE}]: Hi")
-        mock_print.assert_any_call(f"[{Role.FINANCE}]: Bye")
+            # Verify logger.info was called with the right format
+            mock_log.assert_any_call(f"[{Role.NEW_EMPLOYEE}]: Hi")
+            mock_log.assert_any_call(f"[{Role.FINANCE}]: Bye")
 
 
 @patch("src.ui.renderer.pyxel")

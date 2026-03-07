@@ -52,9 +52,7 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
         return item
 
     @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Any
-    ) -> core_schema.CoreSchema:
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: Any) -> core_schema.CoreSchema:
         """
         Define schema for Pydantic V2 to handle this custom type.
         This allows 'strict=True' (extra="forbid") without arbitrary_types_allowed=True.
@@ -64,11 +62,13 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
             raise TypeError(msg)
 
         return core_schema.json_or_python_schema(
-            json_schema=core_schema.list_schema(
-                core_schema.any_schema()
-            ),
+            json_schema=core_schema.list_schema(core_schema.any_schema()),
             python_schema=core_schema.is_instance_schema(cls),
             serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda instance: "LazyIdeaIterator(unconsumed)" if not instance._consumed else "LazyIdeaIterator(consumed)"
+                lambda instance: (
+                    "LazyIdeaIterator(unconsumed)"
+                    if not instance._consumed
+                    else "LazyIdeaIterator(consumed)"
+                )
             ),
         )
