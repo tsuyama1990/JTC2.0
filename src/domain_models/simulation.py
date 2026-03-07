@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.config import get_settings
 from src.domain_models.enums import Role
 
 __all__ = ["AgentState", "DeGrootProfile", "DialogueMessage", "Role"]
@@ -44,5 +45,5 @@ class DialogueMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     role: Role
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=get_settings().validation.min_content_length)
     timestamp: float

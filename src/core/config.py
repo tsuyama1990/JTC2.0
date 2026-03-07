@@ -203,6 +203,16 @@ class V0Config(BaseSettings):
         default=DEFAULT_V0_RETRY_BACKOFF,
         description="Exponential backoff factor",
     )
+    model_name: str = Field(
+        alias="V0_MODEL_NAME",
+        default="v0-preview",
+        description="Model name to use for v0 generation",
+    )
+    system_prompt: str = Field(
+        alias="V0_SYSTEM_PROMPT",
+        default="You are a UI generator. Generate a React component using Tailwind CSS.",
+        description="System prompt for UI generation",
+    )
 
 
 class SimulationConfig(BaseSettings):
@@ -255,6 +265,8 @@ class SimulationConfig(BaseSettings):
         default=DEFAULT_CONSOLE_SLEEP, description="Sleep time for console fallback"
     )
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
+    max_messages: int = Field(default=1000, description="Max messages in dialogue history")
+    max_agents: int = Field(default=50, description="Max agents in simulation state")
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(

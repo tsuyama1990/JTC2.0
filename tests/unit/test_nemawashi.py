@@ -15,7 +15,7 @@ def test_consensus_conversion_failure() -> None:
     # Ideally domain model catches it.
     # Let's mock coo_matrix to raise an error
 
-    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
+    s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.5)
     network = InfluenceNetwork(stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)])
 
     engine = ConsensusEngine()
@@ -29,7 +29,7 @@ def test_consensus_conversion_failure() -> None:
 
 def test_consensus_dense_conversion_failure() -> None:
     """Test dense matrix conversion failure."""
-    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
+    s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.5)
     # Dense matrix
     network = InfluenceNetwork(stakeholders=[s1], matrix=[[1.0]])
 
@@ -44,7 +44,7 @@ def test_consensus_dense_conversion_failure() -> None:
 
 def test_consensus_stochasticity_check_failure() -> None:
     """Test that runtime stochasticity check catches invalid matrices."""
-    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
+    s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.5)
     network = InfluenceNetwork(stakeholders=[s1], matrix=[[1.0]])
 
     engine = ConsensusEngine()
@@ -65,8 +65,8 @@ def test_consensus_stochasticity_check_failure() -> None:
 
 def test_consensus_calculation() -> None:
     """Test standard calculation flow."""
-    s1 = Stakeholder(name="A", initial_support=0.0, stubbornness=0.0)
-    s2 = Stakeholder(name="B", initial_support=1.0, stubbornness=1.0)
+    s1 = Stakeholder(name="Alice", initial_support=0.0, stubbornness=0.0)
+    s2 = Stakeholder(name="Bob12", initial_support=1.0, stubbornness=1.0)
     # A follows B (100%), B follows self (100%)
     entries = [SparseMatrixEntry(row=0, col=1, val=1.0), SparseMatrixEntry(row=1, col=1, val=1.0)]
     network = InfluenceNetwork(stakeholders=[s1, s2], matrix=entries)

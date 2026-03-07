@@ -10,7 +10,7 @@ from src.ui.renderer import SimulationRenderer
 @pytest.fixture
 def mock_state() -> GlobalState:
     return GlobalState(
-        debate_history=[DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hi", timestamp=1.0)]
+        debate_history=[DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hello", timestamp=1.0)]
     )
 
 
@@ -48,7 +48,7 @@ def test_renderer_update_quit(mock_pyxel: MagicMock, mock_state: GlobalState) ->
 def test_renderer_console_loop() -> None:
     """Test the fallback console loop."""
     # We create a sequence of states
-    msg1 = DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hi", timestamp=1.0)
+    msg1 = DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hello", timestamp=1.0)
     msg2 = DialogueMessage(role=Role.FINANCE, content="Bye", timestamp=2.0)
 
     # State 1: 1 message
@@ -68,13 +68,12 @@ def test_renderer_console_loop() -> None:
     renderer = SimulationRenderer(state_getter)
     renderer.headless = True
 
-    with patch("src.ui.renderer.logger.info") as mock_log:
-        with patch("time.sleep"):  # Skip sleep
-            renderer.start()
+    with patch("src.ui.renderer.logger.info") as mock_log, patch("time.sleep"):  # Skip sleep
+        renderer.start()
 
-            # Verify logger.info was called with the right format
-            mock_log.assert_any_call(f"[{Role.NEW_EMPLOYEE}]: Hi")
-            mock_log.assert_any_call(f"[{Role.FINANCE}]: Bye")
+        # Verify logger.info was called with the right format
+        mock_log.assert_any_call(f"[{Role.NEW_EMPLOYEE}]: Hello")
+        mock_log.assert_any_call(f"[{Role.FINANCE}]: Bye")
 
 
 @patch("src.ui.renderer.pyxel")

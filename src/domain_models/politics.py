@@ -2,6 +2,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.core.config import get_settings
 from src.core.constants import (
     ERR_MATRIX_SHAPE,
     ERR_MATRIX_STOCHASTICITY,
@@ -13,7 +14,11 @@ from src.core.constants import (
 class Stakeholder(BaseModel):
     """Represents a key stakeholder in the Nemawashi process."""
 
-    name: str = Field(..., min_length=1, max_length=100)
+    name: str = Field(
+        ...,
+        min_length=get_settings().validation.min_title_length,
+        max_length=get_settings().validation.max_title_length,
+    )
     initial_support: float = Field(..., ge=0.0, le=1.0)
     stubbornness: float = Field(..., ge=0.0, le=1.0)
 
@@ -33,7 +38,9 @@ class SparseMatrixEntry(BaseModel):
 class InfluenceNetwork(BaseModel):
     """Represents the influence graph between stakeholders."""
 
-    stakeholders: list[Stakeholder] = Field(..., min_length=1)
+    stakeholders: list[Stakeholder] = Field(
+        ..., min_length=get_settings().validation.min_list_length
+    )
     # Use Union for matrix: can be dense (list of lists) or sparse (list of entries)
     matrix: list[list[float]] | list[SparseMatrixEntry]
 

@@ -141,11 +141,21 @@ class RingiSho(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(..., min_length=1, description="Title of the proposal")
-    executive_summary: str = Field(..., min_length=10, description="Executive summary")
+    title: str = Field(
+        ...,
+        min_length=get_settings().validation.min_title_length,
+        description="Title of the proposal",
+    )
+    executive_summary: str = Field(
+        ...,
+        min_length=get_settings().validation.min_content_length,
+        description="Executive summary",
+    )
     financial_projection: Financials = Field(..., description="Financial projections")
     risks: list[str] = Field(
-        default_factory=list, min_length=1, description="List of identified risks"
+        default_factory=list,
+        min_length=get_settings().validation.min_list_length,
+        description="List of identified risks",
     )
     approval_status: str = Field(
         "Draft", pattern="^(Draft|Approved|Rejected)$", description="Approval status"

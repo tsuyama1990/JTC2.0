@@ -10,7 +10,7 @@ def test_identify_key_influencer_uat() -> None:
     # Setup state
     s1 = Stakeholder(name="Finance Manager", initial_support=0.2, stubbornness=0.9)
     s2 = Stakeholder(name="Sales Manager", initial_support=0.8, stubbornness=0.5)
-    s3 = Stakeholder(name="CEO", initial_support=0.5, stubbornness=0.2)
+    s3 = Stakeholder(name="CEO_User", initial_support=0.5, stubbornness=0.2)
 
     # Finance listens only to self (0.9) and CEO (0.1)
     # Sales listens to Finance (0.5) and self (0.5)
@@ -35,7 +35,7 @@ def test_nomikai_effect_uat() -> None:
     """UAT-C04-02: Verify that simulating a social event changes the outcome."""
     # Setup: Finance hates it. Group consensus low.
     s1 = Stakeholder(name="Finance Manager", initial_support=0.1, stubbornness=0.9)
-    s2 = Stakeholder(name="CEO", initial_support=0.4, stubbornness=0.2)
+    s2 = Stakeholder(name="CEO_User", initial_support=0.4, stubbornness=0.2)
 
     # Finance listens to self 0.9, CEO 0.1
     # CEO listens to Finance 0.8, self 0.2

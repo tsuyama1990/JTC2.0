@@ -53,12 +53,17 @@ class Feature(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., description=DESC_FEATURE_NAME, min_length=3, max_length=50)
+    name: str = Field(
+        ...,
+        description=DESC_FEATURE_NAME,
+        min_length=get_settings().validation.min_title_length,
+        max_length=get_settings().validation.max_title_length,
+    )
     description: str = Field(
         ...,
         description=DESC_FEATURE_DESC,
         min_length=get_settings().validation.min_content_length,
-        max_length=200,
+        max_length=get_settings().validation.max_content_length,
     )
     priority: Priority = Field(..., description=DESC_FEATURE_PRIORITY)
 
@@ -89,7 +94,7 @@ class MVP(BaseModel):
         ...,
         description=DESC_MVP_SUCCESS_CRITERIA,
         min_length=get_settings().validation.min_content_length,
-        max_length=500,
+        max_length=get_settings().validation.max_content_length,
     )
 
     # New fields for v0.dev integration
@@ -120,9 +125,16 @@ class MVPSpec(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    app_name: str = Field(..., description="Name of the application", min_length=1, max_length=50)
+    app_name: str = Field(
+        ...,
+        description="Name of the application",
+        min_length=get_settings().validation.min_title_length,
+        max_length=get_settings().validation.max_title_length,
+    )
     core_feature: str = Field(
-        ..., description="The single core feature to implement", min_length=10
+        ...,
+        description="The single core feature to implement",
+        min_length=get_settings().validation.min_content_length,
     )
     ui_style: str = Field(default="Modern, Clean, Corporate", description="Visual style of the UI")
     v0_prompt: str | None = Field(
@@ -132,7 +144,7 @@ class MVPSpec(BaseModel):
     components: list[str] = Field(
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
         description="Key UI components to include",
-        max_length=20,  # Security: Limit max components to prevent memory exhaustion
+        max_length=get_settings().validation.max_list_length,
     )
 
     @field_validator("components")

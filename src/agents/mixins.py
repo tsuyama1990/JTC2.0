@@ -2,6 +2,8 @@ import logging
 import time
 from typing import Any
 
+from src.core.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -10,7 +12,7 @@ class RateLimitMixin:
 
     def __init__(self) -> None:
         self._last_request_time: float = 0.0
-        self._min_request_interval: float = 1.0
+        self._min_request_interval: float = get_settings().rag_rate_limit_interval
 
     def _rate_limit_wait(self) -> None:
         """Enforce rate limiting for API calls."""

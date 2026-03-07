@@ -86,7 +86,7 @@ def test_global_state_phase_enum() -> None:
     """Test GlobalState uses Phase enum."""
     # Note: VERIFICATION phase requires a target_persona
     persona = Persona(
-        name="Test",
+        name="Tester",
         occupation="Tester",
         demographics="30, Testland, Test City, 12345",
         goals=["Test"],

@@ -12,7 +12,7 @@ from src.domain_models.politics import InfluenceNetwork, Stakeholder
 def test_valid_network() -> None:
     """Test creating a valid influence network."""
     s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.2)
-    s2 = Stakeholder(name="Bob", initial_support=0.8, stubbornness=0.1)
+    s2 = Stakeholder(name="Bob12", initial_support=0.8, stubbornness=0.1)
 
     matrix = [[1.0, 0.0], [0.5, 0.5]]
 
@@ -34,7 +34,7 @@ def test_invalid_matrix_values() -> None:
 def test_matrix_dimension_mismatch() -> None:
     """Test that matrix dimensions match stakeholder count."""
     s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.2)
-    s2 = Stakeholder(name="Bob", initial_support=0.8, stubbornness=0.1)
+    s2 = Stakeholder(name="Bob12", initial_support=0.8, stubbornness=0.1)
 
     # 1x1 matrix for 2 stakeholders
     matrix = [[1.0]]
@@ -47,7 +47,7 @@ def test_matrix_dimension_mismatch() -> None:
 def test_matrix_shape_mismatch() -> None:
     """Test that matrix must be square."""
     s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.2)
-    s2 = Stakeholder(name="Bob", initial_support=0.8, stubbornness=0.1)
+    s2 = Stakeholder(name="Bob12", initial_support=0.8, stubbornness=0.1)
 
     # 2x1 matrix
     matrix = [[1.0], [0.5]]

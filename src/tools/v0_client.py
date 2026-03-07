@@ -77,11 +77,11 @@ class V0Client:
         # Structure payload for v0.dev (assuming OpenAI-compatible chat format)
         # Prompt is user content in JSON body, requests handles escaping, but strict hygiene is good.
         payload = {
-            "model": "v0-preview",  # or similar model name
+            "model": self.settings.v0.model_name,
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a UI generator. Generate a React component using Tailwind CSS.",
+                    "content": self.settings.v0.system_prompt,
                 },
                 {"role": "user", "content": prompt},
             ],

@@ -11,18 +11,12 @@ from src.domain_models.validators import StateValidator
 
 __all__ = ["GlobalState", "Phase"]
 
-from .analysis import AlternativeAnalysis
-from .canvas import ValuePropositionCanvas
-from .experiment import ExperimentPlan
-from .journey import CustomerJourney, MentalModelDiagram
 from .lean_canvas import LeanCanvas
 from .metrics import Metrics, RingiSho
 from .mvp import MVP, MVPSpec
 from .persona import Persona
 from .politics import InfluenceNetwork
-from .prompt import AgentPromptSpec
 from .simulation import AgentState, DialogueMessage
-from .sitemap import SitemapAndStory
 from .transcript import Transcript
 
 
@@ -40,19 +34,10 @@ class GlobalState(BaseModel):
 
     selected_idea: LeanCanvas | None = None
     messages: deque[str] = Field(
-        default_factory=lambda: deque(
-            maxlen=getattr(get_settings().simulation, "max_messages", 1000)
-        )
+        default_factory=lambda: deque(maxlen=get_settings().simulation.max_messages)
     )
 
     target_persona: Persona | None = None
-    value_proposition_canvas: ValuePropositionCanvas | None = None
-    mental_model_diagram: MentalModelDiagram | None = None
-    alternative_analysis: AlternativeAnalysis | None = None
-    customer_journey: CustomerJourney | None = None
-    sitemap_and_story: SitemapAndStory | None = None
-    experiment_plan: ExperimentPlan | None = None
-    agent_prompt_spec: AgentPromptSpec | None = None
 
     mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
@@ -112,7 +97,7 @@ class GlobalState(BaseModel):
     @classmethod
     def validate_agent_states(cls, v: dict[Role, AgentState]) -> dict[Role, AgentState]:
         """Ensure agent_states keys match the AgentState role."""
-        limit = getattr(get_settings().simulation, "max_agents", 50)
+        limit = get_settings().simulation.max_agents
         if len(v) > limit:
             msg = f"Too many agent states ({len(v)}). Exceeds memory safety limits ({limit})."
             raise ValueError(msg)
@@ -145,7 +130,7 @@ class GlobalState(BaseModel):
     @model_validator(mode="after")
     def auto_validate_state(self) -> Self:
         """Lightweight automatic validation hooks on state change."""
-        limit = getattr(get_settings().simulation, "max_messages", 1000)
+        limit = get_settings().simulation.max_messages
         if len(self.messages) > limit:
             msg = f"Messages list ({len(self.messages)}) exceeded safety limit ({limit})."
             raise ValueError(msg)
