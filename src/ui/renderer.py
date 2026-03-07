@@ -65,9 +65,14 @@ class SimulationRenderer:
 
     def _console_loop(self) -> None:
         """Fallback loop for headless environments."""
+        import threading
+
         last_count = 0
         timeout_seconds = 300  # Configurable timeout to prevent infinite loops
         start_time = time.time()
+
+        # Thread lock to prevent race conditions during UI draws
+        _ui_lock = threading.Lock()
 
         try:
             while True:
@@ -77,11 +82,13 @@ class SimulationRenderer:
                     break
 
                 try:
-                    state = self.state_getter()
-                    current_count = len(state.debate_history)
+                    with _ui_lock:
+                        state = self.state_getter()
+                        history_list = list(state.debate_history)
+
+                    current_count = len(history_list)
 
                     if current_count > last_count:
-                        history_list = list(state.debate_history)
                         new_msgs = history_list[last_count:]
                         for msg in new_msgs:
                             # Using print here as it acts as the primary UI in headless mode

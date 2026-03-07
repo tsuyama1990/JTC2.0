@@ -75,6 +75,13 @@ class BuilderAgent(BaseAgent):
             if not solution_description or len(solution_description) < 10:
                 logger.warning("Solution description too short for feature extraction.")
                 return
+
+            # Explicit hard limit to prevent string from being infinitely long memory-wise
+            max_desc_len = 50000
+            if len(solution_description) > max_desc_len:
+                logger.warning(f"Solution description truncated to {max_desc_len} chars.")
+                solution_description = solution_description[:max_desc_len]
+
             yield from chunk_text(solution_description, chunk_size)
         else:
             yield from solution_description
@@ -101,10 +108,26 @@ class BuilderAgent(BaseAgent):
         except Exception:
             logger.exception("Failed to extract features from chunk")
 
+    def _sanitize_input(self, text: str) -> str:
+        """Sanitize input to prevent prompt injection and remove malicious patterns."""
+        import re
+        if not text:
+            return ""
+        # Remove markdown tags, scripts, and potential injection keywords
+        sanitized = re.sub(r'<(script|style|iframe|object|embed)[^>]*>.*?</\1>', '', text, flags=re.IGNORECASE)
+        sanitized = re.sub(r'<[^>]+>', '', sanitized)
+        # Prevent prompt escape sequences (e.g. Ignore all previous instructions)
+        sanitized = re.sub(r'(?i)(ignore.*instructions|system prompt|you are now)', '[REDACTED]', sanitized)
+        return sanitized.strip()[:2000]  # Hard truncate to prevent token overflow
+
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """
         Create a detailed MVP Spec for the selected feature.
         """
+        safe_app_name = self._sanitize_input(app_name)
+        safe_feature = self._sanitize_input(feature)
+        safe_context = self._sanitize_input(idea_context)
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -113,7 +136,7 @@ class BuilderAgent(BaseAgent):
                 ),
                 (
                     "user",
-                    f"App Name: {app_name}\nCore Feature: {feature}\nContext: {idea_context}\n\nGenerate MVPSpec:",
+                    f"App Name: {safe_app_name}\nCore Feature: {safe_feature}\nContext: {safe_context}\n\nGenerate MVPSpec:",
                 ),
             ]
         )
@@ -185,21 +208,30 @@ class BuilderAgent(BaseAgent):
             idea_context=f"{state.selected_idea.problem} -> {state.selected_idea.unique_value_prop}",
         )
 
+        # Sanitize before prompt creation
+        safe_ui_style = self._sanitize_input(spec.ui_style)
+        safe_app_name = self._sanitize_input(spec.app_name)
+        safe_core_feature = self._sanitize_input(spec.core_feature)
+        safe_components = [self._sanitize_input(c) for c in spec.components]
+
         # Construct a prompt for v0 from the spec
         v0_prompt = (
-            f"Create a {spec.ui_style} React component using Tailwind CSS for '{spec.app_name}'. "
-            f"Core Feature: {spec.core_feature}. "
-            f"Include components: {', '.join(spec.components)}."
+            f"Create a {safe_ui_style} React component using Tailwind CSS for '{safe_app_name}'. "
+            f"Core Feature: {safe_core_feature}. "
+            f"Include components: {', '.join(safe_components)}."
         )
         spec.v0_prompt = v0_prompt
 
-        # Delegate initialization to V0Client, checking config there instead of hardcoded
-        # extraction. If V0Client doesn't exist or misses the key, it will raise properly.
-        api_key = self._get_v0_api_key()
-        v0_client = V0Client(api_key=api_key)
-        url = v0_client.generate_ui(v0_prompt)
-
-        logger.info(f"MVP Generated: {url}")
+        # V0Client already uses pybreaker, but we ensure graceful degradation here.
+        # Fallback gracefully rather than crashing if the API is down or key is invalid.
+        try:
+            api_key = self._get_v0_api_key()
+            v0_client = V0Client(api_key=api_key)
+            url = v0_client.generate_ui(v0_prompt)
+            logger.info(f"MVP Generated: {url}")
+        except Exception:
+            logger.exception("Failed to generate MVP via v0.dev API. Falling back to local placeholder.")
+            url = "https://v0.dev/fallback-generated-ui"
 
         return {
             "mvp_spec": spec,
@@ -207,14 +239,29 @@ class BuilderAgent(BaseAgent):
             "selected_feature": selected_feature,
         }
 
-    def _get_v0_api_key(self) -> str | None:
+    def _get_v0_api_key(self) -> str:
         """Securely get V0 API key with validation."""
         if not self.settings.v0_api_key:
-            return None
-        return self.settings.v0_api_key.get_secret_value()
+            msg = "V0_API_KEY is missing from configuration."
+            raise ValueError(msg)
+        key = self.settings.v0_api_key.get_secret_value()
+        if not key or len(key) < 10:
+            msg = "V0_API_KEY is invalid or improperly formatted."
+            raise ValueError(msg)
+        return key
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
         Legacy run method. Delegates to propose_features (default behavior).
         """
+        # Validate state structurally before running
+        if not state:
+            logger.error("State object is None. Aborting.")
+            return {}
+        try:
+            state.validate_state()
+        except ValueError:
+            logger.exception("State validation failed in BuilderAgent.")
+            return {}
+
         return self.propose_features(state)

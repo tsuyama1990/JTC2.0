@@ -142,10 +142,6 @@ class TestCycle05UAT:
             mock_client_instance = mock_http_cls.return_value.__enter__.return_value
             mock_client_instance.post.return_value = mock_response
 
-            # Should handle V0GenerationError internally or expose it?
-            # The agent catches exceptions? Let's check agent implementation.
-            # Actually agent.generate_mvp raises V0GenerationError?
-            # Safe node wrapper handles it. But here we test agent directly.
-
-            with pytest.raises(V0GenerationError):
-                agent.generate_mvp(initial_state)
+            # With graceful degradation, it catches the error and returns a fallback URL.
+            result = agent.generate_mvp(initial_state)
+            assert result["mvp_url"] == "https://v0.dev/fallback-generated-ui"

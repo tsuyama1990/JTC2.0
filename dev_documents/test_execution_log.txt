@@ -154,4 +154,4 @@ tests/unit/test_v0_client.py::TestV0Client::test_generate_ui_success PASSED [ 98
 tests/unit/test_v0_client.py::TestV0Client::test_generate_ui_network_error PASSED [ 99%]
 tests/unit/test_v0_client.py::TestV0Client::test_missing_api_key PASSED  [100%]
 
-============================= 146 passed in 13.69s =============================
+============================= 146 passed in 14.04s =============================

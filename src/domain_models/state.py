@@ -137,7 +137,15 @@ class GlobalState(BaseModel):
         msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
         raise TypeError(msg)
 
+    @model_validator(mode="after")
+    def auto_validate_state(self) -> Self:
+        """Lightweight automatic validation hooks on state change."""
+        if len(self.messages) > 1000:
+            msg = "Messages list exceeded safety limit."
+            raise ValueError(msg)
+        return self
+
     def validate_state(self) -> Self:
-        """Apply all state validators manually instead of aggressively on every change."""
+        """Apply full business phase state validation manually (to avoid heavy loop lags)."""
         StateValidator.validate_phase_requirements(self)
         return self

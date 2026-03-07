@@ -1,5 +1,6 @@
 import functools
 import logging
+import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -15,19 +16,33 @@ from src.domain_models.validators import StateValidator
 logger = logging.getLogger(__name__)
 
 
+
+
 def safe_node(
     error_msg: str = "Error in graph node",
 ) -> Callable[[Callable[..., Any]], Callable[..., dict[str, Any]]]:
-    """Decorator to wrap graph nodes with consistent error handling."""
+    """Decorator to wrap graph nodes with consistent structured error handling."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., dict[str, Any]]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             try:
                 return func(*args, **kwargs)  # type: ignore[no-any-return]
-            except Exception:
-                logger.exception(error_msg)
-                return {}
+            except Exception as e:
+                # Generate a correlation ID for better tracing
+                correlation_id = str(uuid.uuid4())
+                logger.error(
+                    f"{error_msg} | Correlation ID: {correlation_id} | Exception Type: {type(e).__name__} | Error: {e}",
+                    exc_info=True
+                )
+
+                # Do not swallow V0 API key exceptions entirely if it's required to halt
+                from src.core.exceptions import V0GenerationError
+                if isinstance(e, V0GenerationError):
+                    raise
+
+                # Return a safe structured payload instead of just silent empty dicts
+                return {"_node_error": f"{error_msg} (ID: {correlation_id})"}
 
         return wrapper
 
@@ -66,11 +81,25 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     transcripts_list = list(state.transcripts)
     total = len(transcripts_list)
 
+    import re
+
+    def sanitize_transcript(text: str) -> str:
+        if not text:
+            return ""
+        # Strip potential HTML/script injections
+        sanitized = re.sub(r'<(script|style|iframe|object|embed)[^>]*>.*?</\1>', '', text, flags=re.IGNORECASE)
+        sanitized = re.sub(r'<[^>]+>', '', sanitized)
+        # Prevent prompt injection escapes in RAG retrieval
+        sanitized = re.sub(r'(?i)(ignore.*instructions|system prompt|you are now)', '[REDACTED]', sanitized)
+        return sanitized.strip()
+
     for i in range(0, total, chunk_size):
         chunk = transcripts_list[i : i + chunk_size]
         logger.info(f"Ingesting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
 
         for transcript in chunk:
+            # Sanitize content before passing to DB to avoid injection
+            transcript.content = sanitize_transcript(transcript.content)
             rag.ingest_transcript(transcript)
 
     # Persist index only once after all chunks are processed for optimal I/O
@@ -101,9 +130,25 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     """
     logger.info("Starting Simulation Round (Turn-based Battle)")
 
+    try:
+        state.validate_state()
+    except ValueError as e:
+        logger.exception("State validation failed before simulation")
+        return {"_node_error": f"Invalid state: {e}"}
+
     simulation_app = create_simulation_graph()
 
-    final_state = simulation_app.invoke(state)
+    import concurrent.futures
+
+    # Run the graph invoke with a 300 second hard timeout watchdog
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(simulation_app.invoke, state)
+        try:
+            final_state = future.result(timeout=300)
+        except concurrent.futures.TimeoutError:
+            logger.exception("Simulation execution exceeded 300 seconds limit. Terminating.")
+            return {"_node_error": "Simulation timeout exceeded."}
+
     if isinstance(final_state, dict):
         return {"debate_history": final_state.get("debate_history", [])}
     if hasattr(final_state, "debate_history"):
@@ -124,6 +169,12 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
     if not state.influence_network:
         logger.warning("No influence network found. Skipping Nemawashi analysis.")
         return {}
+
+    # Network Size Hard Limit / Optimization check
+    MAX_NETWORK_SIZE = 50
+    if len(state.influence_network.stakeholders) > MAX_NETWORK_SIZE:
+        logger.error(f"Influence network exceeds maximum supported size ({MAX_NETWORK_SIZE}). Halting Nemawashi.")
+        return {"_node_error": "Influence network too large for bounded computation"}
 
     engine = NemawashiEngine()
 
@@ -229,6 +280,15 @@ def governance_node(state: GlobalState) -> dict[str, Any]:
 
     agent = AgentFactory.get_governance_agent()
     updates = agent.run(state)
+
+    # Validate output schema completeness
+    if updates.get("ringi_sho"):
+        try:
+            # Force explicit re-validation of output schema
+            updates["ringi_sho"].model_validate(updates["ringi_sho"].model_dump())
+        except Exception:
+            logger.exception("Governance generated malformed RingiSho")
+            return {"_node_error": "Governance validation failed", "phase": Phase.GOVERNANCE}
 
     updates["phase"] = Phase.GOVERNANCE
     return updates
