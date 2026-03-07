@@ -7,7 +7,7 @@
 
 ## 🚀 Key Features
 
-*   **Zero-Hallucination "Chain of Thought"**: Forces AI agents to proceed logically step-by-step through rigorous Pydantic schemas (Value Proposition Canvas, Mental Model Diagram, Alternative Analysis, etc.), ensuring no context is lost or imagined.
+*   **Zero-Hallucination "Chain of Thought"**: Forces AI agents to proceed logically step-by-step through rigorous Pydantic schemas (Value Proposition Canvas, Mental Model Diagram, Alternative Analysis, Customer Journey, Sitemap and Story, Experiment Plan, Agent Prompt Spec), ensuring no context is lost or imagined.
 *   **Multi-Agent "Gekizume" Simulation**: Subjects your business idea to the harsh reality of corporate politics and market viability via the JTC Board (Finance, Sales), Virtual Customers, and the 3H Review (Hacker, Hipster, Hustler).
 *   **Universal Agent Prompt Specification**: Abandons proprietary UI API lock-ins. Generates a comprehensive `AgentPromptSpec.md` and `EXPERIMENT_PLAN.md` that can be fed directly into Cursor, Windsurf, or Google Antigravity.
 *   **De-identified Pyxel UI & Hanko "Approval" Effect**: Maintains psychological safety using a retro 16-color RPG interface. Rewards progression through rigorous validation gates with a dynamic, digital Japanese "Hanko" approval stamp.

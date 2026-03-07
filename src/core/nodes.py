@@ -1,5 +1,6 @@
 import functools
 import logging
+import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -18,16 +19,29 @@ logger = logging.getLogger(__name__)
 def safe_node(
     error_msg: str = "Error in graph node",
 ) -> Callable[[Callable[..., Any]], Callable[..., dict[str, Any]]]:
-    """Decorator to wrap graph nodes with consistent error handling."""
+    """Decorator to wrap graph nodes with consistent structured error handling."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., dict[str, Any]]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             try:
                 return func(*args, **kwargs)  # type: ignore[no-any-return]
-            except Exception:
-                logger.exception(error_msg)
-                return {}
+            except Exception as e:
+                # Generate a correlation ID for better tracing
+                correlation_id = str(uuid.uuid4())
+                logger.error(
+                    f"{error_msg} | Correlation ID: {correlation_id} | Exception Type: {type(e).__name__} | Error: {e}",
+                    exc_info=True,
+                )
+
+                # Do not swallow V0 API key exceptions entirely if it's required to halt
+                from src.core.exceptions import V0GenerationError
+
+                if isinstance(e, V0GenerationError):
+                    raise
+
+                # Return a safe structured payload instead of just silent empty dicts
+                return {"_node_error": f"{error_msg} (ID: {correlation_id})"}
 
         return wrapper
 
@@ -61,19 +75,49 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     rag = RAG(persist_dir=state.rag_index_path)
 
-    # Process transcripts in chunks to manage memory
-    chunk_size = 10
-    total = len(state.transcripts)
+    import itertools
+    import re
 
-    for i in range(0, total, chunk_size):
-        chunk = state.transcripts[i : i + chunk_size]
-        logger.info(f"Ingesting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
+    import bleach
+
+    def sanitize_transcript(text: str) -> str:
+        if not text:
+            return ""
+        # Use bleach to completely strip HTML tags (whitelist is empty)
+        sanitized = bleach.clean(text, tags=[], attributes={}, strip=True)
+        # Prevent prompt injection escapes in RAG retrieval
+        sanitized = re.sub(
+            r"(?i)(ignore.*instructions|system prompt|you are now)", "[REDACTED]", sanitized
+        )
+        return sanitized.strip()
+
+    from collections.abc import Iterable, Iterator
+    from typing import Any
+
+    def chunked_iterable(iterable: Iterable[Any], size: int) -> Iterator[tuple[Any, ...]]:
+        it = iter(iterable)
+        while True:
+            chunk = tuple(itertools.islice(it, size))
+            if not chunk:
+                break
+            yield chunk
+
+    # Process transcripts in chunks using an iterator pattern to prevent OOM
+    chunk_size = 10
+    batch_num = 1
+    for chunk in chunked_iterable(state.transcripts, chunk_size):
+        logger.info(f"Ingesting batch {batch_num}: {len(chunk)} transcripts")
 
         for transcript in chunk:
+            # Sanitize content before passing to DB to avoid injection
+            transcript.content = sanitize_transcript(transcript.content)
             rag.ingest_transcript(transcript)
 
-        # Persist index after each chunk to free up ingestion buffers
-        rag.persist_index()
+        batch_num += 1
+
+    # Persist index only once after all chunks are processed for optimal I/O
+    rag.persist_index()
+    logger.info("RAG index persisted successfully.")
 
     return {}
 
@@ -99,9 +143,31 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     """
     logger.info("Starting Simulation Round (Turn-based Battle)")
 
+    try:
+        state.validate_state()
+    except ValueError as e:
+        logger.exception("State validation failed before simulation")
+        return {"_node_error": f"Invalid state: {e}"}
+
     simulation_app = create_simulation_graph()
 
-    final_state = simulation_app.invoke(state)
+    import concurrent.futures
+
+    from src.core.config import get_settings
+
+    timeout_sec = getattr(get_settings().simulation, "execution_timeout_sec", 300)
+
+    # Run the graph invoke with a configurable timeout watchdog
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(simulation_app.invoke, state)
+        try:
+            final_state = future.result(timeout=timeout_sec)
+        except concurrent.futures.TimeoutError:
+            logger.exception(
+                f"Simulation execution exceeded {timeout_sec} seconds limit. Terminating."
+            )
+            return {"_node_error": "Simulation timeout exceeded."}
+
     if isinstance(final_state, dict):
         return {"debate_history": final_state.get("debate_history", [])}
     if hasattr(final_state, "debate_history"):
@@ -123,13 +189,24 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
         logger.warning("No influence network found. Skipping Nemawashi analysis.")
         return {}
 
+    from src.core.config import get_settings
+
+    # Network Size Hard Limit / Optimization check
+    max_network_size = getattr(get_settings().simulation, "max_network_size", 50)
+    if len(state.influence_network.stakeholders) > max_network_size:
+        logger.error(
+            f"Influence network exceeds maximum supported size ({max_network_size}). Halting Nemawashi."
+        )
+        return {"_node_error": "Influence network too large for bounded computation"}
+
     engine = NemawashiEngine()
 
     # Calculate new consensus (opinions)
     new_opinions = engine.calculate_consensus(state.influence_network)
 
-    # Update the influence network in state
-    updated_network = state.influence_network.model_copy(deep=True)
+    # Update the influence network in state using shallow copy for better performance on large networks
+    # Deep copy is only needed if we are mutating nested objects, but we only mutate initial_support here.
+    updated_network = state.influence_network.model_copy()
 
     for i, stakeholder in enumerate(updated_network.stakeholders):
         if i < len(new_opinions):
@@ -227,6 +304,15 @@ def governance_node(state: GlobalState) -> dict[str, Any]:
 
     agent = AgentFactory.get_governance_agent()
     updates = agent.run(state)
+
+    # Validate output schema completeness
+    if updates.get("ringi_sho"):
+        try:
+            # Force explicit re-validation of output schema
+            updates["ringi_sho"].model_validate(updates["ringi_sho"].model_dump())
+        except Exception:
+            logger.exception("Governance generated malformed RingiSho")
+            return {"_node_error": "Governance validation failed", "phase": Phase.GOVERNANCE}
 
     updates["phase"] = Phase.GOVERNANCE
     return updates

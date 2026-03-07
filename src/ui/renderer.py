@@ -65,33 +65,54 @@ class SimulationRenderer:
 
     def _console_loop(self) -> None:
         """Fallback loop for headless environments."""
+        import threading
+
         last_count = 0
-        while True:
-            try:
-                state = self.state_getter()
-                current_count = len(state.debate_history)
+        timeout_seconds = getattr(self.settings, "headless_timeout", 300)
+        start_time = time.time()
 
-                if current_count > last_count:
-                    new_msgs = state.debate_history[last_count:]
-                    for msg in new_msgs:
-                        # Using print here as it acts as the primary UI in headless mode
-                        print(f"[{msg.role}]: {msg.content}")  # noqa: T201
-                    last_count = current_count
+        # Thread lock to prevent race conditions during UI draws
+        _ui_lock = threading.Lock()
 
-                # Simple exit condition for console mode
-                if not state.simulation_active and current_count > 0:
+        try:
+            while True:
+                # Add overall timeout check
+                if time.time() - start_time > timeout_seconds:
+                    logger.warning(f"Console loop exceeded {timeout_seconds}s timeout. Exiting.")
                     break
 
-                # Safety break
-                if current_count >= self.settings.max_turns:
-                    break
+                try:
+                    with _ui_lock:
+                        state = self.state_getter()
+                        history_list = list(state.debate_history)
 
-                time.sleep(self.settings.console_sleep)
-            except KeyboardInterrupt:
-                break
-            except Exception:
-                logger.exception("Console loop error")
-                break
+                    current_count = len(history_list)
+
+                    if current_count > last_count:
+                        new_msgs = history_list[last_count:]
+                        for msg in new_msgs:
+                            logger.info(f"[{msg.role}]: {msg.content}")
+                        last_count = current_count
+
+                    # Simple exit condition for console mode
+                    if not state.simulation_active and current_count > 0:
+                        break
+
+                    # Safety break
+                    if current_count >= self.settings.max_turns:
+                        break
+
+                    time.sleep(self.settings.console_sleep)
+                except KeyboardInterrupt:
+                    logger.info("Console loop interrupted by user.")
+                    break
+                except Exception:
+                    logger.exception("Console loop error")
+                    break
+        finally:
+            logger.info("Exiting console loop and cleaning up resources.")
+            self._cached_lines.clear()
+            self._last_msg_content = None
 
     def update(self) -> None:
         """Update logic (poll inputs)."""
@@ -99,27 +120,39 @@ class SimulationRenderer:
             pyxel.quit()
 
     def draw(self) -> None:
-        """Render the frame."""
-        pyxel.cls(self.bg_color)
-        state = self.state_getter()
-
-        self._draw_agents()
-        self._draw_dialogue(state)
+        """Render the frame with error boundary."""
+        try:
+            pyxel.cls(self.bg_color)
+            state = self.state_getter()
+            self._draw_agents()
+            self._draw_dialogue(state)
+        except Exception:
+            # Fallback rendering if state retrieval or draw fails
+            pyxel.cls(0)
+            pyxel.text(10, 10, "UI Render Error. See logs.", 8)
+            logger.exception("Render frame error")
 
     def _draw_agents(self) -> None:
-        """Draw rectangles representing agents."""
+        """Draw rectangles representing agents with bounds checking."""
         for _role_name, cfg in self.settings.agents.items():
-            pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
-            pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
+            # Validate bounds before rendering
+            if cfg.x >= 0 and cfg.y >= 0 and cfg.w > 0 and cfg.h > 0:
+                pyxel.rect(cfg.x, cfg.y, cfg.w, cfg.h, cfg.color)
+                pyxel.text(cfg.text_x, cfg.text_y, cfg.label, cfg.color)
 
     def _get_wrapped_lines(self, msg: DialogueMessage) -> list[str]:
-        """Wrap text for display, with caching."""
+        """Wrap text for display using word boundaries."""
+        import textwrap
+
         if msg.content == self._last_msg_content:
             return self._cached_lines
 
         self._last_msg_content = msg.content
         chars = self.settings.chars_per_line
-        self._cached_lines = [msg.content[i : i + chars] for i in range(0, len(msg.content), chars)]
+
+        # Word wrap using standard library for better readability
+        wrapped = textwrap.wrap(msg.content, width=chars)
+        self._cached_lines = wrapped
         return self._cached_lines
 
     def _draw_dialogue(self, state: GlobalState) -> None:

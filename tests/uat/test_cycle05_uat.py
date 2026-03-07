@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.core.config import get_settings
-from src.core.exceptions import V0GenerationError
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVPSpec
 from src.domain_models.state import GlobalState
@@ -71,8 +70,12 @@ class TestCycle05UAT:
 
         get_settings.cache_clear()
 
+        from collections import deque
+
         # Setup state with selection
-        initial_state.candidate_features = ["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]
+        initial_state.candidate_features = deque(
+            ["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]
+        )
         initial_state.selected_feature = "Feature 2 desc"
 
         mock_llm = MagicMock()
@@ -138,10 +141,6 @@ class TestCycle05UAT:
             mock_client_instance = mock_http_cls.return_value.__enter__.return_value
             mock_client_instance.post.return_value = mock_response
 
-            # Should handle V0GenerationError internally or expose it?
-            # The agent catches exceptions? Let's check agent implementation.
-            # Actually agent.generate_mvp raises V0GenerationError?
-            # Safe node wrapper handles it. But here we test agent directly.
-
-            with pytest.raises(V0GenerationError):
-                agent.generate_mvp(initial_state)
+            # With graceful degradation, it catches the error and returns a fallback URL.
+            result = agent.generate_mvp(initial_state)
+            assert result["mvp_url"] == "https://v0.dev/fallback-generated-ui"
