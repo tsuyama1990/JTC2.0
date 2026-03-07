@@ -36,16 +36,18 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
         return self
 
     def __next__(self) -> LeanCanvas:
+        # Configurable hard limit if safety setting is not enough to stop unbounded exhaustion
         if self._count >= self._max_items:
-            # Safety break
-            raise StopIteration
+            self._consumed = True
+            msg = "LazyIdeaIterator reached configurable maximum items."
+            raise StopIteration(msg)
 
         try:
             item = next(self._iterator)
         except StopIteration:
+            self._consumed = True
             raise StopIteration from None
 
-        self._consumed = True
         self._count += 1
         return item
 

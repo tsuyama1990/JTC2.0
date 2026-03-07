@@ -78,8 +78,12 @@ class GlobalState(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def set_rag_index_path(cls, data: Any) -> Any:
-        if isinstance(data, dict) and not data.get("rag_index_path"):
-            data["rag_index_path"] = get_settings().rag_persist_dir
+        from pathlib import Path
+
+        if isinstance(data, dict):
+            path = data.get("rag_index_path") or get_settings().rag_persist_dir
+            Path(path).mkdir(parents=True, exist_ok=True)
+            data["rag_index_path"] = path
         return data
 
     agent_states: dict[Role, AgentState] = Field(
@@ -91,20 +95,22 @@ class GlobalState(BaseModel):
     @field_validator("transcripts")
     @classmethod
     def validate_unique_transcripts(cls, v: deque[Transcript]) -> deque[Transcript]:
-        """Ensure transcripts are unique by source."""
-        # Simple list validation logic, keeping it here for field proximity or move to validator?
-        # The audit asked to "Extract complex validation logic".
-        # This is relatively simple, but let's be strict.
-        sources = [t.source for t in v]
-        if len(sources) != len(set(sources)):
-            msg = "Duplicate transcript sources found."
-            raise ValueError(msg)
+        """Ensure transcripts are unique by source in O(n) complexity."""
+        seen_sources: set[str] = set()
+        for t in v:
+            if t.source in seen_sources:
+                msg = "Duplicate transcript sources found."
+                raise ValueError(msg)
+            seen_sources.add(t.source)
         return v
 
     @field_validator("agent_states")
     @classmethod
     def validate_agent_states(cls, v: dict[Role, AgentState]) -> dict[Role, AgentState]:
         """Ensure agent_states keys match the AgentState role."""
+        if len(v) > 50:
+            msg = "Too many agent states. Exceeds memory safety limits."
+            raise ValueError(msg)
         for role, state in v.items():
             if role != state.role:
                 msg = f"Key {role} does not match AgentState role {state.role}"
@@ -113,7 +119,7 @@ class GlobalState(BaseModel):
 
     @field_validator("generated_ideas", mode="before")
     @classmethod
-    def wrap_iterator(cls, v: object) -> object:
+    def wrap_iterator(cls, v: Any) -> Any:
         """
         Auto-wrap Iterator[LeanCanvas] into LazyIdeaIterator if needed.
         Strictly enforces that the input is a valid Iterator.
@@ -124,15 +130,14 @@ class GlobalState(BaseModel):
         if isinstance(v, LazyIdeaIterator):
             return v
 
-        if isinstance(v, Iterator):
+        if isinstance(v, Iterator) or hasattr(v, "__iter__"):
             return LazyIdeaIterator(v)
 
         # Reject invalid types explicitly
         msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
         raise TypeError(msg)
 
-    @model_validator(mode="after")
     def validate_state(self) -> Self:
-        """Apply all state validators."""
+        """Apply all state validators manually instead of aggressively on every change."""
         StateValidator.validate_phase_requirements(self)
         return self

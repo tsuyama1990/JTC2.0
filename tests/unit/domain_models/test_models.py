@@ -142,8 +142,8 @@ def test_global_state_lifecycle_validation() -> None:
 
     # Should allow VERIFICATION transition only with persona
     state.phase = Phase.VERIFICATION
-    with pytest.raises(ValidationError) as exc:
-        GlobalState.model_validate(state.model_dump())
+    with pytest.raises(ValueError) as exc:
+        state.validate_state()
     assert settings.errors.missing_persona in str(exc.value)
 
     # Correct transition
@@ -151,18 +151,18 @@ def test_global_state_lifecycle_validation() -> None:
         name="Alice",
         occupation="Manager",
         demographics="40, Female, London",
-        goals=["Efficiency"],
-        frustrations=["Slow tools"],
+        goals=["Efficiency", "More efficiency", "And even more"],
+        frustrations=["Slow tools", "And more", "And again"],
         bio="Experienced manager.",
     )
     state.phase = Phase.VERIFICATION
     # Should pass now
-    GlobalState.model_validate(state.model_dump())
+    state.validate_state()
 
     # Should allow SOLUTION transition only with MVP
     state.phase = Phase.SOLUTION
-    with pytest.raises(ValidationError) as exc:
-        GlobalState.model_validate(state.model_dump())
+    with pytest.raises(ValueError) as exc:
+        state.validate_state()
     assert settings.errors.missing_mvp in str(exc.value)
 
 

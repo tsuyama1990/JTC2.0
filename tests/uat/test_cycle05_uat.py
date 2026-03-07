@@ -74,7 +74,9 @@ class TestCycle05UAT:
         from collections import deque
 
         # Setup state with selection
-        initial_state.candidate_features = deque(["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"])
+        initial_state.candidate_features = deque(
+            ["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]
+        )
         initial_state.selected_feature = "Feature 2 desc"
 
         mock_llm = MagicMock()

@@ -73,8 +73,9 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
         for transcript in chunk:
             rag.ingest_transcript(transcript)
 
-        # Persist index after each chunk to free up ingestion buffers
-        rag.persist_index()
+    # Persist index only once after all chunks are processed for optimal I/O
+    rag.persist_index()
+    logger.info("RAG index persisted successfully.")
 
     return {}
 

@@ -48,41 +48,58 @@ class BuilderAgent(BaseAgent):
         # Use a set to stream deduplication as we process chunks
         unique_features: set[str] = set()
 
-        def content_stream() -> Iterator[str]:
-            if isinstance(solution_description, str):
-                if not solution_description or len(solution_description) < 10:
-                    logger.warning("Solution description too short for feature extraction.")
-                    return
-                # Sanitize/Truncate check on full string if given, but ideally we process stream
-                yield from chunk_text(solution_description, chunk_size)
-            else:
-                yield from solution_description
+        # Configure chunk limit from settings
+        max_chunks = 100  # Default fallback if setting missing
+        if hasattr(self.settings, "max_feature_chunks"):
+            max_chunks = self.settings.max_feature_chunks
 
-        for chunk in content_stream():
+        chunks_processed = 0
+        for chunk in self._get_content_stream(solution_description, chunk_size):
+            if chunks_processed >= max_chunks:
+                logger.warning(
+                    f"Feature extraction limit reached ({max_chunks} chunks). Truncating."
+                )
+                break
+
+            chunks_processed += 1
             if not chunk.strip():
                 continue
 
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    (
-                        "system",
-                        "You are a product manager. Extract distinct features from the solution description.",
-                    ),
-                    ("user", f"Solution Description: {chunk}\n\nList the features:"),
-                ]
-            )
-            chain = prompt | self.llm.with_structured_output(FeatureList)
-            try:
-                result = chain.invoke({})
-                if isinstance(result, FeatureList):
-                    # Yield unique features immediately
-                    for feature in result.features:
-                        if feature not in unique_features:
-                            unique_features.add(feature)
-                            yield feature
-            except Exception:
-                logger.exception("Failed to extract features from chunk")
-                continue
+            yield from self._extract_features_from_chunk(chunk, unique_features)
+
+    def _get_content_stream(
+        self, solution_description: str | Iterator[str], chunk_size: int
+    ) -> Iterator[str]:
+        """Helper to get content stream from string or iterator."""
+        if isinstance(solution_description, str):
+            if not solution_description or len(solution_description) < 10:
+                logger.warning("Solution description too short for feature extraction.")
+                return
+            yield from chunk_text(solution_description, chunk_size)
+        else:
+            yield from solution_description
+
+    def _extract_features_from_chunk(self, chunk: str, unique_features: set[str]) -> Iterator[str]:
+        """Process a single chunk to extract unique features using LLM."""
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a product manager. Extract distinct features from the solution description.",
+                ),
+                ("user", f"Solution Description: {chunk}\n\nList the features:"),
+            ]
+        )
+        chain = prompt | self.llm.with_structured_output(FeatureList)
+        try:
+            result = chain.invoke({})
+            if isinstance(result, FeatureList):
+                for feature in result.features:
+                    if feature not in unique_features:
+                        unique_features.add(feature)
+                        yield feature
+        except Exception:
+            logger.exception("Failed to extract features from chunk")
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """
@@ -127,6 +144,7 @@ class BuilderAgent(BaseAgent):
             feature_gen = self._extract_features(state.selected_idea.solution)
 
             from collections import deque
+
             candidate_features = deque(maxlen=MAX_FEATURES)
             try:
                 for _ in range(MAX_FEATURES):
@@ -175,13 +193,10 @@ class BuilderAgent(BaseAgent):
         )
         spec.v0_prompt = v0_prompt
 
-        # We rely on exceptions propagating to the caller (safe_node wrapper)
-        # Standardized Error Handling: Do not swallow critical failures here.
-        v0_client = V0Client(
-            api_key=self.settings.v0_api_key.get_secret_value()
-            if self.settings.v0_api_key
-            else None
-        )
+        # Delegate initialization to V0Client, checking config there instead of hardcoded
+        # extraction. If V0Client doesn't exist or misses the key, it will raise properly.
+        api_key = self._get_v0_api_key()
+        v0_client = V0Client(api_key=api_key)
         url = v0_client.generate_ui(v0_prompt)
 
         logger.info(f"MVP Generated: {url}")
@@ -191,6 +206,12 @@ class BuilderAgent(BaseAgent):
             "mvp_url": url,
             "selected_feature": selected_feature,
         }
+
+    def _get_v0_api_key(self) -> str | None:
+        """Securely get V0 API key with validation."""
+        if not self.settings.v0_api_key:
+            return None
+        return self.settings.v0_api_key.get_secret_value()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """

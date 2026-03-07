@@ -66,33 +66,47 @@ class SimulationRenderer:
     def _console_loop(self) -> None:
         """Fallback loop for headless environments."""
         last_count = 0
-        while True:
-            try:
-                state = self.state_getter()
-                current_count = len(state.debate_history)
+        timeout_seconds = 300  # Configurable timeout to prevent infinite loops
+        start_time = time.time()
 
-                if current_count > last_count:
-                    history_list = list(state.debate_history)
-                    new_msgs = history_list[last_count:]
-                    for msg in new_msgs:
-                        # Using print here as it acts as the primary UI in headless mode
-                        print(f"[{msg.role}]: {msg.content}")  # noqa: T201
-                    last_count = current_count
-
-                # Simple exit condition for console mode
-                if not state.simulation_active and current_count > 0:
+        try:
+            while True:
+                # Add overall timeout check
+                if time.time() - start_time > timeout_seconds:
+                    logger.warning(f"Console loop exceeded {timeout_seconds}s timeout. Exiting.")
                     break
 
-                # Safety break
-                if current_count >= self.settings.max_turns:
-                    break
+                try:
+                    state = self.state_getter()
+                    current_count = len(state.debate_history)
 
-                time.sleep(self.settings.console_sleep)
-            except KeyboardInterrupt:
-                break
-            except Exception:
-                logger.exception("Console loop error")
-                break
+                    if current_count > last_count:
+                        history_list = list(state.debate_history)
+                        new_msgs = history_list[last_count:]
+                        for msg in new_msgs:
+                            # Using print here as it acts as the primary UI in headless mode
+                            print(f"[{msg.role}]: {msg.content}")  # noqa: T201
+                        last_count = current_count
+
+                    # Simple exit condition for console mode
+                    if not state.simulation_active and current_count > 0:
+                        break
+
+                    # Safety break
+                    if current_count >= self.settings.max_turns:
+                        break
+
+                    time.sleep(self.settings.console_sleep)
+                except KeyboardInterrupt:
+                    logger.info("Console loop interrupted by user.")
+                    break
+                except Exception:
+                    logger.exception("Console loop error")
+                    break
+        finally:
+            logger.info("Exiting console loop and cleaning up resources.")
+            self._cached_lines.clear()
+            self._last_msg_content = None
 
     def update(self) -> None:
         """Update logic (poll inputs)."""
