@@ -17,7 +17,11 @@ def test_user_story() -> None:
         as_a="User",
         i_want_to="Login to my account",
         so_that="I can see my dashboard",
-        acceptance_criteria=["Must have valid credentials"],
+        acceptance_criteria=[
+            "Must have valid credentials",
+            "Must show error message",
+            "Must redirect on success",
+        ],
         target_route="/login",
     )
     assert story.as_a == "User"
@@ -28,15 +32,21 @@ def test_user_story() -> None:
 
 def test_sitemap_and_story() -> None:
     route = Route(path="/home", name="Home", purpose="Landing page", is_protected=False)
+    route2 = Route(path="/login", name="Login", purpose="Authentication", is_protected=False)
+    route3 = Route(path="/dash", name="Dash", purpose="Dashboard view", is_protected=True)
     story = UserStory(
         as_a="User",
         i_want_to="Login to my account",
         so_that="I can see my dashboard",
-        acceptance_criteria=["Must have valid credentials"],
+        acceptance_criteria=[
+            "Must have valid credentials",
+            "Must show error message",
+            "Must redirect on success",
+        ],
         target_route="/login",
     )
-    sitemap = SitemapAndStory(routes=[route], core_story=story)
-    assert len(sitemap.routes) == 1
+    sitemap = SitemapAndStory(routes=[route, route2, route3], core_story=story)
+    assert len(sitemap.routes) == 3
 
     with pytest.raises(ValidationError):
         SitemapAndStory(routes=[], core_story=story)

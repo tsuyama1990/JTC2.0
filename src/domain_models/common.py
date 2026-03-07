@@ -27,7 +27,7 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
             iterator: An iterator (preferably a generator) yielding LeanCanvas objects.
                       The iterator should NOT be pre-materialized list if possible.
         """
-        self._iterator = iterator
+        self._iterator = iter(iterator)
         self._consumed = False
         self._count = 0
         self._max_items = get_settings().iterator_safety_limit
@@ -40,7 +40,11 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
             # Safety break
             raise StopIteration
 
-        item = next(self._iterator)
+        try:
+            item = next(self._iterator)
+        except StopIteration:
+            raise StopIteration from None
+
         self._consumed = True
         self._count += 1
         return item

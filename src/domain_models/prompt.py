@@ -17,8 +17,12 @@ class AgentPromptSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     sitemap: SitemapAndStory
-    routing_constraints: list[str] = Field(..., min_length=1)
+    routing_constraints: list[str] = Field(
+        ..., min_length=get_settings().validation.min_content_length
+    )
     core_user_story: UserStory
     state_machine: StateMachine
-    validation_rules: list[str] = Field(..., min_length=1)
+    validation_rules: list[str] = Field(
+        ..., min_length=get_settings().validation.min_content_length
+    )
     mermaid_flowchart: str = Field(..., min_length=get_settings().validation.min_title_length)

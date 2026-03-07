@@ -6,9 +6,11 @@ from src.domain_models.canvas import CustomerProfile, ValueMap, ValueProposition
 
 def test_customer_profile() -> None:
     profile = CustomerProfile(
-        customer_jobs=["Organize meetings"], pains=["Too many emails"], gains=["Save time"]
+        customer_jobs=["Organize meetings", "Set agenda", "Invite guests"],
+        pains=["Too many emails", "Double bookings", "Time zones"],
+        gains=["Save time", "Clear schedule", "Happy team"],
     )
-    assert profile.customer_jobs == ["Organize meetings"]
+    assert profile.customer_jobs == ["Organize meetings", "Set agenda", "Invite guests"]
 
     with pytest.raises(ValidationError):
         CustomerProfile(customer_jobs=[], pains=["Too many emails"], gains=["Save time"])
@@ -16,28 +18,34 @@ def test_customer_profile() -> None:
 
 def test_value_map() -> None:
     vmap = ValueMap(
-        products_and_services=["Scheduling app"],
-        pain_relievers=["Automated booking"],
-        gain_creators=["1-click sync"],
+        products_and_services=["Scheduling app", "Calendar integration", "Reminder system"],
+        pain_relievers=["Automated booking", "Conflict resolution", "Timezone conversion"],
+        gain_creators=["1-click sync", "Analytics dashboard", "Team view"],
     )
-    assert vmap.products_and_services == ["Scheduling app"]
+    assert vmap.products_and_services == [
+        "Scheduling app",
+        "Calendar integration",
+        "Reminder system",
+    ]
 
     with pytest.raises(ValidationError):
         ValueMap(
             products_and_services=[],
-            pain_relievers=["Automated booking"],
-            gain_creators=["1-click sync"],
+            pain_relievers=["Automated booking", "Conflict resolution", "Timezone conversion"],
+            gain_creators=["1-click sync", "Analytics dashboard", "Team view"],
         )
 
 
 def test_value_proposition_canvas() -> None:
     profile = CustomerProfile(
-        customer_jobs=["Organize meetings"], pains=["Too many emails"], gains=["Save time"]
+        customer_jobs=["Organize meetings", "Set agenda", "Invite guests"],
+        pains=["Too many emails", "Double bookings", "Time zones"],
+        gains=["Save time", "Clear schedule", "Happy team"],
     )
     vmap = ValueMap(
-        products_and_services=["Scheduling app"],
-        pain_relievers=["Automated booking"],
-        gain_creators=["1-click sync"],
+        products_and_services=["Scheduling app", "Calendar integration", "Reminder system"],
+        pain_relievers=["Automated booking", "Conflict resolution", "Timezone conversion"],
+        gain_creators=["1-click sync", "Analytics dashboard", "Team view"],
     )
     vpc = ValuePropositionCanvas(
         customer_profile=profile,

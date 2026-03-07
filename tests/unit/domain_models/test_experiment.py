@@ -15,14 +15,18 @@ def test_metric_target() -> None:
 
 
 def test_experiment_plan() -> None:
-    target = MetricTarget(
+    target1 = MetricTarget(
         metric_name="Signup Rate", target_value=0.1, measurement_method="Google Analytics"
+    )
+    target2 = MetricTarget(metric_name="Retention", target_value=0.5, measurement_method="Mixpanel")
+    target3 = MetricTarget(
+        metric_name="Referral", target_value=1.5, measurement_method="Viral loops"
     )
     plan = ExperimentPlan(
         riskiest_assumption="Users will pay for this",
         experiment_type="A/B Test",
         acquisition_channel="Facebook Ads",
-        aarrr_metrics=[target],
+        aarrr_metrics=[target1, target2, target3],
         pivot_conditions="If signup rate is less than 5%",
     )
     assert plan.experiment_type == "A/B Test"

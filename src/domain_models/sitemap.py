@@ -6,8 +6,8 @@ from src.core.config import get_settings
 class Route(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    path: str = Field(..., min_length=1)
-    name: str = Field(..., min_length=1)
+    path: str = Field(..., min_length=get_settings().validation.min_content_length)
+    name: str = Field(..., min_length=get_settings().validation.min_content_length)
     purpose: str = Field(..., min_length=get_settings().validation.min_title_length)
     is_protected: bool
 
@@ -18,12 +18,14 @@ class UserStory(BaseModel):
     as_a: str = Field(..., min_length=get_settings().validation.min_content_length)
     i_want_to: str = Field(..., min_length=get_settings().validation.min_title_length)
     so_that: str = Field(..., min_length=get_settings().validation.min_title_length)
-    acceptance_criteria: list[str] = Field(..., min_length=1)
-    target_route: str = Field(..., min_length=1)
+    acceptance_criteria: list[str] = Field(
+        ..., min_length=get_settings().validation.min_content_length
+    )
+    target_route: str = Field(..., min_length=get_settings().validation.min_content_length)
 
 
 class SitemapAndStory(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    routes: list[Route] = Field(..., min_length=1)
+    routes: list[Route] = Field(..., min_length=get_settings().validation.min_content_length)
     core_story: UserStory

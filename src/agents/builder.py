@@ -126,7 +126,8 @@ class BuilderAgent(BaseAgent):
             MAX_FEATURES = 100
             feature_gen = self._extract_features(state.selected_idea.solution)
 
-            candidate_features = []
+            from collections import deque
+            candidate_features = deque(maxlen=MAX_FEATURES)
             try:
                 for _ in range(MAX_FEATURES):
                     feature = next(feature_gen)
@@ -138,7 +139,7 @@ class BuilderAgent(BaseAgent):
             logger.warning("No features extracted from solution.")
             return {}
 
-        logger.info(f"Proposed features: {candidate_features}")
+        logger.info(f"Proposed features: {list(candidate_features)}")
         return {"candidate_features": candidate_features}
 
     def generate_mvp(self, state: GlobalState) -> dict[str, Any]:

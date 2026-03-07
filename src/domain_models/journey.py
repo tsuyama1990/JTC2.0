@@ -7,13 +7,13 @@ class MentalTower(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     belief: str = Field(..., min_length=get_settings().validation.min_content_length)
-    cognitive_tasks: list[str] = Field(..., min_length=1)
+    cognitive_tasks: list[str] = Field(..., min_length=get_settings().validation.min_content_length)
 
 
 class MentalModelDiagram(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    towers: list[MentalTower] = Field(..., min_length=1)
+    towers: list[MentalTower] = Field(..., min_length=get_settings().validation.min_content_length)
     feature_alignment: str = Field(..., min_length=get_settings().validation.min_title_length)
 
 
@@ -24,12 +24,12 @@ class JourneyPhase(BaseModel):
     touchpoint: str = Field(..., min_length=get_settings().validation.min_content_length)
     customer_action: str = Field(..., min_length=get_settings().validation.min_content_length)
     mental_tower_ref: str = Field(..., min_length=get_settings().validation.min_content_length)
-    pain_points: list[str] = Field(..., min_length=1)
+    pain_points: list[str] = Field(..., min_length=get_settings().validation.min_content_length)
     emotion_score: int = Field(..., ge=-5, le=5)
 
 
 class CustomerJourney(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    phases: list[JourneyPhase] = Field(..., min_length=1)
+    phases: list[JourneyPhase] = Field(..., min_length=get_settings().validation.min_content_length)
     worst_pain_phase: str = Field(..., min_length=get_settings().validation.min_content_length)

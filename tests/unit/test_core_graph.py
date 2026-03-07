@@ -48,10 +48,11 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     mock_rag = mock_rag_cls.return_value
 
     # Setup state with transcripts
+    from collections import deque
     t1 = Transcript(
         source="Interview 1", content="Content 1 is long enough for validation.", date="2023-01-01"
     )
-    mock_state.transcripts = [t1]
+    mock_state.transcripts = deque([t1])
 
     result = transcript_ingestion_node(mock_state)
 

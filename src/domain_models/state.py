@@ -1,5 +1,6 @@
+from collections import deque
 from collections.abc import Iterator
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -38,7 +39,7 @@ class GlobalState(BaseModel):
     generated_ideas: LazyIdeaIterator | None = None
 
     selected_idea: LeanCanvas | None = None
-    messages: list[str] = Field(default_factory=list)
+    messages: deque[str] = Field(default_factory=lambda: deque(maxlen=1000))
 
     target_persona: Persona | None = None
     value_proposition_canvas: ValuePropositionCanvas | None = None
@@ -55,22 +56,31 @@ class GlobalState(BaseModel):
     # Cycle 5: MVP Generation (v0.dev)
     mvp_spec: MVPSpec | None = None
     mvp_url: str | None = None
-    candidate_features: list[str] = Field(
-        default_factory=list, description="List of extracted features for selection"
+    candidate_features: deque[str] = Field(
+        default_factory=lambda: deque(maxlen=100),
+        description="List of extracted features for selection",
     )
     selected_feature: str | None = None
 
-    debate_history: list[DialogueMessage] = Field(default_factory=list)
+    debate_history: deque[DialogueMessage] = Field(default_factory=lambda: deque(maxlen=1000))
     simulation_active: bool = False
 
     # Updated fields for Cycle 3
-    transcripts: list[Transcript] = Field(
-        default_factory=list, description="Raw transcripts from PLAUD or interviews"
+    transcripts: deque[Transcript] = Field(
+        default_factory=lambda: deque(maxlen=100),
+        description="Raw transcripts from PLAUD or interviews",
     )
     rag_index_path: str = Field(
-        default_factory=lambda: get_settings().rag_persist_dir,
+        default="",
         description="Path to the local vector store",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_rag_index_path(cls, data: Any) -> Any:
+        if isinstance(data, dict) and not data.get("rag_index_path"):
+            data["rag_index_path"] = get_settings().rag_persist_dir
+        return data
 
     agent_states: dict[Role, AgentState] = Field(
         default_factory=dict, description="Persistent state of agents (e.g. DeGroot weights)"
@@ -80,7 +90,7 @@ class GlobalState(BaseModel):
 
     @field_validator("transcripts")
     @classmethod
-    def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
+    def validate_unique_transcripts(cls, v: deque[Transcript]) -> deque[Transcript]:
         """Ensure transcripts are unique by source."""
         # Simple list validation logic, keeping it here for field proximity or move to validator?
         # The audit asked to "Extract complex validation logic".

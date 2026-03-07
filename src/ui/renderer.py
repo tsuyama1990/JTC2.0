@@ -72,7 +72,8 @@ class SimulationRenderer:
                 current_count = len(state.debate_history)
 
                 if current_count > last_count:
-                    new_msgs = state.debate_history[last_count:]
+                    history_list = list(state.debate_history)
+                    new_msgs = history_list[last_count:]
                     for msg in new_msgs:
                         # Using print here as it acts as the primary UI in headless mode
                         print(f"[{msg.role}]: {msg.content}")  # noqa: T201

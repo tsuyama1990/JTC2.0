@@ -63,10 +63,11 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
 
     # Process transcripts in chunks to manage memory
     chunk_size = 10
-    total = len(state.transcripts)
+    transcripts_list = list(state.transcripts)
+    total = len(transcripts_list)
 
     for i in range(0, total, chunk_size):
-        chunk = state.transcripts[i : i + chunk_size]
+        chunk = transcripts_list[i : i + chunk_size]
         logger.info(f"Ingesting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
 
         for transcript in chunk:

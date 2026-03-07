@@ -8,7 +8,7 @@ class MetricTarget(BaseModel):
 
     metric_name: str = Field(..., min_length=get_settings().validation.min_content_length)
     target_value: float = Field(...)
-    measurement_method: str = Field(..., min_length=get_settings().validation.min_title_length)
+    measurement_method: str = Field(..., min_length=get_settings().validation.min_content_length)
 
 
 class ExperimentPlan(BaseModel):
@@ -17,5 +17,7 @@ class ExperimentPlan(BaseModel):
     riskiest_assumption: str = Field(..., min_length=get_settings().validation.min_title_length)
     experiment_type: str = Field(..., min_length=get_settings().validation.min_content_length)
     acquisition_channel: str = Field(..., min_length=get_settings().validation.min_content_length)
-    aarrr_metrics: list[MetricTarget] = Field(..., min_length=1)
+    aarrr_metrics: list[MetricTarget] = Field(
+        ..., min_length=get_settings().validation.min_content_length
+    )
     pivot_conditions: str = Field(..., min_length=get_settings().validation.min_title_length)
