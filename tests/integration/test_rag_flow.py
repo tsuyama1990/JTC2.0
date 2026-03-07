@@ -74,7 +74,7 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
         transcript = Transcript(
             source="Test Interview",
             content="Customer says: I hate waiting in line.",
-            date="2023-01-01",
+            date_recorded="2023-01-01",
         )
 
         # Test ingestion

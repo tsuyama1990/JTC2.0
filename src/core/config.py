@@ -213,6 +213,10 @@ class V0Config(BaseSettings):
         default="You are a UI generator. Generate a React component using Tailwind CSS.",
         description="System prompt for UI generation",
     )
+    default_components: list[str] = Field(
+        default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
+        description="Default MVP components",
+    )
 
 
 class SimulationConfig(BaseSettings):

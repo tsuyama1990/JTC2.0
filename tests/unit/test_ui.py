@@ -9,8 +9,12 @@ from src.ui.renderer import SimulationRenderer
 
 @pytest.fixture
 def mock_state() -> GlobalState:
+    from src.domain_models.state import SimulationState
+
     return GlobalState(
-        debate_history=[DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hello", timestamp=1.0)]
+        sim_state=SimulationState(
+            debate_history=[DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hello", timestamp=1.0)]
+        )
     )
 
 
@@ -51,12 +55,16 @@ def test_renderer_console_loop() -> None:
     msg1 = DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hello", timestamp=1.0)
     msg2 = DialogueMessage(role=Role.FINANCE, content="Bye", timestamp=2.0)
 
+    from src.domain_models.state import SimulationState
+
     # State 1: 1 message
-    s1 = GlobalState(debate_history=[msg1], simulation_active=True)
+    s1 = GlobalState(sim_state=SimulationState(debate_history=[msg1], simulation_active=True))
     # State 2: 2 messages
-    s2 = GlobalState(debate_history=[msg1, msg2], simulation_active=True)
+    s2 = GlobalState(sim_state=SimulationState(debate_history=[msg1, msg2], simulation_active=True))
     # State 3: 2 messages, inactive -> should break loop
-    s3 = GlobalState(debate_history=[msg1, msg2], simulation_active=False)
+    s3 = GlobalState(
+        sim_state=SimulationState(debate_history=[msg1, msg2], simulation_active=False)
+    )
 
     states = [s1, s2, s3, s3]  # extra s3 to be safe
 

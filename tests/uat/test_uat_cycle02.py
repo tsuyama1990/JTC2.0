@@ -19,7 +19,11 @@ def test_uat_simulation_debate_flow() -> None:
         customer_segments="Customers segment description.",
         unique_value_prop="Unique value proposition description.",
     )
-    state = GlobalState(topic="Test Topic", selected_idea=idea, simulation_active=True)
+    from src.domain_models.state import SimulationState
+
+    state = GlobalState(
+        topic="Test Topic", selected_idea=idea, sim_state=SimulationState(simulation_active=True)
+    )
 
     # 2. Simulate New Employee Pitch
     pitch_msg = DialogueMessage(

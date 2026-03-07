@@ -180,13 +180,15 @@ def test_agent_state_creation() -> None:
 
 def test_agent_states_validation() -> None:
     """Test agent_states key validation."""
+    from src.domain_models.state import SimulationState
+
     profile = DeGrootProfile(self_confidence=0.5)
 
     # Valid
     valid_states = {Role.FINANCE: AgentState(role=Role.FINANCE, degroot_profile=profile)}
-    GlobalState(agent_states=valid_states)
+    GlobalState(sim_state=SimulationState(agent_states=valid_states))
 
     # Invalid key mismatch
     invalid_states = {Role.SALES: AgentState(role=Role.FINANCE, degroot_profile=profile)}
-    with pytest.raises(ValidationError, match="Key Sales Manager does not match"):
-        GlobalState(agent_states=invalid_states)
+    with pytest.raises(ValidationError, match="does not match AgentState role"):
+        GlobalState(sim_state=SimulationState(agent_states=invalid_states))

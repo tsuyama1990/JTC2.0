@@ -142,7 +142,7 @@ class MVPSpec(BaseModel):
         description="The prompt used to generate the UI via v0.dev",
     )
     components: list[str] = Field(
-        default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
+        default_factory=lambda: get_settings().v0.default_components,
         description="Key UI components to include",
         max_length=get_settings().validation.max_list_length,
     )
@@ -150,15 +150,9 @@ class MVPSpec(BaseModel):
     @field_validator("components")
     @classmethod
     def validate_components(cls, v: list[str]) -> list[str]:
-        """Validate component names to prevent injection/malformed input."""
-        for comp in v:
-            if len(comp) > 50:
-                msg = f"Component name too long: {comp}"
-                raise ValueError(msg)
-            if not COMPONENT_PATTERN.match(comp):
-                msg = f"Invalid component name: {comp}. Must be alphanumeric/safe chars only."
-                raise ValueError(msg)
-        return v
+        from src.domain_models.validators import CommonValidators
+
+        return CommonValidators.validate_alphanumeric_list(v, max_item_length=50)
 
     @field_validator("v0_prompt")
     @classmethod

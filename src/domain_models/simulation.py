@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.domain_models.enums import Role
@@ -47,3 +47,11 @@ class DialogueMessage(BaseModel):
     role: Role
     content: str = Field(min_length=get_settings().validation.min_content_length)
     timestamp: float
+
+    @field_validator("timestamp")
+    @classmethod
+    def validate_timestamp(cls, v: float) -> float:
+        if v < 0:
+            msg = "Timestamp cannot be negative"
+            raise ValueError(msg)
+        return v

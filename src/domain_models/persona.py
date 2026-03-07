@@ -123,3 +123,9 @@ class Persona(BaseModel):
                 msg = f"Insight '{insight}' is too short."
                 raise ValueError(msg)
         return v
+
+    def is_complete_for_mvp(self) -> bool:
+        """Check if persona has required elements for MVP creation."""
+        return (
+            self.is_fact_based and len(self.interview_insights) > 0 and self.empathy_map is not None
+        )

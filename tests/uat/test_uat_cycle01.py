@@ -8,7 +8,7 @@ import pytest
 # We import create_app but we will mock the LLM and Tools inside it
 from src.core.config import get_settings
 from src.core.graph import create_app
-from src.domain_models.common import LazyIdeaIterator
+from src.domain_models.common import create_lazy_iterator
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
@@ -56,7 +56,7 @@ def test_ideation_scalability(
     mock_ideator_instance = mock_ideator_cls.return_value
     # Return wrapped iterator as expected by strict validation
     mock_ideator_instance.run.return_value = {
-        "generated_ideas": LazyIdeaIterator(limited_lean_canvas_generator)
+        "generated_ideas": create_lazy_iterator(limited_lean_canvas_generator)
     }
 
     app = create_app()
@@ -66,7 +66,9 @@ def test_ideation_scalability(
     result_dict = app.invoke(initial_state)
 
     ideas_iter = result_dict["generated_ideas"]
-    assert isinstance(ideas_iter, LazyIdeaIterator)
+    from collections.abc import Generator
+
+    assert isinstance(ideas_iter, Generator)
 
     # Verify consumption logic (paging)
     page_size = 5
@@ -172,7 +174,7 @@ def test_large_dataset_iterator_safety() -> None:
             i += 1
 
     # Wrap infinite gen
-    lazy_iter = LazyIdeaIterator(infinite_generator())
+    lazy_iter = create_lazy_iterator(infinite_generator())
 
     # Consume a large chunk but finite
     chunk_size = 1000

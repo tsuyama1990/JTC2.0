@@ -51,7 +51,9 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     from collections import deque
 
     t1 = Transcript(
-        source="Interview 1", content="Content 1 is long enough for validation.", date="2023-01-01"
+        source="Interview 1",
+        content="Content 1 is long enough for validation.",
+        date_recorded="2023-01-01",
     )
     mock_state.transcripts = deque([t1])
 

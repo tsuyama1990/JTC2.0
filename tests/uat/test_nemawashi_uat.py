@@ -19,7 +19,9 @@ def test_identify_key_influencer_uat() -> None:
     matrix = [[0.9, 0.0, 0.1], [0.5, 0.5, 0.0], [0.8, 0.0, 0.2]]
 
     net = InfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
-    state = GlobalState(influence_network=net)
+    from src.domain_models.state import SimulationState
+
+    state = GlobalState(sim_state=SimulationState(influence_network=net))
 
     engine = NemawashiEngine()
 

@@ -63,8 +63,12 @@ def test_global_state_serialization() -> None:
     msg1 = DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hello", timestamp=100.0)
     msg2 = DialogueMessage(role=Role.FINANCE, content="Cost?", timestamp=101.5)
 
+    from src.domain_models.state import SimulationState
+
     state = GlobalState(
-        topic="Test Topic", selected_idea=idea, debate_history=[msg1, msg2], simulation_active=True
+        topic="Test Topic",
+        selected_idea=idea,
+        sim_state=SimulationState(debate_history=[msg1, msg2], simulation_active=True),
     )
 
     # Serialize
