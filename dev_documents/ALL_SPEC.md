@@ -1,155 +1,161 @@
-The JTC 2.0 次世代仕様定義書 (Remastered Edition)バージョン: 2.0.6最終更新日: 2026-03-08ドキュメント分類: システムアーキテクチャ・要求仕様書 (PRD)1. はじめに (Introduction)1.1 プロジェクトの背景と目的「The JTC 2.0」は、日本の伝統的大企業（JTC）における新規事業創出プロセスを、LLM（大規模言語モデル）とマルチエージェントシステムによって抜本的に効率化・高度化するためのシミュレーションプラットフォームである。初期バージョンにおいては、社内政治（激詰め会議）のシミュレーションとv0.devを用いたMVPの自動生成を実現したが、AI特有の「文脈の飛躍（ハルシネーション）」や「特定AIツールへのロックイン」といった課題が浮き彫りとなった。本刷新（Remastered）では、田所雅之氏の『起業の科学』で提唱される「カスタマープロブレムフィット（CPF）」から「プロブレムソリューションフィット（PSF）」に至る検証プロセスを、一切の論理的飛躍なくシステム上にマッピングする。LLMに対してPydanticを用いた厳格な「型（Schema）」を強制し、思考プロセスを細分化（Chain of Thought）することでハルシネーションを完全に排除する。1.2 最終成果物（システムのアウトプット）の再定義本システムは、特定のUI生成API（v0.dev等）を直接実行するアプローチを廃止する。代わって、システムの最終出力を**「Cursor、Windsurf、Google Antigravityなど、あらゆる自律型AIコーディングエージェントにそのまま入力可能な『完璧なプロンプト仕様書（AgentPromptSpec.md）』および『MVP実験計画書』の生成」**と再定義する。これにより、システムは陳腐化しない普遍的な「究極の要件定義エンジン」として機能する。2. コア・アーキテクチャと設計思想2.1 Pydantic駆動とChain of Thoughtによるハルシネーションの排除 (Schema-Driven Generation)AIの推論プロセスにおける文脈の喪失を防ぐため、すべてのLangGraphノードの出力は pydantic.BaseModel および extra="forbid" によって厳格に構造化される。これは、AIのプロンプトエンジニアリングにおける「Chain of Thought（思考の連鎖）」をシステムレベルで強制・可視化するアプローチである。 AIは「エンパシーマップ」からいきなり「機能（解決策）」を導き出すような論理の飛躍は絶対に許されない。必ず「代替品分析」→「バリュープロポジション」→「メンタルモデルダイアグラム」→「カスタマージャーニー」→「サイトマップとユーザーストーリー」という段階的なスキーマ（キャンバス）を一つずつ順番に埋めさせる。前のステップで出力されたキャンバスを次のステップの入力として連鎖させることで、段階的にプロダクトの解像度を上げていく。この緻密なフローにより、AI特有の「一般論に基づくもっともらしい嘘（ハルシネーション）」が入り込む余地を完全に排除する仕様としている。2.2 マルチエージェント・オーケストレーション (LangGraph)LangGraphを用いて、以下の3つの主要なサブグラフ（会議体）をオーケストレーションする。The JTC Board (社内承認シミュレーション): 財務部長、営業本部長、CPOによるビジネスモデルと実現可能性の激詰め。Virtual Market (仮想市場テスト): 仮想顧客エージェントによるソリューションに対する辛口レビューとコミットメント判定。The 3H Review (プロダクト磨き込み): Hacker（技術）、Hipster（UX）、Hustler（ビジネス）によるワイヤーフレームの多角的な検証。2.3 脱同一化UI (Pyxel) と「承認」演出システムのバックエンドで高度なビジネスロジックが進行する一方、ユーザーが直面するフロントエンドUIは「Pyxel」を用いた16色のレトロRPG風画面を維持する。これは、AIからの苛烈な批判やアイデアの否定を「ゲームのイベント」として脱同一化し、ユーザーの心理的安全性を担保するための極めて重要なアーキテクチャ的決定である。さらに、本システムでは各種キャンバス（代替品分析、カスタマージャーニー等）の生成プロセスが完了し、システムの検証を通るたびに、Pyxel画面上にドット絵の「承認」スタンプ（赤いハンコ）がダイナミックに押される演出が組み込まれる。JTCならではのハンコ文化を逆手にとり、ユーザーに「関門を突破した」という強烈な達成感と進行感を与える設計となっている。3. 全体ワークフロー (The Fitness Journey Workflow)本システムは、以下の6つのフェーズ、計14の主要ノード（ステップ）を順番に実行する。各キャンバスの生成後には「Human In the Loop (HITL) FBゲート」が挟まれ、ユーザーからの軌道修正を受け付ける。Phase 1: Idea Verification (アイデア検証)Step 1: Ideation & PEST Analysis (ideator_node)Tavily Search APIを用いてマクロ環境（PEST）の変曲点を検索。Good Crazyなビジネスアイデアを10個生成（LeanCanvas モデル）。[HITL Gate 1]: ユーザーが取り組むべき「Plan A」を選択。Phase 2: Customer / Problem Fit (顧客と課題の適合)Step 2: Persona & Empathy Mapping (persona_node)選択されたアイデアから、解像度の高い Persona と EmpathyMap を生成。Step 3: Alternative Analysis (alternative_analysis_node)現状の代替手段（Excel、既存SaaS等）を特定し、乗り換えの手間（スイッチングコスト）を上回る「10x Value（10倍の価値）」を推論する。Step 4: Value Proposition Design (vpc_node)顧客の「片付けるべき用事（Customer Jobs）」と「Pain/Gain」に対し、ソリューションが提供する「Pain Relievers（鎮痛剤）」と「Gain Creators（恩恵の創出）」がどう合致（Fit）しているかを検証・構造化する。[HITL Gate 1.5 - CPF Feedback]: Step 2〜4で生成されたモデルがPDF出力され、Pyxel上で「承認」スタンプが押される。ユーザーはPDFを確認し、必要に応じてペルソナやVPCの調整指示（FB）を入力できる。Step 5: Problem Interview RAG (transcript_ingestion_node)ユーザーが実施した顧客インタビューの音声文字起こし（PLAUD等）をLlamaIndexでベクトル化。CPOエージェントが「The Mom Test」の基準でファクトチェックを行う。Phase 3: Problem / Solution Fit (課題と解決策の適合)Step 6: Mental Model & Journey Mapping (mental_model_journey_node)ユーザーの行動の背後にある「思考の塔（信念・価値観）」を MentalModelDiagram として可視化。そのメンタルモデルに基づく時系列の行動を CustomerJourney にマッピングし、最もPainの強いタッチポイントから UserStory を抽出する。Step 7: Sitemap & Lo-Fi Wireframing (sitemap_wireframe_node)アプリ全体のURL構造とページ遷移の全体像を Sitemap として定義する。定義したサイトマップに基づき、ユーザーストーリーを達成するための特定画面の構造を、デザイン要素を排除した純粋なテキスト階層 WireframeText モデルとして出力する。[HITL Gate 1.8 - PSF Feedback]: メンタルモデル、ジャーニー、サイトマップがPDF出力され、Pyxel上で「承認」スタンプが押される。ユーザーはPDFを確認し、機能の削ぎ落としやストーリーの修正指示（FB）を与える。Phase 4: Validation & Review (仮説の検証と磨き込み)Step 8: Virtual Solution Interview (virtual_customer_node)ペルソナとメンタルモデルのプロンプトを注入された「仮想顧客エージェント」に対してワイヤーフレームとサイトマップを提示。仮想顧客は「これならいくら払うか？」「どこで離脱するか？」をフィードバックする。[HITL Gate 2]: ユーザーは仮想顧客の反応を見て、アイデアをピボットするか進行するかを決定。Step 9: JTC Board Simulation (jtc_simulation_node)財務部長（ROI・コスト）、営業本部長（カニバリ・売りやすさ）による激詰め。Pyxel UIで描画。Step 10: 3H Review (3h_review_node)Hacker（技術的実現性）、Hipster（UXの摩擦）、Hustler（ユニットエコノミクス）によるプロダクト仕様の最終レビューと修正。Phase 5 & 6: Output Generation (最終成果物の生成)Step 11: Agent Prompt Spec Generation (spec_generation_node)これまでの全コンテキストを集約し、AIコーディングツール向けの完全なマークダウンプロンプト AgentPromptSpec を生成。Step 12: Experiment Planning (experiment_planning_node)生成されたMVPを用いて「何を・どう測るか」を定義する ExperimentPlan（AARRRベースのKPIツリー）を生成。[HITL Gate 3 - Final Output FB]: 実験計画と最終仕様の生成完了時、最後の「承認」スタンプが押され、一連の最終成果物がPDF化される。Step 13: Governance Check (governance_node)JTCの稟議書（Ringi-Sho）フォーマットで最終レポートを出力。4. 追加・変更されるドメインモデル詳細 (Pydantic Schemas)AIのハルシネーションを防ぎ、文脈を維持するための新規データモデル定義。4.1 バリュープロポジションキャンバス (ValuePropositionCanvas)class CustomerProfile(BaseModel):
-    customer_jobs: list[str] = Field(..., description="顧客が片付けたい用事・社会的/感情的タスク")
-    pains: list[str] = Field(..., description="ジョブの実行を妨げるリスクやネガティブな感情")
-    gains: list[str] = Field(..., description="ジョブの実行によって得たい恩恵や期待")
+# The JTC 2.0 Next Generation Specification Document (Remastered Edition)
 
-class ValueMap(BaseModel):
-    products_and_services: list[str] = Field(..., description="提供する主要な製品・サービスのリスト")
-    pain_relievers: list[str] = Field(..., description="顧客のPainを具体的にどう取り除くか")
-    gain_creators: list[str] = Field(..., description="顧客のGainを具体的にどう創出するか")
+Version: 2.0.6
+Last Updated: 2026-03-08
+Document Classification: System Architecture & Product Requirements Document (PRD)
 
-class ValuePropositionCanvas(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    customer_profile: CustomerProfile
-    value_map: ValueMap
-    fit_evaluation: str = Field(..., description="Pain RelieversとPain、Gain CreatorsとGainが論理的にFitしているかの検証結果")
-4.2 メンタルモデルダイアグラム (MentalModelDiagram)class MentalTower(BaseModel):
-    belief: str = Field(..., description="ユーザーの根底にある信念や価値観（例：『時間を無駄にしたくない』）")
-    cognitive_tasks: list[str] = Field(..., description="その信念に基づいて頭の中で行っているタスクや判断")
+## 1. Introduction
 
-class MentalModelDiagram(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    towers: list[MentalTower] = Field(..., description="ユーザーの思考空間を構成する複数の思考の塔")
-    feature_alignment: str = Field(..., description="定義した思考の塔（タワー）に対して、提供する機能がどう寄り添い、サポートしているかのマッピング")
-4.3 代替品分析モデル (AlternativeAnalysis)class AlternativeTool(BaseModel):
-    name: str = Field(..., description="代替品の名前（例：Excel、手作業、既存SaaS）")
-    financial_cost: str = Field(..., description="金銭的コスト")
-    time_cost: str = Field(..., description="時間的コスト")
-    ux_friction: str = Field(..., description="ユーザーが感じる最大のストレス・摩擦")
+### 1.1 Project Background and Objectives
+"The JTC 2.0" is a simulation platform designed to radically streamline and enhance the new business creation process within Traditional Japanese Companies (JTCs) using Large Language Models (LLMs) and a multi-agent system. In the initial version, the system achieved the simulation of internal office politics (harsh feedback meetings) and the automatic generation of Minimum Viable Products (MVPs) using v0.dev. However, challenges emerged, particularly the tendency for AI to make "logical leaps" (hallucinations) and the system's lock-in to specific AI tools.
 
-class AlternativeAnalysis(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    current_alternatives: list[AlternativeTool]
-    switching_cost: str = Field(..., description="ユーザーが乗り換える際に発生するコストや手間")
-    ten_x_value: str = Field(..., description="スイッチングコストを圧倒する、代替品の10倍の価値（UVP）")
-4.4 カスタマージャーニーモデル (CustomerJourney)class JourneyPhase(BaseModel):
-    phase_name: str = Field(..., description="フェーズ名（例：認知、検討、利用中、離脱）")
-    touchpoint: str = Field(..., description="顧客とシステム/環境の接点")
-    customer_action: str = Field(..., description="顧客の具体的な行動")
-    mental_tower_ref: str = Field(..., description="この行動を裏付けているMentalTowerの信念")
-    pain_points: list[str] = Field(..., description="このフェーズで感じる痛みや不満")
-    emotion_score: int = Field(..., ge=-5, le=5, description="感情の起伏（-5から5）")
+This Remastered edition maps the validation process from "Customer-Problem Fit (CPF)" to "Problem-Solution Fit (PSF)"—as advocated in Masayuki Tadokoro's *Startup Science*—onto the system without any logical jumps. By enforcing strict "Schemas" using Pydantic on the LLM and breaking down the thought process (Chain of Thought), the system completely eliminates hallucinations.
 
-class CustomerJourney(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    phases: list[JourneyPhase] = Field(..., min_length=3, max_length=7)
-    worst_pain_phase: str = Field(..., description="最もPainが深い（解決すべき）フェーズの名前")
-4.5 サイトマップ＆ユーザーストーリーモデル (SitemapAndStory)class Route(BaseModel):
-    path: str = Field(..., description="URLパス (例: /, /dashboard, /login)")
-    name: str = Field(..., description="ページ名")
-    purpose: str = Field(..., description="このページの目的")
-    is_protected: bool = Field(..., description="認証が必要なページかどうか")
+### 1.2 Redefinition of the Final Output
+This system discontinues the direct execution of specific UI generation APIs (like v0.dev). Instead, the final output of the system is redefined as the **"Generation of a 'Perfect Prompt Specification Document (AgentPromptSpec.md)' and an 'MVP Experiment Plan' that can be directly inputted into any autonomous AI coding agent such as Cursor, Windsurf, or Google Antigravity."** This ensures the system functions as a universal "ultimate requirements definition engine" that will not become obsolete.
 
-class UserStory(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    as_a: str = Field(..., description="誰として（Persona）")
-    i_want_to: str = Field(..., description="何をしたいか（Action）")
-    so_that: str = Field(..., description="なぜなら〜を達成したいから（Goal/Value）")
-    acceptance_criteria: list[str] = Field(..., description="このストーリーが満たされたとする受け入れ条件")
-    target_route: str = Field(..., description="このアクションを主に行うURLパス")
+## 2. Core Architecture and Design Philosophy
 
-class SitemapAndStory(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    sitemap: list[Route] = Field(..., description="アプリケーション全体のURL・ルーティング構成")
-    core_story: UserStory = Field(..., description="MVPとして検証すべき最重要な単一のストーリー")
-4.6 実験計画モデル (ExperimentPlan)class MetricTarget(BaseModel):
-    metric_name: str = Field(..., description="指標名（例：Day7 Retention）")
-    target_value: str = Field(..., description="PMF達成とみなす目標値（例：40%以上）")
-    measurement_method: str = Field(..., description="計測方法")
+### 2.1 Eliminating Hallucinations via Pydantic and Chain of Thought
+To prevent context loss during the AI's reasoning process, the outputs of all LangGraph nodes are strictly structured using `pydantic.BaseModel` and `extra="forbid"`. This approach enforces and visualises the "Chain of Thought" at the system level. The AI is absolutely forbidden from making logical leaps, such as jumping directly from an "Empathy Map" to a "Feature" (the solution). It must sequentially complete specific schemas (canvases) step-by-step: "Alternative Analysis" -> "Value Proposition" -> "Mental Model Diagram" -> "Customer Journey" -> "Sitemap and User Stories".
 
-class ExperimentPlan(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    riskiest_assumption: str = Field(..., description="今回検証する最もリスクの高い前提条件")
-    experiment_type: str = Field(..., description="MVPの型（例：LP、コンシェルジュ、Wizard of Oz）")
-    acquisition_channel: str = Field(..., description="初期の100人をどこから連れてくるか")
-    aarrr_metrics: list[MetricTarget] = Field(..., description="AARRRフレームワークに基づく追跡指標")
-    pivot_condition: str = Field(..., description="どのような結果になれば即撤退（ピボット）すべきか")
-4.7 AIエージェント向け仕様書モデル (AgentPromptSpec)class StateMachine(BaseModel):
-    success: str = Field(..., description="データ正常時の完全なレイアウト")
-    loading: str = Field(..., description="Skeletonコンポーネントを用いた待機UI")
-    error: str = Field(..., description="フォールバックUIとRetryボタンの配置")
-    empty: str = Field(..., description="データ0件時のCTAを含むEmpty State")
+By chaining the canvas outputted in the previous step as the input for the next, the resolution of the product is gradually increased. This meticulous flow completely eliminates the space for plausible lies (hallucinations) based on generalities.
 
-class AgentPromptSpec(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    sitemap: str = Field(..., description="アプリ全体のルーティングと情報アーキテクチャ")
-    routing_and_constraints: str = Field(..., description="SSR/Client Componentの境界、UIライブラリの指定")
-    core_user_story: UserStory
-    state_machine: StateMachine
-    validation_rules: str = Field(..., description="Zodスキーマやエッジケースの要件")
-    mermaid_flowchart: str = Field(..., description="Mermaid構文による状態遷移・データフロー図")
-5. エージェント定義 (Agents Definition)LangGraphノードを駆動する専用AIエージェントのプロンプト方針。【重要原則：コンテキストの絶対的継承】本システムにおけるすべてのエージェントは、自己の学習データや直感のみに頼って（ゼロベースで）アイデアや機能を提案してはならない。Phase 1〜3のChain of Thoughtプロセスで段階的に生成されたすべての構造化データ（ペルソナ、エンパシーマップ、VPC、メンタルモデルダイアグラム、カスタマージャーニー、サイトマップ等）を「絶対的な前提条件」としてプロンプトに読み込む。エージェント群は、これら「顧客理解のキャンバス群」を前提としてのみ、効果的なプロダクトの検証と仕様構築を行うよう厳格に制御される。5.1 仮想顧客エージェント (Virtual Customer)Role: 対象となるペルソナそのもの。Prompt System: "あなたは [Persona Name] です。あなたの思考の根底には [MentalModelDiagram.towers] のような信念があり、現在は [AlternativeTool] を使っていますが、[Pain] に深く悩んでいます。今から提案される機能について、絶対に忖度せず、自分がお金を払ってでも使いたいか、それとも不要かを厳しくフィードバックしてください。特に『面倒くささ（スイッチングコスト）』には敏感に反応してください。"5.2 The 3H Review AgentsHacker Agent: "【前提とするサイトマップと機能要件を遵守しつつ】技術的負債、スケーラビリティ、セキュリティの観点からワイヤーフレームをレビューせよ。不要に複雑なDB構造やリアルタイム通信を避け、スプレッドシートや既存APIのモックで代替できないか追求せよ。"Hipster Agent: "【前提とするメンタルモデルとペルソナを遵守しつつ】ユーザーの『Don't make me think（考えさせるな）』の原則に基づきUXをレビューせよ。メンタルモデルに反するオンボーディングの摩擦、タップ回数の多さ、エラー時の不親切さを指摘せよ。"Hustler Agent: "【前提とする代替品分析とVPCを遵守しつつ】ユニットエコノミクス（LTV > 3x CAC）の観点からビジネスモデルをレビューせよ。誰がどうやって見つけるのか、なぜ継続してお金を払うのかを厳しく問いただせ。"5.3 Builder Agent (役割変更)Old Role: v0.devのAPIを叩いてURLを生成する。New Role: これまで生成されたすべてのコンテキスト（VPC、メンタルモデル、ジャーニー、ストーリー、サイトマップ、3Hのレビュー結果）を統合前提として読み込む。「引き算の思考（ユーザーのPain解決に直結しない不要な機能の削除）」を適用した上で、あらゆるAIコーディングツールに通用する究極の要件定義書 AgentPromptSpec を生成する。6. 最終成果物フォーマット (Output Specifications)システムが正常に完走した場合、ローカルディレクトリに以下のファイルが出力される。6.1 MVP_PROMPT_SPEC.mdCursor、Windsurf、v0.dev、Google AntigravityなどのAIエディタ/エージェントのチャット欄にそのままコピー＆ペーストするためのファイル。# 🤖 System & Context
-- Role: Expert Frontend Engineer & UI/UX Designer
-- Stack: Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui, Lucide-react
-- Principles: One Feature One Value, Mobile First, Accessible (WCAG 2.1)
-- Routing & Components: [SSR/Clientの境界、UIライブラリの厳格な制約]
+### 2.2 Multi-Agent Orchestration (LangGraph)
+Using LangGraph, the system orchestrates the following three main sub-graphs (meeting bodies):
+*   **The JTC Board (Internal Approval Simulation):** Harsh feedback on the business model and feasibility by the Finance Manager, Sales Manager, and Chief Product Officer (CPO).
+*   **Virtual Market (Virtual Market Test):** Severe reviews and commitment judgements on the solution by a virtual customer agent.
+*   **The 3H Review (Product Refinement):** A multifaceted validation of the wireframes by the Hacker (technology), Hipster (UX), and Hustler (business).
 
-# 🗺️ Sitemap & Information Architecture
-- `/` : ランディングページ（未認証） - 価値提案と登録導線
-- `/login` : 認証ページ
-- `/dashboard` : メイン機能（Core User Storyの実行場所）
-※ AIへの指示: 上記で定義された以外の不要なページ（/settings, /profile等）へのリンクは生成せず、遷移できないようにすること。
+### 2.3 De-identification UI (Pyxel) and the "Approval" Effect
+While complex business logic progresses on the backend, the frontend UI presented to the user maintains a 16-colour retro RPG-style screen using "Pyxel". This is a crucial architectural decision to de-identify severe criticism or the rejection of ideas by the AI as merely "game events," thereby ensuring the user's psychological safety.
 
-# 🎯 Core User Story
-- As a: [Persona]
-- I want to: [Action]
-- So that: [Value/Goal]
-- Target Route: [該当するURL, 例: /dashboard]
-- Acceptance Criteria:
-  - [受け入れ条件1]
-  - [受け入れ条件2]
+Furthermore, whenever the generation process for various canvases (like the Alternative Analysis or Customer Journey) is completed and passes the system's validation, a dynamic pixel-art "Approval" stamp (a red Hanko) is stamped onto the Pyxel screen. By playfully reversing the traditional Japanese Hanko culture, the design gives the user a strong sense of achievement and progression as they break through each barrier.
 
-# 📊 Data Schema & Flow
-- TypeScript Interfaces:
-  ```typescript
-  // AIが生成しやすいよう、厳格な型定義とモックJSONの構造を定義
-Validation Rules: [Zodを用いたバリデーション要件（例: 8文字以上、記号必須など）]🔄 State Machine (Mermaid)stateDiagram-v2
-    [*] --> Idle
-    Idle --> Loading : Submit form
-    Loading --> Success : API 200 OK
-    Loading --> Error : API 4xx/5xx
-    Error --> Idle : Click Retry
-🖥️ UI Structure & StatesSuccess State: [データ正常時のコンポーネント配置・レイアウト]Loading State: [スピナーではなく、shadcn/uiのSkeleton配置指示]Empty State: [データがない時のイラストとCTAボタン配置]Error State: [フォールバックUIと再試行ボタン]🖱️ Interaction & A11yInteractions: [ボタンクリック時のトースト通知等]Accessibility: [ARIAラベル、キーボード操作要件]
-### 6.2 `EXPERIMENT_PLAN.md`
+## 3. Overall Workflow (The Fitness Journey Workflow)
 
-生成したMVPを使って、現実世界でどのように仮説検証を行うかを示したスプリント計画書。
-ランディングページへの流入経路、コンシェルジュ対応のマニュアル方針、そして「PMF達成」を判定するためのAARRR指標のボーダーラインが記載される。
+The system executes the following 6 phases, comprising a total of 14 major nodes (steps), in sequence. After each canvas is generated, a "Human In the Loop (HITL) Feedback Gate" is inserted to accept course corrections from the user.
 
-### 6.3 キャンバス・ドキュメントのPDF出力とPyxel承認演出 【新規】
+### Phase 1: Idea Verification
+*   **Step 1: Ideation & PEST Analysis (`ideator_node`)**
+    Uses the Tavily Search API to find macro-environmental (PEST) inflection points. Generates 10 "Good Crazy" business ideas (using the LeanCanvas model).
+*   **[HITL Gate 1]:** The user selects the "Plan A" they wish to pursue.
 
-システムは各推論フェーズの節目で以下の処理を実行し、人間との共創（HITL）を円滑に行う。
+### Phase 2: Customer / Problem Fit
+*   **Step 2: Persona & Empathy Mapping (`persona_node`)**
+    Generates a high-resolution Persona and EmpathyMap from the selected idea.
+*   **Step 3: Alternative Analysis (`alternative_analysis_node`)**
+    Identifies current alternative solutions (e.g., Excel, existing SaaS) and deduces the "10x Value" that outweighs the effort of switching (switching costs).
+*   **Step 4: Value Proposition Design (`vpc_node`)**
+    Validates and structures how the "Pain Relievers" and "Gain Creators" provided by the solution fit the customer's "Customer Jobs" and "Pains/Gains".
+*   **[HITL Gate 1.5 - CPF Feedback]:** The models generated in Steps 2 to 4 are outputted as a PDF, and an "Approval" stamp is pressed on the Pyxel UI. The user reviews the PDF and can provide instructions (feedback) to adjust the persona or VPC if necessary.
+*   **Step 5: Problem Interview RAG (`transcript_ingestion_node`)**
+    Vectorises audio transcripts (from tools like PLAUD) of customer interviews conducted by the user using LlamaIndex. The CPO agent performs a fact-check based on "The Mom Test" criteria.
 
-1. **対象ドキュメント:**
-   * バリュープロポジションキャンバス
-   * メンタルモデルダイアグラム
-   * 代替品分析モデル
-   * カスタマージャーニーモデル
-   * サイトマップ＆ユーザーストーリーモデル
-   * 実験計画モデル
-2. **Pyxel上での承認演出:** 各ドキュメントがPydanticモデルとして正常に生成された直後、PyxelのレトロUI画面上に赤い「承認」ハンコがドーンと押されるSEとアニメーションが再生される。
-3. **高解像度PDFの簡易出力:** 同時に、裏側で各種キャンバスが視覚的に整理された高解像度PDFファイルとしてローカル（`/outputs/canvas/` ディレクトリ等）に出力される。
-4. **Human In the Loop (HITL) のフィードバック:** ユーザーは出力されたPDFを簡易にレビューし、Pyxelのプロンプト入力画面から「もう少しターゲットを狭めたい」「Painの解像度を上げて」など、人間の視点からの修正フィードバックをシステムに介入・入力することができる。
+### Phase 3: Problem / Solution Fit
+*   **Step 6: Mental Model & Journey Mapping (`mental_model_journey_node`)**
+    Visualises the underlying "Towers of Thought" (beliefs, values) behind the user's behaviour as a MentalModelDiagram. It maps the chronological behaviour based on that mental model onto a CustomerJourney and extracts the UserStory from the touchpoint with the strongest Pain.
+*   **Step 7: Sitemap & Lo-Fi Wireframing (`sitemap_wireframe_node`)**
+    Defines the overall URL structure and page transitions of the application as a Sitemap. Based on the defined sitemap, it outputs the structure of specific screens required to achieve the user story as a pure text hierarchy `WireframeText` model, stripped of design elements.
+*   **[HITL Gate 1.8 - PSF Feedback]:** The mental model, journey, and sitemap are outputted as a PDF, and an "Approval" stamp is pressed on Pyxel. The user reviews the PDF and provides instructions (feedback) to trim features or amend the story.
 
-## 7. 非機能要件・オブザーバビリティ (Observability)
+### Phase 4: Validation & Review
+*   **Step 8: Virtual Solution Interview (`virtual_customer_node`)**
+    Presents the wireframe and sitemap to a "Virtual Customer Agent" injected with the persona and mental model prompts. The virtual customer provides feedback on questions like "How much would you pay for this?" and "Where would you drop off?".
+*   **[HITL Gate 2]:** The user observes the virtual customer's reaction and decides whether to pivot the idea or proceed.
+*   **Step 9: JTC Board Simulation (`jtc_simulation_node`)**
+    Harsh feedback from the Finance Manager (regarding ROI and costs) and the Sales Manager (regarding cannibalisation and ease of selling). This is rendered in the Pyxel UI.
+*   **Step 10: 3H Review (`3h_review_node`)**
+    Final review and refinement of the product specifications by the Hacker (technical feasibility), Hipster (UX friction), and Hustler (unit economics).
 
-### 7.1 LangSmithによるトレースの完全統合
+### Phase 5 & 6: Output Generation
+*   **Step 11: Agent Prompt Spec Generation (`spec_generation_node`)**
+    Aggregates all context gathered so far to generate a complete Markdown prompt, `AgentPromptSpec`, intended for AI coding tools.
+*   **Step 12: Experiment Planning (`experiment_planning_node`)**
+    Generates an `ExperimentPlan` (an AARRR-based KPI tree) that defines "what to measure and how" using the generated MVP.
+*   **[HITL Gate 3 - Final Output FB]:** Upon completion of the experiment plan and final specifications generation, the final "Approval" stamp is pressed, and the series of final deliverables are converted to PDF.
+*   **Step 13: Governance Check (`governance_node`)**
+    Outputs the final report in the format of a JTC "Ringi-Sho" (稟議書 - approval document).
 
-前バージョンで無効化されていたLangSmithトレースをデフォルトで必須要件とする（`extra="ignore"`による環境変数の許容、または明示的なフィールド定義）。
+## 4. Detailed Domain Models Added/Changed (Pydantic Schemas)
 
-* **目的**:
-  1. 仮想顧客テストや3Hレビューにおける無限ループ（デッドロック）の監視とトークン消費の制御。
-  2. ステップ間のコンテキスト伝播（Pydanticモデルの変換ロス）のデバッグ。
+These are new data model definitions to prevent AI hallucinations and maintain context.
 
-### 7.2 サーキットブレーカーとハードリミット
+### 4.1 Value Proposition Canvas (`ValuePropositionCanvas`)
+*   `CustomerProfile`: Contains `customer_jobs`, `pains`, and `gains`.
+*   `ValueMap`: Contains `products_and_services`, `pain_relievers`, and `gain_creators`.
+*   `ValuePropositionCanvas`: Combines the profile and map, adding a `fit_evaluation` to verify the logical fit.
 
-マルチエージェント対話（特にSimulationと3H Review）においては、APIの浪費を防ぐため、`max_turns` の設定に加え、特定の文字列表現（例："同意します" "平行線ですね"）を検知して強制終了するモデレーターロジックを挟む。
+### 4.2 Mental Model Diagram (`MentalModelDiagram`)
+*   `MentalTower`: Contains a `belief` (the user's underlying value) and related `cognitive_tasks`.
+*   `MentalModelDiagram`: A collection of `towers` and a `feature_alignment` string mapping provided features to these towers.
+
+### 4.3 Alternative Analysis Model (`AlternativeAnalysis`)
+*   `AlternativeTool`: Contains `name`, `financial_cost`, `time_cost`, and `ux_friction`.
+*   `AlternativeAnalysis`: Lists current alternatives, defines the `switching_cost`, and states the `ten_x_value` (10x value) required to overcome it.
+
+### 4.4 Customer Journey Model (`CustomerJourney`)
+*   `JourneyPhase`: Contains `phase_name`, `touchpoint`, `customer_action`, `mental_tower_ref`, `pain_points`, and an `emotion_score` (-5 to 5).
+*   `CustomerJourney`: A list of phases, highlighting the `worst_pain_phase`.
+
+### 4.5 Sitemap & User Story Model (`SitemapAndStory`)
+*   `Route`: URL path, name, purpose, and whether it is protected.
+*   `UserStory`: Follows the "As a... I want to... So that..." format, with acceptance criteria and a target route.
+*   `SitemapAndStory`: Combines the sitemap routes with a single `core_story`.
+
+### 4.6 Experiment Plan Model (`ExperimentPlan`)
+*   `MetricTarget`: A metric name, its target value for PMF, and the measurement method.
+*   `ExperimentPlan`: Details the riskiest assumption, experiment type, acquisition channel, AARRR metrics, and pivot conditions.
+
+### 4.7 Agent Specification Document Model (`AgentPromptSpec`)
+*   `StateMachine`: Defines the UI layout for success, loading, error, and empty states.
+*   `AgentPromptSpec`: Includes the sitemap, routing constraints, core user story, state machine, validation rules, and a Mermaid flowchart string.
+
+## 5. Agent Definitions
+
+Prompt guidelines for the dedicated AI agents driving the LangGraph nodes.
+
+**[Important Principle: Absolute Context Inheritance]**
+All agents in this system must not propose ideas or features based solely on their own training data or intuition (i.e., from scratch). All structured data generated sequentially via the Chain of Thought process in Phases 1 to 3 (personas, empathy maps, VPCs, mental model diagrams, customer journeys, sitemaps, etc.) must be loaded into the prompt as "absolute prerequisites". Agents are strictly controlled to build product specifications and validate effectiveness only while adhering to these "customer understanding canvases".
+
+### 5.1 Virtual Customer Agent
+*   **Role:** The target persona themselves.
+*   **Prompt System:** "You are [Persona Name]. At the core of your thoughts are beliefs such as [MentalModelDiagram.towers]. You currently use [AlternativeTool] but are deeply troubled by [Pain]. Regarding the feature about to be proposed, please provide strictly unvarnished feedback on whether you would be willing to pay to use it, or if it is unnecessary. Please be particularly sensitive to 'hassle' (switching costs)."
+
+### 5.2 The 3H Review Agents
+*   **Hacker Agent:** "While adhering to the prerequisite sitemap and functional requirements, review the wireframe from the perspectives of technical debt, scalability, and security. Avoid unnecessarily complex DB structures or real-time communication; seek out ways to substitute them with spreadsheets or mock existing APIs."
+*   **Hipster Agent:** "While adhering to the prerequisite mental model and persona, review the UX based on the user principle of 'Don't make me think'. Point out onboarding friction that contradicts the mental model, excessive tap counts, and unhelpful error states."
+*   **Hustler Agent:** "While adhering to the prerequisite alternative analysis and VPC, review the business model from the perspective of unit economics (LTV > 3x CAC). Strictly question who will find this, how they will find it, and why they will continue to pay for it."
+
+### 5.3 Builder Agent (Role Change)
+*   **Old Role:** Calls the v0.dev API to generate a URL.
+*   **New Role:** Loads all previously generated context (VPC, mental model, journey, story, sitemap, 3H review results) as an integrated prerequisite. Applying "subtractive thinking" (deleting unnecessary features that do not directly solve user pain), it generates the ultimate requirements definition document, `AgentPromptSpec`, which is compatible with any AI coding tool.
+
+## 6. Final Output Format Specifications
+
+If the system completes successfully, the following files will be outputted to a local directory.
+
+### 6.1 MVP_PROMPT_SPEC.md
+A file designed to be copied and pasted directly into the chat interface of AI editors/agents like Cursor, Windsurf, v0.dev, or Google Antigravity.
+
+### 6.2 EXPERIMENT_PLAN.md
+A sprint plan demonstrating how to conduct hypothesis testing in the real world using the generated MVP. It includes details such as traffic acquisition routes for the landing page, policies for concierge-style support manuals, and the borderline AARRR metrics to judge "PMF Achievement".
+
+### 6.3 PDF Output of Canvas Documents and Pyxel Approval Effect [NEW]
+The system executes the following processes at the milestones of each reasoning phase to facilitate smooth co-creation (HITL) with a human.
+
+1.  **Target Documents:** Value Proposition Canvas, Mental Model Diagram, Alternative Analysis Model, Customer Journey Model, Sitemap & User Story Model, Experiment Plan Model.
+2.  **Approval Effect on Pyxel:** Immediately after each document is successfully generated as a Pydantic model, an animation and sound effect of a red "Approval" stamp being firmly pressed onto the Pyxel retro UI screen is played.
+3.  **Simplified Output of High-Resolution PDFs:** Simultaneously, behind the scenes, the various canvases are visually organised and outputted as high-resolution PDF files to a local directory (e.g., `/outputs/canvas/`).
+4.  **Human In the Loop (HITL) Feedback:** The user briefly reviews the outputted PDF and can intervene and input correction feedback from a human perspective into the Pyxel prompt input screen (e.g., "I want to narrow the target slightly more," "Increase the resolution of the Pain").
+
+## 7. Non-Functional Requirements & Observability
+
+### 7.1 Complete Integration of LangSmith Tracing
+LangSmith tracing, which was disabled in previous versions, is now a mandatory requirement by default (allowing environment variables via `extra="ignore"` or explicit field definitions).
+*   **Purpose:**
+    1.  To monitor and control infinite loops (deadlocks) and token consumption during virtual customer tests and 3H reviews.
+    2.  To debug context propagation (Pydantic model conversion loss) between steps.
+
+### 7.2 Circuit Breakers and Hard Limits
+In multi-agent dialogues (especially Simulation and 3H Review), a moderator logic must be inserted to forcibly terminate the conversation by detecting specific string expressions (e.g., "I agree", "We are running in parallel") in addition to setting `max_turns`, in order to prevent API wastage.
