@@ -41,7 +41,7 @@ class CPOAgent(PersonaAgent):
         super().__init__(llm, Role.CPO, system_prompt, search_tool, app_settings)
 
         # Use provided path or fallback to settings (not hardcoded string)
-        actual_rag_path = rag_path or self.settings.rag_persist_dir
+        actual_rag_path = rag_path or self.settings.rag.persist_dir
         self.rag = RAG(persist_dir=actual_rag_path)
 
     def _research_impl(self, topic: str) -> str:

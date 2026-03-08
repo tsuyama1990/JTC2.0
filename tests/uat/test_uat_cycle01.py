@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # We import create_app but we will mock the LLM and Tools inside it
-from src.core.config import get_settings
 from src.core.graph import create_app
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
@@ -51,7 +50,8 @@ def test_ideation_scalability(
     Verify that the Ideation phase handles large/infinite iterators safely
     by consuming only what is needed (pagination).
     """
-    get_settings.cache_clear()
+    from src.core.config import Settings
+    Settings.reload()
 
     mock_ideator_instance = mock_ideator_cls.return_value
     # Return wrapped iterator as expected by strict validation
@@ -91,7 +91,8 @@ def test_gate_transitions_data_integrity(
     Verify that state transitions through gates maintain data integrity
     and validation rules hold.
     """
-    get_settings.cache_clear()
+    from src.core.config import Settings
+    Settings.reload()
 
     # Setup initial state simulating post-Ideation (Gate 1 passed)
     # We construct a valid state manually as if we just picked an idea.
@@ -135,7 +136,6 @@ def test_gate_transitions_data_integrity(
             Feature(name="Feature1", description="Description", priority=Priority.MUST_HAVE)
         ],
         success_criteria="Criteria",
-        v0_url="https://v0.dev/test",
     )
 
     state_ready_for_solution = state_ready_for_verification.model_copy()

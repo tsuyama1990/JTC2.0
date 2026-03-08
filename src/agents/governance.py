@@ -32,6 +32,8 @@ class GovernanceAgent(BaseAgent):
         Run the governance check logic.
         """
         logger.info("Governance Agent: Starting analysis...")
+        # Get settings locally or from dependency injection, to fix tests we can fetch explicitly here
+        from src.core.config import get_settings
         settings = get_settings()
 
         # 1. Context & Search
@@ -110,14 +112,12 @@ class GovernanceAgent(BaseAgent):
     def _generate_ringi_sho(
         self, state: GlobalState, financials: Financials, status: str
     ) -> RingiSho:
-        mvp_url = state.mvp_url or "N/A"
         idea_title = state.selected_idea.title if state.selected_idea else "Untitled Idea"
 
         prompt = (
             f"Generate a formal approval document (Ringi-sho) for idea: {idea_title}.\n"
             f"Financials: ROI={financials.roi:.2f}, LTV=${financials.ltv:.2f}, CAC=${financials.cac:.2f}, Payback={financials.payback_months:.1f} months.\n"
-            f"Status: {status}.\n"
-            f"MVP URL: {mvp_url}\n\n"
+            f"Status: {status}.\n\n"
             "Return ONLY a JSON object with keys: 'title', 'executive_summary' (text), 'risks' (list of strings).\n"
             "Do not include markdown formatting."
         )

@@ -39,7 +39,10 @@ class TestGovernanceMemorySafety:
         chunk2.content = "678901"  # Total 11 chars
 
         # Patch the settings object instance directly
-        with patch.object(settings.governance, "max_llm_response_size", 10):
+        with patch("src.agents.governance.get_settings") as mock_get_settings:
+            mock_settings = mock_get_settings.return_value
+            mock_settings.governance.max_llm_response_size = 10
+
             # mock_llm is the Client instance. We mock the stream method.
             mock_llm.stream.return_value = iter([chunk1, chunk2])
 

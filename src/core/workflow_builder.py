@@ -39,8 +39,44 @@ class WorkflowBuilder:
         self.interrupts = interrupts
         return self
 
+    def _validate_no_cycles(self) -> None:
+        """Validates the graph to ensure no cyclic dependencies exist using Kahn's Algorithm."""
+        # Setup in-degrees and adjacency list
+        in_degree: dict[str, int] = dict.fromkeys(self.nodes, 0)
+        adj_list: dict[str, list[str]] = {node: [] for node in self.nodes}
+
+        for start, end in self.edges:
+            if end != "__end__":
+                if end not in in_degree:
+                    in_degree[end] = 0
+                    adj_list[end] = []
+                adj_list[start].append(end)
+                in_degree[end] += 1
+
+        # Find all nodes with 0 in-degree
+        from collections import deque
+        queue = deque([node for node in in_degree if in_degree[node] == 0])
+
+        visited_count = 0
+        while queue:
+            current = queue.popleft()
+            visited_count += 1
+
+            for neighbor in adj_list.get(current, []):
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        # If we couldn't visit all nodes that have edges/definitions, there's a cycle
+        if visited_count != len(in_degree):
+            msg = "Cyclic dependency detected in graph structure."
+            raise ValueError(msg)
+
     def build(self) -> CompiledStateGraph[Any, Any]:
-        """Constructs and compiles the graph."""
+        """Constructs and compiles the graph with validations."""
+        # Cycle detection
+        self._validate_no_cycles()
+
         for name, action in self.nodes.items():
             self.workflow.add_node(name, action)
 
@@ -48,6 +84,13 @@ class WorkflowBuilder:
             self.workflow.set_entry_point(self.entry_point)
 
         for start, end in self.edges:
+            if start not in self.nodes:
+                 msg = f"Edge references invalid start node: {start}"
+                 raise ValueError(msg)
+            if end != "__end__" and end not in self.nodes:
+                 msg = f"Edge references invalid end node: {end}"
+                 raise ValueError(msg)
+
             self.workflow.add_edge(start, end)
 
         # Validate interrupt sequence

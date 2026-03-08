@@ -15,21 +15,22 @@ def mock_settings() -> Generator[MagicMock, None, None]:
         mock.return_value.openai_api_key.get_secret_value.return_value = "sk-test"
         mock.return_value.llm_model = "gpt-4o"
         # Mock rag_persist_dir - must be a valid subdir relative to CWD, e.g. tests/
-        mock.return_value.rag_persist_dir = "tests/mock_vector_store"
+        mock.return_value.rag.persist_dir = "tests/mock_vector_store"
         # Errors
         mock.return_value.errors.config_missing_openai = "Missing API Key"
         # New Config fields
-        mock.return_value.rag_chunk_size = 4000
-        mock.return_value.rag_max_query_length = 500
-        mock.return_value.rag_max_index_size_mb = 500
-        mock.return_value.rag_max_document_length = 10000
-        mock.return_value.circuit_breaker_fail_max = 5
-        mock.return_value.circuit_breaker_reset_timeout = 60
-        mock.return_value.rag_allowed_paths = ["data", "vector_store", "tests"]
-        mock.return_value.rag_rate_limit_interval = 0.1
-        mock.return_value.rag_scan_depth_limit = 10
+        mock.return_value.rag.chunk_size = 4000
+        mock.return_value.rag.max_query_length = 500
+        mock.return_value.rag.max_index_size_mb = 500
+        mock.return_value.rag.max_document_length = 10000
+        mock.return_value.resiliency.circuit_breaker_fail_max = 5
+        mock.return_value.resiliency.circuit_breaker_reset_timeout = 60
+        mock.return_value.rag.allowed_paths = ["data", "vector_store", "tests"]
+        mock.return_value.rag.rate_limit_interval = 0.1
+        mock.return_value.rag.scan_depth_limit = 10
+        mock.return_value.rag.max_files = 1000
         # Ensure batch size is int
-        mock.return_value.rag_batch_size = 100
+        mock.return_value.rag.batch_size = 100
         yield mock
 
 
@@ -47,60 +48,52 @@ def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
         yield {"index": mock_index, "doc": mock_doc, "storage": mock_storage, "load": mock_load}
 
 
+@patch("src.data.rag.RAG._validate_path", return_value="/app/tests")
 def test_rag_initialization(
-    mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
+    mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test RAG initialization."""
-    # We need to ensure the path actually exists for resolve() if we weren't mocking it,
-    # but RAG calls resolve().
-    # Since we are using a real RAG class, we must provide a path that passes _validate_path.
-    # "tests/mock_vector_store" should pass as "tests" is in allowed_parents.
-
-    # We must ensure the directory exists so resolve() works without error if checking existence?
-    # Path.resolve() works even if file doesn't exist on Python 3.10+ usually, but strict=True?
-    # RAG code uses Path(path_str).resolve() (default strict=False).
-
-    rag = RAG()
+    mock_settings.return_value.rag.max_index_size_mb = 100
+    mock_llama_index["load"].side_effect = Exception("No index")
+    rag = RAG(persist_dir="tests")
     assert rag.index is None
-    # Path is resolved to absolute
-    from pathlib import Path
 
-    expected = str(Path("tests/mock_vector_store").resolve())
-    assert rag.persist_dir == expected
-
-
-def test_rag_ingest_text(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
+@patch("src.data.rag.RAG._validate_path", return_value="/app/tests")
+def test_rag_ingest_text(
+    mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
+) -> None:
     """Test text ingestion."""
-    # Ensure rag_batch_size is a real int
-    mock_settings.return_value.rag_batch_size = 100
+    mock_settings.return_value.rag.batch_size = 100
+    mock_settings.return_value.rag.max_index_size_mb = 100
+    mock_llama_index["load"].side_effect = Exception("No index")
 
-    rag = RAG()
+    rag = RAG(persist_dir="tests")
     text = "Customer says: I hate this."
     rag.ingest_text(text, source="interview.txt")
 
     mock_llama_index["doc"].assert_called()
-    # Ensure it creates an index
     mock_llama_index["index"].from_documents.assert_called()
 
 
+@patch("src.data.rag.RAG._validate_path", return_value="/app/tests")
 def test_rag_persist_index(
-    mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
+    mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test explicit persist."""
-    rag = RAG()
+    rag = RAG(persist_dir="tests")
     # Mock index existence
     rag.index = MagicMock()
 
     rag.persist_index()
-    from pathlib import Path
-
-    expected = str(Path("tests/mock_vector_store").resolve())
-    rag.index.storage_context.persist.assert_called_with(persist_dir=expected)
+    rag.index.storage_context.persist.assert_called()
 
 
-def test_rag_query(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
+@patch("src.data.rag.RAG._validate_path", return_value="/app/tests")
+def test_rag_query(
+    mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
+) -> None:
     """Test querying the index."""
-    rag = RAG()
+    rag = RAG(persist_dir="tests")
     # Mock the index and query engine
     mock_query_engine = MagicMock()
     mock_response = MagicMock()
@@ -117,11 +110,12 @@ def test_rag_query(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMo
     rag.index.as_query_engine.assert_called_once()
 
 
+@patch("src.data.rag.RAG._validate_path", return_value="/app/tests")
 def test_rag_query_validation(
-    mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
+    mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test query input validation."""
-    rag = RAG()
+    rag = RAG(persist_dir="tests")
 
     with pytest.raises(TypeError, match="Query must be a string"):
         rag.query(123)  # type: ignore

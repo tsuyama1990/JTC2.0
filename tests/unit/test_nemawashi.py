@@ -58,7 +58,7 @@ def test_consensus_stochasticity_check_failure() -> None:
             "src.core.nemawashi.consensus.NemawashiUtils.build_sparse_matrix",
             return_value=bad_matrix,
         ),
-        pytest.raises(ValidationError, match="Influence matrix rows must sum to 1.0"),
+        pytest.raises(ValidationError, match="Influence matrix rows must precisely sum to 1.0"),
     ):
         engine.calculate_consensus(network)
 

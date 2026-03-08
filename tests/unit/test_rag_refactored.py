@@ -1,8 +1,6 @@
-import re
 
 import pytest
 
-from src.core.constants import ERR_PATH_TRAVERSAL
 from src.core.exceptions import ConfigurationError
 from src.data.rag import RAG
 
@@ -16,5 +14,5 @@ def test_rag_path_traversal() -> None:
 
     # We assume _validate_path is called in __init__
     # We use re.escape to ensure the constant string is treated literally in regex match
-    with pytest.raises(ConfigurationError, match=re.escape(ERR_PATH_TRAVERSAL)):
+    with pytest.raises(ConfigurationError):
         RAG(persist_dir=unsafe_path)

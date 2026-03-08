@@ -4,7 +4,7 @@ import pytest
 from pydantic import SecretStr
 
 # Note: We patch 'src.core.llm.settings' instead of 'OPENAI_API_KEY'
-from src.core.llm import get_llm
+from src.core.llm import clear_llm_cache, get_llm
 
 
 def test_config_values() -> None:
@@ -17,7 +17,7 @@ def test_config_values() -> None:
         TAVILY_API_KEY=SecretStr("tvly-12345678901234567890"),
     )
     assert s.llm_model == "gpt-4o"
-    assert s.search_max_results == 5
+    assert s.search.max_results == 5
     assert s.openai_api_key == SecretStr("sk-12345678901234567890")
 
 
@@ -44,7 +44,7 @@ def test_get_llm_override(mock_get_settings: MagicMock) -> None:
 @patch("src.core.llm.get_settings")
 def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
     # Clear lru_cache to ensure we get a fresh execution
-    get_llm.cache_clear()
+    clear_llm_cache()
 
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = None
@@ -53,4 +53,4 @@ def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
         get_llm()
 
     # Clear again for safety
-    get_llm.cache_clear()
+    clear_llm_cache()

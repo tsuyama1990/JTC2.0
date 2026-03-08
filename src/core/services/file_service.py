@@ -2,7 +2,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.core.config import get_settings
+from src.core.config import Settings, get_settings
 from src.core.exceptions import ConfigurationError
 from src.core.retry_handler import RetryHandler
 
@@ -15,23 +15,31 @@ class FileService:
     Uses ThreadPoolExecutor for non-blocking I/O in async contexts.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         # Max workers limited to avoid thread exhaustion
         self._executor = ThreadPoolExecutor(max_workers=5)
-        self.settings = get_settings()
+        self.settings = settings or get_settings()
 
     def _validate_path(self, path: str | Path) -> Path:
         """
-        Validate path to prevent traversal.
+        Validate path to prevent traversal strictly using absolute paths and containment.
         """
         try:
-            target_path = Path(path).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
+            # Use strict=False initially to construct path, then resolve based on absolute bounds
+            # For writing, the exact file might not exist yet, so resolve(strict=True) on the parent.
+            p = Path(path)
+            if not p.is_absolute():
+                p = cwd / p
+
+            # Resolve the parent directory strictly to ensure it exists and is secure
+            parent_path = p.parent.resolve(strict=True)
+            target_path = parent_path / p.name
         except Exception as e:
-            msg = f"Invalid path: {e}"
+            msg = f"Invalid path resolution: {e}"
             raise ConfigurationError(msg) from e
 
-        if not str(target_path).startswith(str(cwd)):
+        if not target_path.is_relative_to(cwd):
             msg = f"Path traversal detected: {target_path}"
             raise ConfigurationError(msg)
 

@@ -3,145 +3,98 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.config import get_settings
-from src.core.exceptions import V0GenerationError
-from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.mvp import MVPSpec
+from src.agents.builder import BuilderAgent
+from src.domain_models.agent_prompt import AgentPromptSpec, StateMachine
+from src.domain_models.sitemap import Route, SitemapAndStory, UserStory
 from src.domain_models.state import GlobalState
 from tests.conftest import DUMMY_ENV_VARS
-
-# We import the real V0Client to mock its internals, not the class itself if possible
-try:
-    from src.agents.builder import BuilderAgent
-    from src.tools.v0_client import V0Client
-except ImportError:
-    BuilderAgent = None  # type: ignore
-    V0Client = None  # type: ignore
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 class TestCycle05UAT:
     @pytest.fixture
     def initial_state(self) -> GlobalState:
-        return GlobalState(
-            topic="UAT Cycle 5",
-            selected_idea=LeanCanvas(
-                id=1,
-                title="UAT App",
-                problem="Problem is definitely big enough.",
-                solution="Feature 1 description, Feature 2 description, Feature 3 description",
-                customer_segments="Segments are defined.",
-                unique_value_prop="UVP is also defined.",
-            ),
+        state = GlobalState(topic="UAT Cycle 5")
+
+        # Setup prerequisite: Sitemap and Story
+        story = UserStory(
+            as_a="User",
+            i_want_to="Action something big enough",
+            so_that="I can achieve my goal.",
+            acceptance_criteria=["Criterion 1", "Criterion 2"],
+            target_route="/dashboard",
         )
+        route = Route(
+            path="/dashboard", name="Dashboard", purpose="Manage things", is_protected=True
+        )
+        state.sitemap_and_story = SitemapAndStory(sitemap=[route], core_story=story)
 
-    def test_uat_c05_01_feature_pruning(self, initial_state: GlobalState) -> None:
+        return state
+
+    def test_uat_c05_01_agent_prompt_spec_generation(self, initial_state: GlobalState) -> None:
         """
-        Scenario 1: Feature Pruning
-        Verify that the system forces selection of a single feature.
+        Scenario 1: AgentPromptSpec Generation Integration
+        Verify that BuilderAgent properly generates AgentPromptSpec.
         """
-        if BuilderAgent is None:
-            pytest.skip("BuilderAgent not implemented")
-
-        get_settings.cache_clear()
-
-        # 1. Run Builder Agent (First Pass)
-        mock_llm = MagicMock()
-        agent = BuilderAgent(llm=mock_llm)
-
-        # Mock the internal LLM call for extraction
-        with patch.object(
-            agent,
-            "_extract_features",
-            return_value=iter(["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]),
-        ):
-            result = agent.propose_features(initial_state)
-
-            assert "candidate_features" in result
-            assert len(result["candidate_features"]) == 3
-            assert "mvp_url" not in result  # Should NOT generate yet
-
-    def test_uat_c05_02_mvp_generation_integration(self, initial_state: GlobalState) -> None:
-        """
-        Scenario 2: MVP Generation Integration
-        Verify v0.dev call after selection, mocking at the network level (httpx) rather than the client class.
-        """
-        if BuilderAgent is None or V0Client is None:
-            pytest.skip("Components not available")
-
-        get_settings.cache_clear()
-
-        # Setup state with selection
-        initial_state.candidate_features = ["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]
-        initial_state.selected_feature = "Feature 2 desc"
+        from src.core.config import Settings
+        Settings.reload()
 
         mock_llm = MagicMock()
-        agent = BuilderAgent(llm=mock_llm)
+        mock_chain = MagicMock()
 
-        # Mock Spec Creation to return a valid spec
-        with (
-            patch.object(
-                agent,
-                "_create_mvp_spec",
-                return_value=MVPSpec(
-                    app_name="UAT App",
-                    core_feature="Feature 2 desc",
-                    components=["Hero"],
-                    v0_prompt="Generate UI",
-                ),
+        # Mock structured output
+        mock_spec = AgentPromptSpec(
+            sitemap="Sitemap details go here, must be long enough to pass validation.",
+            routing_and_constraints="Constraints details go here, must be long enough.",
+            core_user_story=initial_state.sitemap_and_story.core_story,  # type: ignore
+            state_machine=StateMachine(
+                success="Success UI state description here",
+                loading="Loading UI state description here",
+                error="Error UI state description here",
+                empty="Empty UI state description here",
             ),
-            patch("src.tools.v0_client.httpx.Client") as mock_http_cls,
-        ):
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"url": "https://v0.dev/uat-result"}
+            validation_rules="Validation rules description goes here, enough length.",
+            mermaid_flowchart="flowchart TD; A-->B; flowchart details goes here.",
+        )
+        mock_chain.invoke.return_value = mock_spec
 
-            mock_client_instance = mock_http_cls.return_value.__enter__.return_value
-            mock_client_instance.post.return_value = mock_response
+        # We must mock `with_structured_output` correctly since it is used in the code
+        mock_llm.with_structured_output.return_value = mock_chain
+        # Also need to mock the `|` operator for the prompt and LLM
+        mock_prompt_chain = MagicMock()
+        mock_prompt_chain.__or__.return_value = mock_chain
 
-            # Execute
-            result = agent.generate_mvp(initial_state)
-
-            assert result["mvp_url"] == "https://v0.dev/uat-result"
-            assert result["mvp_spec"].core_feature == "Feature 2 desc"
-
-            # Verify network call was made
-            mock_client_instance.post.assert_called_once()
-
-    def test_uat_c05_03_error_handling(self, initial_state: GlobalState) -> None:
-        """
-        Scenario 3: Error Handling
-        Simulate API failure.
-        """
-        if BuilderAgent is None:
-            pytest.skip("BuilderAgent not implemented")
-
-        initial_state.selected_feature = "Feature 1"
-        mock_llm = MagicMock()
         agent = BuilderAgent(llm=mock_llm)
 
-        # Ensure Feature string meets length validation (>10 chars)
-        long_feature = "Feature 1 must be very long indeed"
-
-        with (
-            patch.object(
-                agent,
-                "_create_mvp_spec",
-                return_value=MVPSpec(app_name="App", core_feature=long_feature, components=[]),
-            ),
-            patch("src.tools.v0_client.httpx.Client") as mock_http_cls,
+        with patch(
+            "src.agents.builder.ChatPromptTemplate.from_messages", return_value=mock_prompt_chain
         ):
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.text = "Internal Server Error"
+            result = agent.generate_agent_prompt_spec(initial_state)
 
-            mock_client_instance = mock_http_cls.return_value.__enter__.return_value
-            mock_client_instance.post.return_value = mock_response
+        assert "agent_prompt_spec" in result
+        assert result["agent_prompt_spec"].sitemap == mock_spec.sitemap
 
-            # Should handle V0GenerationError internally or expose it?
-            # The agent catches exceptions? Let's check agent implementation.
-            # Actually agent.generate_mvp raises V0GenerationError?
-            # Safe node wrapper handles it. But here we test agent directly.
+    def test_uat_c05_02_error_handling(self, initial_state: GlobalState) -> None:
+        """
+        Scenario 2: Error Handling
+        Simulate LLM failure.
+        """
+        mock_llm = MagicMock()
+        mock_chain = MagicMock()
 
-            with pytest.raises(V0GenerationError):
-                agent.generate_mvp(initial_state)
+        # Simulate exception
+        mock_chain.invoke.side_effect = Exception("LLM Error")
+        mock_llm.with_structured_output.return_value = mock_chain
+
+        mock_prompt_chain = MagicMock()
+        mock_prompt_chain.__or__.return_value = mock_chain
+
+        agent = BuilderAgent(llm=mock_llm)
+
+        with patch(
+            "src.agents.builder.ChatPromptTemplate.from_messages", return_value=mock_prompt_chain
+        ):
+            result = agent.generate_agent_prompt_spec(initial_state)
+
+        # Should handle error gracefully and return empty dict
+        assert result == {}

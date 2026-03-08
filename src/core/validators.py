@@ -42,14 +42,6 @@ class ApiKeyValidator:
             msg = "Tavily API Key format is invalid."
             raise ValueError(msg)
 
-        # Validate v0 api key too if it is present
-        if (
-            getattr(settings, "v0_api_key", None)
-            and settings.v0_api_key.get_secret_value()
-            and not key_pattern.match(settings.v0_api_key.get_secret_value())
-        ):
-            msg = "v0 API Key format is invalid."
-            raise ValueError(msg)
 
 
 class ConfigValidators:

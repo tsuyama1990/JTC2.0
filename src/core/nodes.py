@@ -7,7 +7,6 @@ from src.core.node_executor import NodeExecutor
 from src.core.services.pdf_generator import PDFGenerator
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.validators import StateValidator
@@ -15,14 +14,18 @@ from src.domain_models.validators import StateValidator
 logger = logging.getLogger(__name__)
 
 
-def _ideator_run_impl(state: GlobalState) -> dict[str, Any]:
-    ideator = AgentFactory.get_ideator_agent()
-    return ideator.run(state)
+def make_ideator_node(ideator_agent: Any = None) -> Any:
+    def _ideator_run_impl(state: GlobalState) -> dict[str, Any]:
+        agent = ideator_agent or AgentFactory.get_ideator_agent()
+        return agent.run(state)
 
+    def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
+        """Wrapper for Ideator execution with error handling."""
+        return NodeExecutor.execute(_ideator_run_impl, state, "Error in Ideator Agent")
 
-def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
-    """Wrapper for Ideator execution with error handling."""
-    return NodeExecutor.execute(_ideator_run_impl, state, "Error in Ideator Agent")
+    return safe_ideator_run
+
+safe_ideator_run = make_ideator_node()
 
 
 def _verification_node_impl(state: GlobalState) -> dict[str, Any]:
@@ -127,7 +130,7 @@ def sitemap_wireframe_node(state: GlobalState) -> dict[str, Any]:
 def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
     """Phase 5: Generate Agent Prompt Spec."""
     logger.info("Generating Agent Prompt Spec...")
-    agent = AgentFactory.get_output_generation_agent()
+    agent = AgentFactory.get_builder_agent()
     updates = agent.generate_agent_prompt_spec(state)
     if updates.get("agent_prompt_spec"):
         from pathlib import Path
@@ -207,19 +210,24 @@ def review_3h_node(state: GlobalState) -> dict[str, Any]:
     return NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
 
 
+def _validate_transcripts(state: GlobalState) -> None:
+    if not state.transcripts:
+        msg = "No transcripts found in state to ingest. Missing validation."
+        raise ValueError(msg)
+
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     rag = RAG(persist_dir=state.rag_index_path)
 
-    # Implement streaming ingestion with strict limits to prevent OOM
-    # In a real generator setup we would use `iter(state.transcripts)`.
-    # Since it's a list in GlobalState, we limit processing explicitly.
-    MAX_TRANSCRIPTS = 50
-    chunk_size = 10
+    # Use configurable limits
+    from src.core.config import get_settings
+    settings = get_settings()
+    max_transcripts = getattr(settings.rag, "max_transcripts", 50)
+    chunk_size = settings.rag.batch_size
 
     transcript_iter = iter(state.transcripts)
 
     processed_count = 0
-    while processed_count < MAX_TRANSCRIPTS:
+    while processed_count < max_transcripts:
         from itertools import islice
 
         chunk = list(islice(transcript_iter, chunk_size))
@@ -232,12 +240,13 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
         for transcript in chunk:
             rag.ingest_transcript(transcript)
 
-        rag.persist_index()
         processed_count += len(chunk)
+
+    rag.persist_index()
 
     if next(transcript_iter, None) is not None:
         logger.warning(
-            f"Exceeded MAX_TRANSCRIPTS ({MAX_TRANSCRIPTS}). Remaining transcripts ignored to prevent OOM."
+            f"Exceeded MAX_TRANSCRIPTS ({max_transcripts}). Remaining transcripts ignored to prevent OOM."
         )
 
     return {}
@@ -249,11 +258,7 @@ def _transcript_ingestion_node_impl(state: GlobalState) -> dict[str, Any]:
     Runs after Gate 2 (User Input of Transcript).
     """
     logger.info("Ingesting transcripts into RAG...")
-
-    if not state.transcripts:
-        msg = "No transcripts found in state to ingest. Missing validation."
-        raise ValueError(msg)
-
+    _validate_transcripts(state)
     return _ingest_impl(state)
 
 
@@ -263,16 +268,7 @@ def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
     )
 
 
-def _safe_simulation_run_impl(state: GlobalState) -> dict[str, Any]:
-    """
-    Wrapper for Simulation execution with error handling.
-    Runs the full turn-based simulation (Finance vs Sales vs New Employee).
-    """
-    logger.info("Starting Simulation Round (Turn-based Battle)")
-
-    simulation_app = create_simulation_graph()
-
-    final_state = simulation_app.invoke(state)
+def _transform_simulation_state(final_state: Any) -> dict[str, Any]:
     if isinstance(final_state, dict):
         return {"debate_history": final_state.get("debate_history", [])}
     if hasattr(final_state, "debate_history"):
@@ -281,10 +277,25 @@ def _safe_simulation_run_impl(state: GlobalState) -> dict[str, Any]:
     logger.warning("Simulation graph returned unknown state type.")
     return {}
 
+def _safe_simulation_run_impl(state: GlobalState) -> dict[str, Any]:
+    """
+    Wrapper for Simulation execution with error handling.
+    Runs the full turn-based simulation (Finance vs Sales vs New Employee).
+    """
+    logger.info("Starting Simulation Round (Turn-based Battle)")
+
+    simulation_app = create_simulation_graph()
+    final_state = simulation_app.invoke(state)
+    return _transform_simulation_state(final_state)
+
 
 def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     return NodeExecutor.execute(_safe_simulation_run_impl, state, "Error in Simulation Graph")
 
+
+def _identify_and_log_influencers(engine: NemawashiEngine, network: Any) -> None:
+    influencers = engine.identify_influencers(network)
+    logger.info(f"Identified Key Influencers: {influencers}")
 
 def _nemawashi_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
     """
@@ -309,9 +320,7 @@ def _nemawashi_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
         if i < len(new_opinions):
             stakeholder.initial_support = new_opinions[i]
 
-    # Identify influencers (optional, for logging or CPO context)
-    influencers = engine.identify_influencers(updated_network)
-    logger.info(f"Identified Key Influencers: {influencers}")
+    _identify_and_log_influencers(engine, updated_network)
 
     return {"influence_network": updated_network}
 
@@ -320,91 +329,25 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
     return NodeExecutor.execute(_nemawashi_analysis_node_impl, state, "Error in Nemawashi Analysis")
 
 
+def _create_cpo_agent(state: GlobalState) -> Any:
+    return AgentFactory.get_persona_agent(Role.CPO, state)
+
 def _safe_cpo_run_impl(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
-    cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    return cpo.run(state)
+    cpo = _create_cpo_agent(state)
+    result = cpo.run(state)
+    if isinstance(result, dict):
+        return result
+    return {}
 
 
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     return NodeExecutor.execute(_safe_cpo_run_impl, state, "Error in CPO Agent")
 
 
-def _solution_proposal_impl(state: GlobalState) -> dict[str, Any]:
-    builder = AgentFactory.get_builder_agent()
-    updates = builder.propose_features(state)
-    updates["phase"] = Phase.SOLUTION
+def _transition_phase(updates: dict[str, Any], phase: Phase) -> dict[str, Any]:
+    updates["phase"] = phase
     return updates
-
-
-def _solution_proposal_node_impl(state: GlobalState) -> dict[str, Any]:
-    """
-    Transition to Solution Phase and Propose Features.
-    Prepares for Gate 3 (Problem-Solution Fit).
-    """
-    StateValidator.validate_phase_requirements(state)
-
-    if not state.target_persona:
-        logger.warning("Entering Solution Phase without a defined target persona.")
-
-    logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
-
-    return _solution_proposal_impl(state)
-
-
-def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(
-        _solution_proposal_node_impl, state, "Error in Solution Proposal Node"
-    )
-
-
-def _mvp_generation_node_impl(state: GlobalState) -> dict[str, Any]:
-    """
-    Generate MVP after user selection (Gate 3).
-    """
-    logger.info("Generating MVP (Cycle 5)...")
-
-    builder = AgentFactory.get_builder_agent()
-    updates = builder.generate_mvp(state)
-
-    # If MVP Spec is generated, ensure MVP Definition exists for validation
-    if updates.get("mvp_spec"):
-        spec = updates["mvp_spec"]
-        mvp = MVP(
-            type=MVPType.SINGLE_FEATURE,
-            core_features=[
-                Feature(
-                    name=spec.core_feature,
-                    description=f"Core feature: {spec.core_feature}",
-                    priority=Priority.MUST_HAVE,
-                )
-            ],
-            success_criteria="User engagement and feedback.",
-            v0_url=updates.get("mvp_url"),  # Map URL if present
-        )
-        updates["mvp_definition"] = mvp
-
-    return updates
-
-
-def mvp_generation_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_mvp_generation_node_impl, state, "Error in MVP Generation")
-
-
-def _pmf_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Transition to PMF Phase."""
-    StateValidator.validate_phase_requirements(state)
-
-    if not state.mvp_definition:
-        logger.warning("Entering PMF Phase without an MVP definition.")
-
-    logger.info(f"Transitioning to Phase: {Phase.PMF}")
-    return {"phase": Phase.PMF}
-
-
-def pmf_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_pmf_node_impl, state, "Error in PMF Node")
-
 
 def _governance_node_impl(state: GlobalState) -> dict[str, Any]:
     """
@@ -415,8 +358,7 @@ def _governance_node_impl(state: GlobalState) -> dict[str, Any]:
     agent = AgentFactory.get_governance_agent()
     updates = agent.run(state)
 
-    updates["phase"] = Phase.GOVERNANCE
-    return updates
+    return _transition_phase(updates, Phase.GOVERNANCE)
 
 
 def governance_node(state: GlobalState) -> dict[str, Any]:
