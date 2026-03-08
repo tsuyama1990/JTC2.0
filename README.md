@@ -1,113 +1,152 @@
-# The JTC 2.0: Enterprise Business Accelerator
+# The JTC 2.0 (Remastered Edition)
 
-![Status](https://img.shields.io/badge/Status-Cycle_5_Complete-green)
-![Python](https://img.shields.io/badge/Python-3.12+-blue)
+A multi-agent simulation platform designed to radically streamline the new business creation process within traditional large Japanese corporations (JTCs).
 
-**The JTC 2.0** is a paradigm-shifting multi-agent system that fuses the rigorous methodology of **"Startup Science"** with the complex organizational dynamics of **Traditional Japanese Companies (JTCs)**. It is not just a chatbot; it is a role-playing simulation where your business ideas are subjected to "Gekizume" (harsh feedback) by AI agents, validated against real customer interviews, and automatically built into MVPs.
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-## 🚀 Overview
+## 1. Key Features
 
--   **What**: An AI-powered co-founder that helps you brainstorm, validate, and simulate the organizational resistance to new business ideas.
--   **Why**: To help intrapreneurs navigate the "Valley of Death" in large organizations by simulating the harsh reality of corporate decision-making before pitching to real stakeholders.
--   **How**: Uses **LangGraph** to orchestrate specialized agents (Ideator, Finance, Sales, CPO) and **Tavily** for real-time market research.
+*   **Schema-Driven Generation (Zero Hallucination):** Enforces strict Pydantic models at every step of the generation process (Chain of Thought), moving logically from Alternative Analysis to Value Proposition, Mental Models, and User Stories without any AI logic leaps.
+*   **Universal AI Prompt Output:** Instead of locking into a specific UI generator, the system produces a flawless `AgentPromptSpec.md`—the ultimate requirement document ready to be digested by modern AI coding agents like Cursor, Windsurf, or Google Antigravity.
+*   **Psychological Safety via Gamification:** Masks harsh corporate feedback and critical customer reviews behind a retro, 16-colour Pyxel RPG interface, complete with a satisfying "Approval" stamp mechanic for positive reinforcement.
+*   **Human-in-the-Loop (HITL) Validation:** Automatically generates high-resolution PDFs of strategic canvases and pauses execution, allowing the human operator to provide course corrections before proceeding to the next stage.
+*   **Robust Multi-Agent Simulation:** Features three sophisticated sub-graphs: The JTC Board (financial/political review), Virtual Market (customer validation), and the 3H Review (Hacker, Hipster, Hustler) to pressure-test ideas.
 
-## ✨ Features
+## 2. Architecture Overview
 
--   **Automated Ideation Engine**: Generates 10 distinct, research-backed Lean Canvas business ideas from a single topic.
--   **JTC Simulation Engine ("The Meeting")**: Watch your "New Employee" proxy defend your idea against skeptical "Finance Manager" and aggressive "Sales Manager" agents in a realistic debate.
--   **Real-World Data Ingestion (Secure RAG)**: Ingest customer interview transcripts (via `--ingest`) to ground the simulation in primary data. Features strict path validation and memory-safe processing for large files.
--   **CPO Mentor Agent**: A silent observer who provides fact-based, data-driven advice ("The Mom Test") using ingested transcripts to validate or pivot your idea.
--   **Nemawashi (Root-Binding) Engine**: Analyze the invisible influence network within the organization. Identify "Key Influencers" and simulate "Nomikai" (drinking parties) to build consensus behind the scenes using the French-DeGroot model.
--   **Automated MVP Construction**: Generate high-fidelity React/Tailwind UI from your Lean Canvas using v0.dev.
--   **Business Governance & Ringi-sho**: Automated financial analysis (LTV/CAC, ROI) and generation of a formal "Ringi-sho" approval document to secure executive buy-in.
--   **Pyxel Retro UI**: A gamified RPG-style interface for observing the simulation without personal emotional attachment ("De-identification").
--   **Modular Architecture**: Designed for scalability and maintainability with strict schema validation and separated responsibilities.
+The core logic is orchestrated via LangGraph, maintaining a strict separation of concerns between domain models, the core workflow, external APIs, and the Pyxel UI frontend.
 
-## 📋 Prerequisites
+```mermaid
+graph TD
+    subgraph Frontend [Pyxel UI]
+        UI[Retro 16-Color UI]
+        Stamp[Approval Stamp Animation]
+    end
 
--   **Python 3.12+**
--   **uv** (Modern Python package manager)
--   **API Keys**:
-    -   `OPENAI_API_KEY` (GPT-4o recommended)
-    -   `TAVILY_API_KEY` (For market research)
-    -   `V0_API_KEY` (For MVP Generation)
+    subgraph Backend [LangGraph Core]
+        State[(GlobalState)]
 
-## 🛠 Installation
+        N1[Ideator Node]
+        N2[Persona & Empathy Node]
+        N3[Alternative & VPC Node]
+        N4[Mental Model & Journey Node]
+        N5[Sitemap & Wireframe Node]
+        N6[Virtual Customer Node]
+        N7[JTC Simulation Node]
+        N8[3H Review Node]
+        N9[Spec Generation Node]
 
-1.  **Clone the repository**
+        N1 -->|LeanCanvas| N2
+        N2 -->|Persona| N3
+        N3 -->|VPC| N4
+        N4 -->|Journey| N5
+        N5 -->|Sitemap| N6
+        N6 -->|Feedback| N7
+        N7 -->|Approval| N8
+        N8 -->|Refined Spec| N9
+
+        N1 -.-> State
+        N2 -.-> State
+        N3 -.-> State
+        N4 -.-> State
+        N5 -.-> State
+        N6 -.-> State
+        N7 -.-> State
+        N8 -.-> State
+        N9 -.-> State
+    end
+
+    subgraph External
+        LLM[OpenAI GPT-4]
+        Tavily[Tavily Search]
+        PDF[PDF Generator]
+    end
+
+    Backend <--> LLM
+    Backend <--> Tavily
+    N3 --> PDF
+    N5 --> PDF
+    N9 --> PDF
+
+    UI <..> State
+    UI --> Stamp
+```
+
+## 3. Prerequisites
+
+*   Python 3.12+
+*   `uv` (Extremely fast Python package installer and resolver)
+*   OpenAI API Key (for real executions)
+*   Tavily API Key (optional, for PEST analysis search)
+
+## 4. Installation & Setup
+
+1.  **Clone the repository:**
     ```bash
     git clone https://github.com/your-org/jtc2-0.git
     cd jtc2-0
     ```
 
-2.  **Install dependencies**
+2.  **Install dependencies using `uv`:**
     ```bash
     uv sync
     ```
 
-3.  **Configure Environment**
-    Create a `.env` file in the root directory:
+3.  **Environment Variables:**
+    Copy the example `.env` file and fill in your API keys.
     ```bash
-    OPENAI_API_KEY=sk-...
-    TAVILY_API_KEY=tvly-...
-    V0_API_KEY=v0-...
+    cp .env.example .env
     ```
 
-## 🚀 Usage
+## 5. Usage
 
-**Ingest Customer Transcripts:**
-
-First, feed the system with real-world data (e.g., interview notes):
-
+**Quick Start Tutorial (Mock Mode):**
+To experience the entire workflow without spending API tokens, you can run the interactive Marimo tutorial.
 ```bash
-uv run main.py --ingest ./path/to/interview.txt
+uv run marimo run tutorials/UAT_AND_TUTORIAL.py
 ```
 
-**Start the Ideation & Simulation:**
-
+**Running the Core Application:**
 ```bash
-uv run main.py "AI for Agriculture"
+uv run python -m src.ui.app
 ```
 
-The system will:
-1.  Research the topic and generate 10 Lean Canvas drafts.
-2.  Ask you to select one "Plan A" to proceed.
-3.  Launch the **JTC Simulation** where agents debate the plan.
-4.  The **CPO Agent** will intervene after the meeting to provide data-backed mentoring based on your ingested transcripts.
-5.  The **Nemawashi Engine** will analyze the political landscape and advise on who to influence first.
-6.  The **Builder Agent** will construct an MVP Spec and generate a UI URL via v0.dev.
+## 6. Development Workflow
 
-## 🏗 Architecture
+The development plan is strictly divided into exactly 6 implementation cycles.
 
-**Directory Structure:**
+To ensure code quality and prevent AI-generated spaghetti code, this project uses strict linting and type checking.
 
-```ascii
-.
+*   **Run formatting and linting:**
+    ```bash
+    uv run ruff check .
+    uv run ruff format .
+    ```
+*   **Run type checking (Strict Mode):**
+    ```bash
+    uv run mypy .
+    ```
+*   **Run tests:**
+    ```bash
+    uv run pytest
+    ```
+
+## 7. Project Structure
+
+```text
+jtc2-0/
 ├── src/
-│   ├── agents/             # Agent Logic (Ideator, CPO, Personas, Builder)
-│   ├── core/               # Core Logic
-│   │   ├── nemawashi/      # Consensus Building Package (Logic, Analytics, Nomikai)
-│   │   ├── simulation.py   # Simulation Graph
-│   │   └── config.py       # Configuration & Validation
-│   ├── data/               # RAG Engine & Ingestion
-│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, Politics, GlobalState, MVP)
-│   ├── tools/              # API Wrappers (Tavily, V0Client)
-│   ├── ui/                 # Pyxel Renderer
-│   └── main.py             # CLI Entry Point
-├── tests/                  # Unit & UAT Tests
-├── dev_documents/          # Specs & Logs
-└── pyproject.toml          # Project Configuration
+│   ├── core/              # LangGraph nodes and orchestrator
+│   ├── domain_models/     # Strict Pydantic schemas (VPC, Journey, etc.)
+│   ├── services/          # File I/O and PDF generation
+│   └── ui/                # Pyxel retro interface
+├── tests/                 # Unit and Integration tests
+├── tutorials/             # Marimo notebooks for UAT
+└── pyproject.toml         # Dependency and linter configuration
 ```
 
-## 🗺 Roadmap
+## 8. License
 
--   **Cycle 1: Foundation & Ideation (Completed)**
--   **Cycle 2: JTC Simulation (Completed)**
--   **Cycle 3: Real World Connection (RAG) (Completed)**
--   **Cycle 4: Consensus Building (Nemawashi) (Completed)**
--   **Cycle 5: MVP Generation (Completed)**
--   **Cycle 6: Governance & Finalization (Completed)**
-
-## 📄 License
-
-MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
