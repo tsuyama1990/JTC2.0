@@ -25,8 +25,6 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-
-
 def create_app() -> CompiledStateGraph[Any, Any]:
     """
     Create and compile the LangGraph application.
@@ -90,13 +88,7 @@ def create_app() -> CompiledStateGraph[Any, Any]:
     workflow.add_edge("experiment_planning", "governance")
     workflow.add_edge("governance", END)
 
-    interrupts = [
-        "ideator",
-        "vpc",
-        "sitemap_wireframe",
-        "virtual_customer",
-        "experiment_planning"
-    ]
+    interrupts = ["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]
 
     # Validate interrupt sequence
     valid_nodes = set(workflow.nodes.keys())

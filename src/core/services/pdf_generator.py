@@ -9,6 +9,7 @@ from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
 class PDFGenerator:
     """Service to generate PDF versions of canvases."""
 
@@ -25,7 +26,7 @@ class PDFGenerator:
         def add_dict_to_pdf(d: dict[str, Any], indent: int = 0) -> None:
             for key, value in d.items():
                 indent_str = "  " * indent
-                title_key = key.replace('_', ' ').title()
+                title_key = key.replace("_", " ").title()
 
                 if isinstance(value, dict):
                     pdf.multi_cell(w=190, h=10, text=f"{indent_str}{title_key}:")
@@ -49,7 +50,7 @@ class PDFGenerator:
         import re
 
         # Sanitize filename
-        safe_filename = re.sub(r'[^a-zA-Z0-9_\-\.]', '', filename)
+        safe_filename = re.sub(r"[^a-zA-Z0-9_\-\.]", "", filename)
         if not safe_filename:
             logger.error("Invalid filename provided for PDF generation.")
             return None
@@ -78,7 +79,14 @@ class PDFGenerator:
 
             # Title
             pdf.set_font("Helvetica", style="B", size=16)
-            pdf.cell(w=200, h=10, text=f"Canvas Output: {model.__class__.__name__}", new_x="LMARGIN", new_y="NEXT", align="C")
+            pdf.cell(
+                w=200,
+                h=10,
+                text=f"Canvas Output: {model.__class__.__name__}",
+                new_x="LMARGIN",
+                new_y="NEXT",
+                align="C",
+            )
             pdf.ln(10)
 
             # Content mapping

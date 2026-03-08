@@ -135,7 +135,6 @@ def test_gate_transitions_data_integrity(
             Feature(name="Feature1", description="Description", priority=Priority.MUST_HAVE)
         ],
         success_criteria="Criteria",
-        v0_url="https://v0.dev/test",
     )
 
     state_ready_for_solution = state_ready_for_verification.model_copy()

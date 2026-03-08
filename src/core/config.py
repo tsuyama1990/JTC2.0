@@ -348,12 +348,8 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
-    openai_api_key: SecretStr = Field(
-        alias="OPENAI_API_KEY", description="OpenAI API Key"
-    )
-    tavily_api_key: SecretStr = Field(
-        alias="TAVILY_API_KEY", description="Tavily Search API Key"
-    )
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
+    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
     v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0 API Key")
     v0_api_url: str = Field(
         alias="V0_API_URL",
@@ -367,7 +363,9 @@ class Settings(BaseSettings):
     )
 
     canvas_output_dir: str = Field(
-        alias="CANVAS_OUTPUT_DIR", default="outputs/canvas", description="Directory for PDF Canvas outputs"
+        alias="CANVAS_OUTPUT_DIR",
+        default="outputs/canvas",
+        description="Directory for PDF Canvas outputs",
     )
     rag_chunk_size: int = Field(
         alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG"
@@ -489,7 +487,11 @@ class Settings(BaseSettings):
             raise ValueError(msg)
 
         # Validate v0 api key too if it is present
-        if getattr(self, "v0_api_key", None) and self.v0_api_key.get_secret_value() and not key_pattern.match(self.v0_api_key.get_secret_value()):
+        if (
+            getattr(self, "v0_api_key", None)
+            and self.v0_api_key.get_secret_value()
+            and not key_pattern.match(self.v0_api_key.get_secret_value())
+        ):
             msg = "v0 API Key format is invalid."
             raise ValueError(msg)
 

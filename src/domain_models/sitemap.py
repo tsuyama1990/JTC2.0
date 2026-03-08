@@ -71,7 +71,9 @@ class UserStory(BaseModel):
         for field in ["as_a", "i_want_to", "so_that"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                msg = (
+                    f"{field} must be at least {settings.validation.min_content_length} characters"
+                )
                 raise ValueError(msg)
 
         if len(self.acceptance_criteria) < settings.validation.min_list_length:
