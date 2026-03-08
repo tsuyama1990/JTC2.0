@@ -73,18 +73,20 @@ class GovernanceAgent(BaseAgent):
         return {"ringi_sho": ringi_sho, "metrics_data": updated_metrics}
 
     def _get_industry_context(self, state: GlobalState) -> str:
-        import re
 
         industry = state.topic
         if state.selected_idea:
             industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
-        from src.core.utils import sanitize_text
+        import re
 
-        # Security: Apply strict HTML/SQL/Command injection sanitization
-        # followed by regex whitelist for alphanumeric and spaces only
-        sanitized = sanitize_text(industry, strict=True)
-        return sanitized
+        from src.core.utils import strip_html_tags
+
+        # Note: Do not rely on string sanitization for database queries.
+        # This regex is used to keep search queries clean, NOT for SQL/Command injection security.
+        stripped = strip_html_tags(industry)
+        clean_query = re.sub(r"[^a-zA-Z0-9\s]", "", stripped)
+        return clean_query.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
         settings = get_settings()

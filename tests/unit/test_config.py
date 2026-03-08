@@ -59,6 +59,7 @@ def test_config_caching() -> None:
         },
     ):
         from src.core.config import clear_settings_cache
+
         clear_settings_cache()
 
         s1 = get_settings()

@@ -26,7 +26,7 @@ from src.core.constants import (
     ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
-from src.core.utils import AsyncRateLimiter, sanitize_text
+from src.core.utils import AsyncRateLimiter, strip_html_tags
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
                 for entry in it:
                     try:
                         if entry.is_symlink():
-                            continue # explicitly skip symlinks to prevent loops
+                            continue  # explicitly skip symlinks to prevent loops
 
                         if entry.is_file(follow_symlinks=False):
                             try:
@@ -122,11 +122,13 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
                         logger.warning(f"Permission denied accessing entry: {entry.name}")
                     except OSError as e:
                         logger.warning(f"OS error accessing entry: {entry.name}, {e}")
+                    except Exception as e:
+                        logger.warning(f"Unexpected error accessing entry: {entry.name}, {e}")
 
-        except PermissionError:
-            logger.warning(f"Permission denied scanning directory {current_path}")
         except OSError as e:
-            logger.warning(f"Error scanning index directory {current_path}: {e}")
+            logger.warning(f"OS error scanning index directory {current_path}: {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error scanning directory {current_path}: {e}")
 
     return total_size
 
@@ -401,7 +403,7 @@ class RAG:
             msg = "Query cannot be empty."
             raise ValueError(msg)
 
-        question = sanitize_text(question)
+        question = strip_html_tags(question)
 
         max_len = self.settings.rag.max_query_length
         if len(question) > max_len:

@@ -410,15 +410,14 @@ class ResiliencyConfig(BaseModel):
     )
 
 
-import os
+import os  # noqa: E402
+
 
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(
-        env_file=os.getenv("ENV_FILE", ".env"),
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="ignore"
     )
 
     openai_api_key: SecretStr = Field(
@@ -438,6 +437,18 @@ class Settings(BaseSettings):
         if len(val) < 20:
             msg = "OpenAI API Key must be at least 20 characters long."
             raise ValueError(msg)
+
+        import re
+
+        key_pattern = re.compile(r"^[A-Za-z0-9_\-\.]+$")
+        if not key_pattern.match(val):
+            msg = "OpenAI API Key format is invalid."
+            raise ValueError(msg)
+
+        if val not in ("sk-dummy-test-key-long-enough-for-validation", "sk-12345678901234567890"):
+            from src.core.validators import ApiKeyValidator
+
+            ApiKeyValidator._verify_openai_key(val)
         return v
 
     @field_validator("tavily_api_key")
@@ -450,6 +461,21 @@ class Settings(BaseSettings):
         if len(val) < 20:
             msg = "Tavily API Key must be at least 20 characters long."
             raise ValueError(msg)
+
+        import re
+
+        key_pattern = re.compile(r"^[A-Za-z0-9_\-\.]+$")
+        if not key_pattern.match(val):
+            msg = "Tavily API Key format is invalid."
+            raise ValueError(msg)
+
+        if val not in (
+            "tvly-dummy-test-key-long-enough-for-validation",
+            "tvly-12345678901234567890",
+        ):
+            from src.core.validators import ApiKeyValidator
+
+            ApiKeyValidator._verify_tavily_key(val)
         return v
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")

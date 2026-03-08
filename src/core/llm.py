@@ -1,3 +1,4 @@
+import atexit
 import threading
 
 import httpx
@@ -6,7 +7,6 @@ from langchain_openai import ChatOpenAI
 from src.core.config import get_settings
 from src.core.constants import ERR_LLM_CONFIG_MISSING
 
-import atexit
 
 # Global thread-safe HTTP client pool manager
 class HTTPClientManager:
@@ -35,10 +35,15 @@ class HTTPClientManager:
             self.client.close()
 
 
+from functools import cache  # noqa: E402
+
+
+@cache
 def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -> ChatOpenAI:
     """
-    Factory to get a new LLM client instance.
+    Factory to get a cached LLM client instance.
     Uses a properly pooled and managed global HTTP client instance unless one is injected.
+    The ChatOpenAI instance itself is cached to prevent connection exhaustion.
     """
     settings = get_settings()
     from src.core.validators import ApiKeyValidator
@@ -63,7 +68,8 @@ def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -
 
 
 def clear_llm_cache() -> None:
-    """Helper for testing to reset the HTTP client pool."""
+    """Helper for testing to reset the LLM cache and HTTP client pool."""
+    get_llm.cache_clear()
     manager = HTTPClientManager()
     with manager._lock:
         manager.close()

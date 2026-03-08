@@ -26,27 +26,22 @@ def chunk_text(text: str, chunk_size: int) -> Generator[str, None, None]:
         yield text[i : i + chunk_size]
 
 
-def sanitize_text(query: str, strict: bool = False) -> str:
+def strip_html_tags(query: str) -> str:
     """
-    Sanitize input string by strictly removing ALL HTML tags and scripts.
-    When strict=True, strips all non-alphanumeric/whitespace characters.
+    Strips ALL HTML tags and scripts from the input string using bleach.
 
-    NOTE: For database operations, do not rely on string sanitization.
-    Use parameterized queries (e.g. via SQLAlchemy) to prevent SQL Injection.
+    WARNING: This function does NOT prevent SQL injection or Command injection.
+    It is NOT intended for security purposes. For database operations, always
+    use parameterized queries (e.g. via SQLAlchemy).
     """
     if not isinstance(query, str):
         msg = "Input query must be a string."
         raise TypeError(msg)
 
-    # 1. Strip HTML using comprehensive library
-    sanitized: str = bleach.clean(query.strip(), tags=[], attributes={}, protocols=[], strip=True)
+    # Strip HTML using comprehensive library
+    stripped: str = bleach.clean(query.strip(), tags=[], attributes={}, protocols=[], strip=True)
 
-    # 2. Strict alphanumeric enforcement if requested
-    if strict:
-        import re
-        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", sanitized)
-
-    return sanitized.strip()
+    return stripped.strip()
 
 
 class AsyncRateLimiter:

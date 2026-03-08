@@ -52,10 +52,19 @@ class WorkflowBuilder:
                 msg = f"Edge references undefined end node: {end}"
                 raise ValueError(msg)
 
+            if start == end:
+                msg = f"Self-loop detected on node {start}."
+                raise ValueError(msg)
+
             if start not in adj_list:
                 adj_list[start] = []
             if end not in adj_list:
                 adj_list[end] = []
+
+            if end in adj_list[start]:
+                msg = f"Parallel edges detected from {start} to {end}."
+                raise ValueError(msg)
+
             adj_list[start].append(end)
 
         index = 0
@@ -73,10 +82,6 @@ class WorkflowBuilder:
             on_stack.add(v)
 
             for w in adj_list.get(v, []):
-                if v == w:
-                    msg = f"Self-loop detected on node {v}."
-                    raise ValueError(msg)
-
                 if w not in indices:
                     strongconnect(w)
                     lowlinks[v] = min(lowlinks[v], lowlinks[w])
