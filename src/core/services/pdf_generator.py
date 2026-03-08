@@ -56,11 +56,10 @@ class PDFGenerator:
                             if isinstance(item, dict):
                                 add_dict_to_pdf(item, indent + 1)
                             else:
-                                # Safe encoding replacement for ascii support
-                                text = f"{indent_str}  - {item!s}".encode("latin-1", "replace").decode("latin-1")
+                                text = f"{indent_str}  - {item!s}"
                                 pdf.multi_cell(w=190, h=10, text=text)
                     else:
-                        text = f"{indent_str}{key.replace('_', ' ').title()}: {value!s}".encode("latin-1", "replace").decode("latin-1")
+                        text = f"{indent_str}{key.replace('_', ' ').title()}: {value!s}"
                         pdf.multi_cell(w=190, h=10, text=text)
 
             data = model.model_dump()

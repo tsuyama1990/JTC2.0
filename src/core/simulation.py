@@ -6,6 +6,7 @@ The sequence is loaded from configuration to allow flexibility.
 """
 
 import logging
+from typing import Any
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -18,7 +19,9 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
+
+
+def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
     """
     Create the simulation sub-graph based on configured turn sequence.
     Dynamically builds nodes and edges from Settings.
@@ -54,8 +57,7 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
             state: GlobalState, _role: Role = role, _desc: str = desc
         ) -> dict[str, object]:
             logger.info(_desc)
-            # Add type ignore for Any return from run
-            return AgentFactory.get_persona_agent(_role).run(state)  # type: ignore[no-any-return]
+            return AgentFactory.get_persona_agent(_role).run(state)
 
         # Name the function for debugging
         step_runner.__name__ = f"run_{node_name}"

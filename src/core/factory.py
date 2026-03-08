@@ -1,4 +1,3 @@
-from typing import Any
 
 from src.agents.builder import BuilderAgent
 from src.agents.cpo import CPOAgent
@@ -74,7 +73,7 @@ class AgentFactory:
         return HustlerAgent(llm)
 
     @staticmethod
-    def get_persona_agent(role: Role, state: GlobalState | None = None) -> Any:
+    def get_persona_agent(role: Role, state: GlobalState | None = None) -> CPOAgent | NewEmployeeAgent | FinanceAgent | SalesAgent:
         """
         Get a persona agent instance.
 
@@ -93,7 +92,7 @@ class AgentFactory:
         return AgentFactory._get_cached_persona(role)
 
     @staticmethod
-    def _get_cached_persona(role: Role) -> Any:
+    def _get_cached_persona(role: Role) -> NewEmployeeAgent | FinanceAgent | SalesAgent:
         """
         Factory for stateless persona agents.
         No caching to ensure fresh configuration usage (e.g. LLM model changes).

@@ -186,6 +186,7 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     return {}
 
 
+@safe_node("Error during transcript ingestion")
 def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
     """
     Ingest customer transcripts into the RAG system.
@@ -254,7 +255,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    return cpo.run(state)  # type: ignore
+    return cpo.run(state)
 
 
 @safe_node("Error in Solution Proposal")
@@ -265,16 +266,13 @@ def _solution_proposal_impl(state: GlobalState) -> dict[str, Any]:
     return updates
 
 
+@safe_node("Error in Solution Proposal Node")
 def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
     """
     Transition to Solution Phase and Propose Features.
     Prepares for Gate 3 (Problem-Solution Fit).
     """
-    try:
-        StateValidator.validate_phase_requirements(state)
-    except ValueError:
-        logger.exception("Validation failed for Solution transition")
-        return {}
+    StateValidator.validate_phase_requirements(state)
 
     if not state.target_persona:
         logger.warning("Entering Solution Phase without a defined target persona.")

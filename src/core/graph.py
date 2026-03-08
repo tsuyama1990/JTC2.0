@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -24,11 +25,13 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
+
+
+def create_app() -> CompiledStateGraph[Any, Any]:
     """
     Create and compile the LangGraph application.
 
-    This graph implements the "The JTC 2.0" architecture with 4 critical Decision Gates.
+    This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
     workflow = StateGraph(GlobalState)
 
@@ -87,13 +90,13 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     workflow.add_edge("experiment_planning", "governance")
     workflow.add_edge("governance", END)
 
-    # Compile with Interrupts for all Remastered HITL Gates
+    # Compile with Interrupts for documented HITL Gates
     return workflow.compile(
         interrupt_after=[
-            "ideator",           # Gate 1
-            "vpc",               # Gate 1.5
-            "sitemap_wireframe", # Gate 1.8
-            "virtual_customer",  # Gate 2
-            "experiment_planning"# Gate 3
+            "ideator",
+            "vpc",
+            "sitemap_wireframe",
+            "virtual_customer",
+            "experiment_planning"
         ]
     )
