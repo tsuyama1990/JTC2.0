@@ -28,15 +28,24 @@ def chunk_text(text: str, chunk_size: int) -> Generator[str, None, None]:
 
 def sanitize_text(query: str) -> str:
     """
-    Sanitize input string by strictly removing ALL HTML tags and scripts.
-    Uses the robust `bleach` library.
-    NOTE: This does not prevent SQL injection. Use parameterized queries for databases.
+    Sanitize input string by strictly removing ALL HTML tags and scripts,
+    and neutralizing common SQL/Command injection patterns.
     """
     if not isinstance(query, str):
         msg = "Input query must be a string."
         raise TypeError(msg)
+
+    import re
+    # 1. Strip HTML
     sanitized: str = bleach.clean(query.strip(), tags=[], attributes={}, protocols=[], strip=True)
-    return sanitized
+
+    # 2. Neutralize SQL Injection common meta-characters (quotes, semicolons, dashes)
+    sanitized = re.sub(r"['\";\-]", "", sanitized)
+
+    # 3. Neutralize Command Injection (pipes, ampersands, backticks, dollar signs)
+    sanitized = re.sub(r"[|&`$]", "", sanitized)
+
+    return sanitized.strip()
 
 
 class AsyncRateLimiter:

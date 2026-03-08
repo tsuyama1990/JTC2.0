@@ -2,9 +2,9 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import Any, TypeVar
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Any)
 
 logger = logging.getLogger(__name__)
 

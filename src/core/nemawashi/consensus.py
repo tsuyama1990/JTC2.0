@@ -32,6 +32,11 @@ class ConsensusEngine:
         Returns:
             A list of final opinion values (0.0 to 1.0) for each stakeholder.
         """
+        if not network or not hasattr(network, "stakeholders") or network.stakeholders is None:
+            msg = "Network must contain a valid stakeholders list."
+            from src.core.exceptions import ValidationError
+            raise ValidationError(msg)
+
         n = len(network.stakeholders)
         if n == 0:
             return []

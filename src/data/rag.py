@@ -151,6 +151,13 @@ class RAG:
         raw_path = persist_dir or self.settings.rag.persist_dir
         self.persist_dir = self._validate_path(raw_path)
 
+        # Ensure the directory exists or can be created
+        try:
+            Path(self.persist_dir).mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            msg = f"Failed to access or create persist directory at {self.persist_dir}: {e}"
+            raise ConfigurationError(msg) from e
+
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(
             fail_max=self.settings.resiliency.circuit_breaker_fail_max,

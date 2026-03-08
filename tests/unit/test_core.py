@@ -22,7 +22,8 @@ def test_config_values() -> None:
 
 
 @patch("src.core.llm.get_settings")
-def test_get_llm_success(mock_get_settings: MagicMock) -> None:
+@patch("src.core.validators.ApiKeyValidator.validate")
+def test_get_llm_success(mock_validate: MagicMock, mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = SecretStr("test-key")
     mock_settings.llm_model = "gpt-4o"
@@ -30,10 +31,12 @@ def test_get_llm_success(mock_get_settings: MagicMock) -> None:
     llm = get_llm()
     assert llm.model_name == "gpt-4o"
     assert llm.openai_api_key == SecretStr("test-key")
+    mock_validate.assert_called_once()
 
 
 @patch("src.core.llm.get_settings")
-def test_get_llm_override(mock_get_settings: MagicMock) -> None:
+@patch("src.core.validators.ApiKeyValidator.validate")
+def test_get_llm_override(mock_validate: MagicMock, mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = SecretStr("test-key")
 
@@ -42,7 +45,8 @@ def test_get_llm_override(mock_get_settings: MagicMock) -> None:
 
 
 @patch("src.core.llm.get_settings")
-def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
+@patch("src.core.validators.ApiKeyValidator.validate")
+def test_get_llm_missing_key(mock_validate: MagicMock, mock_get_settings: MagicMock) -> None:
     # Clear lru_cache to ensure we get a fresh execution
     clear_llm_cache()
 

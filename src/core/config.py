@@ -410,10 +410,16 @@ class ResiliencyConfig(BaseModel):
     )
 
 
+import os
+
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=os.getenv("ENV_FILE", ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
     openai_api_key: SecretStr = Field(
         alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=20

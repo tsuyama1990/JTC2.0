@@ -79,8 +79,12 @@ class GovernanceAgent(BaseAgent):
         if state.selected_idea:
             industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
-        # Security: Whitelist characters to prevent injection attacks (alphanumeric and spaces only)
-        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", industry)
+        from src.core.utils import sanitize_text
+
+        # Security: Apply strict HTML/SQL/Command injection sanitization
+        # followed by regex whitelist for alphanumeric and spaces only
+        sanitized_base = sanitize_text(industry)
+        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", sanitized_base)
         return sanitized.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:

@@ -29,19 +29,24 @@ class ApiKeyValidator:
 
         key_pattern = re.compile(r"^[A-Za-z0-9_\-\.]+$")
 
-        if not settings.openai_api_key or not settings.openai_api_key.get_secret_value():
+        if getattr(settings, "openai_api_key", None) is None:
             raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
 
         openai_val = settings.openai_api_key.get_secret_value()
+        if not openai_val:
+            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
         if not key_pattern.match(openai_val) or len(openai_val) < 20:
             msg = "OpenAI API Key format is invalid or too short. Keys must be strictly formatted."
             raise ValueError(msg)
 
-        if not settings.tavily_api_key or not settings.tavily_api_key.get_secret_value():
+        if getattr(settings, "tavily_api_key", None) is None:
             msg = "Tavily API Key is missing or empty."
             raise ValueError(msg)
 
         tavily_val = settings.tavily_api_key.get_secret_value()
+        if not tavily_val:
+            msg = "Tavily API Key is missing or empty."
+            raise ValueError(msg)
         if not key_pattern.match(tavily_val) or len(tavily_val) < 20:
             msg = "Tavily API Key format is invalid or too short."
             raise ValueError(msg)

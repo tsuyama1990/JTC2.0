@@ -16,6 +16,11 @@ def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -
     Uses explicit connection limits and thread-local storage for the HTTP client.
     """
     settings = get_settings()
+    from src.core.validators import ApiKeyValidator
+
+    # Strictly validate key formatting and readiness before creating the client
+    ApiKeyValidator.validate(settings)
+
     if not settings.openai_api_key:
         raise ValueError(ERR_LLM_CONFIG_MISSING)
 

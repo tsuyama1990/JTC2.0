@@ -45,6 +45,13 @@ class WorkflowBuilder:
         adj_list["__end__"] = []
 
         for start, end in self.edges:
+            if start not in self.nodes:
+                msg = f"Edge references undefined start node: {start}"
+                raise ValueError(msg)
+            if end != "__end__" and end not in self.nodes:
+                msg = f"Edge references undefined end node: {end}"
+                raise ValueError(msg)
+
             if start not in adj_list:
                 adj_list[start] = []
             if end not in adj_list:
