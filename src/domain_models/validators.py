@@ -36,7 +36,11 @@ class CommonValidators:
     def validate_sparse_matrix(matrix: Any, n: int, tol: float) -> None:
         row_sums = [0.0] * n
         for entry in matrix:
-            row, col, val = getattr(entry, "row", 0), getattr(entry, "col", 0), getattr(entry, "val", 0.0)
+            row, col, val = (
+                getattr(entry, "row", 0),
+                getattr(entry, "col", 0),
+                getattr(entry, "val", 0.0),
+            )
             if not (0 <= row < n) or not (0 <= col < n):
                 raise ValueError(ERR_MATRIX_SHAPE)
             row_sums[row] += val

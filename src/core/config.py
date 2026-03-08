@@ -362,7 +362,7 @@ class GovernanceConfig(BaseSettings):
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     openai_api_key: SecretStr | None = Field(
         alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"

@@ -3,6 +3,7 @@ from enum import StrEnum
 
 class EnhancedEnum(StrEnum):
     """Base enum with metadata support."""
+
     display_name: str
     description: str
 
