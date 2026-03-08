@@ -18,20 +18,20 @@ from src.core.constants import (
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
+    DEFAULT_MAX_CONTENT_LENGTH,
+    DEFAULT_MAX_CUSTOM_METRICS,
     DEFAULT_MAX_FILES,
+    DEFAULT_MAX_LIST_LENGTH,
     DEFAULT_MAX_LLM_RESPONSE_SIZE,
+    DEFAULT_MAX_PERCENTAGE_VALUE,
     DEFAULT_MAX_SEARCH_RESULT_SIZE,
     DEFAULT_MAX_TITLE_LENGTH,
     DEFAULT_MAX_TURNS,
     DEFAULT_MAX_Y,
-    DEFAULT_MIN_ROI_THRESHOLD,
-    DEFAULT_MAX_CONTENT_LENGTH,
-    DEFAULT_MAX_CUSTOM_METRICS,
-    DEFAULT_MAX_LIST_LENGTH,
-    DEFAULT_MAX_PERCENTAGE_VALUE,
     DEFAULT_MIN_CONTENT_LENGTH,
     DEFAULT_MIN_LIST_LENGTH,
     DEFAULT_MIN_METRIC_VALUE,
+    DEFAULT_MIN_ROI_THRESHOLD,
     DEFAULT_MIN_TITLE_LENGTH,
     DEFAULT_NEMAWASHI_BOOST,
     DEFAULT_NEMAWASHI_MAX_STEPS,
@@ -97,15 +97,29 @@ class ValidationConfig(BaseSettings):
     max_title_length: int = Field(
         default=DEFAULT_MAX_TITLE_LENGTH, description="Maximum length for titles"
     )
-    min_content_length: int = Field(default=DEFAULT_MIN_CONTENT_LENGTH, description="Minimum length for content blocks")
-    max_content_length: int = Field(default=DEFAULT_MAX_CONTENT_LENGTH, description="Maximum length for content blocks")
+    min_content_length: int = Field(
+        default=DEFAULT_MIN_CONTENT_LENGTH, description="Minimum length for content blocks"
+    )
+    max_content_length: int = Field(
+        default=DEFAULT_MAX_CONTENT_LENGTH, description="Maximum length for content blocks"
+    )
 
-    min_list_length: int = Field(default=DEFAULT_MIN_LIST_LENGTH, description="Minimum items in lists")
-    max_list_length: int = Field(default=DEFAULT_MAX_LIST_LENGTH, description="Maximum items in lists")
+    min_list_length: int = Field(
+        default=DEFAULT_MIN_LIST_LENGTH, description="Minimum items in lists"
+    )
+    max_list_length: int = Field(
+        default=DEFAULT_MAX_LIST_LENGTH, description="Maximum items in lists"
+    )
 
-    max_custom_metrics: int = Field(default=DEFAULT_MAX_CUSTOM_METRICS, description="Maximum custom metrics allowed")
-    min_metric_value: float = Field(default=DEFAULT_MIN_METRIC_VALUE, description="Minimum value for metrics")
-    max_percentage_value: float = Field(default=DEFAULT_MAX_PERCENTAGE_VALUE, description="Maximum percentage value")
+    max_custom_metrics: int = Field(
+        default=DEFAULT_MAX_CUSTOM_METRICS, description="Maximum custom metrics allowed"
+    )
+    min_metric_value: float = Field(
+        default=DEFAULT_MIN_METRIC_VALUE, description="Minimum value for metrics"
+    )
+    max_percentage_value: float = Field(
+        default=DEFAULT_MAX_PERCENTAGE_VALUE, description="Maximum percentage value"
+    )
 
 
 class ErrorMessages(BaseSettings):
@@ -148,10 +162,10 @@ class UIConfig(BaseSettings):
     execution_error: str = MSG_EXECUTION_ERROR
 
 
-class AgentConfig(BaseSettings):
+class AgentConfig(BaseModel):
     """Configuration for a single agent in the UI."""
 
-    model_config = SettingsConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True)
 
     role: str = Field(..., description="Role name of the agent")
     label: str = Field(..., description="Short label for UI")
