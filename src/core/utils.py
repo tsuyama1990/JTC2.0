@@ -24,7 +24,7 @@ def sanitize_query(query: str) -> str:
 class AsyncRateLimiter:
     """Configurable, non-blocking rate limiter."""
 
-    def __init__(self, min_interval: float):
+    def __init__(self, min_interval: float) -> None:
         self._min_interval = min_interval
         self._last_call_time = 0.0
 
