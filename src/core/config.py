@@ -348,18 +348,15 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(
-        alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
+    openai_api_key: SecretStr = Field(
+        alias="OPENAI_API_KEY", description="OpenAI API Key"
     )
-    tavily_api_key: SecretStr | None = Field(
-        alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key"
+    tavily_api_key: SecretStr = Field(
+        alias="TAVILY_API_KEY", description="Tavily Search API Key"
     )
-    v0_api_key: SecretStr | None = Field(
-        alias="V0_API_KEY", default=None, description="V0.dev API Key"
-    )
+    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0 API Key")
     v0_api_url: str = Field(
         alias="V0_API_URL",
-        default="https://api.v0.dev/chat/completions",
         description="V0.dev API URL",
     )
 
@@ -367,6 +364,10 @@ class Settings(BaseSettings):
 
     rag_persist_dir: str = Field(
         alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index"
+    )
+
+    canvas_output_dir: str = Field(
+        alias="CANVAS_OUTPUT_DIR", default="outputs/canvas", description="Directory for PDF Canvas outputs"
     )
     rag_chunk_size: int = Field(
         alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG"
@@ -465,13 +466,32 @@ class Settings(BaseSettings):
 
     def validate_api_keys(self) -> Self:
         """Validate API keys are present and have correct format."""
-        if not self.openai_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-        ConfigValidators.validate_openai_key(self.openai_api_key)
+        import os
+        import re
 
-        if not self.tavily_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
-        ConfigValidators.validate_tavily_key(self.tavily_api_key)
+        # Enforce that keys come from environment
+        if not os.getenv("OPENAI_API_KEY") and not self.openai_api_key:
+            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
+
+        key_pattern = re.compile(r"^[A-Za-z0-9_\-\.]+$")
+
+        if not self.openai_api_key or not self.openai_api_key.get_secret_value():
+            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
+        if not key_pattern.match(self.openai_api_key.get_secret_value()):
+            msg = "OpenAI API Key format is invalid. Keys must be strictly formatted."
+            raise ValueError(msg)
+
+        if not self.tavily_api_key or not self.tavily_api_key.get_secret_value():
+            msg = "Tavily API Key is missing or empty."
+            raise ValueError(msg)
+        if not key_pattern.match(self.tavily_api_key.get_secret_value()):
+            msg = "Tavily API Key format is invalid."
+            raise ValueError(msg)
+
+        # Validate v0 api key too if it is present
+        if getattr(self, "v0_api_key", None) and self.v0_api_key.get_secret_value() and not key_pattern.match(self.v0_api_key.get_secret_value()):
+            msg = "v0 API Key format is invalid."
+            raise ValueError(msg)
 
         return self
 

@@ -9,6 +9,7 @@ DUMMY_ENV_VARS = {
     "OPENAI_API_KEY": "sk-dummy-test-key-long-enough-for-validation",
     "TAVILY_API_KEY": "tvly-dummy-test-key-long-enough-for-validation",
     "V0_API_KEY": "v0-dummy-test-key-long-enough-for-validation",
+    "V0_API_URL": "https://api.v0.dev/test",
 }
 
 # Apply dummy env vars immediately for module-level imports during collection

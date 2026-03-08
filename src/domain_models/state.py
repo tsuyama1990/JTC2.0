@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -10,13 +10,20 @@ from src.domain_models.validators import StateValidator
 
 __all__ = ["GlobalState", "Phase"]
 
+from .agent_prompt import AgentPromptSpec
+from .alternative_analysis import AlternativeAnalysis
+from .customer_journey import CustomerJourney
+from .experiment_plan import ExperimentPlan
 from .lean_canvas import LeanCanvas
+from .mental_model import MentalModelDiagram
 from .metrics import Metrics, RingiSho
 from .mvp import MVP, MVPSpec
 from .persona import Persona
 from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage
+from .sitemap import SitemapAndStory
 from .transcript import Transcript
+from .value_proposition import ValuePropositionCanvas
 
 
 class GlobalState(BaseModel):
@@ -35,6 +42,20 @@ class GlobalState(BaseModel):
     messages: list[str] = Field(default_factory=list)
 
     target_persona: Persona | None = None
+
+    # Remastered Phase 2: Customer / Problem Fit
+    alternative_analysis: AlternativeAnalysis | None = None
+    value_proposition: ValuePropositionCanvas | None = None
+
+    # Remastered Phase 3: Problem / Solution Fit
+    mental_model: MentalModelDiagram | None = None
+    customer_journey: CustomerJourney | None = None
+    sitemap_and_story: SitemapAndStory | None = None
+
+    # Remastered Phase 5 & 6: Output Generation
+    agent_prompt_spec: AgentPromptSpec | None = None
+    experiment_plan: ExperimentPlan | None = None
+
     mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
 
@@ -67,14 +88,18 @@ class GlobalState(BaseModel):
     @field_validator("transcripts")
     @classmethod
     def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
-        """Ensure transcripts are unique by source."""
-        # Simple list validation logic, keeping it here for field proximity or move to validator?
-        # The audit asked to "Extract complex validation logic".
-        # This is relatively simple, but let's be strict.
+        """Ensure transcripts are unique by source and have valid content."""
         sources = [t.source for t in v]
         if len(sources) != len(set(sources)):
             msg = "Duplicate transcript sources found."
             raise ValueError(msg)
+
+        settings = get_settings()
+        for t in v:
+            if not t.content or len(t.content.strip()) < settings.validation.min_content_length:
+                msg = f"Transcript from {t.source} is too short or empty."
+                raise ValueError(msg)
+
         return v
 
     @field_validator("agent_states")
@@ -101,7 +126,20 @@ class GlobalState(BaseModel):
             return v
 
         if isinstance(v, Iterator):
-            return LazyIdeaIterator(v)
+            # To validate the elements of a generator without exhausting it entirely,
+            # we can peek at the first element if needed, but since it's an Iterator of unknown source,
+            # standard Pydantic validation handles element checking if we type it properly,
+            # but LazyIdeaIterator abstracts this. We will let LazyIdeaIterator's __next__ handle type checking.
+            # But the auditor specifically said: "add type checking to ensure iterator yields LeanCanvas objects".
+            # We can wrap it in a checking generator.
+            def typed_iterator(it: Iterator[Any]) -> Iterator[LeanCanvas]:
+                for item in it:
+                    if not isinstance(item, LeanCanvas):
+                        msg = f"Iterator must yield LeanCanvas objects, got {type(item)}"
+                        raise TypeError(msg)
+                    yield item
+
+            return LazyIdeaIterator(typed_iterator(v))
 
         # Reject invalid types explicitly
         msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"

@@ -1,79 +1,109 @@
 import logging
+from typing import Any
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.core.nodes import (
+    alternative_analysis_node,
+    experiment_planning_node,
     governance_node,
-    mvp_generation_node,
-    nemawashi_analysis_node,
-    pmf_node,
-    safe_cpo_run,
+    mental_model_journey_node,
+    persona_node,
+    review_3h_node,
     safe_ideator_run,
     safe_simulation_run,
-    solution_proposal_node,
+    sitemap_wireframe_node,
+    spec_generation_node,
     transcript_ingestion_node,
     verification_node,
+    virtual_customer_node,
+    vpc_node,
 )
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
+
+
+def create_app() -> CompiledStateGraph[Any, Any]:
     """
     Create and compile the LangGraph application.
 
-    This graph implements the "The JTC 2.0" architecture with 4 critical Decision Gates.
+    This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
     workflow = StateGraph(GlobalState)
 
     # --- NODE DEFINITIONS ---
     workflow.add_node("ideator", safe_ideator_run)
     workflow.add_node("verification", verification_node)
+
+    # Phase 2
+    workflow.add_node("persona", persona_node)
+    workflow.add_node("alternative_analysis", alternative_analysis_node)
+    workflow.add_node("vpc", vpc_node)
     workflow.add_node("transcript_ingestion", transcript_ingestion_node)
+
+    # Phase 3
+    workflow.add_node("mental_model_journey", mental_model_journey_node)
+    workflow.add_node("sitemap_wireframe", sitemap_wireframe_node)
+
+    # Phase 4
+    workflow.add_node("virtual_customer", virtual_customer_node)
     workflow.add_node("simulation_round", safe_simulation_run)
-    workflow.add_node("nemawashi_analysis", nemawashi_analysis_node)
-    workflow.add_node("cpo_mentoring", safe_cpo_run)
-    workflow.add_node("solution_proposal", solution_proposal_node)
-    workflow.add_node("mvp_generation", mvp_generation_node)
-    workflow.add_node("pmf", pmf_node)
+    workflow.add_node("review_3h", review_3h_node)
+
+    # Phase 5 & 6
+    workflow.add_node("spec_generation", spec_generation_node)
+    workflow.add_node("experiment_planning", experiment_planning_node)
     workflow.add_node("governance", governance_node)
 
     # --- EDGE DEFINITIONS ---
     workflow.set_entry_point("ideator")
 
-    # Gate 1: Idea Verification (Plan A Selection)
-    # Interrupt happens after 'ideator' returns.
+    # Gate 1: Idea Verification
     workflow.add_edge("ideator", "verification")
+    workflow.add_edge("verification", "persona")
+    workflow.add_edge("persona", "alternative_analysis")
+    workflow.add_edge("alternative_analysis", "vpc")
 
-    # Gate 2: Customer-Problem Fit (Riskiest Assumption)
-    # Interrupt happens after 'verification' returns.
-    # User provides transcript during resume.
-    workflow.add_edge("verification", "transcript_ingestion")
+    # Gate 1.5: CPF Feedback (Interrupt after VPC)
+    workflow.add_edge("vpc", "transcript_ingestion")
 
-    # Process transcript then start simulation
-    workflow.add_edge("transcript_ingestion", "simulation_round")
+    # Phase 3
+    workflow.add_edge("transcript_ingestion", "mental_model_journey")
+    workflow.add_edge("mental_model_journey", "sitemap_wireframe")
 
-    # Simulation -> Nemawashi Analysis -> CPO Mentoring
-    workflow.add_edge("simulation_round", "nemawashi_analysis")
-    workflow.add_edge("nemawashi_analysis", "cpo_mentoring")
+    # Gate 1.8: PSF Feedback (Interrupt after Sitemap)
+    workflow.add_edge("sitemap_wireframe", "virtual_customer")
 
-    # Gate 3: Problem-Solution Fit (MVP Scope)
-    # CPO advises -> Solution proposed (Features extracted) -> Interrupt for selection
-    workflow.add_edge("cpo_mentoring", "solution_proposal")
-    workflow.add_edge("solution_proposal", "mvp_generation")
+    # Gate 2: Virtual Market Pivot Decision (Interrupt after Virtual Customer)
+    workflow.add_edge("virtual_customer", "simulation_round")
 
-    # MVP Generated -> PMF Check
-    workflow.add_edge("mvp_generation", "pmf")
+    workflow.add_edge("simulation_round", "review_3h")
 
-    # Gate 4: Product-Market Fit (Pivot Decision)
-    # Interrupt happens after 'pmf' returns.
-    # User validates PMF, then we proceed to Governance.
-    workflow.add_edge("pmf", "governance")
+    workflow.add_edge("review_3h", "spec_generation")
+    workflow.add_edge("spec_generation", "experiment_planning")
 
-    # Governance -> End (Report generated)
+    # Gate 3: Final Output FB (Interrupt after Experiment Plan)
+    workflow.add_edge("experiment_planning", "governance")
     workflow.add_edge("governance", END)
 
-    # Compile with Interrupts for HITL Gates
-    return workflow.compile(interrupt_after=["ideator", "verification", "solution_proposal", "pmf"])
+    interrupts = [
+        "ideator",
+        "vpc",
+        "sitemap_wireframe",
+        "virtual_customer",
+        "experiment_planning"
+    ]
+
+    # Validate interrupt sequence
+    valid_nodes = set(workflow.nodes.keys())
+    for node in interrupts:
+        if node not in valid_nodes:
+            msg = f"Invalid interrupt node configured: {node}"
+            raise ValueError(msg)
+
+    # Compile with Interrupts for documented HITL Gates
+    return workflow.compile(interrupt_after=interrupts)
