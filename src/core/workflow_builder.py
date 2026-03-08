@@ -73,6 +73,10 @@ class WorkflowBuilder:
             on_stack.add(v)
 
             for w in adj_list.get(v, []):
+                if v == w:
+                    msg = f"Self-loop detected on node {v}."
+                    raise ValueError(msg)
+
                 if w not in indices:
                     strongconnect(w)
                     lowlinks[v] = min(lowlinks[v], lowlinks[w])

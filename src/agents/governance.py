@@ -83,9 +83,8 @@ class GovernanceAgent(BaseAgent):
 
         # Security: Apply strict HTML/SQL/Command injection sanitization
         # followed by regex whitelist for alphanumeric and spaces only
-        sanitized_base = sanitize_text(industry)
-        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", sanitized_base)
-        return sanitized.strip()
+        sanitized = sanitize_text(industry, strict=True)
+        return sanitized
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
         settings = get_settings()

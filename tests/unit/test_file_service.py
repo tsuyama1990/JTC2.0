@@ -13,58 +13,68 @@ class TestFileService:
         return FileService()
 
     @patch("src.core.services.file_service.FileService._validate_path")
-    @patch("src.core.services.file_service.Path")
     def test_save_text_async_success(
-        self, mock_path: MagicMock, mock_validate: MagicMock, file_service: FileService
+        self, mock_validate: MagicMock, file_service: FileService
     ) -> None:
-        mock_validate.return_value = mock_path.return_value
-        mock_validate.return_value.__str__.return_value = "protected.md"
         """Verify save_text_async writes content correctly."""
+        with patch("tempfile.mkstemp") as mock_mkstemp, \
+             patch("os.fdopen") as mock_fdopen, \
+             patch("os.replace") as mock_replace:
 
-        # Call the method
-        file_service.save_text_async("content", "test.md")
+            mock_path = MagicMock()
+            mock_validate.return_value = mock_path
+            mock_path.__str__.return_value = "protected.md"
+            mock_path.parent = MagicMock()
+            mock_mkstemp.return_value = (1, "temp.md")
 
-        # Shutdown executor to ensure sync execution finishes
-        file_service._executor.shutdown(wait=True)
+            mock_file = MagicMock()
+            mock_fdopen.return_value.__enter__.return_value = mock_file
 
-        # Assertions
-        mock_validate.assert_called_with("test.md")
-        mock_validate.return_value.write_text.assert_called_with("content", encoding="utf-8")
+            # Call the method
+            file_service.save_text_async("content", "test.md")
+
+            # Shutdown executor to ensure sync execution finishes
+            file_service._executor.shutdown(wait=True)
+
+            # Assertions
+            mock_validate.assert_called_with("test.md")
+            mock_file.write.assert_called_with("content")
+            mock_replace.assert_called_with("temp.md", mock_path)
 
     @patch("src.core.services.file_service.FileService._validate_path")
-    @patch("src.core.services.file_service.Path")
     def test_save_text_async_permission_error(
         self,
-        mock_path: MagicMock,
         mock_validate: MagicMock,
         file_service: FileService,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Verify handling of PermissionError."""
-        mock_validate.return_value = mock_path.return_value
-        mock_validate.return_value.__str__.return_value = "protected.md"
-        mock_validate.return_value.write_text.side_effect = PermissionError("Access denied")
+        with patch("tempfile.mkstemp") as mock_mkstemp:
+            mock_path = MagicMock()
+            mock_validate.return_value = mock_path
+            mock_path.__str__.return_value = "protected.md"
+            mock_mkstemp.side_effect = PermissionError("Access denied")
 
-        file_service.save_text_async("content", "protected.md")
-        file_service._executor.shutdown(wait=True)
+            file_service.save_text_async("content", "protected.md")
+            file_service._executor.shutdown(wait=True)
 
-        assert "Permission denied" in caplog.text or "Fatal error encountered" in caplog.text
+            assert "Permission denied" in caplog.text or "Fatal error encountered" in caplog.text
 
     @patch("src.core.services.file_service.FileService._validate_path")
-    @patch("src.core.services.file_service.Path")
     def test_save_text_async_os_error(
         self,
-        mock_path: MagicMock,
         mock_validate: MagicMock,
         file_service: FileService,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Verify handling of generic OSError."""
-        mock_validate.return_value = mock_path.return_value
-        mock_validate.return_value.__str__.return_value = "file.md"
-        mock_validate.return_value.write_text.side_effect = OSError("Disk full")
+        with patch("tempfile.mkstemp") as mock_mkstemp:
+            mock_path = MagicMock()
+            mock_validate.return_value = mock_path
+            mock_path.__str__.return_value = "file.md"
+            mock_mkstemp.side_effect = OSError("Disk full")
 
-        file_service.save_text_async("content", "file.md")
-        file_service._executor.shutdown(wait=True)
+            file_service.save_text_async("content", "file.md")
+            file_service._executor.shutdown(wait=True)
 
-        assert "OS error" in caplog.text or "Error writing to file.md" in caplog.text
+            assert "OS error" in caplog.text or "Error writing to file.md" in caplog.text

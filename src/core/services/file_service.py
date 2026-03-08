@@ -63,14 +63,30 @@ class FileService:
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Uses RetryHandler for robustness.
+        Uses RetryHandler and atomic file write strategy for robustness.
         """
 
         def _write_action() -> None:
+            import os
+            import tempfile
+
             # Ensure parent exists
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
-            logger.info(f"File saved successfully to {path}")
+
+            # Atomic write pattern: write to temp file, then atomic rename
+            fd, temp_path = tempfile.mkstemp(dir=path.parent, text=True)
+            try:
+                with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                # Atomic replace
+                os.replace(temp_path, path)
+                logger.info(f"File saved successfully to {path}")
+            except Exception as e:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+                raise e
 
         RetryHandler.execute_with_retry(
             _write_action, max_attempts=3, error_msg=f"Error writing to {path}"

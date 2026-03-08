@@ -26,24 +26,25 @@ def chunk_text(text: str, chunk_size: int) -> Generator[str, None, None]:
         yield text[i : i + chunk_size]
 
 
-def sanitize_text(query: str) -> str:
+def sanitize_text(query: str, strict: bool = False) -> str:
     """
-    Sanitize input string by strictly removing ALL HTML tags and scripts,
-    and neutralizing common SQL/Command injection patterns.
+    Sanitize input string by strictly removing ALL HTML tags and scripts.
+    When strict=True, strips all non-alphanumeric/whitespace characters.
+
+    NOTE: For database operations, do not rely on string sanitization.
+    Use parameterized queries (e.g. via SQLAlchemy) to prevent SQL Injection.
     """
     if not isinstance(query, str):
         msg = "Input query must be a string."
         raise TypeError(msg)
 
-    import re
-    # 1. Strip HTML
+    # 1. Strip HTML using comprehensive library
     sanitized: str = bleach.clean(query.strip(), tags=[], attributes={}, protocols=[], strip=True)
 
-    # 2. Neutralize SQL Injection common meta-characters (quotes, semicolons, dashes)
-    sanitized = re.sub(r"['\";\-]", "", sanitized)
-
-    # 3. Neutralize Command Injection (pipes, ampersands, backticks, dollar signs)
-    sanitized = re.sub(r"[|&`$]", "", sanitized)
+    # 2. Strict alphanumeric enforcement if requested
+    if strict:
+        import re
+        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", sanitized)
 
     return sanitized.strip()
 

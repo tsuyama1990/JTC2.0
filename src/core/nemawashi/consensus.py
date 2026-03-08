@@ -49,6 +49,11 @@ class ConsensusEngine:
         # Build Sparse Matrix using shared utility
         matrix_op = NemawashiUtils.build_sparse_matrix(network, n)
 
+        # Memory bounds checking: Ensure matrix data footprint is under 100MB
+        if matrix_op.data.nbytes > 100 * 1024 * 1024:
+            msg = "Network influence matrix exceeds safe memory boundaries."
+            raise MemoryError(msg)
+
         # Validate using shared utility
         NemawashiUtils.validate_stochasticity(matrix_op, self.settings.tolerance)
 

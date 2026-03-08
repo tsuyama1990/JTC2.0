@@ -44,8 +44,11 @@ class RetryHandler:
                     logger.warning(
                         f"{error_msg}, retrying... ({attempt + 1}/{max_attempts}). Error: {e}"
                     )
-                    # Exponential backoff
-                    time.sleep(1.0 * (attempt + 1))
+                    import random
+                    # Exponential backoff with jitter
+                    base_delay = 1.0 * (2 ** attempt)
+                    jitter = random.uniform(0, 0.5) * base_delay
+                    time.sleep(base_delay + jitter)
                     continue
                 logger.exception(f"{error_msg} after {max_attempts} attempts")
             except Exception:
@@ -75,8 +78,11 @@ class RetryHandler:
                     logger.warning(
                         f"{error_msg}, retrying... ({attempt + 1}/{max_attempts}). Error: {e}"
                     )
-                    # Exponential backoff
-                    await asyncio.sleep(1.0 * (attempt + 1))
+                    import random
+                    # Exponential backoff with jitter
+                    base_delay = 1.0 * (2 ** attempt)
+                    jitter = random.uniform(0, 0.5) * base_delay
+                    await asyncio.sleep(base_delay + jitter)
                     continue
                 logger.exception(f"{error_msg} after {max_attempts} attempts")
             except Exception:

@@ -98,22 +98,33 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
 
             with os.scandir(current_path) as it:
                 for entry in it:
-                    if entry.is_file(follow_symlinks=False):
-                        try:
-                            stat_res = Path(entry.path).stat(follow_symlinks=False)
-                            total_size += stat_res.st_size
-                            file_count += 1
-                        except OSError as e:
-                            logger.warning(f"Error stating file {entry.path}: {e}")
-                            continue
+                    try:
+                        if entry.is_symlink():
+                            continue # explicitly skip symlinks to prevent loops
 
-                        if file_count > max_files:
-                            logger.warning(
-                                f"Scan file limit ({max_files}) reached. Returning partial size."
-                            )
-                            return total_size
-                    elif entry.is_dir(follow_symlinks=False):
-                        stack.append((entry.path, current_depth + 1))
+                        if entry.is_file(follow_symlinks=False):
+                            try:
+                                stat_res = entry.stat(follow_symlinks=False)
+                                total_size += stat_res.st_size
+                                file_count += 1
+                            except OSError as e:
+                                logger.warning(f"Error stating file {entry.path}: {e}")
+                                continue
+
+                            if file_count > max_files:
+                                logger.warning(
+                                    f"Scan file limit ({max_files}) reached. Returning partial size."
+                                )
+                                return total_size
+                        elif entry.is_dir(follow_symlinks=False):
+                            stack.append((entry.path, current_depth + 1))
+                    except PermissionError:
+                        logger.warning(f"Permission denied accessing entry: {entry.name}")
+                    except OSError as e:
+                        logger.warning(f"OS error accessing entry: {entry.name}, {e}")
+
+        except PermissionError:
+            logger.warning(f"Permission denied scanning directory {current_path}")
         except OSError as e:
             logger.warning(f"Error scanning index directory {current_path}: {e}")
 
