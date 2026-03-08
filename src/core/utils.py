@@ -51,7 +51,9 @@ class AsyncRateLimiter:
         sys_settings = settings or get_settings()
         self._min_interval = min_interval
         self._max_retries = (
-            max_retries if max_retries is not None else sys_settings.resiliency.circuit_breaker_fail_max
+            max_retries
+            if max_retries is not None
+            else sys_settings.resiliency.circuit_breaker_fail_max
         )
         self._timeout = timeout if timeout is not None else sys_settings.rag.query_timeout
         self._last_call_time = 0.0

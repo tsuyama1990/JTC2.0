@@ -4,159 +4,111 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 149 items
+collected 138 items
 
 tests/integration/test_rag_flow.py ...                                   [  2%]
-tests/uat/test_cycle05_uat.py ...                                        [  4%]
+tests/uat/test_cycle05_uat.py ..                                         [  3%]
 tests/uat/test_cycle06_uat.py ..                                         [  5%]
 tests/uat/test_memory_safety.py ...                                      [  7%]
 tests/uat/test_nemawashi_uat.py ..                                       [  8%]
 tests/uat/test_uat_cycle01.py ...                                        [ 10%]
 tests/uat/test_uat_cycle02.py .                                          [ 11%]
-tests/uat/test_uat_cycle03.py ..                                         [ 12%]
-tests/unit/domain_models/test_models.py ...........                      [ 20%]
-tests/unit/domain_models/test_mvp.py ....                                [ 22%]
-tests/unit/domain_models/test_politics.py .....                          [ 26%]
-tests/unit/domain_models/test_remastered_models.py ...........           [ 33%]
+tests/uat/test_uat_cycle03.py ..                                         [ 13%]
+tests/unit/domain_models/test_models.py ...........                      [ 21%]
+tests/unit/domain_models/test_politics.py .....                          [ 24%]
+tests/unit/domain_models/test_remastered_models.py ...........           [ 32%]
 tests/unit/domain_models/test_simulation_models.py .....                 [ 36%]
-tests/unit/domain_models/test_state_integration.py .                     [ 37%]
-tests/unit/domain_models/test_state_remastered_integration.py ....       [ 40%]
+tests/unit/domain_models/test_state_integration.py .                     [ 36%]
+tests/unit/domain_models/test_state_remastered_integration.py ....       [ 39%]
 tests/unit/domain_models/test_transcript.py ...                          [ 42%]
-tests/unit/test_builder_agent.py .                                       [ 42%]
 tests/unit/test_cli_input.py ...                                         [ 44%]
-tests/unit/test_cli_scalability.py .                                     [ 45%]
+tests/unit/test_cli_scalability.py .                                     [ 44%]
 tests/unit/test_config.py .......                                        [ 50%]
-tests/unit/test_core.py ....                                             [ 53%]
-tests/unit/test_core_graph.py .....                                      [ 56%]
-tests/unit/test_cpo_agent.py ..                                          [ 57%]
-tests/unit/test_domain_models.py .......                                 [ 62%]
-tests/unit/test_file_service.py ...                                      [ 64%]
-tests/unit/test_governance_agent.py .                                    [ 65%]
-tests/unit/test_governance_memory.py ..                                  [ 66%]
+tests/unit/test_core.py ....                                             [ 52%]
+tests/unit/test_core_graph.py ...                                        [ 55%]
+tests/unit/test_cpo_agent.py ..                                          [ 56%]
+tests/unit/test_domain_models.py .......                                 [ 61%]
+tests/unit/test_file_service.py ...                                      [ 63%]
+tests/unit/test_governance_agent.py .                                    [ 64%]
+tests/unit/test_governance_memory.py ..                                  [ 65%]
 tests/unit/test_ideator_agent.py ...                                     [ 68%]
 tests/unit/test_metrics_logic.py .........                               [ 74%]
 tests/unit/test_nemawashi.py ....                                        [ 77%]
 tests/unit/test_pdf_generator.py ...                                     [ 79%]
-tests/unit/test_rag.py .....                                             [ 82%]
-tests/unit/test_rag_errors.py ....                                       [ 85%]
-tests/unit/test_rag_refactored.py .                                      [ 85%]
-tests/unit/test_simulation_integration.py ..                             [ 87%]
-tests/unit/test_simulation_logic.py ........                             [ 92%]
-tests/unit/test_tools.py ...                                             [ 94%]
-tests/unit/test_ui.py .....                                              [ 97%]
-tests/unit/test_v0_client.py ...                                         [100%]
+tests/unit/test_rag.py .....                                             [ 83%]
+tests/unit/test_rag_errors.py ....                                       [ 86%]
+tests/unit/test_rag_refactored.py .                                      [ 86%]
+tests/unit/test_simulation_integration.py ..                             [ 88%]
+tests/unit/test_simulation_logic.py ........                             [ 94%]
+tests/unit/test_tools.py ...                                             [ 96%]
+tests/unit/test_ui.py .....                                              [100%]
 
 ================================ tests coverage ================================
 _______________ coverage: platform linux, python 3.12.12-final-0 _______________
 
-Name                                                            Stmts   Miss  Cover   Missing
----------------------------------------------------------------------------------------------
-main.py                                                           189    121    36%   29, 55-73, 81-93, 110, 115-116, 127-129, 143, 147-148, 153-155, 167, 175, 181, 186-224, 229-273, 278-293, 298-330, 334
-src/__init__.py                                                     0      0   100%
-src/agents/__init__.py                                              6      0   100%
-src/agents/base.py                                                  9      0   100%
-src/agents/builder.py                                              95     28    71%   54-55, 59, 63, 83-85, 91-112, 119-120, 138-139, 149-150, 155-159, 198
-src/agents/cpo.py                                                  44     11    75%   56-58, 75-88, 95-97
-src/agents/governance.py                                          105      7    93%   98-102, 199, 204
-src/agents/ideator.py                                              47     12    74%   31-34, 97-107
-src/agents/mixins.py                                               23      6    74%   28, 31-35
-src/agents/personas.py                                             77     10    87%   86-88, 93-94, 103-106, 154-159
-src/agents/remastered.py                                          170    133    22%   33-34, 38-61, 65-88, 92-115, 119-164, 168-191, 195, 202-203, 207-227, 234-235, 238-251, 258-259, 262-278, 285-286, 289-305, 312-313, 317-337, 341-364, 367
-src/core/__init__.py                                                0      0   100%
-src/core/config.py                                                157      0   100%
-src/core/constants.py                                             102      0   100%
-src/core/exceptions.py                                              6      0   100%
-src/core/factory.py                                                75     34    55%   30-31, 36, 41-42, 47-48, 53-54, 59-60, 65-66, 71-72, 77-80, 85, 90, 95, 108-119
-src/core/graph.py                                                  41      0   100%
-src/core/llm.py                                                    10      0   100%
-src/core/metrics.py                                                17      0   100%
-src/core/nemawashi/__init__.py                                      5      0   100%
-src/core/nemawashi/analytics.py                                    71     36    49%   28, 41, 46-50, 58-62, 72-73, 91-102, 110-123, 127-132
-src/core/nemawashi/consensus.py                                    26      2    92%   37, 65
-src/core/nemawashi/engine.py                                       19      1    95%   34
-src/core/nemawashi/nomikai.py                                      73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
-src/core/nemawashi/utils.py                                        43      6    86%   31-33, 46-47, 50
-src/core/node_executor.py                                          13      3    77%   32-34
-src/core/nodes.py                                                 216    103    52%   34-40, 45, 50-52, 56, 61-68, 72, 79-86, 90, 95-102, 106, 113-118, 122, 129-146, 150, 155-160, 164, 171-173, 177, 184-203, 207, 239, 254-255, 278-282, 297-298, 325-326, 330, 348, 396-402, 406, 413-419, 423
-src/core/renderers/__init__.py                                      0      0   100%
-src/core/renderers/data_renderer.py                                23      3    87%   15, 25-26
-src/core/retry_handler.py                                          23      3    87%   47-49
-src/core/services/__init__.py                                       0      0   100%
-src/core/services/file_service.py                                  34     12    65%   27-38, 52-53
-src/core/services/pdf_generator.py                                 49      5    90%   35-36, 41, 52-53
-src/core/simulation.py                                             39      5    87%   37-38, 51-55
-src/core/theme.py                                                  18      0   100%
-src/core/utils.py                                                  48     17    65%   21-22, 35-36, 61-77, 90-93
-src/core/validators.py                                             71     30    58%   28, 33, 35-36, 39-40, 42-43, 51-52, 89-98, 103-112
-src/core/workflow_builder.py                                       38      2    95%   57-58
-src/data/__init__.py                                                2      0   100%
-src/data/rag.py                                                   238     41    83%   55, 69, 77, 84-90, 112-113, 158-159, 171-173, 186-187, 194, 215-217, 224-226, 256, 260-261, 292-293, 304-305, 317, 326, 380, 395-402
-src/domain_models/__init__.py                                      15      0   100%
-src/domain_models/agent_prompt.py                                  36      4    89%   39-42, 85-88
-src/domain_models/alternative_analysis.py                          35      4    89%   64-67, 70-71
-src/domain_models/common.py                                        23      0   100%
-src/domain_models/customer_journey.py                              38      6    84%   48-51, 54-55, 84-85
-src/domain_models/enums.py                                         12      0   100%
-src/domain_models/experiment_plan.py                               36      6    83%   34-37, 76-79, 82-83
-src/domain_models/lean_canvas.py                                   24      0   100%
-src/domain_models/mental_model.py                                  31      8    74%   28-29, 32-35, 56-57, 60-61
-src/domain_models/metrics.py                                       60      6    90%   121-122, 126-127, 131-132
-src/domain_models/mvp.py                                           57      2    96%   144-145
-src/domain_models/persona.py                                       28      2    93%   124-125
-src/domain_models/politics.py                                      59      3    95%   82, 100, 111
-src/domain_models/simulation.py                                    16      0   100%
-src/domain_models/sitemap.py                                       46      8    83%   38-39, 74-77, 80-81, 102-103
-src/domain_models/state.py                                         92     16    83%   94-95, 100-101, 125-146
-src/domain_models/transcript.py                                    22      2    91%   32-33
-src/domain_models/validators.py                                    12      0   100%
-src/domain_models/value_proposition.py                             43      4    91%   61-62, 80-81
-src/tools/__init__.py                                               3      0   100%
-src/tools/search.py                                                34      4    88%   39, 75, 90-91
-src/tools/v0_client.py                                             61     16    74%   58-60, 103-105, 108-115, 128-129
-src/ui/renderer.py                                                 96     10    90%   87, 90-94, 118, 128-134, 154
-tests/__init__.py                                                   0      0   100%
-tests/conftest.py                                                  11      2    82%   21, 26
-tests/integration/test_rag_flow.py                                 78      2    97%   29, 32
-tests/uat/test_cycle05_uat.py                                      64      6    91%   17-19, 44, 70, 117
-tests/uat/test_cycle06_uat.py                                      62      2    97%   95, 143
-tests/uat/test_memory_safety.py                                    49      0   100%
-tests/uat/test_nemawashi_uat.py                                    33      4    88%   30-31, 65-66
-tests/uat/test_uat_cycle01.py                                      75      1    99%   21
-tests/uat/test_uat_cycle02.py                                      22      0   100%
-tests/uat/test_uat_cycle03.py                                      53      4    92%   24-25, 92-93
-tests/unit/domain_models/test_models.py                            84      0   100%
-tests/unit/domain_models/test_mvp.py                               21      0   100%
-tests/unit/domain_models/test_politics.py                          38      0   100%
-tests/unit/domain_models/test_remastered_models.py                 52      0   100%
-tests/unit/domain_models/test_simulation_models.py                 33      0   100%
-tests/unit/domain_models/test_state_integration.py                 36      0   100%
-tests/unit/domain_models/test_state_remastered_integration.py      31      0   100%
-tests/unit/domain_models/test_transcript.py                        14      0   100%
-tests/unit/test_builder_agent.py                                   34      4    88%   12-13, 19, 34
-tests/unit/test_cli_input.py                                       12      0   100%
-tests/unit/test_cli_scalability.py                                 19      0   100%
-tests/unit/test_config.py                                          53      0   100%
-tests/unit/test_core.py                                            32      0   100%
-tests/unit/test_core_graph.py                                      60      0   100%
-tests/unit/test_cpo_agent.py                                       19      0   100%
-tests/unit/test_domain_models.py                                   32      0   100%
-tests/unit/test_file_service.py                                    35      0   100%
-tests/unit/test_governance_agent.py                                43      0   100%
-tests/unit/test_governance_memory.py                               42      0   100%
-tests/unit/test_ideator_agent.py                                   48      0   100%
-tests/unit/test_metrics_logic.py                                   27      0   100%
-tests/unit/test_nemawashi.py                                       34      0   100%
-tests/unit/test_pdf_generator.py                                   22      0   100%
-tests/unit/test_rag.py                                             66      2    97%   8-9
-tests/unit/test_rag_errors.py                                      43      0   100%
-tests/unit/test_rag_refactored.py                                   9      0   100%
-tests/unit/test_simulation_integration.py                          33      0   100%
-tests/unit/test_simulation_logic.py                                87      0   100%
-tests/unit/test_tools.py                                           40      0   100%
-tests/unit/test_ui.py                                              55      0   100%
-tests/unit/test_v0_client.py                                       47      2    96%   12-13
----------------------------------------------------------------------------------------------
-TOTAL                                                            4749    783    84%
-============================= 149 passed in 19.51s =============================
-/app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
-  self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")
+Name                                        Stmts   Miss  Cover   Missing
+-------------------------------------------------------------------------
+src/__init__.py                                 0      0   100%
+src/agents/__init__.py                          6      0   100%
+src/agents/base.py                              9      0   100%
+src/agents/builder.py                          28      3    89%   28-29, 56
+src/agents/cpo.py                              44     11    75%   56-58, 75-88, 95-97
+src/agents/governance.py                      105      7    93%   101-105, 200, 205
+src/agents/ideator.py                          47     12    74%   31-34, 97-107
+src/agents/mixins.py                           23      6    74%   28, 31-35
+src/agents/personas.py                         77     10    87%   86-88, 93-94, 103-106, 154-159
+src/agents/remastered.py                      157    121    23%   32-33, 37-60, 64-87, 91-114, 118-163, 167-190, 194, 201-202, 206-226, 233-234, 237-250, 257-258, 261-277, 284-285, 288-304, 311-312, 316-336, 339
+src/core/__init__.py                            0      0   100%
+src/core/config.py                            181      4    98%   423-424, 432-433
+src/core/constants.py                         102      0   100%
+src/core/exceptions.py                          6      0   100%
+src/core/factory.py                            75     34    55%   30-31, 36, 41-42, 47-48, 53-54, 59-60, 65-66, 71-72, 77-80, 85, 90, 95, 108-119
+src/core/graph.py                              48      0   100%
+src/core/llm.py                                14      0   100%
+src/core/metrics.py                            17      0   100%
+src/core/nemawashi/__init__.py                  5      0   100%
+src/core/nemawashi/analytics.py                71     36    49%   28, 41, 46-50, 58-62, 72-73, 91-102, 110-123, 127-132
+src/core/nemawashi/consensus.py                43      8    81%   37, 64-65, 84-88
+src/core/nemawashi/engine.py                   19      1    95%   34
+src/core/nemawashi/nomikai.py                  73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
+src/core/nemawashi/utils.py                    51     10    80%   35-37, 40-41, 44-45, 58-59, 62
+src/core/node_executor.py                      13      3    77%   32-34
+src/core/nodes.py                             201    101    50%   38-44, 49, 54-56, 60, 65-72, 76, 83-90, 94, 99-106, 110, 117-122, 126, 133-150, 154, 159-164, 168, 175-177, 181, 188-207, 211, 216-217, 251, 277-281, 313-314, 338, 343-347, 351, 355-356, 363-368, 372
+src/core/renderers/__init__.py                  0      0   100%
+src/core/renderers/data_renderer.py            23      3    87%   15, 25-26
+src/core/retry_handler.py                      29      3    90%   55-57
+src/core/services/__init__.py                   0      0   100%
+src/core/services/file_service.py              38     16    58%   27-46, 60-61
+src/core/services/pdf_generator.py             49      5    90%   35-36, 41, 52-53
+src/core/simulation.py                         39      5    87%   37-38, 51-55
+src/core/theme.py                              18      0   100%
+src/core/utils.py                              48     20    58%   20-25, 35-36, 63-79, 92-95
+src/core/validators.py                         68     28    59%   28, 33, 35-36, 39-40, 42-43, 80-89, 94-103
+src/core/workflow_builder.py                   68     10    85%   51-52, 73-74, 89-90, 92-93, 101-102
+src/data/__init__.py                            2      0   100%
+src/data/rag.py                               266     56    79%   57, 60-61, 76-81, 91, 96, 106-108, 111-114, 117-118, 138-139, 182-183, 201-202, 207, 211-212, 217-219, 224, 245-247, 286, 290-291, 315-316, 327-328, 340, 349, 403, 420-431
+src/domain_models/__init__.py                  15      0   100%
+src/domain_models/agent_prompt.py              36      4    89%   39-42, 85-88
+src/domain_models/alternative_analysis.py      35      4    89%   64-67, 70-71
+src/domain_models/common.py                    23      0   100%
+src/domain_models/customer_journey.py          38      6    84%   48-51, 54-55, 84-85
+src/domain_models/enums.py                     12      0   100%
+src/domain_models/experiment_plan.py           36      6    83%   34-37, 76-79, 82-83
+src/domain_models/lean_canvas.py               24      0   100%
+src/domain_models/mental_model.py              31      8    74%   28-29, 32-35, 56-57, 60-61
+src/domain_models/metrics.py                   60      6    90%   121-122, 126-127, 131-132
+src/domain_models/mvp.py                       30      0   100%
+src/domain_models/persona.py                   28      2    93%   124-125
+src/domain_models/politics.py                  59      3    95%   82, 100, 111
+src/domain_models/simulation.py                16      0   100%
+src/domain_models/sitemap.py                   46      8    83%   38-39, 74-77, 80-81, 102-103
+src/domain_models/state.py                     88     16    82%   86-87, 92-93, 117-138
+src/domain_models/transcript.py                22      2    91%   32-33
+src/domain_models/validators.py                12      0   100%
+src/domain_models/value_proposition.py         43      4    91%   61-62, 80-81
+src/tools/__init__.py                           2      0   100%
+src/tools/search.py                            34      4    88%   39, 76, 91-92
+src/ui/renderer.py                             96     10    90%   87, 90-94, 118, 128-134, 154
+-------------------------------------------------------------------------
+TOTAL                                        2849    618    78%
+============================= 138 passed in 25.29s =============================

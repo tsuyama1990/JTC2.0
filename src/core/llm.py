@@ -25,8 +25,9 @@ def get_llm(model: str | None = None) -> ChatOpenAI:
         model=target_model,
         api_key=settings.openai_api_key,
         max_retries=settings.resiliency.circuit_breaker_fail_max,
-        http_client=http_client
+        http_client=http_client,
     )
+
 
 def clear_llm_cache() -> None:
     """No-op placeholder for tests. Caching has been removed in favor of Dependency Injection."""

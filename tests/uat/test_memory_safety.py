@@ -62,7 +62,6 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     """
     Verify RAG prevents loading an index that exceeds the size limit.
     """
-    from src.core.config import get_settings
     get_settings().reload()
     settings = get_settings()
 
@@ -78,7 +77,7 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
 
     with (
         patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
-        patch("src.data.rag.get_settings", return_value=settings)
+        patch("src.data.rag.get_settings", return_value=settings),
     ):
         settings.rag.max_index_size_mb = 1
 
@@ -87,7 +86,7 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
         # We need to mock _scan_dir_size to just return 2MB or mock the check entirely.
         with (
             patch("src.data.rag._scan_dir_size", return_value=(2 * 1024 * 1024) + 1),
-            pytest.raises(MemoryError, match="Index size limit exceeded")
+            pytest.raises(MemoryError, match="Index size limit exceeded"),
         ):
             # Expect MemoryError directly
             RAG(persist_dir=temp_rag_dir)
@@ -98,7 +97,6 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
     """
     Verify that ingestion chunks large text.
     """
-    from src.core.config import get_settings
     get_settings().reload()
     settings = get_settings()
 

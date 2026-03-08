@@ -57,7 +57,7 @@ class ConsensusEngine:
         import time
 
         start_time = time.time()
-        timeout = 10.0 # Strict timeout to prevent infinite loops
+        timeout = 10.0  # Strict timeout to prevent infinite loops
 
         for step in range(max_steps):
             if time.time() - start_time > timeout:

@@ -32,7 +32,11 @@ def test_tavily_search_success(mock_get_settings: MagicMock, mock_client_cls: Ma
 
     # We assert that it called it with the mock objects from settings, or the values if resolved
     # Since we set the mock properties above, they should match
-    mock_client.search.assert_called_with(query="query", max_results=mock_settings.search.max_results, search_depth=mock_settings.search.depth)
+    mock_client.search.assert_called_with(
+        query="query",
+        max_results=mock_settings.search.max_results,
+        search_depth=mock_settings.search.depth,
+    )
 
 
 @patch("src.tools.search.TavilyClient")

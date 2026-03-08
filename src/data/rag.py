@@ -41,9 +41,6 @@ def _scan_dir_size_cached(path: str, depth_limit: int | None = None, ttl_hash: i
     return _scan_dir_size(path, depth_limit)
 
 
-
-
-
 def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
     """
     Calculate directory size using an iterative approach with explicit stack management,
@@ -196,6 +193,7 @@ class RAG:
             # Symlink validation
             if Path(path_str).exists():
                 import stat
+
                 try:
                     stat_info = os.lstat(path_str)
                     if isinstance(stat_info.st_mode, int):
@@ -206,7 +204,7 @@ class RAG:
                             msg = f"Path must be a directory: {path_str}"
                             raise ConfigurationError(msg)
                 except (TypeError, AttributeError):
-                    pass # Ignore for mocks during tests
+                    pass  # Ignore for mocks during tests
 
             # Strict traversal check
             if not any(path.is_relative_to(parent) for parent in allowed_parents):

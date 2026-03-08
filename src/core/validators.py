@@ -43,7 +43,6 @@ class ApiKeyValidator:
             raise ValueError(msg)
 
 
-
 class ConfigValidators:
     """Encapsulates validation logic for configuration."""
 

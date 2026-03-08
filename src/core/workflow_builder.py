@@ -55,6 +55,7 @@ class WorkflowBuilder:
 
         # Find all nodes with 0 in-degree
         from collections import deque
+
         queue = deque([node for node in in_degree if in_degree[node] == 0])
 
         visited_count = 0
@@ -85,11 +86,11 @@ class WorkflowBuilder:
 
         for start, end in self.edges:
             if start not in self.nodes:
-                 msg = f"Edge references invalid start node: {start}"
-                 raise ValueError(msg)
+                msg = f"Edge references invalid start node: {start}"
+                raise ValueError(msg)
             if end != "__end__" and end not in self.nodes:
-                 msg = f"Edge references invalid end node: {end}"
-                 raise ValueError(msg)
+                msg = f"Edge references invalid end node: {end}"
+                raise ValueError(msg)
 
             self.workflow.add_edge(start, end)
 

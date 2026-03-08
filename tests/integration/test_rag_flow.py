@@ -95,6 +95,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     Uses real LlamaIndex components (mocked LLM/Embeddings to avoid API calls).
     """
     from src.core.config import Settings
+
     Settings.reload()
 
     with (
@@ -133,6 +134,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 def test_cpo_agent_behavior() -> None:
     """Test CPO Agent behavior with mocked RAG."""
     from src.core.config import Settings
+
     Settings.reload()
     llm = MagicMock()
     # Mock chain invoke

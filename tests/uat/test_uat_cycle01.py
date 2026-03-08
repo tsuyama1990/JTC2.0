@@ -51,6 +51,7 @@ def test_ideation_scalability(
     by consuming only what is needed (pagination).
     """
     from src.core.config import Settings
+
     Settings.reload()
 
     mock_ideator_instance = mock_ideator_cls.return_value
@@ -92,6 +93,7 @@ def test_gate_transitions_data_integrity(
     and validation rules hold.
     """
     from src.core.config import Settings
+
     Settings.reload()
 
     # Setup initial state simulating post-Ideation (Gate 1 passed)

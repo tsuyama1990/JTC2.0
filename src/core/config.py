@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -378,9 +377,7 @@ class RAGConfig(BaseModel):
         default=DEFAULT_MAX_FILES,
         description="Maximum files to scan",
     )
-    query_timeout: float = Field(
-        default=30.0, description="Timeout for RAG queries in seconds"
-    )
+    query_timeout: float = Field(default=30.0, description="Timeout for RAG queries in seconds")
 
 
 class SearchConfig(BaseModel):
@@ -411,8 +408,12 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=20)
-    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=20)
+    openai_api_key: SecretStr = Field(
+        alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=20
+    )
+    tavily_api_key: SecretStr = Field(
+        alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=20
+    )
 
     @field_validator("openai_api_key")
     @classmethod
@@ -478,6 +479,7 @@ class Settings(BaseSettings):
     def reload(cls) -> "Settings":
         """Force a reload of the configuration."""
         return get_settings()
+
 
 def get_settings() -> Settings:
     """Factory to get the configuration settings."""

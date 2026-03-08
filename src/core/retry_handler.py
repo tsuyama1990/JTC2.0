@@ -9,8 +9,6 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
-
-
 class RetryHandler:
     """Handles retry logic for operations."""
 

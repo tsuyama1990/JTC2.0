@@ -25,7 +25,6 @@ def test_config_loading_success() -> None:
         assert settings.tavily_api_key.get_secret_value() == "tvly-12345678901234567890"
 
 
-
 def test_config_missing_openai_key() -> None:
     """Test validation error when OpenAI key is missing."""
     with patch.dict(os.environ, {}, clear=True):

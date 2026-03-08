@@ -34,6 +34,7 @@ class GovernanceAgent(BaseAgent):
         logger.info("Governance Agent: Starting analysis...")
         # Get settings locally or from dependency injection, to fix tests we can fetch explicitly here
         from src.core.config import get_settings
+
         settings = get_settings()
 
         # 1. Context & Search
