@@ -4,6 +4,8 @@ from collections.abc import Generator
 
 import bleach
 
+from src.core.config import get_settings
+
 
 def chunk_text(text: str, chunk_size: int) -> Generator[str, None, None]:
     """
@@ -30,10 +32,11 @@ def sanitize_query(query: str) -> str:
 class AsyncRateLimiter:
     """Configurable, non-blocking rate limiter."""
 
-    def __init__(self, min_interval: float, max_retries: int = 3, timeout: float = 30.0) -> None:
+    def __init__(self, min_interval: float, max_retries: int | None = None, timeout: float | None = None) -> None:
+        settings = get_settings()
         self._min_interval = min_interval
-        self._max_retries = max_retries
-        self._timeout = timeout
+        self._max_retries = max_retries if max_retries is not None else settings.circuit_breaker_fail_max
+        self._timeout = timeout if timeout is not None else settings.rag_query_timeout
         self._last_call_time = 0.0
 
     async def wait(self) -> None:

@@ -44,4 +44,4 @@ def test_global_state_transition_validation_solution() -> None:
 def test_global_state_invalid_assignment() -> None:
     """Ensure strict validation rejects improper assignments."""
     with pytest.raises(ValidationError):
-        AlternativeTool(name="A", financial_cost="", time_cost="", ux_friction="")
+        AlternativeTool(name="Invalid Short Name", financial_cost="A", time_cost="B", ux_friction="C")

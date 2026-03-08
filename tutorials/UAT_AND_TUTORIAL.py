@@ -23,10 +23,10 @@ def __init_environment() -> tuple[bool, str, list[Any], Any]:
         # But since marimo cells execute iteratively and share state, we need to keep
         # the patch alive across cells if running in Mock Mode.
         env_patcher = unittest.mock.patch.dict(os.environ, {
-            "OPENAI_API_KEY": "mock",
-            "TAVILY_API_KEY": "mock",
-            "V0_API_KEY": "mock",
-            "V0_API_URL": "http://mock"
+            "OPENAI_API_KEY": "sk-dummy-mock-key-for-testing",
+            "TAVILY_API_KEY": "tvly-dummy-mock-key-for-testing",
+            "V0_API_KEY": "v0-dummy-mock-key-for-testing",
+            "V0_API_URL": "https://v0.dev/api/mock"
         })
         env_patcher.start()
 
@@ -70,10 +70,10 @@ def __run_uat_001(has_api_key: bool, mocks: list[Any], mo: Any) -> tuple[Any]:
         _outputs_dir = _pathlib.Path.cwd() / "outputs" / "canvas"
         _outputs_dir.mkdir(parents=True, exist_ok=True)
 
-        story = UserStory(as_a="User", i_want_to="Action", so_that="Goal", acceptance_criteria=["Criteria"], target_route="/home")
-        spec = AgentPromptSpec(sitemap="Sitemap", routing_and_constraints="Constraints", core_user_story=story, state_machine=StateMachine(success="Success", loading="Loading", error="Error", empty="Empty"), validation_rules="Validation", mermaid_flowchart="graph TD;")
+        story = UserStory(as_a="Target Persona Manager", i_want_to="Analyze usage data", so_that="I can optimize workflows effectively", acceptance_criteria=["Must load quickly under 2s"], target_route="/dashboard")
+        spec = AgentPromptSpec(sitemap="Home -> Dashboard -> Settings", routing_and_constraints="Strict Next.js App Router boundaries", core_user_story=story, state_machine=StateMachine(success="Render dynamic data grid", loading="Display animated skeleton component", error="Show retry fallback banner", empty="Display empty state illustration"), validation_rules="Zod schema requiring non-empty string", mermaid_flowchart="graph TD; A-->B;")
 
-        plan = ExperimentPlan(riskiest_assumption="Risk", experiment_type="Exp", acquisition_channel="Channel", aarrr_metrics=[MetricTarget(metric_name="Metric", target_value="Target", measurement_method="Method")], pivot_condition="Cond")
+        plan = ExperimentPlan(riskiest_assumption="Users will actively engage with the dashboard daily", experiment_type="Wizard of Oz MVP", acquisition_channel="Direct outreach via LinkedIn", aarrr_metrics=[MetricTarget(metric_name="Day 7 Retention Rate", target_value="Above 40 percent", measurement_method="Mixpanel tracking events")], pivot_condition="If retention falls below 10 percent")
 
         with (_outputs_dir / "AgentPromptSpec.md").open("w") as f:
             f.write(f"# Agent Prompt Specification\n\n```json\n{spec.model_dump_json(indent=2)}\n```\n")
@@ -111,7 +111,19 @@ def __run_uat_002(has_api_key: bool, mocks: list[Any], mo: Any) -> tuple[Any]:
         raise ValueError(msg)
 
     if not has_api_key:
-        _output_2 = mo.md("Mock Pivot Successful. Evaluated bad idea and triggered Pivot workflow.")
+        # In Mock Mode, directly instantiate the agent and trigger run to test structure
+        import unittest.mock
+
+        from src.agents.remastered import VirtualCustomerAgent
+        mock_llm = unittest.mock.MagicMock()
+        mock_llm.invoke.return_value.content = "I would never pay for this, the switching cost is way too high."
+        agent = VirtualCustomerAgent(llm=mock_llm)
+        res = agent.run(_state)
+        if "debate_history" not in res:
+            msg="Missing debate_history"
+            raise ValueError(msg)
+
+        _output_2 = mo.md(f"Mock Pivot Successful. Evaluated bad idea and triggered Pivot workflow. Customer responded: {res['debate_history'][0].content}")
     return _output_2,
 
 @app.cell
@@ -130,7 +142,18 @@ def __run_uat_003(has_api_key: bool, mocks: list[Any], mo: Any) -> tuple[Any]:
         raise ValueError(msg)
 
     if not has_api_key:
-        _output_3 = mo.md("Mock RAG Fact Check Successful. Validated transcript ingestion via RAG logic.")
+        import unittest.mock
+
+        from src.agents.cpo import CPOAgent
+
+        mock_llm = unittest.mock.MagicMock()
+        mock_llm.invoke.return_value.content = "I checked the transcripts. The pain is exactly as stated."
+        cpo = CPOAgent(llm=mock_llm)
+        res = cpo.run(_state)
+        if "debate_history" not in res:
+            msg="Missing debate_history"
+            raise ValueError(msg)
+        _output_3 = mo.md(f"Mock RAG Fact Check Successful. Validated transcript ingestion via RAG logic. CPO says: {res['debate_history'][0].content}")
 
     return _output_3,
 
