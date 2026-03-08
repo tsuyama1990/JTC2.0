@@ -2,7 +2,8 @@ import logging
 import os
 import time
 from collections.abc import Iterator
-from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
 
 import pybreaker
@@ -15,77 +16,30 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
+    DEFAULT_MAX_FILES,
+    DEFAULT_RAG_BATCH_SIZE,
+    DEFAULT_RAG_CHUNK_SIZE,
+    DEFAULT_RAG_QUERY_TIMEOUT,
     ERR_CIRCUIT_OPEN,
     ERR_PATH_TRAVERSAL,
     ERR_RAG_INDEX_SIZE,
+    ERR_RAG_NO_DATA,
+    ERR_RAG_QUERY_FAILED,
+    ERR_RAG_QUERY_TIMEOUT,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
+from src.core.utils import (
+    calculate_bytes_from_mb,
+    clear_rag_cache,
+    get_rag_dir_size,
+    rate_limit,
+    validate_rag_query,
+)
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
-
-
-@lru_cache(maxsize=1)
-def _scan_dir_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -> int:
-    """
-    Cached version of directory size calculation.
-    ttl_hash is a trick to invalidate cache by passing a changing value (like time // 60).
-    """
-    return _scan_dir_size(path, depth_limit)
-
-
-def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
-    """
-    Calculate directory size iteratively with depth limit and strict file count.
-
-    Args:
-        path: Path to scan.
-        depth_limit: Maximum recursion depth.
-
-    Returns:
-        Total size in bytes.
-    """
-    total = 0
-    file_count = 0
-    MAX_FILES = 10000
-
-    # Queue for BFS traversal: (path, current_depth)
-    queue = [(path, 0)]
-
-    # Track visited inodes to prevent loops via hardlinks/symlinks if followed (though we disable symlinks)
-    visited_inodes = set()
-
-    while queue:
-        current_path, depth = queue.pop(0)
-
-        if depth > depth_limit:
-            continue
-
-        try:
-            with os.scandir(current_path) as it:
-                for entry in it:
-                    if entry.is_file(follow_symlinks=False):
-                        stat = entry.stat()
-                        if stat.st_ino in visited_inodes:
-                            continue
-                        visited_inodes.add(stat.st_ino)
-
-                        total += stat.st_size
-                        file_count += 1
-                        if file_count > MAX_FILES:
-                            logger.warning(
-                                f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size."
-                            )
-                            return total
-
-                    elif entry.is_dir(follow_symlinks=False):
-                        queue.append((entry.path, depth + 1))
-        except OSError as e:
-            logger.warning(f"Error scanning index directory {current_path}: {e}")
-
-    return total
 
 
 class IngestionRequest(BaseModel):
@@ -133,9 +87,10 @@ class RAG:
         self._current_index_size = 0
         if Path(self.persist_dir).exists():
             # Use cached scan
-            self._current_index_size = _scan_dir_size_cached(
+            self._current_index_size = get_rag_dir_size(
                 self.persist_dir,
                 depth_limit=self.settings.rag_scan_depth_limit,
+                max_files=DEFAULT_MAX_FILES,
                 ttl_hash=int(time.time() // 60),  # Refresh every minute
             )
 
@@ -183,14 +138,6 @@ class RAG:
 
         return str(path)
 
-    def _sanitize_query(self, query: str) -> str:
-        """
-        Sanitize input query to prevent injection or processing issues.
-        Efficient implementation using list comprehension.
-        """
-        chars = [ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127]
-        return "".join(chars).strip()
-
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
         if not self.settings.openai_api_key:
@@ -202,6 +149,13 @@ class RAG:
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
         if Path(self.persist_dir).exists():
+            # Use cached scan
+            self._current_index_size = get_rag_dir_size(
+                self.persist_dir,
+                self.settings.rag_scan_depth_limit,
+                DEFAULT_MAX_FILES,
+                ttl_hash=int(time.time() // 60),
+            )
             self._load_existing_index()
 
     def _load_existing_index(self) -> None:
@@ -231,7 +185,7 @@ class RAG:
     def _check_index_size_limit(self) -> None:
         """Check if the tracked index size is too large."""
         limit_mb = self.settings.rag_max_index_size_mb
-        limit_bytes = limit_mb * 1024 * 1024
+        limit_bytes = calculate_bytes_from_mb(limit_mb)
 
         if self._current_index_size > limit_bytes:
             msg = ERR_RAG_INDEX_SIZE.format(limit=limit_mb)
@@ -240,19 +194,15 @@ class RAG:
 
     def _rate_limit(self) -> None:
         """Simple blocking rate limiter."""
-        current = time.time()
-        elapsed = current - self._last_call_time
-        if elapsed < self._min_interval:
-            time.sleep(self._min_interval - elapsed)
-        self._last_call_time = time.time()
+        self._last_call_time = rate_limit(self._last_call_time, self._min_interval)
 
     def _document_generator(self, request: IngestionRequest) -> Iterator[Document]:
         """
         Yield documents from request content one by one.
         Tracks size updates internally.
         """
-        chunk_size = self.settings.rag_chunk_size
-        max_doc_len = self.settings.rag_max_document_length
+        chunk_size = getattr(self.settings, "rag_chunk_size", DEFAULT_RAG_CHUNK_SIZE)
+        max_doc_len = getattr(self.settings, "rag_max_document_length", 1_000_000)
         current_chunk_idx = 0
 
         def content_generator() -> Iterator[str]:
@@ -301,7 +251,7 @@ class RAG:
             raise ValidationError(str(e)) from e
 
         doc_iterator = self._document_generator(request)
-        batch_size = self.settings.rag_batch_size
+        batch_size = getattr(self.settings, "rag_batch_size", DEFAULT_RAG_BATCH_SIZE)
 
         # Generator that yields batches of documents
         def batch_generator() -> Iterator[list[Document]]:
@@ -349,10 +299,11 @@ class RAG:
         if self.index:
             self.index.storage_context.persist(persist_dir=self.persist_dir)
             logger.info(f"Index persisted to {self.persist_dir}")
-            _scan_dir_size_cached.cache_clear()
-            self._current_index_size = _scan_dir_size_cached(
+            clear_rag_cache()
+            self._current_index_size = get_rag_dir_size(
                 self.persist_dir,
                 self.settings.rag_scan_depth_limit,
+                DEFAULT_MAX_FILES,
                 ttl_hash=int(time.time() // 60),
             )
 
@@ -362,20 +313,8 @@ class RAG:
         """
         self._rate_limit()
 
-        if not isinstance(question, str):
-            msg = "Query must be a string."
-            raise TypeError(msg)
-
-        if not question.strip():
-            msg = "Query cannot be empty."
-            raise ValueError(msg)
-
-        question = self._sanitize_query(question)
-
         max_len = self.settings.rag_max_query_length
-        if len(question) > max_len:
-            msg = ERR_RAG_QUERY_TOO_LARGE.format(size=len(question))
-            raise ValidationError(msg)
+        question = validate_rag_query(question, max_len, ERR_RAG_QUERY_TOO_LARGE)
 
         try:
             return self.breaker.call(self._query_impl, question)
@@ -385,16 +324,12 @@ class RAG:
 
     def _query_impl(self, question: str) -> str:
         if self.index is None:
-            return "No data available."
-
-        import time
-        from concurrent.futures import ThreadPoolExecutor
-        from concurrent.futures import TimeoutError as FuturesTimeoutError
+            return ERR_RAG_NO_DATA
 
         if self.settings.rag_rate_limit_interval > 0:
             time.sleep(self.settings.rag_rate_limit_interval)
 
-        timeout = getattr(self.settings, "rag_query_timeout", 30.0)
+        timeout = getattr(self.settings, "rag_query_timeout", DEFAULT_RAG_QUERY_TIMEOUT)
 
         try:
             query_engine = self.index.as_query_engine()
@@ -407,9 +342,8 @@ class RAG:
 
         except FuturesTimeoutError:
             logger.exception("RAG Query timed out after %s seconds", timeout)
-            msg = "Query execution timed out"
-            raise RuntimeError(msg) from None
+            raise RuntimeError(ERR_RAG_QUERY_TIMEOUT) from None
         except Exception as e:
             logger.exception("LlamaIndex query failed: %s", e.__class__.__name__)
-            msg = f"Query execution failed: {e}"
+            msg = ERR_RAG_QUERY_FAILED.format(error=e)
             raise RuntimeError(msg) from e
