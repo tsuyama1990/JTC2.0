@@ -58,6 +58,8 @@ class ConsensusEngine:
         start_time = time.time()
         timeout = getattr(self.settings, "timeout", 10.0)
 
+        history = []
+
         for step in range(max_steps):
             if time.time() - start_time > timeout:
                 logger.warning("Consensus calculation timed out.")
@@ -69,6 +71,18 @@ class ConsensusEngine:
             if np.allclose(current_ops, next_ops, rtol=tolerance, atol=tolerance):
                 logger.info(f"Consensus converged in {step + 1} steps.")
                 return list(next_ops)
+
+            # Oscillation detection
+            history.append(next_ops)
+            if len(history) > 5:
+                history.pop(0)
+                # Check if the current state is very close to a state 2 steps ago (oscillation)
+                if len(history) >= 3 and np.allclose(
+                    next_ops, history[-3], rtol=tolerance, atol=tolerance
+                ):
+                    logger.warning(f"Consensus oscillating. Early termination at step {step + 1}.")
+                    # Return the average of the oscillating states
+                    return list((next_ops + history[-2]) / 2.0)
 
             current_ops = next_ops
 

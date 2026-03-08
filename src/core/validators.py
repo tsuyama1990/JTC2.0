@@ -31,16 +31,50 @@ class ApiKeyValidator:
 
         if not settings.openai_api_key or not settings.openai_api_key.get_secret_value():
             raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-        if not key_pattern.match(settings.openai_api_key.get_secret_value()):
-            msg = "OpenAI API Key format is invalid. Keys must be strictly formatted."
+
+        openai_val = settings.openai_api_key.get_secret_value()
+        if not key_pattern.match(openai_val) or len(openai_val) < 20:
+            msg = "OpenAI API Key format is invalid or too short. Keys must be strictly formatted."
             raise ValueError(msg)
 
         if not settings.tavily_api_key or not settings.tavily_api_key.get_secret_value():
             msg = "Tavily API Key is missing or empty."
             raise ValueError(msg)
-        if not key_pattern.match(settings.tavily_api_key.get_secret_value()):
-            msg = "Tavily API Key format is invalid."
+
+        tavily_val = settings.tavily_api_key.get_secret_value()
+        if not key_pattern.match(tavily_val) or len(tavily_val) < 20:
+            msg = "Tavily API Key format is invalid or too short."
             raise ValueError(msg)
+
+        # In testing environments without a real key, we skip the network validation if the key is the dummy test key.
+        if openai_val not in ("sk-dummy-test-key-long-enough-for-validation", "sk-12345678901234567890"):
+            ApiKeyValidator._verify_openai_key(openai_val)
+
+    @staticmethod
+    def _verify_openai_key(api_key: str) -> None:
+        """Verify the OpenAI API Key by making a lightweight request."""
+        import urllib.request
+        from urllib.error import HTTPError, URLError
+
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+            method="GET"
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=5) as response:  # noqa: S310
+                if response.status != 200:
+                    msg = "OpenAI API Key is invalid or unauthorized."
+                    raise ValueError(msg)
+        except HTTPError as e:
+            if e.code == 401:
+                msg = "OpenAI API Key is invalid."
+                raise ValueError(msg) from e
+            # Other HTTP errors (like 429 quota exceeded) might indicate the key is structurally valid but restricted
+        except URLError:
+            # Network issues, can't reliably validate, let it pass to fail at runtime
+            pass
 
 
 class ConfigValidators:

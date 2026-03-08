@@ -1,3 +1,5 @@
+import threading
+
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -489,9 +491,29 @@ class Settings(BaseSettings):
     @classmethod
     def reload(cls) -> "Settings":
         """Force a reload of the configuration."""
-        return get_settings()
+        global _settings_instance
+        with _settings_lock:
+            _settings_instance = None
+            _settings_instance = Settings()
+        return _settings_instance
+
+
+_settings_lock = threading.Lock()
+_settings_instance: Settings | None = None
 
 
 def get_settings() -> Settings:
-    """Factory to get the configuration settings."""
-    return Settings()
+    """Factory to get the configuration settings, using a singleton instance."""
+    global _settings_instance
+    if _settings_instance is None:
+        with _settings_lock:
+            if _settings_instance is None:
+                _settings_instance = Settings()
+    return _settings_instance
+
+
+def clear_settings_cache() -> None:
+    """Clear the settings cache for tests."""
+    global _settings_instance
+    with _settings_lock:
+        _settings_instance = None

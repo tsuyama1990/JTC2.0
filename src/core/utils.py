@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import time
 from collections.abc import Generator
 
@@ -57,42 +58,49 @@ class AsyncRateLimiter:
         )
         self._timeout = timeout if timeout is not None else sys_settings.rag.query_timeout
         self._last_call_time = 0.0
+        self._async_lock: asyncio.Lock | None = None
+        self._sync_lock = threading.Lock()
 
     async def wait(self) -> None:
         """Wait non-blocking if the rate limit is exceeded, factoring in max retries and timeout."""
-        current = time.time()
+        if self._async_lock is None:
+            self._async_lock = asyncio.Lock()
 
-        elapsed = current - self._last_call_time
-        if elapsed >= self._min_interval:
-            self._last_call_time = current
-            return
+        async with self._async_lock:
+            current = time.time()
 
-        # Update state before awaiting to prevent race conditions
-        wait_time = self._min_interval - elapsed
-        if wait_time > self._timeout:
-            msg = (
-                f"Rate limiter wait time ({wait_time}s) exceeds timeout of {self._timeout} seconds."
-            )
-            raise TimeoutError(msg)
+            elapsed = current - self._last_call_time
+            if elapsed >= self._min_interval:
+                self._last_call_time = current
+                return
 
-        self._last_call_time = current + wait_time
+            # Update state before awaiting to prevent race conditions
+            wait_time = self._min_interval - elapsed
+            if wait_time > self._timeout:
+                msg = f"Rate limiter wait time ({wait_time}s) exceeds timeout of {self._timeout} seconds."
+                raise TimeoutError(msg)
+
+            self._last_call_time = current + wait_time
+
+        # Sleep outside the lock so other tasks don't block on our sleep
         await asyncio.sleep(wait_time)
 
     def wait_sync(self) -> None:
         """Synchronous wait fallback (if needed), factoring in max retries and timeout."""
-        current = time.time()
+        with self._sync_lock:
+            current = time.time()
 
-        elapsed = current - self._last_call_time
-        if elapsed >= self._min_interval:
-            self._last_call_time = current
-            return
+            elapsed = current - self._last_call_time
+            if elapsed >= self._min_interval:
+                self._last_call_time = current
+                return
 
-        wait_time = self._min_interval - elapsed
-        if wait_time > self._timeout:
-            msg = (
-                f"Rate limiter wait time ({wait_time}s) exceeds timeout of {self._timeout} seconds."
-            )
-            raise TimeoutError(msg)
+            wait_time = self._min_interval - elapsed
+            if wait_time > self._timeout:
+                msg = f"Rate limiter wait time ({wait_time}s) exceeds timeout of {self._timeout} seconds."
+                raise TimeoutError(msg)
 
-        self._last_call_time = current + wait_time
+            self._last_call_time = current + wait_time
+
+        # Sleep outside the lock so other threads don't block
         time.sleep(wait_time)

@@ -182,22 +182,29 @@ class RAG:
             raise ConfigurationError(msg)
 
         try:
-            # Atomic resolution and absolute path validation
-            path = Path(path_str).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
-
             allowed_rel_paths = self.settings.rag.allowed_paths
             allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
 
-            if path.exists():
-                if path.is_symlink():
-                    msg = "Symlinks not allowed in persist_dir."
-                    raise ConfigurationError(msg)
-                if not path.is_dir():
-                    msg = f"Path must be a directory: {path_str}"
-                    raise ConfigurationError(msg)
+            # Use strict=True to prevent TOCTOU and canonicalize path
+            try:
+                path = Path(path_str).resolve(strict=True)
+            except FileNotFoundError:
+                # If path doesn't exist, we resolve its parent to check traversal
+                path = Path(path_str).resolve(strict=False)
+                if not any(path.is_relative_to(parent) for parent in allowed_parents):
+                    logger.exception(ERR_PATH_TRAVERSAL)
+                    raise ConfigurationError(ERR_PATH_TRAVERSAL) from None
+                return str(path)
 
-            # Strict traversal check
+            if path.is_symlink():
+                msg = "Symlinks not allowed in persist_dir."
+                raise ConfigurationError(msg)
+            if not path.is_dir():
+                msg = f"Path must be a directory: {path_str}"
+                raise ConfigurationError(msg)
+
+            # Strict traversal check using canonical paths
             if not any(path.is_relative_to(parent) for parent in allowed_parents):
                 logger.error(ERR_PATH_TRAVERSAL)
                 raise ConfigurationError(ERR_PATH_TRAVERSAL)

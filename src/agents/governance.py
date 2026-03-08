@@ -80,8 +80,7 @@ class GovernanceAgent(BaseAgent):
             industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
         # Security: Whitelist characters to prevent injection attacks (alphanumeric and spaces only)
-        # Updated to allow common punctuation based on audit feedback
-        sanitized = re.sub(r"[^a-zA-Z0-9\s.,-]", "", industry)
+        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", industry)
         return sanitized.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
