@@ -28,7 +28,7 @@ class TestMVPSpec:
                 core_feature="Login",
                 components=["Login <script>alert(1)</script>"],  # XSS attempt
             )
-        assert "Invalid component name" in str(exc.value)
+        assert "Invalid format" in str(exc.value)
 
     def test_mvp_spec_validation_prompt(self) -> None:
         """Test v0_prompt validation."""

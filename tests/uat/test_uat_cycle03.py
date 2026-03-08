@@ -25,13 +25,19 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
         pytest.skip("CPOAgent not implemented yet")
 
     # Setup
+    from src.domain_models.state import RAGState
+
     state = GlobalState(
         topic="Subscription Service",
-        transcripts=[
-            Transcript(
-                source="interview.txt", content="I would never pay for this.", date="2023-10-27"
-            )
-        ],
+        rag_state=RAGState(
+            transcripts=[
+                Transcript(
+                    source="interview.txt",
+                    content="I would never pay for this.",
+                    date_recorded="2023-10-27",
+                )
+            ]
+        ),
         selected_idea=LeanCanvas(
             id=1,
             title="Subscription Service Idea",
@@ -93,11 +99,19 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
         pytest.skip("CPOAgent not implemented yet")
 
     # Setup
+    from src.domain_models.state import RAGState
+
     state = GlobalState(
         topic="Great Idea",
-        transcripts=[
-            Transcript(source="interview_positive.txt", content="I love this!", date="2023-10-27")
-        ],
+        rag_state=RAGState(
+            transcripts=[
+                Transcript(
+                    source="interview_positive.txt",
+                    content="I love this!",
+                    date_recorded="2023-10-27",
+                )
+            ]
+        ),
         selected_idea=LeanCanvas(
             id=1,
             title="Great Idea Title",

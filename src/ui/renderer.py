@@ -64,28 +64,14 @@ class SimulationRenderer:
                     pyxel.quit()
 
     def _console_loop(self) -> None:
-        """Fallback loop for headless environments."""
-        import threading
-
+        """Fallback loop for headless environments using simple polling."""
         last_count = 0
-        timeout_seconds = getattr(self.settings, "headless_timeout", 300)
-        start_time = time.time()
-
-        # Thread lock to prevent race conditions during UI draws
-        _ui_lock = threading.Lock()
 
         try:
             while True:
-                # Add overall timeout check
-                if time.time() - start_time > timeout_seconds:
-                    logger.warning(f"Console loop exceeded {timeout_seconds}s timeout. Exiting.")
-                    break
-
                 try:
-                    with _ui_lock:
-                        state = self.state_getter()
-                        history_list = list(state.debate_history)
-
+                    state = self.state_getter()
+                    history_list = list(state.debate_history)
                     current_count = len(history_list)
 
                     if current_count > last_count:
@@ -94,12 +80,8 @@ class SimulationRenderer:
                             logger.info(f"[{msg.role}]: {msg.content}")
                         last_count = current_count
 
-                    # Simple exit condition for console mode
+                    # Exit condition based on active simulation
                     if not state.simulation_active and current_count > 0:
-                        break
-
-                    # Safety break
-                    if current_count >= self.settings.max_turns:
                         break
 
                     time.sleep(self.settings.console_sleep)

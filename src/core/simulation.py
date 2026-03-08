@@ -41,8 +41,9 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
 
         # Ensure role is a valid Role enum member
         try:
-            role = Role(role_str)
-        except ValueError:
+            # We use value to find the enum
+            role = next(r for r in Role if r.value == role_str)
+        except StopIteration:
             logger.exception(
                 f"Invalid role '{role_str}' in simulation config. Skipping step {node_name}."
             )

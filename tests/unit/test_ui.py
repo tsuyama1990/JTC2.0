@@ -9,8 +9,12 @@ from src.ui.renderer import SimulationRenderer
 
 @pytest.fixture
 def mock_state() -> GlobalState:
+    from src.domain_models.state import SimulationState
+
     return GlobalState(
-        debate_history=[DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hi", timestamp=1.0)]
+        sim_state=SimulationState(
+            debate_history=[DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hello", timestamp=1.0)]
+        )
     )
 
 
@@ -48,15 +52,19 @@ def test_renderer_update_quit(mock_pyxel: MagicMock, mock_state: GlobalState) ->
 def test_renderer_console_loop() -> None:
     """Test the fallback console loop."""
     # We create a sequence of states
-    msg1 = DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hi", timestamp=1.0)
+    msg1 = DialogueMessage(role=Role.NEW_EMPLOYEE, content="Hello", timestamp=1.0)
     msg2 = DialogueMessage(role=Role.FINANCE, content="Bye", timestamp=2.0)
 
+    from src.domain_models.state import SimulationState
+
     # State 1: 1 message
-    s1 = GlobalState(debate_history=[msg1], simulation_active=True)
+    s1 = GlobalState(sim_state=SimulationState(debate_history=[msg1], simulation_active=True))
     # State 2: 2 messages
-    s2 = GlobalState(debate_history=[msg1, msg2], simulation_active=True)
+    s2 = GlobalState(sim_state=SimulationState(debate_history=[msg1, msg2], simulation_active=True))
     # State 3: 2 messages, inactive -> should break loop
-    s3 = GlobalState(debate_history=[msg1, msg2], simulation_active=False)
+    s3 = GlobalState(
+        sim_state=SimulationState(debate_history=[msg1, msg2], simulation_active=False)
+    )
 
     states = [s1, s2, s3, s3]  # extra s3 to be safe
 
@@ -68,13 +76,12 @@ def test_renderer_console_loop() -> None:
     renderer = SimulationRenderer(state_getter)
     renderer.headless = True
 
-    with patch("src.ui.renderer.logger.info") as mock_log:
-        with patch("time.sleep"):  # Skip sleep
-            renderer.start()
+    with patch("src.ui.renderer.logger.info") as mock_log, patch("time.sleep"):  # Skip sleep
+        renderer.start()
 
-            # Verify logger.info was called with the right format
-            mock_log.assert_any_call(f"[{Role.NEW_EMPLOYEE}]: Hi")
-            mock_log.assert_any_call(f"[{Role.FINANCE}]: Bye")
+        # Verify logger.info was called with the right format
+        mock_log.assert_any_call(f"[{Role.NEW_EMPLOYEE}]: Hello")
+        mock_log.assert_any_call(f"[{Role.FINANCE}]: Bye")
 
 
 @patch("src.ui.renderer.pyxel")

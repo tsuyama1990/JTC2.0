@@ -29,7 +29,7 @@ class TestGovernanceAgent:
             success_criteria="User saves time",
         )
         state.influence_network = InfluenceNetwork(
-            stakeholders=[Stakeholder(name="CEO", initial_support=0.8, stubbornness=0.1)],
+            stakeholders=[Stakeholder(name="CEO_User", initial_support=0.8, stubbornness=0.1)],
             matrix=[[1.0]],
         )
         return state

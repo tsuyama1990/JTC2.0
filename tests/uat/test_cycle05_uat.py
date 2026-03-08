@@ -130,7 +130,7 @@ class TestCycle05UAT:
             patch.object(
                 agent,
                 "_create_mvp_spec",
-                return_value=MVPSpec(app_name="App", core_feature=long_feature, components=[]),
+                return_value=MVPSpec(app_name="App Name", core_feature=long_feature, components=[]),
             ),
             patch("src.tools.v0_client.httpx.Client") as mock_http_cls,
         ):

@@ -77,6 +77,20 @@ class Financials(BaseModel):
     payback_months: float = Field(0.0, description="Months to recover CAC")
     roi: float = Field(0.0, description="Return on Investment (LTV/CAC ratio)")
 
+    def run_sensitivity_analysis(
+        self, cac_variance: float = 0.2, ltv_variance: float = 0.2
+    ) -> dict[str, float]:
+        """Runs basic sensitivity analysis returning optimistic and pessimistic ROIs."""
+        opt_cac = max(0.01, self.cac * (1 - cac_variance))
+        pes_cac = self.cac * (1 + cac_variance)
+        opt_ltv = self.ltv * (1 + ltv_variance)
+        pes_ltv = self.ltv * (1 - ltv_variance)
+
+        return {
+            "optimistic_roi": opt_ltv / opt_cac,
+            "pessimistic_roi": pes_ltv / pes_cac,
+        }
+
 
 class FinancialEstimates(BaseModel):
     """
@@ -108,30 +122,9 @@ class Metrics(BaseModel):
     @classmethod
     def validate_custom_metrics(cls, v: dict[str, Any]) -> dict[str, float]:
         """Validate custom metrics keys, values, and limit."""
-        settings = get_settings()
+        from src.domain_models.validators import CommonValidators
 
-        if len(v) > settings.validation.max_custom_metrics:
-            msg = settings.errors.too_many_metrics.format(
-                limit=settings.validation.max_custom_metrics
-            )
-            raise ValueError(msg)
-
-        for key, value in v.items():
-            if not key.isidentifier():
-                msg = settings.errors.invalid_metric_key.format(key=key)
-                raise ValueError(msg)
-
-            # Explicit type check for values (mypy won't catch runtime dict values if Any)
-            if not isinstance(value, (int, float)):
-                msg = f"Metric value for {key} must be numeric."
-                raise TypeError(msg)
-
-            # Value range validation
-            if value < settings.validation.min_metric_value:
-                msg = f"Metric value for {key} must be >= {settings.validation.min_metric_value}."
-                raise ValueError(msg)
-
-        return v
+        return CommonValidators.validate_metrics_dict(v)
 
 
 class RingiSho(BaseModel):
@@ -141,12 +134,34 @@ class RingiSho(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    title: str = Field(..., min_length=1, description="Title of the proposal")
-    executive_summary: str = Field(..., min_length=10, description="Executive summary")
+    title: str = Field(
+        ...,
+        min_length=get_settings().validation.min_title_length,
+        description="Title of the proposal",
+    )
+    executive_summary: str = Field(
+        ...,
+        min_length=get_settings().validation.min_content_length,
+        description="Executive summary",
+    )
     financial_projection: Financials = Field(..., description="Financial projections")
     risks: list[str] = Field(
-        default_factory=list, min_length=1, description="List of identified risks"
+        default_factory=list,
+        min_length=get_settings().validation.min_list_length,
+        description="List of identified risks",
     )
     approval_status: str = Field(
         "Draft", pattern="^(Draft|Approved|Rejected)$", description="Approval status"
     )
+
+    def generate_document_preview(self) -> str:
+        """Generate a text-based preview of the Ringi-Sho document."""
+        return (
+            f"=== {self.title} ===\n"
+            f"Status: {self.approval_status}\n\n"
+            f"Summary:\n{self.executive_summary}\n\n"
+            f"Financials:\n"
+            f"- CAC: ${self.financial_projection.cac:.2f}\n"
+            f"- LTV: ${self.financial_projection.ltv:.2f}\n"
+            f"- ROI: {self.financial_projection.roi:.2f}x\n"
+        )

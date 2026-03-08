@@ -68,20 +68,20 @@ class Persona(BaseModel):
     name: str = Field(
         ...,
         description=DESC_PERSONA_NAME,
-        min_length=2,
-        max_length=50,
+        min_length=get_settings().validation.min_title_length,
+        max_length=get_settings().validation.max_title_length,
     )
     occupation: str = Field(
         ...,
         description=DESC_PERSONA_OCCUPATION,
-        min_length=2,
-        max_length=50,
+        min_length=get_settings().validation.min_title_length,
+        max_length=get_settings().validation.max_title_length,
     )
     demographics: str = Field(
         ...,
         description=DESC_PERSONA_DEMOGRAPHICS,
-        min_length=5,
-        max_length=100,
+        min_length=get_settings().validation.min_title_length,
+        max_length=get_settings().validation.max_content_length,
     )
     goals: list[str] = Field(
         ...,
@@ -111,8 +111,7 @@ class Persona(BaseModel):
     interview_insights: list[str] = Field(
         default_factory=list,
         description="Key insights derived from customer interviews.",
-        min_length=0,
-        max_length=50,  # Added max length limit
+        max_length=get_settings().validation.max_list_length,
     )
 
     @field_validator("interview_insights")
@@ -124,3 +123,9 @@ class Persona(BaseModel):
                 msg = f"Insight '{insight}' is too short."
                 raise ValueError(msg)
         return v
+
+    def is_complete_for_mvp(self) -> bool:
+        """Check if persona has required elements for MVP creation."""
+        return (
+            self.is_fact_based and len(self.interview_insights) > 0 and self.empathy_map is not None
+        )

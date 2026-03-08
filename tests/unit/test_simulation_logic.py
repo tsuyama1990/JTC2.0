@@ -19,6 +19,8 @@ def mock_llm() -> MagicMock:
 @pytest.fixture
 def mock_state() -> GlobalState:
     """Create a mock GlobalState for simulation."""
+    from src.domain_models.state import SimulationState
+
     return GlobalState(
         topic="AI Pet Sitter",
         selected_idea=LeanCanvas(
@@ -29,8 +31,10 @@ def mock_state() -> GlobalState:
             customer_segments="Pet owners",
             unique_value_prop="24/7 pet care",
         ),
-        debate_history=[],
-        simulation_active=True,
+        sim_state=SimulationState(
+            debate_history=[],
+            simulation_active=True,
+        ),
     )
 
 

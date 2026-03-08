@@ -53,12 +53,17 @@ class Feature(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., description=DESC_FEATURE_NAME, min_length=3, max_length=50)
+    name: str = Field(
+        ...,
+        description=DESC_FEATURE_NAME,
+        min_length=get_settings().validation.min_title_length,
+        max_length=get_settings().validation.max_title_length,
+    )
     description: str = Field(
         ...,
         description=DESC_FEATURE_DESC,
         min_length=get_settings().validation.min_content_length,
-        max_length=200,
+        max_length=get_settings().validation.max_content_length,
     )
     priority: Priority = Field(..., description=DESC_FEATURE_PRIORITY)
 
@@ -89,7 +94,7 @@ class MVP(BaseModel):
         ...,
         description=DESC_MVP_SUCCESS_CRITERIA,
         min_length=get_settings().validation.min_content_length,
-        max_length=500,
+        max_length=get_settings().validation.max_content_length,
     )
 
     # New fields for v0.dev integration
@@ -120,9 +125,16 @@ class MVPSpec(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    app_name: str = Field(..., description="Name of the application", min_length=1, max_length=50)
+    app_name: str = Field(
+        ...,
+        description="Name of the application",
+        min_length=get_settings().validation.min_title_length,
+        max_length=get_settings().validation.max_title_length,
+    )
     core_feature: str = Field(
-        ..., description="The single core feature to implement", min_length=10
+        ...,
+        description="The single core feature to implement",
+        min_length=get_settings().validation.min_content_length,
     )
     ui_style: str = Field(default="Modern, Clean, Corporate", description="Visual style of the UI")
     v0_prompt: str | None = Field(
@@ -130,23 +142,17 @@ class MVPSpec(BaseModel):
         description="The prompt used to generate the UI via v0.dev",
     )
     components: list[str] = Field(
-        default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
+        default_factory=lambda: get_settings().v0.default_components,
         description="Key UI components to include",
-        max_length=20,  # Security: Limit max components to prevent memory exhaustion
+        max_length=get_settings().validation.max_list_length,
     )
 
     @field_validator("components")
     @classmethod
     def validate_components(cls, v: list[str]) -> list[str]:
-        """Validate component names to prevent injection/malformed input."""
-        for comp in v:
-            if len(comp) > 50:
-                msg = f"Component name too long: {comp}"
-                raise ValueError(msg)
-            if not COMPONENT_PATTERN.match(comp):
-                msg = f"Invalid component name: {comp}. Must be alphanumeric/safe chars only."
-                raise ValueError(msg)
-        return v
+        from src.domain_models.validators import CommonValidators
+
+        return CommonValidators.validate_alphanumeric_list(v, max_item_length=50)
 
     @field_validator("v0_prompt")
     @classmethod

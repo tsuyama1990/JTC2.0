@@ -1,4 +1,4 @@
-import re
+from datetime import date
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -12,23 +12,18 @@ class Transcript(BaseModel):
 
     source: str
     content: str
-    date: str
+    date_recorded: date
 
     @field_validator("content")
     @classmethod
     def validate_content_length(cls, v: str) -> str:
-        """Ensure transcript content is not trivial."""
-        if len(v.strip()) < 10:
+        """Ensure transcript content is not trivial and analyzes basic structure."""
+        cleaned = v.strip()
+        if len(cleaned) < 10:
             msg = "Transcript content is too short."
             raise ValueError(msg)
-        return v
-
-    @field_validator("date")
-    @classmethod
-    def validate_date_format(cls, v: str) -> str:
-        """Ensure date follows YYYY-MM-DD format."""
-        pattern = r"^\d{4}-\d{2}-\d{2}$"
-        if not re.match(pattern, v):
-            msg = "Date must be in YYYY-MM-DD format"
+        # basic structural analysis
+        if len(cleaned.split()) < 3:
+            msg = "Transcript lacks sufficient word count."
             raise ValueError(msg)
-        return v
+        return cleaned

@@ -14,6 +14,8 @@ from src.domain_models.state import GlobalState
 
 @pytest.fixture
 def initial_state() -> GlobalState:
+    from src.domain_models.state import SimulationState
+
     return GlobalState(
         topic="Integration Test",
         selected_idea=LeanCanvas(
@@ -24,7 +26,7 @@ def initial_state() -> GlobalState:
             customer_segments="Segments description here.",
             unique_value_prop="Unique Value Proposition here.",
         ),
-        simulation_active=True,
+        sim_state=SimulationState(simulation_active=True),
     )
 
 

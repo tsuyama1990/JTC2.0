@@ -38,7 +38,7 @@ def _scan_dir_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -
 
 def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
     """
-    Calculate directory size iteratively with depth limit and strict file count.
+    Calculate directory size recursively with depth limit.
 
     Args:
         path: Path to scan.
@@ -51,40 +51,31 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
     file_count = 0
     MAX_FILES = 10000
 
-    # Queue for BFS traversal: (path, current_depth)
-    queue = [(path, 0)]
+    def scan(current_path: str, current_depth: int) -> None:
+        nonlocal total, file_count
 
-    # Track visited inodes to prevent loops via hardlinks/symlinks if followed (though we disable symlinks)
-    visited_inodes = set()
-
-    while queue:
-        current_path, depth = queue.pop(0)
-
-        if depth > depth_limit:
-            continue
+        if current_depth > depth_limit:
+            return
 
         try:
             with os.scandir(current_path) as it:
                 for entry in it:
                     if entry.is_file(follow_symlinks=False):
-                        stat = entry.stat()
-                        if stat.st_ino in visited_inodes:
-                            continue
-                        visited_inodes.add(stat.st_ino)
-
-                        total += stat.st_size
+                        total += entry.stat(follow_symlinks=False).st_size
                         file_count += 1
                         if file_count > MAX_FILES:
                             logger.warning(
-                                f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size."
+                                f"Scan file limit ({MAX_FILES}) reached. Returning partial size."
                             )
-                            return total
-
+                            return
                     elif entry.is_dir(follow_symlinks=False):
-                        queue.append((entry.path, depth + 1))
+                        scan(entry.path, current_depth + 1)
+                        if file_count > MAX_FILES:
+                            return
         except OSError as e:
-            logger.warning(f"Error scanning index directory {current_path}: {e}")
+            logger.warning(f"Error scanning directory {current_path}: {e}")
 
+    scan(path, 0)
     return total
 
 

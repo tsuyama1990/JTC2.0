@@ -226,8 +226,13 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
 
 def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
     """Run the simulation phase with UI."""
+    from src.domain_models.state import SimulationState
+
     initial_state = GlobalState(
-        topic=topic, selected_idea=selected_idea, simulation_active=True, phase=Phase.IDEATION
+        topic=topic,
+        selected_idea=selected_idea,
+        sim_state=SimulationState(simulation_active=True),
+        phase=Phase.IDEATION,
     )
 
     app = create_simulation_graph()

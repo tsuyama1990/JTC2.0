@@ -12,7 +12,7 @@ import pytest
 
 from src.core.config import get_settings
 from src.data.rag import RAG
-from src.domain_models.common import LazyIdeaIterator
+from src.domain_models.common import create_lazy_iterator
 from src.domain_models.lean_canvas import LeanCanvas
 from tests.conftest import DUMMY_ENV_VARS
 
@@ -28,7 +28,7 @@ def temp_rag_dir(tmp_path: Path) -> str:
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 def test_lazy_iterator_safety_limit() -> None:
     """
-    Verify that LazyIdeaIterator raises StopIteration if the safety limit is exceeded.
+    Verify that create_lazy_iterator raises StopIteration if the safety limit is exceeded.
     """
 
     def infinite_generator() -> Iterator[LeanCanvas]:
@@ -45,16 +45,16 @@ def test_lazy_iterator_safety_limit() -> None:
             )
             i += 1
 
-    lazy_iter = LazyIdeaIterator(infinite_generator())
-    # Override limit for test speed
-    lazy_iter._max_items = 100
+    with patch("src.domain_models.common.get_settings") as mock_settings:
+        mock_settings.return_value.iterator_safety_limit = 100
+        lazy_iter = create_lazy_iterator(infinite_generator())
 
-    # Consume up to limit using islice to prevent OOM in test
-    list(itertools.islice(lazy_iter, 100))
+        # Consume up to limit using islice to prevent OOM in test
+        list(itertools.islice(lazy_iter, 100))
 
-    # Next call should fail
-    with pytest.raises(StopIteration):
-        next(lazy_iter)
+        # Next call should fail
+        with pytest.raises(StopIteration):
+            next(lazy_iter)
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)

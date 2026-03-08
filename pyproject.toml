@@ -110,6 +110,7 @@ suppress-dummy-args = true  # Arguments starting with _ do not require type hint
 addopts = "-v"
 testpaths = ["tests"]
 
+
 [tool.mypy]
 strict = true
 ignore_missing_imports = true

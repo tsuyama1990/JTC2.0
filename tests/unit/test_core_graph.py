@@ -51,7 +51,9 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     from collections import deque
 
     t1 = Transcript(
-        source="Interview 1", content="Content 1 is long enough for validation.", date="2023-01-01"
+        source="Interview 1",
+        content="Content 1 is long enough for validation.",
+        date_recorded="2023-01-01",
     )
     mock_state.transcripts = deque([t1])
 
@@ -69,8 +71,8 @@ def test_nemawashi_analysis_node(mock_engine_cls: MagicMock, mock_state: GlobalS
     mock_engine = mock_engine_cls.return_value
 
     # Setup influence network
-    s1 = Stakeholder(name="A", initial_support=0.2, stubbornness=0.1)
-    s2 = Stakeholder(name="B", initial_support=0.8, stubbornness=0.1)
+    s1 = Stakeholder(name="Alice", initial_support=0.2, stubbornness=0.1)
+    s2 = Stakeholder(name="Bob12", initial_support=0.8, stubbornness=0.1)
     network = InfluenceNetwork(stakeholders=[s1, s2], matrix=[[1.0, 0.0], [0.0, 1.0]])
     mock_state.influence_network = network
 
@@ -111,7 +113,7 @@ def test_mvp_generation_node(mock_get_builder: MagicMock, mock_state: GlobalStat
     """Test MVP generation."""
     mock_builder = mock_get_builder.return_value
 
-    spec = MVPSpec(app_name="App", core_feature="Feature is long enough", v0_prompt="Prompt")
+    spec = MVPSpec(app_name="App Name", core_feature="Feature is long enough", v0_prompt="Prompt")
     mock_builder.generate_mvp.return_value = {
         "mvp_spec": spec,
         "mvp_url": "https://v0.dev/123",
