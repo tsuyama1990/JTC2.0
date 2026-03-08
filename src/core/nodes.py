@@ -7,7 +7,6 @@ from src.core.node_executor import NodeExecutor
 from src.core.services.pdf_generator import PDFGenerator
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.validators import StateValidator
@@ -127,7 +126,7 @@ def sitemap_wireframe_node(state: GlobalState) -> dict[str, Any]:
 def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
     """Phase 5: Generate Agent Prompt Spec."""
     logger.info("Generating Agent Prompt Spec...")
-    agent = AgentFactory.get_output_generation_agent()
+    agent = AgentFactory.get_builder_agent()
     updates = agent.generate_agent_prompt_spec(state)
     if updates.get("agent_prompt_spec"):
         from pathlib import Path
@@ -232,8 +231,9 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
         for transcript in chunk:
             rag.ingest_transcript(transcript)
 
-        rag.persist_index()
         processed_count += len(chunk)
+
+    rag.persist_index()
 
     if next(transcript_iter, None) is not None:
         logger.warning(
@@ -328,82 +328,6 @@ def _safe_cpo_run_impl(state: GlobalState) -> dict[str, Any]:
 
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     return NodeExecutor.execute(_safe_cpo_run_impl, state, "Error in CPO Agent")
-
-
-def _solution_proposal_impl(state: GlobalState) -> dict[str, Any]:
-    builder = AgentFactory.get_builder_agent()
-    updates = builder.propose_features(state)
-    updates["phase"] = Phase.SOLUTION
-    return updates
-
-
-def _solution_proposal_node_impl(state: GlobalState) -> dict[str, Any]:
-    """
-    Transition to Solution Phase and Propose Features.
-    Prepares for Gate 3 (Problem-Solution Fit).
-    """
-    StateValidator.validate_phase_requirements(state)
-
-    if not state.target_persona:
-        logger.warning("Entering Solution Phase without a defined target persona.")
-
-    logger.info(f"Transitioning to Phase: {Phase.SOLUTION}")
-
-    return _solution_proposal_impl(state)
-
-
-def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(
-        _solution_proposal_node_impl, state, "Error in Solution Proposal Node"
-    )
-
-
-def _mvp_generation_node_impl(state: GlobalState) -> dict[str, Any]:
-    """
-    Generate MVP after user selection (Gate 3).
-    """
-    logger.info("Generating MVP (Cycle 5)...")
-
-    builder = AgentFactory.get_builder_agent()
-    updates = builder.generate_mvp(state)
-
-    # If MVP Spec is generated, ensure MVP Definition exists for validation
-    if updates.get("mvp_spec"):
-        spec = updates["mvp_spec"]
-        mvp = MVP(
-            type=MVPType.SINGLE_FEATURE,
-            core_features=[
-                Feature(
-                    name=spec.core_feature,
-                    description=f"Core feature: {spec.core_feature}",
-                    priority=Priority.MUST_HAVE,
-                )
-            ],
-            success_criteria="User engagement and feedback.",
-            v0_url=updates.get("mvp_url"),  # Map URL if present
-        )
-        updates["mvp_definition"] = mvp
-
-    return updates
-
-
-def mvp_generation_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_mvp_generation_node_impl, state, "Error in MVP Generation")
-
-
-def _pmf_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Transition to PMF Phase."""
-    StateValidator.validate_phase_requirements(state)
-
-    if not state.mvp_definition:
-        logger.warning("Entering PMF Phase without an MVP definition.")
-
-    logger.info(f"Transitioning to Phase: {Phase.PMF}")
-    return {"phase": Phase.PMF}
-
-
-def pmf_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_pmf_node_impl, state, "Error in PMF Node")
 
 
 def _governance_node_impl(state: GlobalState) -> dict[str, Any]:

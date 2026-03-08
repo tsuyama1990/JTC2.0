@@ -27,7 +27,6 @@ class TestCycle06UAT:
                     )
                 ],
                 success_criteria="User saves time",
-                v0_url="https://v0.dev/uat-result",
             ),
             selected_idea=LeanCanvas(
                 id=1,

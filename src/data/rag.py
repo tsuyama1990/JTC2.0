@@ -42,7 +42,8 @@ def _scan_dir_size_cached(path: str, depth_limit: int | None = None, ttl_hash: i
 
 def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
     """
-    Calculate directory size iteratively with depth limit and strict file count.
+    Calculate directory size recursively with explicit depth limit and strict file count.
+    Simplified as per memory instructions.
 
     Args:
         path: Path to scan.
@@ -53,45 +54,37 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
     """
     if depth_limit is None:
         depth_limit = get_settings().rag_scan_depth_limit
-    total = 0
-    file_count = 0
 
-    # Queue for BFS traversal: (path, current_depth)
-    queue = [(path, 0)]
-
-    # Track visited inodes to prevent loops via hardlinks/symlinks if followed (though we disable symlinks)
-    visited_inodes = set()
-
-    while queue:
-        current_path, depth = queue.pop(0)
-
-        if depth > depth_limit:
-            continue
+    # Internal helper to carry state across recursive calls
+    def _scan(current_path: str, current_depth: int, state: dict[str, int]) -> None:
+        if current_depth < 0:
+            return
 
         try:
             with os.scandir(current_path) as it:
                 for entry in it:
                     if entry.is_file(follow_symlinks=False):
-                        stat = entry.stat()
-                        if stat.st_ino in visited_inodes:
-                            continue
-                        visited_inodes.add(stat.st_ino)
+                        state["total_size"] += entry.stat().st_size
+                        state["file_count"] += 1
 
-                        total += stat.st_size
-                        file_count += 1
                         max_files = get_settings().rag_max_files
-                        if file_count > max_files:
+                        if state["file_count"] > max_files:
                             logger.warning(
                                 f"Scan file limit ({max_files}) reached at {current_path}. returning partial size."
                             )
-                            return total
-
+                            return
                     elif entry.is_dir(follow_symlinks=False):
-                        queue.append((entry.path, depth + 1))
+                        _scan(entry.path, current_depth - 1, state)
+
+                        # Stop scanning early if limit reached
+                        if state["file_count"] > get_settings().rag_max_files:
+                            return
         except OSError as e:
             logger.warning(f"Error scanning index directory {current_path}: {e}")
 
-    return total
+    state_dict = {"total_size": 0, "file_count": 0}
+    _scan(path, depth_limit, state_dict)
+    return state_dict["total_size"]
 
 
 class IngestionRequest(BaseModel):

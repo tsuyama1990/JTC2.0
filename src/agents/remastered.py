@@ -8,7 +8,6 @@ from langchain_openai import ChatOpenAI
 from src.agents.base import BaseAgent
 from src.core.config import Settings, get_settings
 from src.domain_models import (
-    AgentPromptSpec,
     AlternativeAnalysis,
     CustomerJourney,
     ExperimentPlan,
@@ -334,33 +333,6 @@ class OutputGenerationAgent(BaseAgent):
                 return {"experiment_plan": result}
         except Exception:
             logger.exception("Failed to generate Experiment Plan")
-        return {}
-
-    def generate_agent_prompt_spec(self, state: GlobalState) -> dict[str, Any]:
-        """Generate Agent Prompt Spec."""
-        if not state.sitemap_and_story:
-            logger.warning("Missing sitemap for Agent Prompt Spec.")
-            return {}
-
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are a Senior Technical Lead. Generate a perfect AgentPromptSpec markdown specification for AI coding tools.",
-                ),
-                (
-                    "user",
-                    f"Core Story: {state.sitemap_and_story.core_story.model_dump()}\n\nGenerate Agent Prompt Spec:",
-                ),
-            ]
-        )
-        chain = prompt | self.llm.with_structured_output(AgentPromptSpec)
-        try:
-            result = chain.invoke({})
-            if isinstance(result, AgentPromptSpec):
-                return {"agent_prompt_spec": result}
-        except Exception:
-            logger.exception("Failed to generate Agent Prompt Spec")
         return {}
 
     def run(self, state: GlobalState) -> dict[str, Any]:

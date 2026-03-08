@@ -6,7 +6,7 @@ from .experiment_plan import ExperimentPlan, MetricTarget
 from .lean_canvas import LeanCanvas
 from .mental_model import MentalModelDiagram, MentalTower
 from .metrics import Financials, Metrics, RingiSho
-from .mvp import MVP, MVPSpec
+from .mvp import MVP
 from .politics import InfluenceNetwork, Stakeholder
 from .sitemap import Route, SitemapAndStory, UserStory
 from .state import GlobalState
@@ -29,7 +29,6 @@ __all__ = [
     "InfluenceNetwork",
     "JourneyPhase",
     "LeanCanvas",
-    "MVPSpec",
     "MentalModelDiagram",
     "MentalTower",
     "MetricTarget",
