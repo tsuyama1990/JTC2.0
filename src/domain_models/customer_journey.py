@@ -14,27 +14,22 @@ class JourneyPhase(BaseModel):
 
     phase_name: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Phase name (e.g., Awareness, Consideration, Using, Churn)",
     )
     touchpoint: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Point of contact between the customer and the system/environment",
     )
     customer_action: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Specific action of the customer",
     )
     mental_tower_ref: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="The belief in the MentalTower backing this action",
     )
     pain_points: list[str] = Field(
         ...,
-        min_length=get_settings().validation.min_list_length,
         description="Pains or frustrations felt in this phase",
     )
     emotion_score: int = Field(
@@ -43,6 +38,21 @@ class JourneyPhase(BaseModel):
         le=5,
         description="Emotional fluctuation (-5 to 5)",
     )
+
+    @model_validator(mode="after")
+    def validate_lengths(self) -> Self:
+        settings = get_settings()
+        for field in ["phase_name", "touchpoint", "customer_action", "mental_tower_ref"]:
+            val = getattr(self, field)
+            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
+                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                raise ValueError(msg)
+
+        if len(self.pain_points) < settings.validation.min_list_length:
+            msg = f"pain_points must contain at least {settings.validation.min_list_length} items"
+            raise ValueError(msg)
+
+        return self
 
 
 class CustomerJourney(BaseModel):
@@ -56,7 +66,6 @@ class CustomerJourney(BaseModel):
     )
     worst_pain_phase: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Name of the phase where the Pain is the deepest (and must be solved)",
     )
 
@@ -67,4 +76,10 @@ class CustomerJourney(BaseModel):
         if self.worst_pain_phase not in valid_phase_names:
             msg = f"worst_pain_phase '{self.worst_pain_phase}' does not match any existing phase name."
             raise ValueError(msg)
+
+        settings = get_settings()
+        if len(self.worst_pain_phase) < settings.validation.min_content_length:
+             msg = f"worst_pain_phase must be at least {settings.validation.min_content_length} characters"
+             raise ValueError(msg)
+
         return self

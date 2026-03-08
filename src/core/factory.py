@@ -5,7 +5,14 @@ from src.agents.cpo import CPOAgent
 from src.agents.governance import GovernanceAgent
 from src.agents.ideator import IdeatorAgent
 from src.agents.personas import FinanceAgent, NewEmployeeAgent, SalesAgent
-from src.agents.remastered import OutputGenerationAgent, RemasteredAgent
+from src.agents.remastered import (
+    HackerAgent,
+    HipsterAgent,
+    HustlerAgent,
+    OutputGenerationAgent,
+    RemasteredAgent,
+    VirtualCustomerAgent,
+)
 from src.core.config import get_settings
 from src.core.llm import get_llm
 from src.domain_models.simulation import Role
@@ -41,6 +48,30 @@ class AgentFactory:
         """Create an Output Generation workflow agent."""
         llm = get_llm()
         return OutputGenerationAgent(llm)
+
+    @staticmethod
+    def get_virtual_customer_agent() -> VirtualCustomerAgent:
+        """Create a Virtual Customer Agent."""
+        llm = get_llm()
+        return VirtualCustomerAgent(llm)
+
+    @staticmethod
+    def get_hacker_agent() -> HackerAgent:
+        """Create a Hacker Agent."""
+        llm = get_llm()
+        return HackerAgent(llm)
+
+    @staticmethod
+    def get_hipster_agent() -> HipsterAgent:
+        """Create a Hipster Agent."""
+        llm = get_llm()
+        return HipsterAgent(llm)
+
+    @staticmethod
+    def get_hustler_agent() -> HustlerAgent:
+        """Create a Hustler Agent."""
+        llm = get_llm()
+        return HustlerAgent(llm)
 
     @staticmethod
     def get_persona_agent(role: Role, state: GlobalState | None = None) -> Any:

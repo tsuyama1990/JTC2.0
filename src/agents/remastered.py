@@ -6,7 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent
-from src.core.config import get_settings
+from src.core.config import Settings, get_settings
 from src.domain_models import (
     AgentPromptSpec,
     AlternativeAnalysis,
@@ -28,9 +28,9 @@ class RemasteredAgent(BaseAgent):
     Handles Persona, Alternative Analysis, VPC, Mental Model, Journey, Sitemap.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings = get_settings()
+        self.settings = app_settings or get_settings()
 
     def generate_persona(self, state: GlobalState) -> dict[str, Any]:
         """Generate Persona based on the selected idea."""
@@ -154,8 +154,9 @@ class RemasteredAgent(BaseAgent):
 
 class VirtualCustomerAgent(BaseAgent):
     """Virtual Market Test Agent."""
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
+        self.settings = app_settings or get_settings()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """Review sitemap and story as a Virtual Customer."""
@@ -173,8 +174,9 @@ class VirtualCustomerAgent(BaseAgent):
 
 class HackerAgent(BaseAgent):
     """Hacker Agent for 3H Review."""
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
+        self.settings = app_settings or get_settings()
     def run(self, state: GlobalState) -> dict[str, Any]:
         if not state.sitemap_and_story:
             return {}
@@ -188,8 +190,9 @@ class HackerAgent(BaseAgent):
 
 class HipsterAgent(BaseAgent):
     """Hipster Agent for 3H Review."""
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
+        self.settings = app_settings or get_settings()
     def run(self, state: GlobalState) -> dict[str, Any]:
         if not state.mental_model or not state.sitemap_and_story:
             return {}
@@ -203,8 +206,9 @@ class HipsterAgent(BaseAgent):
 
 class HustlerAgent(BaseAgent):
     """Hustler Agent for 3H Review."""
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
+        self.settings = app_settings or get_settings()
     def run(self, state: GlobalState) -> dict[str, Any]:
         if not state.alternative_analysis or not state.value_proposition:
             return {}
@@ -218,9 +222,9 @@ class HustlerAgent(BaseAgent):
 
 class OutputGenerationAgent(BaseAgent):
     """Agent for Phase 5 & 6 (Agent Prompt Spec & Experiment Plan)."""
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings = get_settings()
+        self.settings = app_settings or get_settings()
 
     def generate_experiment_plan(self, state: GlobalState) -> dict[str, Any]:
         """Generate Experiment Plan."""

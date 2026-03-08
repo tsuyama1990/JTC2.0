@@ -17,11 +17,12 @@ class PDFGenerator:
         """
         Generates a PDF representation of a given Pydantic model.
         """
-        get_settings()
+        settings = get_settings()
 
-        # Use simple structure. Ensure the directory exists
-        # In a real environment we would output to a path based on project root
-        output_dir = Path.cwd() / "outputs" / "canvas"
+        # Use configurable output directory
+        output_dir = Path(settings.canvas_output_dir)
+        if not output_dir.is_absolute():
+            output_dir = Path.cwd() / output_dir
         try:
             output_dir.mkdir(parents=True, exist_ok=True)
         except Exception:

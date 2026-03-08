@@ -115,7 +115,12 @@ def spec_generation_node(state: GlobalState) -> dict[str, Any]:
     updates = agent.generate_agent_prompt_spec(state)
     if updates.get("agent_prompt_spec"):
         from pathlib import Path
-        output_dir = Path.cwd() / "outputs" / "canvas"
+
+        from src.core.config import get_settings
+        settings = get_settings()
+        output_dir = Path(settings.canvas_output_dir)
+        if not output_dir.is_absolute():
+            output_dir = Path.cwd() / output_dir
         output_dir.mkdir(parents=True, exist_ok=True)
         with (output_dir / "AgentPromptSpec.md").open("w") as f:
             f.write(f"# Agent Prompt Specification\n\n```json\n{updates['agent_prompt_spec'].model_dump_json(indent=2)}\n```\n")
@@ -135,21 +140,16 @@ def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
 def virtual_customer_node(state: GlobalState) -> dict[str, Any]:
     """Phase 4: Virtual Customer Interview."""
     logger.info("Running Virtual Customer Simulation...")
-    from src.agents.remastered import VirtualCustomerAgent
-    from src.core.llm import get_llm
-    agent = VirtualCustomerAgent(get_llm())
+    agent = AgentFactory.get_virtual_customer_agent()
     return agent.run(state)
 
 @safe_node("Error in 3H Review Node")
 def review_3h_node(state: GlobalState) -> dict[str, Any]:
     """Phase 4: 3H Review (Hacker, Hipster, Hustler)."""
     logger.info("Running 3H Review...")
-    from src.agents.remastered import HackerAgent, HipsterAgent, HustlerAgent
-    from src.core.llm import get_llm
-    llm = get_llm()
-    hacker = HackerAgent(llm)
-    hipster = HipsterAgent(llm)
-    hustler = HustlerAgent(llm)
+    hacker = AgentFactory.get_hacker_agent()
+    hipster = AgentFactory.get_hipster_agent()
+    hustler = AgentFactory.get_hustler_agent()
 
     # Run sequentially and accumulate messages
     state_updates: dict[str, Any] = {"debate_history": list(state.debate_history)}

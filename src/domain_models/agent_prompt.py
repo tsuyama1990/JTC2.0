@@ -2,7 +2,9 @@
 Agent Prompt Specification models.
 """
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.config import get_settings
 from src.domain_models.sitemap import UserStory
@@ -13,24 +15,30 @@ class StateMachine(BaseModel):
 
     success: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Complete layout when data is normal",
     )
     loading: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Waiting UI using Skeleton components",
     )
     error: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Placement of fallback UI and Retry button",
     )
     empty: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Empty State including CTA when data is 0",
     )
+
+    @model_validator(mode="after")
+    def validate_lengths(self) -> Self:
+        settings = get_settings()
+        for field in ["success", "loading", "error", "empty"]:
+            val = getattr(self, field)
+            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
+                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                raise ValueError(msg)
+        return self
 
 
 class AgentPromptSpec(BaseModel):
@@ -38,12 +46,10 @@ class AgentPromptSpec(BaseModel):
 
     sitemap: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Overall routing and information architecture of the app",
     )
     routing_and_constraints: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Boundaries of SSR/Client Components, UI library specifications",
     )
     core_user_story: UserStory = Field(
@@ -56,11 +62,19 @@ class AgentPromptSpec(BaseModel):
     )
     validation_rules: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="Zod schema and edge case requirements",
     )
     mermaid_flowchart: str = Field(
         ...,
-        min_length=get_settings().validation.min_content_length,
         description="State transition and data flow diagram using Mermaid syntax",
     )
+
+    @model_validator(mode="after")
+    def validate_lengths(self) -> Self:
+        settings = get_settings()
+        for field in ["sitemap", "routing_and_constraints", "validation_rules", "mermaid_flowchart"]:
+            val = getattr(self, field)
+            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
+                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                raise ValueError(msg)
+        return self
