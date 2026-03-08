@@ -34,6 +34,11 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
 
     steps = settings.simulation.turn_sequence
 
+    MAX_SIMULATION_STEPS = 50
+    if len(steps) > MAX_SIMULATION_STEPS:
+        msg = f"Simulation step count exceeds maximum allowed limit ({MAX_SIMULATION_STEPS})."
+        raise ValueError(msg)
+
     workflow = StateGraph(GlobalState)
     previous_node = None
 

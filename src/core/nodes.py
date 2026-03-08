@@ -169,19 +169,30 @@ def review_3h_node(state: GlobalState) -> dict[str, Any]:
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     rag = RAG(persist_dir=state.rag_index_path)
 
-    # Process transcripts in chunks to manage memory
+    # Implement streaming ingestion with strict limits to prevent OOM
+    # In a real generator setup we would use `iter(state.transcripts)`.
+    # Since it's a list in GlobalState, we limit processing explicitly.
+    MAX_TRANSCRIPTS = 50
     chunk_size = 10
-    total = len(state.transcripts)
 
-    for i in range(0, total, chunk_size):
-        chunk = state.transcripts[i : i + chunk_size]
-        logger.info(f"Ingesting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
+    transcript_iter = iter(state.transcripts)
 
+    processed_count = 0
+    while processed_count < MAX_TRANSCRIPTS:
+        from itertools import islice
+        chunk = list(islice(transcript_iter, chunk_size))
+        if not chunk:
+            break
+
+        logger.info(f"Ingesting batch {(processed_count // chunk_size) + 1}: {len(chunk)} transcripts")
         for transcript in chunk:
             rag.ingest_transcript(transcript)
 
-        # Persist index after each chunk to free up ingestion buffers
         rag.persist_index()
+        processed_count += len(chunk)
+
+    if next(transcript_iter, None) is not None:
+        logger.warning(f"Exceeded MAX_TRANSCRIPTS ({MAX_TRANSCRIPTS}). Remaining transcripts ignored to prevent OOM.")
 
     return {}
 
@@ -193,9 +204,10 @@ def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
     Runs after Gate 2 (User Input of Transcript).
     """
     logger.info("Ingesting transcripts into RAG...")
+
     if not state.transcripts:
-        logger.warning("No transcripts found in state to ingest.")
-        return {}
+        msg = "No transcripts found in state to ingest. Missing validation."
+        raise ValueError(msg)
 
     return _ingest_impl(state)
 

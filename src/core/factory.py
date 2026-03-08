@@ -73,39 +73,46 @@ class AgentFactory:
         return HustlerAgent(llm)
 
     @staticmethod
+    def get_cpo_agent(state: GlobalState | None = None) -> CPOAgent:
+        """Create a CPO Agent."""
+        llm = get_llm()
+        settings = get_settings()
+        rag_path = state.rag_index_path if state else settings.rag_persist_dir
+        return CPOAgent(llm, app_settings=settings, rag_path=rag_path)
+
+    @staticmethod
+    def get_new_employee_agent() -> NewEmployeeAgent:
+        """Create a New Employee Agent."""
+        return NewEmployeeAgent(get_llm(), app_settings=get_settings())
+
+    @staticmethod
+    def get_finance_agent() -> FinanceAgent:
+        """Create a Finance Agent."""
+        return FinanceAgent(get_llm(), app_settings=get_settings())
+
+    @staticmethod
+    def get_sales_agent() -> SalesAgent:
+        """Create a Sales Agent."""
+        return SalesAgent(get_llm(), app_settings=get_settings())
+
+    @staticmethod
     def get_persona_agent(role: Role, state: GlobalState | None = None) -> CPOAgent | NewEmployeeAgent | FinanceAgent | SalesAgent:
         """
-        Get a persona agent instance.
+        Get a persona agent instance. Maps role to specific factory method.
 
         Args:
             role: The role to create.
             state: GlobalState, required for CPOAgent to get rag_index_path.
         """
-        # CPO needs state context, so it's harder to cache globally without state key.
-        # But other personas are stateless w.r.t construction.
-        if role == Role.CPO:
-            llm = get_llm()
-            settings = get_settings()
-            rag_path = state.rag_index_path if state else settings.rag_persist_dir
-            return CPOAgent(llm, app_settings=settings, rag_path=rag_path)
-
-        return AgentFactory._get_cached_persona(role)
-
-    @staticmethod
-    def _get_cached_persona(role: Role) -> NewEmployeeAgent | FinanceAgent | SalesAgent:
-        """
-        Factory for stateless persona agents.
-        No caching to ensure fresh configuration usage (e.g. LLM model changes).
-        """
-        llm = get_llm()
-        settings = get_settings()
-
-        if role == Role.NEW_EMPLOYEE:
-            return NewEmployeeAgent(llm, app_settings=settings)
-        if role == Role.FINANCE:
-            return FinanceAgent(llm, app_settings=settings)
-        if role == Role.SALES:
-            return SalesAgent(llm, app_settings=settings)
-
-        msg = f"Unknown role: {role}"
-        raise ValueError(msg)
+        match role:
+            case Role.CPO:
+                return AgentFactory.get_cpo_agent(state)
+            case Role.NEW_EMPLOYEE:
+                return AgentFactory.get_new_employee_agent()
+            case Role.FINANCE:
+                return AgentFactory.get_finance_agent()
+            case Role.SALES:
+                return AgentFactory.get_sales_agent()
+            case _:
+                msg = f"Unknown role requested in AgentFactory: {role}"
+                raise ValueError(msg)

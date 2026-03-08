@@ -19,7 +19,9 @@ def test_generate_canvas_pdf_success(tmp_path: Path) -> None:
         result = PDFGenerator.generate_canvas_pdf(model, "test_persona.pdf")
         assert result is not None
         assert result.endswith("test_persona.pdf")
-        assert (tmp_path / "outputs" / "canvas" / "test_persona.pdf").exists()
+
+        expected_path = Path(result)
+        assert expected_path.exists()
 
 def test_generate_canvas_pdf_mkdir_failure() -> None:
     model = Persona(

@@ -90,13 +90,20 @@ def create_app() -> CompiledStateGraph[Any, Any]:
     workflow.add_edge("experiment_planning", "governance")
     workflow.add_edge("governance", END)
 
+    interrupts = [
+        "ideator",
+        "vpc",
+        "sitemap_wireframe",
+        "virtual_customer",
+        "experiment_planning"
+    ]
+
+    # Validate interrupt sequence
+    valid_nodes = set(workflow.nodes.keys())
+    for node in interrupts:
+        if node not in valid_nodes:
+            msg = f"Invalid interrupt node configured: {node}"
+            raise ValueError(msg)
+
     # Compile with Interrupts for documented HITL Gates
-    return workflow.compile(
-        interrupt_after=[
-            "ideator",
-            "vpc",
-            "sitemap_wireframe",
-            "virtual_customer",
-            "experiment_planning"
-        ]
-    )
+    return workflow.compile(interrupt_after=interrupts)
