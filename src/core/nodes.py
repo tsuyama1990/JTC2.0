@@ -5,6 +5,7 @@ from typing import Any
 
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
+from src.core.services.pdf_generator import PDFGenerator
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
@@ -55,6 +56,113 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
     logger.info(f"Transitioning to Phase: {Phase.VERIFICATION}")
     return {"phase": Phase.VERIFICATION}
+
+
+@safe_node("Error in Persona Node")
+def persona_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 2: Generate Persona."""
+    logger.info("Generating Persona...")
+    agent = AgentFactory.get_remastered_agent()
+    return agent.generate_persona(state)
+
+@safe_node("Error in Alternative Analysis Node")
+def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 2: Generate Alternative Analysis."""
+    logger.info("Generating Alternative Analysis...")
+    agent = AgentFactory.get_remastered_agent()
+    updates = agent.generate_alternative_analysis(state)
+    if updates.get("alternative_analysis"):
+        PDFGenerator.generate_canvas_pdf(updates["alternative_analysis"], "alternative_analysis.pdf")
+    return updates
+
+@safe_node("Error in VPC Node")
+def vpc_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 2: Generate Value Proposition Canvas."""
+    logger.info("Generating Value Proposition Canvas...")
+    agent = AgentFactory.get_remastered_agent()
+    updates = agent.generate_vpc(state)
+    if updates.get("value_proposition"):
+        PDFGenerator.generate_canvas_pdf(updates["value_proposition"], "value_proposition_canvas.pdf")
+    return updates
+
+@safe_node("Error in Mental Model & Journey Node")
+def mental_model_journey_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 3: Generate Mental Model & Customer Journey."""
+    logger.info("Generating Mental Model and Customer Journey...")
+    agent = AgentFactory.get_remastered_agent()
+    updates = agent.generate_mental_model_and_journey(state)
+    if updates.get("mental_model"):
+        PDFGenerator.generate_canvas_pdf(updates["mental_model"], "mental_model_diagram.pdf")
+    if updates.get("customer_journey"):
+        PDFGenerator.generate_canvas_pdf(updates["customer_journey"], "customer_journey.pdf")
+    return updates
+
+@safe_node("Error in Sitemap & Wireframe Node")
+def sitemap_wireframe_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 3: Generate Sitemap and Wireframe (User Story)."""
+    logger.info("Generating Sitemap and User Story...")
+    agent = AgentFactory.get_remastered_agent()
+    updates = agent.generate_sitemap_and_wireframe(state)
+    if updates.get("sitemap_and_story"):
+        PDFGenerator.generate_canvas_pdf(updates["sitemap_and_story"], "sitemap_and_story.pdf")
+    return updates
+
+@safe_node("Error in Spec Generation Node")
+def spec_generation_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 5: Generate Agent Prompt Spec."""
+    logger.info("Generating Agent Prompt Spec...")
+    agent = AgentFactory.get_output_generation_agent()
+    updates = agent.generate_agent_prompt_spec(state)
+    if updates.get("agent_prompt_spec"):
+        from pathlib import Path
+        output_dir = Path.cwd() / "outputs" / "canvas"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        with (output_dir / "AgentPromptSpec.md").open("w") as f:
+            f.write(f"# Agent Prompt Specification\n\n```json\n{updates['agent_prompt_spec'].model_dump_json(indent=2)}\n```\n")
+    return updates
+
+@safe_node("Error in Experiment Planning Node")
+def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 6: Generate Experiment Plan."""
+    logger.info("Generating Experiment Plan...")
+    agent = AgentFactory.get_output_generation_agent()
+    updates = agent.generate_experiment_plan(state)
+    if updates.get("experiment_plan"):
+        PDFGenerator.generate_canvas_pdf(updates["experiment_plan"], "experiment_plan.pdf")
+    return updates
+
+@safe_node("Error in Virtual Customer Node")
+def virtual_customer_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 4: Virtual Customer Interview."""
+    logger.info("Running Virtual Customer Simulation...")
+    from src.agents.remastered import VirtualCustomerAgent
+    from src.core.llm import get_llm
+    agent = VirtualCustomerAgent(get_llm())
+    return agent.run(state)
+
+@safe_node("Error in 3H Review Node")
+def review_3h_node(state: GlobalState) -> dict[str, Any]:
+    """Phase 4: 3H Review (Hacker, Hipster, Hustler)."""
+    logger.info("Running 3H Review...")
+    from src.agents.remastered import HackerAgent, HipsterAgent, HustlerAgent
+    from src.core.llm import get_llm
+    llm = get_llm()
+    hacker = HackerAgent(llm)
+    hipster = HipsterAgent(llm)
+    hustler = HustlerAgent(llm)
+
+    # Run sequentially and accumulate messages
+    state_updates: dict[str, Any] = {"debate_history": list(state.debate_history)}
+    for agent in [hacker, hipster, hustler]:
+        updates = agent.run(state)
+        if "debate_history" in updates:
+            state_updates["debate_history"].extend(
+                [msg for msg in updates["debate_history"] if msg not in state_updates["debate_history"]]
+            )
+            state.debate_history = state_updates["debate_history"]
+
+    return state_updates
+
 
 
 @safe_node("Error during transcript ingestion")

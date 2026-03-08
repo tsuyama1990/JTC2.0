@@ -5,6 +5,7 @@ from src.agents.cpo import CPOAgent
 from src.agents.governance import GovernanceAgent
 from src.agents.ideator import IdeatorAgent
 from src.agents.personas import FinanceAgent, NewEmployeeAgent, SalesAgent
+from src.agents.remastered import OutputGenerationAgent, RemasteredAgent
 from src.core.config import get_settings
 from src.core.llm import get_llm
 from src.domain_models.simulation import Role
@@ -28,6 +29,18 @@ class AgentFactory:
     def get_governance_agent() -> GovernanceAgent:
         """Create a new Governance Agent."""
         return GovernanceAgent()
+
+    @staticmethod
+    def get_remastered_agent() -> RemasteredAgent:
+        """Create a Remastered workflow agent."""
+        llm = get_llm()
+        return RemasteredAgent(llm)
+
+    @staticmethod
+    def get_output_generation_agent() -> OutputGenerationAgent:
+        """Create an Output Generation workflow agent."""
+        llm = get_llm()
+        return OutputGenerationAgent(llm)
 
     @staticmethod
     def get_persona_agent(role: Role, state: GlobalState | None = None) -> Any:
