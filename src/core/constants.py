@@ -87,7 +87,7 @@ ERR_PATH_TRAVERSAL: Final[str] = "Path traversal detected."
 ERR_RAG_INDEX_SIZE: Final[str] = "Index size limit exceeded."
 ERR_RAG_QUERY_TOO_LARGE: Final[str] = "Query too large."
 ERR_RAG_TEXT_TOO_LARGE: Final[str] = "Document text too large."
-MSG_NO_DATA_AVAILABLE: Final[str] = "No data available."
+ERR_RAG_NO_DATA_AVAILABLE: Final[str] = "No data available."
 
 # --- UI Messages ---
 MSG_NO_IDEAS: Final[str] = "No ideas generated yet."

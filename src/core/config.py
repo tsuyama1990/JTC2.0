@@ -18,6 +18,7 @@ from src.core.constants import (
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
+    DEFAULT_MAX_FILES,
     DEFAULT_MAX_LLM_RESPONSE_SIZE,
     DEFAULT_MAX_SEARCH_RESULT_SIZE,
     DEFAULT_MAX_TITLE_LENGTH,
@@ -402,6 +403,11 @@ class Settings(BaseSettings):
         alias="RAG_BATCH_SIZE",
         default=DEFAULT_RAG_BATCH_SIZE,
         description="Batch size for RAG ingestion",
+    )
+    rag_max_files: int = Field(
+        alias="RAG_MAX_FILES",
+        default=DEFAULT_MAX_FILES,
+        description="Maximum files to scan",
     )
     rag_query_timeout: float = Field(
         alias="RAG_QUERY_TIMEOUT", default=30.0, description="Timeout for RAG queries in seconds"

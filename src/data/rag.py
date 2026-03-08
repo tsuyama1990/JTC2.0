@@ -17,10 +17,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
-    DEFAULT_MAX_FILES,
     ERR_CIRCUIT_OPEN,
     ERR_PATH_TRAVERSAL,
     ERR_RAG_INDEX_SIZE,
+    ERR_RAG_NO_DATA_AVAILABLE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
 )
@@ -79,9 +79,10 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
 
                         total += stat.st_size
                         file_count += 1
-                        if file_count > DEFAULT_MAX_FILES:
+                        max_files = get_settings().rag_max_files
+                        if file_count > max_files:
                             logger.warning(
-                                f"Scan file limit ({DEFAULT_MAX_FILES}) reached at {current_path}. returning partial size."
+                                f"Scan file limit ({max_files}) reached at {current_path}. returning partial size."
                             )
                             return total
 
@@ -178,9 +179,7 @@ class RAG:
                 break
 
         if not is_safe:
-            logger.error(
-                f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}"
-            )
+            logger.error(ERR_PATH_TRAVERSAL)
             raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         if is_symlink:
@@ -232,9 +231,8 @@ class RAG:
         limit_bytes = limit_mb * 1024 * 1024
 
         if self._current_index_size > limit_bytes:
-            msg = ERR_RAG_INDEX_SIZE.format(limit=limit_mb)
-            logger.error(msg)
-            raise MemoryError(msg)
+            logger.error(ERR_RAG_INDEX_SIZE)
+            raise MemoryError(ERR_RAG_INDEX_SIZE)
 
     def _rate_limit(self) -> None:
         """Wait synchronously according to the configured rate limit."""
@@ -379,9 +377,7 @@ class RAG:
 
     def _query_impl(self, question: str) -> str:
         if self.index is None:
-            from src.core.constants import MSG_NO_DATA_AVAILABLE
-
-            return MSG_NO_DATA_AVAILABLE
+            return ERR_RAG_NO_DATA_AVAILABLE
 
         # Synchronous wait for rate limit (if configured)
         self._rate_limiter.wait_sync()
