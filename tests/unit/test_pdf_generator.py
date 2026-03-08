@@ -12,7 +12,7 @@ def test_generate_canvas_pdf_success(tmp_path: Path) -> None:
         demographics="30s, Rural",
         goals=["Increase yield"],
         frustrations=["High cost of seeds"],
-        bio="John is a farmer who wants to improve his crop yield."
+        bio="John is a farmer who wants to improve his crop yield.",
     )
 
     with patch("src.core.services.pdf_generator.Path.cwd", return_value=tmp_path):
@@ -23,6 +23,7 @@ def test_generate_canvas_pdf_success(tmp_path: Path) -> None:
         expected_path = Path(result)
         assert expected_path.exists()
 
+
 def test_generate_canvas_pdf_mkdir_failure() -> None:
     model = Persona(
         name="John Doe",
@@ -30,12 +31,15 @@ def test_generate_canvas_pdf_mkdir_failure() -> None:
         demographics="30s, Rural",
         goals=["Increase yield"],
         frustrations=["High cost of seeds"],
-        bio="John is a farmer who wants to improve his crop yield."
+        bio="John is a farmer who wants to improve his crop yield.",
     )
 
-    with patch("src.core.services.pdf_generator.Path.mkdir", side_effect=Exception("Permission denied")):
+    with patch(
+        "src.core.services.pdf_generator.Path.mkdir", side_effect=Exception("Permission denied")
+    ):
         result = PDFGenerator.generate_canvas_pdf(model, "test_persona.pdf")
         assert result is None
+
 
 def test_generate_canvas_pdf_output_failure(tmp_path: Path) -> None:
     model = Persona(
@@ -44,9 +48,12 @@ def test_generate_canvas_pdf_output_failure(tmp_path: Path) -> None:
         demographics="30s, Rural",
         goals=["Increase yield"],
         frustrations=["High cost of seeds"],
-        bio="John is a farmer who wants to improve his crop yield."
+        bio="John is a farmer who wants to improve his crop yield.",
     )
 
-    with patch("src.core.services.pdf_generator.Path.cwd", return_value=tmp_path), patch("fpdf.FPDF.output", side_effect=Exception("Disk full")):
+    with (
+        patch("src.core.services.pdf_generator.Path.cwd", return_value=tmp_path),
+        patch("fpdf.FPDF.output", side_effect=Exception("Disk full")),
+    ):
         result = PDFGenerator.generate_canvas_pdf(model, "test_persona.pdf")
         assert result is None

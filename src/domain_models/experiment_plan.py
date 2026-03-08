@@ -31,7 +31,9 @@ class MetricTarget(BaseModel):
         for field in ["metric_name", "target_value", "measurement_method"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                msg = (
+                    f"{field} must be at least {settings.validation.min_content_length} characters"
+                )
                 raise ValueError(msg)
         return self
 
@@ -63,10 +65,17 @@ class ExperimentPlan(BaseModel):
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
         settings = get_settings()
-        for field in ["riskiest_assumption", "experiment_type", "acquisition_channel", "pivot_condition"]:
+        for field in [
+            "riskiest_assumption",
+            "experiment_type",
+            "acquisition_channel",
+            "pivot_condition",
+        ]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                msg = (
+                    f"{field} must be at least {settings.validation.min_content_length} characters"
+                )
                 raise ValueError(msg)
 
         if len(self.aarrr_metrics) < settings.validation.min_list_length:

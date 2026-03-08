@@ -2,6 +2,8 @@ import logging
 import os
 import time
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import lru_cache
 from pathlib import Path
 
@@ -18,17 +20,19 @@ from src.core.constants import (
     ERR_CIRCUIT_OPEN,
     ERR_PATH_TRAVERSAL,
     ERR_RAG_INDEX_SIZE,
+    ERR_RAG_NO_DATA_AVAILABLE,
     ERR_RAG_QUERY_TOO_LARGE,
     ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
+from src.core.utils import AsyncRateLimiter, sanitize_query
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def _scan_dir_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -> int:
+def _scan_dir_size_cached(path: str, depth_limit: int | None = None, ttl_hash: int = 0) -> int:
     """
     Cached version of directory size calculation.
     ttl_hash is a trick to invalidate cache by passing a changing value (like time // 60).
@@ -36,7 +40,7 @@ def _scan_dir_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -
     return _scan_dir_size(path, depth_limit)
 
 
-def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
+def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
     """
     Calculate directory size iteratively with depth limit and strict file count.
 
@@ -47,9 +51,10 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
     Returns:
         Total size in bytes.
     """
+    if depth_limit is None:
+        depth_limit = get_settings().rag_scan_depth_limit
     total = 0
     file_count = 0
-    MAX_FILES = 10000
 
     # Queue for BFS traversal: (path, current_depth)
     queue = [(path, 0)]
@@ -74,9 +79,10 @@ def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
 
                         total += stat.st_size
                         file_count += 1
-                        if file_count > MAX_FILES:
+                        max_files = get_settings().rag_max_files
+                        if file_count > max_files:
                             logger.warning(
-                                f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size."
+                                f"Scan file limit ({max_files}) reached at {current_path}. returning partial size."
                             )
                             return total
 
@@ -119,6 +125,8 @@ class RAG:
         raw_path = persist_dir or self.settings.rag_persist_dir
         self.persist_dir = self._validate_path(raw_path)
 
+        self._executor = ThreadPoolExecutor(max_workers=5)
+
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(
             fail_max=self.settings.circuit_breaker_fail_max,
@@ -126,8 +134,7 @@ class RAG:
         )
 
         # Rate Limiting State
-        self._last_call_time = 0.0
-        self._min_interval = self.settings.rag_rate_limit_interval
+        self._rate_limiter = AsyncRateLimiter(self.settings.rag_rate_limit_interval)
 
         # Incremental Size Tracking
         self._current_index_size = 0
@@ -172,9 +179,7 @@ class RAG:
                 break
 
         if not is_safe:
-            logger.error(
-                f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}"
-            )
+            logger.error(ERR_PATH_TRAVERSAL)
             raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
         if is_symlink:
@@ -182,14 +187,6 @@ class RAG:
             raise ConfigurationError(msg)
 
         return str(path)
-
-    def _sanitize_query(self, query: str) -> str:
-        """
-        Sanitize input query to prevent injection or processing issues.
-        Efficient implementation using list comprehension.
-        """
-        chars = [ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127]
-        return "".join(chars).strip()
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
@@ -234,17 +231,12 @@ class RAG:
         limit_bytes = limit_mb * 1024 * 1024
 
         if self._current_index_size > limit_bytes:
-            msg = ERR_RAG_INDEX_SIZE.format(limit=limit_mb)
-            logger.error(msg)
-            raise MemoryError(msg)
+            logger.error(ERR_RAG_INDEX_SIZE)
+            raise MemoryError(ERR_RAG_INDEX_SIZE)
 
     def _rate_limit(self) -> None:
-        """Simple blocking rate limiter."""
-        current = time.time()
-        elapsed = current - self._last_call_time
-        if elapsed < self._min_interval:
-            time.sleep(self._min_interval - elapsed)
-        self._last_call_time = time.time()
+        """Wait synchronously according to the configured rate limit."""
+        self._rate_limiter.wait_sync()
 
     def _document_generator(self, request: IngestionRequest) -> Iterator[Document]:
         """
@@ -370,7 +362,7 @@ class RAG:
             msg = "Query cannot be empty."
             raise ValueError(msg)
 
-        question = self._sanitize_query(question)
+        question = sanitize_query(question)
 
         max_len = self.settings.rag_max_query_length
         if len(question) > max_len:
@@ -385,23 +377,18 @@ class RAG:
 
     def _query_impl(self, question: str) -> str:
         if self.index is None:
-            return "No data available."
+            return ERR_RAG_NO_DATA_AVAILABLE
 
-        import time
-        from concurrent.futures import ThreadPoolExecutor
-        from concurrent.futures import TimeoutError as FuturesTimeoutError
-
-        if self.settings.rag_rate_limit_interval > 0:
-            time.sleep(self.settings.rag_rate_limit_interval)
+        # Synchronous wait for rate limit (if configured)
+        self._rate_limiter.wait_sync()
 
         timeout = getattr(self.settings, "rag_query_timeout", 30.0)
 
         try:
             query_engine = self.index.as_query_engine()
 
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(query_engine.query, question)
-                response = future.result(timeout=timeout)
+            future = self._executor.submit(query_engine.query, question)
+            response = future.result(timeout=timeout)
 
             return str(response)
 
