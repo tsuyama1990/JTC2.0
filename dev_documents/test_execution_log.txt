@@ -4,7 +4,7 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 146 items
+collected 149 items
 
 tests/integration/test_rag_flow.py ...                                   [  2%]
 tests/uat/test_cycle05_uat.py ...                                        [  4%]
@@ -13,34 +13,34 @@ tests/uat/test_memory_safety.py ...                                      [  7%]
 tests/uat/test_nemawashi_uat.py ..                                       [  8%]
 tests/uat/test_uat_cycle01.py ...                                        [ 10%]
 tests/uat/test_uat_cycle02.py .                                          [ 11%]
-tests/uat/test_uat_cycle03.py ..                                         [ 13%]
+tests/uat/test_uat_cycle03.py ..                                         [ 12%]
 tests/unit/domain_models/test_models.py ...........                      [ 20%]
-tests/unit/domain_models/test_mvp.py ....                                [ 23%]
+tests/unit/domain_models/test_mvp.py ....                                [ 22%]
 tests/unit/domain_models/test_politics.py .....                          [ 26%]
-tests/unit/domain_models/test_remastered_models.py ...........           [ 34%]
-tests/unit/domain_models/test_simulation_models.py .....                 [ 37%]
-tests/unit/domain_models/test_state_integration.py .                     [ 38%]
-tests/unit/domain_models/test_state_remastered_integration.py .          [ 39%]
-tests/unit/domain_models/test_transcript.py ...                          [ 41%]
-tests/unit/test_builder_agent.py .                                       [ 41%]
-tests/unit/test_cli_input.py ...                                         [ 43%]
-tests/unit/test_cli_scalability.py .                                     [ 44%]
-tests/unit/test_config.py .......                                        [ 49%]
-tests/unit/test_core.py ....                                             [ 52%]
-tests/unit/test_core_graph.py .....                                      [ 55%]
-tests/unit/test_cpo_agent.py ..                                          [ 56%]
-tests/unit/test_domain_models.py .......                                 [ 61%]
-tests/unit/test_file_service.py ...                                      [ 63%]
-tests/unit/test_governance_agent.py .                                    [ 64%]
-tests/unit/test_governance_memory.py ..                                  [ 65%]
-tests/unit/test_ideator_agent.py ...                                     [ 67%]
-tests/unit/test_metrics_logic.py .........                               [ 73%]
-tests/unit/test_nemawashi.py ....                                        [ 76%]
-tests/unit/test_pdf_generator.py ...                                     [ 78%]
+tests/unit/domain_models/test_remastered_models.py ...........           [ 33%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 36%]
+tests/unit/domain_models/test_state_integration.py .                     [ 37%]
+tests/unit/domain_models/test_state_remastered_integration.py ....       [ 40%]
+tests/unit/domain_models/test_transcript.py ...                          [ 42%]
+tests/unit/test_builder_agent.py .                                       [ 42%]
+tests/unit/test_cli_input.py ...                                         [ 44%]
+tests/unit/test_cli_scalability.py .                                     [ 45%]
+tests/unit/test_config.py .......                                        [ 50%]
+tests/unit/test_core.py ....                                             [ 53%]
+tests/unit/test_core_graph.py .....                                      [ 56%]
+tests/unit/test_cpo_agent.py ..                                          [ 57%]
+tests/unit/test_domain_models.py .......                                 [ 62%]
+tests/unit/test_file_service.py ...                                      [ 64%]
+tests/unit/test_governance_agent.py .                                    [ 65%]
+tests/unit/test_governance_memory.py ..                                  [ 66%]
+tests/unit/test_ideator_agent.py ...                                     [ 68%]
+tests/unit/test_metrics_logic.py .........                               [ 74%]
+tests/unit/test_nemawashi.py ....                                        [ 77%]
+tests/unit/test_pdf_generator.py ...                                     [ 79%]
 tests/unit/test_rag.py .....                                             [ 82%]
-tests/unit/test_rag_errors.py ....                                       [ 84%]
+tests/unit/test_rag_errors.py ....                                       [ 85%]
 tests/unit/test_rag_refactored.py .                                      [ 85%]
-tests/unit/test_simulation_integration.py ..                             [ 86%]
+tests/unit/test_simulation_integration.py ..                             [ 87%]
 tests/unit/test_simulation_logic.py ........                             [ 92%]
 tests/unit/test_tools.py ...                                             [ 94%]
 tests/unit/test_ui.py .....                                              [ 97%]
@@ -86,14 +86,14 @@ src/core/services/file_service.py                                  34     12    
 src/core/services/pdf_generator.py                                 49      5    90%   35-36, 41, 52-53
 src/core/simulation.py                                             39      5    87%   37-38, 51-55
 src/core/theme.py                                                  18      0   100%
-src/core/utils.py                                                  25      5    80%   33-37
+src/core/utils.py                                                  47     17    64%   41-63, 73-74
 src/core/validators.py                                             71     30    58%   28, 33, 35-36, 39-40, 42-43, 51-52, 89-98, 103-112
 src/core/workflow_builder.py                                       38      2    95%   57-58
 src/data/__init__.py                                                2      0   100%
 src/data/rag.py                                                   238     41    83%   55, 69, 77, 84-90, 112-113, 158-159, 171-173, 186-187, 194, 215-217, 224-226, 256, 260-261, 292-293, 304-305, 317, 326, 380, 395-402
 src/domain_models/__init__.py                                      15      0   100%
 src/domain_models/agent_prompt.py                                  36      4    89%   39-42, 85-88
-src/domain_models/alternative_analysis.py                          35      6    83%   38-41, 64-67, 70-71
+src/domain_models/alternative_analysis.py                          35      4    89%   64-67, 70-71
 src/domain_models/common.py                                        23      0   100%
 src/domain_models/customer_journey.py                              38      6    84%   48-51, 54-55, 84-85
 src/domain_models/enums.py                                         12      0   100%
@@ -130,7 +130,7 @@ tests/unit/domain_models/test_politics.py                          38      0   1
 tests/unit/domain_models/test_remastered_models.py                 52      0   100%
 tests/unit/domain_models/test_simulation_models.py                 33      0   100%
 tests/unit/domain_models/test_state_integration.py                 36      0   100%
-tests/unit/domain_models/test_state_remastered_integration.py      17      0   100%
+tests/unit/domain_models/test_state_remastered_integration.py      28      0   100%
 tests/unit/domain_models/test_transcript.py                        14      0   100%
 tests/unit/test_builder_agent.py                                   34      4    88%   12-13, 19, 34
 tests/unit/test_cli_input.py                                       12      0   100%
@@ -156,7 +156,7 @@ tests/unit/test_tools.py                                           40      0   1
 tests/unit/test_ui.py                                              55      0   100%
 tests/unit/test_v0_client.py                                       47      2    96%   12-13
 ---------------------------------------------------------------------------------------------
-TOTAL                                                            4712    773    84%
-============================= 146 passed in 20.86s =============================
+TOTAL                                                            4745    783    83%
+============================= 149 passed in 21.13s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

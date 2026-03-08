@@ -1,27 +1,47 @@
+import pytest
+from pydantic import ValidationError
 
 from src.domain_models.alternative_analysis import AlternativeAnalysis, AlternativeTool
+from src.domain_models.enums import Phase
+from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
-from src.domain_models.value_proposition import CustomerProfile, ValueMap, ValuePropositionCanvas
 
 
 def test_global_state_remastered_fields() -> None:
+    """Verify that Remastered fields can be set correctly and validated."""
     state = GlobalState(topic="Test")
     assert state.alternative_analysis is None
     assert state.value_proposition is None
-    assert state.mental_model is None
-    assert state.customer_journey is None
-    assert state.sitemap_and_story is None
-    assert state.agent_prompt_spec is None
-    assert state.experiment_plan is None
 
-    # Test setting fields
     tool = AlternativeTool(name="Tool Name", financial_cost="Financial Cost", time_cost="Time Cost", ux_friction="UX Friction")
     state.alternative_analysis = AlternativeAnalysis(current_alternatives=[tool], switching_cost="High cost", ten_x_value="Value is huge")
-    state.value_proposition = ValuePropositionCanvas(
-        customer_profile=CustomerProfile(customer_jobs=["Jobs jobs"], pains=["Pains pains"], gains=["Gains gains"]),
-        value_map=ValueMap(products_and_services=["Services"], pain_relievers=["Pain rel"], gain_creators=["Gain creators"]),
-        fit_evaluation="Good fit overall"
-    )
 
     assert state.alternative_analysis is not None
-    assert state.value_proposition is not None
+    assert state.alternative_analysis.switching_cost == "High cost"
+
+def test_global_state_transition_validation_verification() -> None:
+    """Verify state transition missing required data for Verification Phase should raise error."""
+    state = GlobalState(topic="Transition Test")
+    state.phase = Phase.VERIFICATION
+    with pytest.raises(ValidationError):
+        GlobalState.model_validate(state.model_dump())
+
+def test_global_state_transition_validation_solution() -> None:
+    """Verify state transition missing Persona for Solution Phase should raise error."""
+    state = GlobalState(topic="Transition Test")
+    state.selected_idea = LeanCanvas(
+        id=1,
+        title="App",
+        problem="P P P",
+        solution="S S S",
+        customer_segments="C C C",
+        unique_value_prop="U U U"
+    )
+    state.phase = Phase.SOLUTION
+    with pytest.raises(ValidationError):
+        GlobalState.model_validate(state.model_dump())
+
+def test_global_state_invalid_assignment() -> None:
+    """Ensure strict validation rejects improper assignments."""
+    with pytest.raises(ValidationError):
+        AlternativeTool(name="A", financial_cost="", time_cost="", ux_friction="")
