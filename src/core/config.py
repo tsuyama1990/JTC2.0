@@ -25,6 +25,13 @@ from src.core.constants import (
     DEFAULT_MAX_TURNS,
     DEFAULT_MAX_Y,
     DEFAULT_MIN_ROI_THRESHOLD,
+    DEFAULT_MAX_CONTENT_LENGTH,
+    DEFAULT_MAX_CUSTOM_METRICS,
+    DEFAULT_MAX_LIST_LENGTH,
+    DEFAULT_MAX_PERCENTAGE_VALUE,
+    DEFAULT_MIN_CONTENT_LENGTH,
+    DEFAULT_MIN_LIST_LENGTH,
+    DEFAULT_MIN_METRIC_VALUE,
     DEFAULT_MIN_TITLE_LENGTH,
     DEFAULT_NEMAWASHI_BOOST,
     DEFAULT_NEMAWASHI_MAX_STEPS,
@@ -90,15 +97,15 @@ class ValidationConfig(BaseSettings):
     max_title_length: int = Field(
         default=DEFAULT_MAX_TITLE_LENGTH, description="Maximum length for titles"
     )
-    min_content_length: int = Field(default=3, description="Minimum length for content blocks")
-    max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
+    min_content_length: int = Field(default=DEFAULT_MIN_CONTENT_LENGTH, description="Minimum length for content blocks")
+    max_content_length: int = Field(default=DEFAULT_MAX_CONTENT_LENGTH, description="Maximum length for content blocks")
 
-    min_list_length: int = Field(default=1, description="Minimum items in lists")
-    max_list_length: int = Field(default=20, description="Maximum items in lists")
+    min_list_length: int = Field(default=DEFAULT_MIN_LIST_LENGTH, description="Minimum items in lists")
+    max_list_length: int = Field(default=DEFAULT_MAX_LIST_LENGTH, description="Maximum items in lists")
 
-    max_custom_metrics: int = Field(default=50, description="Maximum custom metrics allowed")
-    min_metric_value: float = Field(default=0.0, description="Minimum value for metrics")
-    max_percentage_value: float = Field(default=100.0, description="Maximum percentage value")
+    max_custom_metrics: int = Field(default=DEFAULT_MAX_CUSTOM_METRICS, description="Maximum custom metrics allowed")
+    min_metric_value: float = Field(default=DEFAULT_MIN_METRIC_VALUE, description="Minimum value for metrics")
+    max_percentage_value: float = Field(default=DEFAULT_MAX_PERCENTAGE_VALUE, description="Maximum percentage value")
 
 
 class ErrorMessages(BaseSettings):
@@ -141,7 +148,7 @@ class UIConfig(BaseSettings):
     execution_error: str = MSG_EXECUTION_ERROR
 
 
-class AgentConfig(BaseModel):
+class AgentConfig(BaseSettings):
     """Configuration for a single agent in the UI."""
 
     model_config = SettingsConfigDict(frozen=True)
@@ -348,8 +355,8 @@ class GovernanceConfig(BaseSettings):
     )
 
 
-class RAGConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class RAGConfig(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
     persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
     chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
     max_document_length: int = Field(
@@ -387,8 +394,8 @@ class RAGConfig(BaseModel):
     query_timeout: float = Field(default=30.0, description="Timeout for RAG queries in seconds")
 
 
-class SearchConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class SearchConfig(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
     max_results: int = Field(default=5, description="Max search results")
     depth: str = Field(default="advanced", description="Search depth (basic/advanced)")
     query_template: str = Field(
@@ -397,8 +404,8 @@ class SearchConfig(BaseModel):
     )
 
 
-class ResiliencyConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ResiliencyConfig(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
     circuit_breaker_fail_max: int = Field(
         default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold"
     )
@@ -417,7 +424,7 @@ class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(
-        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="ignore"
+        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="forbid"
     )
 
     openai_api_key: SecretStr = Field(
@@ -445,10 +452,9 @@ class Settings(BaseSettings):
             msg = "OpenAI API Key format is invalid."
             raise ValueError(msg)
 
-        if val not in ("sk-dummy-test-key-long-enough-for-validation", "sk-12345678901234567890"):
-            from src.core.validators import ApiKeyValidator
+        from src.core.validators import ApiKeyValidator
 
-            ApiKeyValidator._verify_openai_key(val)
+        ApiKeyValidator._verify_openai_key(val)
         return v
 
     @field_validator("tavily_api_key")
@@ -469,13 +475,9 @@ class Settings(BaseSettings):
             msg = "Tavily API Key format is invalid."
             raise ValueError(msg)
 
-        if val not in (
-            "tvly-dummy-test-key-long-enough-for-validation",
-            "tvly-12345678901234567890",
-        ):
-            from src.core.validators import ApiKeyValidator
+        from src.core.validators import ApiKeyValidator
 
-            ApiKeyValidator._verify_tavily_key(val)
+        ApiKeyValidator._verify_tavily_key(val)
         return v
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
