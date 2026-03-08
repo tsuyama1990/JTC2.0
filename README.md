@@ -53,6 +53,27 @@
     V0_API_KEY=v0-...
     ```
 
+
+## 🎓 Interactive Tutorial & UAT (Beginners Start Here!)
+
+To experience the "aha moment" without needing complex API setup, we provide an interactive tutorial powered by **Marimo**. It uses mock data by default, so you can run it immediately!
+
+1. **Install dependencies (including marimo)**
+   ```bash
+   uv sync
+   ```
+
+2. **Run the interactive notebook**
+   ```bash
+   uv run marimo edit tutorials/UAT_AND_TUTORIAL.py
+   ```
+   *(This opens a browser window where you can run cells sequentially and see the system in action!)*
+
+3. **Or run it directly in the terminal as a script:**
+   ```bash
+   uv run python tutorials/UAT_AND_TUTORIAL.py
+   ```
+
 ## 🚀 Usage
 
 **Ingest Customer Transcripts:**

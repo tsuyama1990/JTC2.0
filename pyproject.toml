@@ -19,6 +19,7 @@ dependencies = [
     "scipy>=1.13.0",
     "pybreaker>=1.2.0",
     "httpx>=0.28.1",
+    "marimo>=0.20.4",
 ]
 
 [dependency-groups]
@@ -112,3 +113,6 @@ testpaths = ["tests"]
 strict = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
+exclude = [
+    "tutorials/UAT_AND_TUTORIAL.py",
+]
