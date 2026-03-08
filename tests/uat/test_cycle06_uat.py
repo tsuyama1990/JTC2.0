@@ -154,9 +154,7 @@ class TestCycle06UAT:
                     )
 
                     chunk_ringi = MagicMock()
-                    chunk_ringi.content = (
-                        '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
-                    )
+                    chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
 
                     mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
                     mock_llm_factory.return_value = mock_llm

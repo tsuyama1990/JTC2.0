@@ -25,10 +25,10 @@ def chunk_text(text: str, chunk_size: int) -> Generator[str, None, None]:
         yield text[i : i + chunk_size]
 
 
-def sanitize_html_xss(query: str) -> str:
+def sanitize_text(query: str) -> str:
     """
-    Sanitize input string to strictly prevent XSS attacks.
-    Uses the robust `bleach` library to whitelist safe HTML and scripts.
+    Sanitize input string by strictly removing ALL HTML tags and scripts.
+    Uses the robust `bleach` library.
     NOTE: This does not prevent SQL injection. Use parameterized queries for databases.
     """
     if not isinstance(query, str):

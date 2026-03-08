@@ -26,7 +26,7 @@ from src.core.constants import (
     ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
-from src.core.utils import AsyncRateLimiter, sanitize_html_xss
+from src.core.utils import AsyncRateLimiter, sanitize_text
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
@@ -176,7 +176,6 @@ class RAG:
     def _validate_path(self, path_str: str) -> str:
         """
         Ensure persist directory is safe and absolute using atomic path validation.
-        Implements symlink loop detection and file descriptor-based validation.
         """
         if not isinstance(path_str, str) or not path_str.strip():
             msg = "Path must be a non-empty string."
@@ -190,21 +189,13 @@ class RAG:
             allowed_rel_paths = self.settings.rag.allowed_paths
             allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
 
-            # Symlink validation
-            if Path(path_str).exists():
-                import stat
-
-                try:
-                    stat_info = os.lstat(path_str)
-                    if isinstance(stat_info.st_mode, int):
-                        if stat.S_ISLNK(stat_info.st_mode):
-                            msg = "Symlinks not allowed in persist_dir."
-                            raise ConfigurationError(msg)
-                        if not stat.S_ISDIR(stat_info.st_mode):
-                            msg = f"Path must be a directory: {path_str}"
-                            raise ConfigurationError(msg)
-                except (TypeError, AttributeError):
-                    pass  # Ignore for mocks during tests
+            if path.exists():
+                if path.is_symlink():
+                    msg = "Symlinks not allowed in persist_dir."
+                    raise ConfigurationError(msg)
+                if not path.is_dir():
+                    msg = f"Path must be a directory: {path_str}"
+                    raise ConfigurationError(msg)
 
             # Strict traversal check
             if not any(path.is_relative_to(parent) for parent in allowed_parents):
@@ -385,7 +376,7 @@ class RAG:
             msg = "Query cannot be empty."
             raise ValueError(msg)
 
-        question = sanitize_html_xss(question)
+        question = sanitize_text(question)
 
         max_len = self.settings.rag.max_query_length
         if len(question) > max_len:

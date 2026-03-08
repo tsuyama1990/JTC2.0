@@ -188,6 +188,11 @@ class NemawashiConfig(BaseSettings):
         default=DEFAULT_NEMAWASHI_REDUCTION,
         description="Stubbornness reduction from Nomikai",
     )
+    timeout: float = Field(
+        alias="NEMAWASHI_TIMEOUT",
+        default=10.0,
+        description="Timeout for consensus calculation in seconds",
+    )
 
 
 class V0Config(BaseSettings):
@@ -422,6 +427,9 @@ class Settings(BaseSettings):
         if not val.startswith("sk-"):
             msg = "OpenAI API Key must start with 'sk-'"
             raise ValueError(msg)
+        if len(val) < 20:
+            msg = "OpenAI API Key must be at least 20 characters long."
+            raise ValueError(msg)
         return v
 
     @field_validator("tavily_api_key")
@@ -430,6 +438,9 @@ class Settings(BaseSettings):
         val = v.get_secret_value()
         if not val.startswith("tvly-"):
             msg = "Tavily API Key must start with 'tvly-'"
+            raise ValueError(msg)
+        if len(val) < 20:
+            msg = "Tavily API Key must be at least 20 characters long."
             raise ValueError(msg)
         return v
 

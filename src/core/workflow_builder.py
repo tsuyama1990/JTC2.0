@@ -40,38 +40,38 @@ class WorkflowBuilder:
         return self
 
     def _validate_no_cycles(self) -> None:
-        """Validates the graph to ensure no cyclic dependencies exist using Kahn's Algorithm."""
-        # Setup in-degrees and adjacency list
-        in_degree: dict[str, int] = dict.fromkeys(self.nodes, 0)
+        """Validates the graph to ensure no cyclic dependencies exist using Depth-First Search (DFS)."""
         adj_list: dict[str, list[str]] = {node: [] for node in self.nodes}
+        adj_list["__end__"] = []
 
         for start, end in self.edges:
-            if end != "__end__":
-                if end not in in_degree:
-                    in_degree[end] = 0
-                    adj_list[end] = []
-                adj_list[start].append(end)
-                in_degree[end] += 1
+            if start not in adj_list:
+                adj_list[start] = []
+            if end not in adj_list:
+                adj_list[end] = []
+            adj_list[start].append(end)
 
-        # Find all nodes with 0 in-degree
-        from collections import deque
+        visited: set[str] = set()
+        rec_stack: set[str] = set()
 
-        queue = deque([node for node in in_degree if in_degree[node] == 0])
+        def dfs(node: str) -> bool:
+            visited.add(node)
+            rec_stack.add(node)
 
-        visited_count = 0
-        while queue:
-            current = queue.popleft()
-            visited_count += 1
+            for neighbor in adj_list.get(node, []):
+                if neighbor not in visited:
+                    if dfs(neighbor):
+                        return True
+                elif neighbor in rec_stack:
+                    return True
 
-            for neighbor in adj_list.get(current, []):
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
+            rec_stack.remove(node)
+            return False
 
-        # If we couldn't visit all nodes that have edges/definitions, there's a cycle
-        if visited_count != len(in_degree):
-            msg = "Cyclic dependency detected in graph structure."
-            raise ValueError(msg)
+        for node in list(adj_list.keys()):
+            if node not in visited and dfs(node):
+                msg = "Cyclic dependency detected in graph structure."
+                raise ValueError(msg)
 
     def build(self) -> CompiledStateGraph[Any, Any]:
         """Constructs and compiles the graph with validations."""

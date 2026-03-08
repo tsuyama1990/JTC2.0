@@ -59,16 +59,16 @@ src/agents/mixins.py                           23      6    74%   28, 31-35
 src/agents/personas.py                         77     10    87%   86-88, 93-94, 103-106, 154-159
 src/agents/remastered.py                      157    121    23%   32-33, 37-60, 64-87, 91-114, 118-163, 167-190, 194, 201-202, 206-226, 233-234, 237-250, 257-258, 261-277, 284-285, 288-304, 311-312, 316-336, 339
 src/core/__init__.py                            0      0   100%
-src/core/config.py                            181      4    98%   423-424, 432-433
+src/core/config.py                            188      8    96%   428-429, 431-432, 440-441, 443-444
 src/core/constants.py                         102      0   100%
 src/core/exceptions.py                          6      0   100%
 src/core/factory.py                            75     34    55%   30-31, 36, 41-42, 47-48, 53-54, 59-60, 65-66, 71-72, 77-80, 85, 90, 95, 108-119
 src/core/graph.py                              48      0   100%
-src/core/llm.py                                14      0   100%
+src/core/llm.py                                16      0   100%
 src/core/metrics.py                            17      0   100%
 src/core/nemawashi/__init__.py                  5      0   100%
 src/core/nemawashi/analytics.py                71     36    49%   28, 41, 46-50, 58-62, 72-73, 91-102, 110-123, 127-132
-src/core/nemawashi/consensus.py                43      8    81%   37, 64-65, 84-88
+src/core/nemawashi/consensus.py                33      5    85%   37, 63-64, 75-76
 src/core/nemawashi/engine.py                   19      1    95%   34
 src/core/nemawashi/nomikai.py                  73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
 src/core/nemawashi/utils.py                    51     10    80%   35-37, 40-41, 44-45, 58-59, 62
@@ -76,7 +76,7 @@ src/core/node_executor.py                      13      3    77%   32-34
 src/core/nodes.py                             201    101    50%   38-44, 49, 54-56, 60, 65-72, 76, 83-90, 94, 99-106, 110, 117-122, 126, 133-150, 154, 159-164, 168, 175-177, 181, 188-207, 211, 216-217, 251, 277-281, 313-314, 338, 343-347, 351, 355-356, 363-368, 372
 src/core/renderers/__init__.py                  0      0   100%
 src/core/renderers/data_renderer.py            23      3    87%   15, 25-26
-src/core/retry_handler.py                      29      3    90%   55-57
+src/core/retry_handler.py                      25      3    88%   50-52
 src/core/services/__init__.py                   0      0   100%
 src/core/services/file_service.py              38     16    58%   27-46, 60-61
 src/core/services/pdf_generator.py             49      5    90%   35-36, 41, 52-53
@@ -84,9 +84,9 @@ src/core/simulation.py                         39      5    87%   37-38, 51-55
 src/core/theme.py                              18      0   100%
 src/core/utils.py                              48     20    58%   20-25, 35-36, 63-79, 92-95
 src/core/validators.py                         68     28    59%   28, 33, 35-36, 39-40, 42-43, 80-89, 94-103
-src/core/workflow_builder.py                   68     10    85%   51-52, 73-74, 89-90, 92-93, 101-102
+src/core/workflow_builder.py                   71     13    82%   49, 51, 64-66, 73-74, 89-90, 92-93, 101-102
 src/data/__init__.py                            2      0   100%
-src/data/rag.py                               266     56    79%   57, 60-61, 76-81, 91, 96, 106-108, 111-114, 117-118, 138-139, 182-183, 201-202, 207, 211-212, 217-219, 224, 245-247, 286, 290-291, 315-316, 327-328, 340, 349, 403, 420-431
+src/data/rag.py                               260     55    79%   57, 60-61, 76-81, 91, 96, 106-108, 111-114, 117-118, 138-139, 181-182, 194-195, 202-203, 208-210, 215, 236-238, 277, 281-282, 306-307, 318-319, 331, 340, 394, 411-422
 src/domain_models/__init__.py                  15      0   100%
 src/domain_models/agent_prompt.py              36      4    89%   39-42, 85-88
 src/domain_models/alternative_analysis.py      35      4    89%   64-67, 70-71
@@ -110,5 +110,5 @@ src/tools/__init__.py                           2      0   100%
 src/tools/search.py                            34      4    88%   39, 76, 91-92
 src/ui/renderer.py                             96     10    90%   87, 90-94, 118, 128-134, 154
 -------------------------------------------------------------------------
-TOTAL                                        2849    618    78%
-============================= 138 passed in 25.29s =============================
+TOTAL                                        2841    621    78%
+============================= 138 passed in 28.53s =============================
