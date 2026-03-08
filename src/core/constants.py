@@ -50,6 +50,12 @@ DEFAULT_CHURN: Final[float] = 0.05
 DEFAULT_MAX_LLM_RESPONSE_SIZE: Final[int] = 10_000  # Bytes
 DEFAULT_MAX_SEARCH_RESULT_SIZE: Final[int] = 5000
 
+# --- Search Templates ---
+DEFAULT_GOV_SEARCH_TEMPLATE: Final[str] = (
+    "average CAC churn ARPU LTV for {industry} startups benchmarks"
+)
+DEFAULT_SEARCH_TEMPLATE: Final[str] = "emerging business trends and painful problems in {topic}"
+
 # --- Error Messages ---
 ERR_UNIQUE_ID_VIOLATION: Final[str] = "Duplicate ID detected."
 ERR_CONFIG_MISSING_OPENAI_KEY: Final[str] = "OPENAI_API_KEY missing in environment."

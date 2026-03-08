@@ -1,0 +1,236 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0 -- /app/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /app
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
+collecting ... collected 161 items
+
+tests/integration/test_rag_flow.py::test_transcript_ingestion PASSED     [  0%]
+tests/integration/test_rag_flow.py::test_rag_integration_flow PASSED     [  1%]
+tests/integration/test_rag_flow.py::test_cpo_agent_behavior PASSED       [  1%]
+tests/uat/test_cycle05_uat.py::TestCycle05UAT::test_uat_c05_01_feature_pruning PASSED [  2%]
+tests/uat/test_cycle05_uat.py::TestCycle05UAT::test_uat_c05_02_mvp_generation_integration PASSED [  3%]
+tests/uat/test_cycle05_uat.py::TestCycle05UAT::test_uat_c05_03_error_handling PASSED [  3%]
+tests/uat/test_cycle06_uat.py::TestCycle06UAT::test_uat_c06_01_financial_viability PASSED [  4%]
+tests/uat/test_cycle06_uat.py::TestCycle06UAT::test_uat_c06_02_ringi_sho_generation PASSED [  4%]
+tests/uat/test_memory_safety.py::test_lazy_iterator_safety_limit PASSED  [  5%]
+tests/uat/test_memory_safety.py::test_rag_large_index_prevention PASSED  [  6%]
+tests/uat/test_memory_safety.py::test_rag_ingest_chunking PASSED         [  6%]
+tests/uat/test_nemawashi_uat.py::test_identify_key_influencer_uat PASSED [  7%]
+tests/uat/test_nemawashi_uat.py::test_nomikai_effect_uat PASSED          [  8%]
+tests/uat/test_uat_cycle01.py::test_ideation_scalability PASSED          [  8%]
+tests/uat/test_uat_cycle01.py::test_gate_transitions_data_integrity PASSED [  9%]
+tests/uat/test_uat_cycle01.py::test_large_dataset_iterator_safety PASSED [  9%]
+tests/uat/test_uat_cycle02.py::test_uat_simulation_debate_flow PASSED    [ 10%]
+tests/uat/test_uat_cycle03.py::test_uat_c03_01_mom_test_failure PASSED   [ 11%]
+tests/uat/test_uat_cycle03.py::test_uat_c03_02_validation_success PASSED [ 11%]
+tests/unit/domain_models/test_analysis.py::test_alternative_tool_valid PASSED [ 12%]
+tests/unit/domain_models/test_analysis.py::test_alternative_tool_invalid PASSED [ 13%]
+tests/unit/domain_models/test_analysis.py::test_alternative_analysis_valid PASSED [ 13%]
+tests/unit/domain_models/test_analysis.py::test_alternative_analysis_invalid PASSED [ 14%]
+tests/unit/domain_models/test_experiment.py::test_metric_target_valid PASSED [ 14%]
+tests/unit/domain_models/test_experiment.py::test_metric_target_invalid PASSED [ 15%]
+tests/unit/domain_models/test_experiment.py::test_experiment_plan_valid PASSED [ 16%]
+tests/unit/domain_models/test_experiment.py::test_experiment_plan_invalid PASSED [ 16%]
+tests/unit/domain_models/test_journey.py::test_journey_phase_valid PASSED [ 17%]
+tests/unit/domain_models/test_journey.py::test_journey_phase_invalid_emotion_score PASSED [ 18%]
+tests/unit/domain_models/test_journey.py::test_customer_journey_valid PASSED [ 18%]
+tests/unit/domain_models/test_journey.py::test_customer_journey_invalid_length PASSED [ 19%]
+tests/unit/domain_models/test_mental_model.py::test_mental_tower_valid PASSED [ 19%]
+tests/unit/domain_models/test_mental_model.py::test_mental_tower_invalid PASSED [ 20%]
+tests/unit/domain_models/test_mental_model.py::test_mental_model_diagram_valid PASSED [ 21%]
+tests/unit/domain_models/test_mental_model.py::test_mental_model_diagram_invalid PASSED [ 21%]
+tests/unit/domain_models/test_models.py::test_persona_creation PASSED    [ 22%]
+tests/unit/domain_models/test_models.py::test_persona_validation_error PASSED [ 22%]
+tests/unit/domain_models/test_models.py::test_mvp_creation PASSED        [ 23%]
+tests/unit/domain_models/test_models.py::test_mvp_feature_validation PASSED [ 24%]
+tests/unit/domain_models/test_models.py::test_mvp_invalid_priority PASSED [ 24%]
+tests/unit/domain_models/test_models.py::test_metrics_creation PASSED    [ 25%]
+tests/unit/domain_models/test_models.py::test_metrics_numeric_validation PASSED [ 26%]
+tests/unit/domain_models/test_models.py::test_metrics_limit_custom PASSED [ 26%]
+tests/unit/domain_models/test_models.py::test_global_state_lifecycle_validation PASSED [ 27%]
+tests/unit/domain_models/test_models.py::test_agent_state_creation PASSED [ 27%]
+tests/unit/domain_models/test_models.py::test_agent_states_validation PASSED [ 28%]
+tests/unit/domain_models/test_mvp.py::TestMVPSpec::test_mvp_spec_valid PASSED [ 29%]
+tests/unit/domain_models/test_mvp.py::TestMVPSpec::test_mvp_spec_validation_components PASSED [ 29%]
+tests/unit/domain_models/test_mvp.py::TestMVPSpec::test_mvp_spec_validation_prompt PASSED [ 30%]
+tests/unit/domain_models/test_mvp.py::TestMVPSpec::test_mvp_spec_default_components PASSED [ 31%]
+tests/unit/domain_models/test_politics.py::test_valid_network PASSED     [ 31%]
+tests/unit/domain_models/test_politics.py::test_invalid_matrix_values PASSED [ 32%]
+tests/unit/domain_models/test_politics.py::test_matrix_dimension_mismatch PASSED [ 32%]
+tests/unit/domain_models/test_politics.py::test_matrix_shape_mismatch PASSED [ 33%]
+tests/unit/domain_models/test_politics.py::test_stakeholder_validation PASSED [ 34%]
+tests/unit/domain_models/test_simulation_models.py::test_dialogue_message_valid PASSED [ 34%]
+tests/unit/domain_models/test_simulation_models.py::test_dialogue_message_invalid_role PASSED [ 35%]
+tests/unit/domain_models/test_simulation_models.py::test_dialogue_message_empty_content PASSED [ 36%]
+tests/unit/domain_models/test_simulation_models.py::test_dialogue_message_extra_fields PASSED [ 36%]
+tests/unit/domain_models/test_simulation_models.py::test_global_state_serialization PASSED [ 37%]
+tests/unit/domain_models/test_sitemap.py::test_route_valid PASSED        [ 37%]
+tests/unit/domain_models/test_sitemap.py::test_route_invalid PASSED      [ 38%]
+tests/unit/domain_models/test_sitemap.py::test_user_story_valid PASSED   [ 39%]
+tests/unit/domain_models/test_sitemap.py::test_user_story_invalid PASSED [ 39%]
+tests/unit/domain_models/test_sitemap.py::test_sitemap_and_story_valid PASSED [ 40%]
+tests/unit/domain_models/test_sitemap.py::test_sitemap_and_story_invalid PASSED [ 40%]
+tests/unit/domain_models/test_spec.py::test_state_machine_valid PASSED   [ 41%]
+tests/unit/domain_models/test_spec.py::test_state_machine_invalid PASSED [ 42%]
+tests/unit/domain_models/test_spec.py::test_agent_prompt_spec_valid PASSED [ 42%]
+tests/unit/domain_models/test_spec.py::test_agent_prompt_spec_invalid PASSED [ 43%]
+tests/unit/domain_models/test_transcript.py::test_transcript_valid PASSED [ 44%]
+tests/unit/domain_models/test_transcript.py::test_transcript_content_too_short PASSED [ 44%]
+tests/unit/domain_models/test_transcript.py::test_transcript_extra_fields PASSED [ 45%]
+tests/unit/domain_models/test_vpc.py::test_customer_profile_valid PASSED [ 45%]
+tests/unit/domain_models/test_vpc.py::test_customer_profile_invalid PASSED [ 46%]
+tests/unit/domain_models/test_vpc.py::test_value_map_valid PASSED        [ 47%]
+tests/unit/domain_models/test_vpc.py::test_value_proposition_canvas_valid PASSED [ 47%]
+tests/unit/domain_models/test_vpc.py::test_vpc_invalid PASSED            [ 48%]
+tests/unit/test_builder_agent.py::TestBuilderAgent::test_extract_features_real_call PASSED [ 49%]
+tests/unit/test_cli_input.py::test_safe_input_basic PASSED               [ 49%]
+tests/unit/test_cli_input.py::test_safe_input_eof PASSED                 [ 50%]
+tests/unit/test_cli_input.py::test_safe_input_keyboard_interrupt PASSED  [ 50%]
+tests/unit/test_cli_scalability.py::test_browse_and_select_lazy PASSED   [ 51%]
+tests/unit/test_config.py::test_config_loading_success PASSED            [ 52%]
+tests/unit/test_config.py::test_config_missing_openai_key PASSED         [ 52%]
+tests/unit/test_config.py::test_config_missing_tavily_key PASSED         [ 53%]
+tests/unit/test_config.py::test_config_caching PASSED                    [ 54%]
+tests/unit/test_config.py::test_invalid_log_level PASSED                 [ 54%]
+tests/unit/test_config.py::test_agent_config_validation PASSED           [ 55%]
+tests/unit/test_config.py::test_simulation_config_validation PASSED      [ 55%]
+tests/unit/test_core.py::test_config_values PASSED                       [ 56%]
+tests/unit/test_core.py::test_get_llm_success PASSED                     [ 57%]
+tests/unit/test_core.py::test_get_llm_override PASSED                    [ 57%]
+tests/unit/test_core.py::test_get_llm_missing_key PASSED                 [ 58%]
+tests/unit/test_core_graph.py::test_create_app_structure PASSED          [ 59%]
+tests/unit/test_core_graph.py::test_transcript_ingestion_node PASSED     [ 59%]
+tests/unit/test_core_graph.py::test_nemawashi_analysis_node PASSED       [ 60%]
+tests/unit/test_core_graph.py::test_solution_proposal_node PASSED        [ 60%]
+tests/unit/test_core_graph.py::test_mvp_generation_node PASSED           [ 61%]
+tests/unit/test_cpo_agent.py::test_cpo_agent_init PASSED                 [ 62%]
+tests/unit/test_cpo_agent.py::test_cpo_research PASSED                   [ 62%]
+tests/unit/test_domain_models.py::test_lean_canvas_valid PASSED          [ 63%]
+tests/unit/test_domain_models.py::test_lean_canvas_invalid_missing_field PASSED [ 63%]
+tests/unit/test_domain_models.py::test_lean_canvas_extra_field PASSED    [ 64%]
+tests/unit/test_domain_models.py::test_lean_canvas_short_title PASSED    [ 65%]
+tests/unit/test_domain_models.py::test_lean_canvas_short_content PASSED  [ 65%]
+tests/unit/test_domain_models.py::test_global_state_defaults PASSED      [ 66%]
+tests/unit/test_domain_models.py::test_global_state_phase_enum PASSED    [ 67%]
+tests/unit/test_file_service.py::TestFileService::test_save_text_async_success PASSED [ 67%]
+tests/unit/test_file_service.py::TestFileService::test_save_text_async_permission_error PASSED [ 68%]
+tests/unit/test_file_service.py::TestFileService::test_save_text_async_os_error PASSED [ 68%]
+tests/unit/test_governance_agent.py::TestGovernanceAgent::test_run_populates_ringi_sho PASSED [ 69%]
+tests/unit/test_governance_memory.py::TestGovernanceMemorySafety::test_safe_llm_call_rejects_large_response PASSED [ 70%]
+tests/unit/test_governance_memory.py::TestGovernanceMemorySafety::test_search_result_truncation PASSED [ 70%]
+tests/unit/test_ideator_agent.py::test_ideator_agent_run_success PASSED  [ 71%]
+tests/unit/test_ideator_agent.py::test_ideator_agent_flow PASSED         [ 72%]
+tests/unit/test_ideator_agent.py::test_ideator_agent_research_logic PASSED [ 72%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_ltv PASSED [ 73%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_ltv_zero_churn PASSED [ 73%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_ltv_negative_values PASSED [ 74%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_payback_period PASSED [ 75%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_payback_period_zero_arpu PASSED [ 75%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_payback_period_negative PASSED [ 76%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_roi PASSED [ 77%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_roi_zero_cac PASSED [ 77%]
+tests/unit/test_metrics_logic.py::TestMetricsLogic::test_calculate_roi_negative_cac PASSED [ 78%]
+tests/unit/test_nemawashi.py::test_consensus_conversion_failure PASSED   [ 78%]
+tests/unit/test_nemawashi.py::test_consensus_dense_conversion_failure PASSED [ 79%]
+tests/unit/test_nemawashi.py::test_consensus_stochasticity_check_failure PASSED [ 80%]
+tests/unit/test_nemawashi.py::test_consensus_calculation PASSED          [ 80%]
+tests/unit/test_rag.py::test_rag_initialization PASSED                   [ 81%]
+tests/unit/test_rag.py::test_rag_ingest_text PASSED                      [ 81%]
+tests/unit/test_rag.py::test_rag_persist_index PASSED                    [ 82%]
+tests/unit/test_rag.py::test_rag_query PASSED                            [ 83%]
+tests/unit/test_rag.py::test_rag_query_validation PASSED                 [ 83%]
+tests/unit/test_rag_errors.py::test_rag_circuit_breaker PASSED           [ 84%]
+tests/unit/test_rag_errors.py::test_rag_memory_limit PASSED              [ 85%]
+tests/unit/test_rag_errors.py::test_rag_input_validation PASSED          [ 85%]
+tests/unit/test_rag_errors.py::test_error_formatting PASSED              [ 86%]
+tests/unit/test_rag_refactored.py::test_rag_path_traversal PASSED        [ 86%]
+tests/unit/test_simulation_integration.py::test_simulation_turn_sequence PASSED [ 87%]
+tests/unit/test_simulation_integration.py::test_simulation_error_handling PASSED [ 88%]
+tests/unit/test_simulation_logic.py::test_simulation_flow_initialization PASSED [ 88%]
+tests/unit/test_simulation_logic.py::test_finance_agent_research_logic PASSED [ 89%]
+tests/unit/test_simulation_logic.py::test_cached_research_logic PASSED   [ 90%]
+tests/unit/test_simulation_logic.py::test_rate_limit_wait PASSED         [ 90%]
+tests/unit/test_simulation_logic.py::test_simulation_graph_structure PASSED [ 91%]
+tests/unit/test_simulation_logic.py::test_persona_agent_run PASSED       [ 91%]
+tests/unit/test_simulation_logic.py::test_metrics_boundary_conditions PASSED [ 92%]
+tests/unit/test_simulation_logic.py::test_safe_simulation_run_integration PASSED [ 93%]
+tests/unit/test_tools.py::test_tavily_search_success PASSED              [ 93%]
+tests/unit/test_tools.py::test_tavily_search_error_with_retry PASSED     [ 94%]
+tests/unit/test_tools.py::test_tavily_safe_search_error PASSED           [ 95%]
+tests/unit/test_ui.py::test_renderer_draw PASSED                         [ 95%]
+tests/unit/test_ui.py::test_renderer_update_quit PASSED                  [ 96%]
+tests/unit/test_ui.py::test_renderer_console_loop PASSED                 [ 96%]
+tests/unit/test_ui.py::test_renderer_start_cleanup PASSED                [ 97%]
+tests/unit/test_ui.py::test_renderer_start_exception_fallback PASSED     [ 98%]
+tests/unit/test_v0_client.py::TestV0Client::test_generate_ui_success PASSED [ 98%]
+tests/unit/test_v0_client.py::TestV0Client::test_generate_ui_network_error PASSED [ 99%]
+tests/unit/test_v0_client.py::TestV0Client::test_missing_api_key PASSED  [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.12-final-0 _______________
+
+Name                                Stmts   Miss  Cover   Missing
+-----------------------------------------------------------------
+src/__init__.py                         0      0   100%
+src/agents/__init__.py                  6      0   100%
+src/agents/base.py                      9      0   100%
+src/agents/builder.py                  95     28    71%   54-55, 59, 63, 83-85, 91-112, 119-120, 138-139, 149-150, 155-159, 198
+src/agents/cpo.py                      44     11    75%   56-58, 75-88, 95-97
+src/agents/governance.py              105      7    93%   98-102, 199, 204
+src/agents/ideator.py                  47     12    74%   31-34, 97-107
+src/agents/mixins.py                   23      6    74%   28, 31-35
+src/agents/personas.py                 79     10    87%   90-92, 97-98, 107-110, 158-163
+src/core/__init__.py                    0      0   100%
+src/core/config.py                    163      0   100%
+src/core/constants.py                 102      0   100%
+src/core/exceptions.py                  6      0   100%
+src/core/factory.py                    42     19    55%   24-25, 30, 43-49, 57-68
+src/core/graph.py                      30      0   100%
+src/core/llm.py                        10      0   100%
+src/core/metrics.py                    17      0   100%
+src/core/nemawashi/__init__.py          5      0   100%
+src/core/nemawashi/analytics.py        71     36    49%   28, 41, 46-50, 58-62, 72-73, 91-102, 110-123, 127-132
+src/core/nemawashi/consensus.py        26      2    92%   37, 65
+src/core/nemawashi/engine.py           19      1    95%   34
+src/core/nemawashi/nomikai.py          73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
+src/core/nemawashi/utils.py            43      6    86%   31-33, 46-47, 50
+src/core/nodes.py                     123     32    74%   28-30, 51-57, 88-89, 107-111, 123-124, 148-149, 167-169, 172, 212-218, 226-232
+src/core/services/__init__.py           0      0   100%
+src/core/services/file_service.py      46     15    67%   26-37, 51-52, 77-79
+src/core/simulation.py                 34      3    91%   45-49
+src/core/theme.py                      18      0   100%
+src/core/utils.py                       4      0   100%
+src/core/validators.py                 47     10    79%   46, 49-50, 52-53, 60, 63-64, 66-67
+src/data/__init__.py                    2      0   100%
+src/data/rag.py                       246     40    84%   64, 72, 78-84, 106-107, 151-152, 164-166, 181-182, 197, 218-220, 227-229, 264, 268-269, 300-301, 312-313, 325, 334, 388, 408-415
+src/domain_models/__init__.py          16      0   100%
+src/domain_models/analysis.py          13      0   100%
+src/domain_models/common.py            23      0   100%
+src/domain_models/enums.py             12      0   100%
+src/domain_models/experiment.py        13      0   100%
+src/domain_models/journey.py           14      0   100%
+src/domain_models/lean_canvas.py       24      0   100%
+src/domain_models/mental_model.py      10      0   100%
+src/domain_models/metrics.py           60      6    90%   121-122, 126-127, 131-132
+src/domain_models/mvp.py               57      2    96%   144-145
+src/domain_models/persona.py           28      2    93%   124-125
+src/domain_models/politics.py          59      3    95%   82, 100, 111
+src/domain_models/simulation.py        16      0   100%
+src/domain_models/sitemap.py           19      0   100%
+src/domain_models/spec.py              17      0   100%
+src/domain_models/state.py             81      8    90%   91-92, 115-123
+src/domain_models/transcript.py        22      2    91%   32-33
+src/domain_models/validators.py        12      0   100%
+src/domain_models/vpc.py               17      0   100%
+src/tools/__init__.py                   3      0   100%
+src/tools/search.py                    34      4    88%   39, 75, 90-91
+src/tools/v0_client.py                 61     16    74%   58-60, 103-105, 108-115, 128-129
+src/ui/renderer.py                     96     10    90%   87, 90-94, 118, 128-134, 154
+-----------------------------------------------------------------
+TOTAL                                2242    313    86%
+============================= 161 passed in 17.39s =============================
+/app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
+  self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

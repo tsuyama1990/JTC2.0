@@ -16,6 +16,7 @@ from src.core.constants import (
     DEFAULT_DIALOGUE_Y,
     DEFAULT_FEATURE_CHUNK_SIZE,
     DEFAULT_FPS,
+    DEFAULT_GOV_SEARCH_TEMPLATE,
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
@@ -36,6 +37,7 @@ from src.core.constants import (
     DEFAULT_RAG_MAX_DOC_LENGTH,
     DEFAULT_RAG_MAX_INDEX_SIZE_MB,
     DEFAULT_RAG_MAX_QUERY_LENGTH,
+    DEFAULT_SEARCH_TEMPLATE,
     DEFAULT_V0_RETRY_BACKOFF,
     DEFAULT_V0_RETRY_MAX,
     DEFAULT_WIDTH,
@@ -333,7 +335,7 @@ class GovernanceConfig(BaseSettings):
     )
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
-        default="average CAC churn ARPU LTV for {industry} startups benchmarks",
+        default=DEFAULT_GOV_SEARCH_TEMPLATE,
         description="Template for financial search",
     )
     max_search_result_size: int = Field(
@@ -348,6 +350,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
+    uv_project_environment: str | None = Field(
+        default=None, description="Force virtual environment path for uv"
+    )
     openai_api_key: SecretStr | None = Field(
         alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
     )
@@ -440,7 +445,7 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}",
+        default=DEFAULT_SEARCH_TEMPLATE,
         description="Template for search queries",
     )
 
@@ -474,9 +479,6 @@ class Settings(BaseSettings):
         ConfigValidators.validate_tavily_key(self.tavily_api_key)
 
         return self
-
-    def rotate_keys(self) -> None:
-        """Placeholder for key rotation."""
 
 
 @lru_cache

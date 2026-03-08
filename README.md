@@ -8,8 +8,14 @@ A multi-agent simulation platform designed to radically streamline the new busin
 
 ## 1. Key Features
 
-*   **Schema-Driven Generation (Zero Hallucination):** Enforces strict Pydantic models at every step of the generation process (Chain of Thought), moving logically from Alternative Analysis to Value Proposition, Mental Models, and User Stories without any AI logic leaps.
+*   **Schema-Driven Generation (Zero Hallucination):** Enforces strict Pydantic models at every step of the generation process (Chain of Thought). The system logically advances through rigorous strategy and validation frameworks, mapping out the problem space before generating a solution. Core steps now include:
+    *   Alternative Analysis and Switching Costs
+    *   Value Proposition Canvas (VPC)
+    *   Mental Model Diagram mapping
+    *   Chronological Customer Journey creation
+    *   Sitemap mapping and User Story generation
 *   **Universal AI Prompt Output:** Instead of locking into a specific UI generator, the system produces a flawless `AgentPromptSpec.md`—the ultimate requirement document ready to be digested by modern AI coding agents like Cursor, Windsurf, or Google Antigravity.
+*   **Data-Driven Experimentation:** Alongside the final specifications, the system generates a tailored `EXPERIMENT_PLAN.md` based on AARRR metrics to empirically validate the core assumptions of the product.
 *   **Psychological Safety via Gamification:** Masks harsh corporate feedback and critical customer reviews behind a retro, 16-colour Pyxel RPG interface, complete with a satisfying "Approval" stamp mechanic for positive reinforcement.
 *   **Human-in-the-Loop (HITL) Validation:** Automatically generates high-resolution PDFs of strategic canvases and pauses execution, allowing the human operator to provide course corrections before proceeding to the next stage.
 *   **Robust Multi-Agent Simulation:** Features three sophisticated sub-graphs: The JTC Board (financial/political review), Virtual Market (customer validation), and the 3H Review (Hacker, Hipster, Hustler) to pressure-test ideas.
@@ -139,7 +145,7 @@ To ensure code quality and prevent AI-generated spaghetti code, this project use
 jtc2-0/
 ├── src/
 │   ├── core/              # LangGraph nodes and orchestrator
-│   ├── domain_models/     # Strict Pydantic schemas (VPC, Journey, etc.)
+│   ├── domain_models/     # Strict Pydantic schemas (VPC, Journey, Mental Model, Sitemap, etc.)
 │   ├── services/          # File I/O and PDF generation
 │   └── ui/                # Pyxel retro interface
 ├── tests/                 # Unit and Integration tests

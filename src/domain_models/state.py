@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -10,13 +10,20 @@ from src.domain_models.validators import StateValidator
 
 __all__ = ["GlobalState", "Phase"]
 
+from .analysis import AlternativeAnalysis
+from .experiment import ExperimentPlan
+from .journey import CustomerJourney
 from .lean_canvas import LeanCanvas
+from .mental_model import MentalModelDiagram
 from .metrics import Metrics, RingiSho
 from .mvp import MVP, MVPSpec
 from .persona import Persona
 from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage
+from .sitemap import SitemapAndStory
+from .spec import AgentPromptSpec
 from .transcript import Transcript
+from .vpc import ValuePropositionCanvas
 
 
 class GlobalState(BaseModel):
@@ -35,6 +42,14 @@ class GlobalState(BaseModel):
     messages: list[str] = Field(default_factory=list)
 
     target_persona: Persona | None = None
+    alternative_analysis: AlternativeAnalysis | None = None
+    vpc: ValuePropositionCanvas | None = None
+    mental_model_diagram: MentalModelDiagram | None = None
+    customer_journey: CustomerJourney | None = None
+    sitemap_and_story: SitemapAndStory | None = None
+    agent_prompt_spec: AgentPromptSpec | None = None
+    experiment_plan: ExperimentPlan | None = None
+
     mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
 
@@ -66,7 +81,7 @@ class GlobalState(BaseModel):
 
     @field_validator("transcripts")
     @classmethod
-    def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
+    def validate_unique_transcripts(cls: type[Any], v: list[Transcript]) -> list[Transcript]:
         """Ensure transcripts are unique by source."""
         # Simple list validation logic, keeping it here for field proximity or move to validator?
         # The audit asked to "Extract complex validation logic".
@@ -79,7 +94,7 @@ class GlobalState(BaseModel):
 
     @field_validator("agent_states")
     @classmethod
-    def validate_agent_states(cls, v: dict[Role, AgentState]) -> dict[Role, AgentState]:
+    def validate_agent_states(cls: type[Any], v: dict[Role, AgentState]) -> dict[Role, AgentState]:
         """Ensure agent_states keys match the AgentState role."""
         for role, state in v.items():
             if role != state.role:
@@ -89,7 +104,7 @@ class GlobalState(BaseModel):
 
     @field_validator("generated_ideas", mode="before")
     @classmethod
-    def wrap_iterator(cls, v: object) -> object:
+    def wrap_iterator(cls: type[Any], v: object) -> object:
         """
         Auto-wrap Iterator[LeanCanvas] into LazyIdeaIterator if needed.
         Strictly enforces that the input is a valid Iterator.
