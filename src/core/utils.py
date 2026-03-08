@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import time
 from collections.abc import Generator
 
@@ -25,17 +26,22 @@ def chunk_text(text: str, chunk_size: int) -> Generator[str, None, None]:
         yield text[i : i + chunk_size]
 
 
-def sanitize_html_xss(query: str) -> str:
+def strip_html_tags(query: str) -> str:
     """
-    Sanitize input string to strictly prevent XSS attacks.
-    Uses the robust `bleach` library to whitelist safe HTML and scripts.
-    NOTE: This does not prevent SQL injection. Use parameterized queries for databases.
+    Strips ALL HTML tags and scripts from the input string using bleach.
+
+    WARNING: This function does NOT prevent SQL injection or Command injection.
+    It is NOT intended for security purposes. For database operations, always
+    use parameterized queries (e.g. via SQLAlchemy).
     """
     if not isinstance(query, str):
         msg = "Input query must be a string."
         raise TypeError(msg)
-    sanitized: str = bleach.clean(query.strip(), tags=[], attributes={}, protocols=[], strip=True)
-    return sanitized
+
+    # Strip HTML using comprehensive library
+    stripped: str = bleach.clean(query.strip(), tags=[], attributes={}, protocols=[], strip=True)
+
+    return stripped.strip()
 
 
 class AsyncRateLimiter:
@@ -51,46 +57,55 @@ class AsyncRateLimiter:
         sys_settings = settings or get_settings()
         self._min_interval = min_interval
         self._max_retries = (
-            max_retries if max_retries is not None else sys_settings.resiliency.circuit_breaker_fail_max
+            max_retries
+            if max_retries is not None
+            else sys_settings.resiliency.circuit_breaker_fail_max
         )
         self._timeout = timeout if timeout is not None else sys_settings.rag.query_timeout
         self._last_call_time = 0.0
+        self._async_lock: asyncio.Lock | None = None
+        self._sync_lock = threading.Lock()
 
     async def wait(self) -> None:
         """Wait non-blocking if the rate limit is exceeded, factoring in max retries and timeout."""
-        current = time.time()
+        if self._async_lock is None:
+            self._async_lock = asyncio.Lock()
 
-        elapsed = current - self._last_call_time
-        if elapsed >= self._min_interval:
-            self._last_call_time = current
-            return
+        async with self._async_lock:
+            current = time.time()
 
-        # Update state before awaiting to prevent race conditions
-        wait_time = self._min_interval - elapsed
-        if wait_time > self._timeout:
-            msg = (
-                f"Rate limiter wait time ({wait_time}s) exceeds timeout of {self._timeout} seconds."
-            )
-            raise TimeoutError(msg)
+            elapsed = current - self._last_call_time
+            if elapsed >= self._min_interval:
+                self._last_call_time = current
+                return
 
-        self._last_call_time = current + wait_time
+            # Update state before awaiting to prevent race conditions
+            wait_time = self._min_interval - elapsed
+            if wait_time > self._timeout:
+                msg = f"Rate limiter wait time ({wait_time}s) exceeds timeout of {self._timeout} seconds."
+                raise TimeoutError(msg)
+
+            self._last_call_time = current + wait_time
+
+        # Sleep outside the lock so other tasks don't block on our sleep
         await asyncio.sleep(wait_time)
 
     def wait_sync(self) -> None:
         """Synchronous wait fallback (if needed), factoring in max retries and timeout."""
-        current = time.time()
+        with self._sync_lock:
+            current = time.time()
 
-        elapsed = current - self._last_call_time
-        if elapsed >= self._min_interval:
-            self._last_call_time = current
-            return
+            elapsed = current - self._last_call_time
+            if elapsed >= self._min_interval:
+                self._last_call_time = current
+                return
 
-        wait_time = self._min_interval - elapsed
-        if wait_time > self._timeout:
-            msg = (
-                f"Rate limiter wait time ({wait_time}s) exceeds timeout of {self._timeout} seconds."
-            )
-            raise TimeoutError(msg)
+            wait_time = self._min_interval - elapsed
+            if wait_time > self._timeout:
+                msg = f"Rate limiter wait time ({wait_time}s) exceeds timeout of {self._timeout} seconds."
+                raise TimeoutError(msg)
 
-        self._last_call_time = current + wait_time
+            self._last_call_time = current + wait_time
+
+        # Sleep outside the lock so other threads don't block
         time.sleep(wait_time)

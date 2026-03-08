@@ -1,5 +1,5 @@
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -14,6 +14,13 @@ DUMMY_ENV_VARS = {
 
 # Apply dummy env vars immediately for module-level imports during collection
 os.environ.update(DUMMY_ENV_VARS)
+
+# Globally patch urllib.request.urlopen to prevent network calls during settings instantiation
+patcher = patch("urllib.request.urlopen")
+mock_urlopen = patcher.start()
+mock_response = MagicMock()
+mock_response.status = 200
+mock_urlopen.return_value.__enter__.return_value = mock_response
 
 
 @pytest.fixture

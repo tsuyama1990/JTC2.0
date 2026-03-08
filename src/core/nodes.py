@@ -25,6 +25,7 @@ def make_ideator_node(ideator_agent: Any = None) -> Any:
 
     return safe_ideator_run
 
+
 safe_ideator_run = make_ideator_node()
 
 
@@ -215,11 +216,13 @@ def _validate_transcripts(state: GlobalState) -> None:
         msg = "No transcripts found in state to ingest. Missing validation."
         raise ValueError(msg)
 
+
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     rag = RAG(persist_dir=state.rag_index_path)
 
     # Use configurable limits
     from src.core.config import get_settings
+
     settings = get_settings()
     max_transcripts = getattr(settings.rag, "max_transcripts", 50)
     chunk_size = settings.rag.batch_size
@@ -277,6 +280,7 @@ def _transform_simulation_state(final_state: Any) -> dict[str, Any]:
     logger.warning("Simulation graph returned unknown state type.")
     return {}
 
+
 def _safe_simulation_run_impl(state: GlobalState) -> dict[str, Any]:
     """
     Wrapper for Simulation execution with error handling.
@@ -296,6 +300,7 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
 def _identify_and_log_influencers(engine: NemawashiEngine, network: Any) -> None:
     influencers = engine.identify_influencers(network)
     logger.info(f"Identified Key Influencers: {influencers}")
+
 
 def _nemawashi_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
     """
@@ -332,6 +337,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
 def _create_cpo_agent(state: GlobalState) -> Any:
     return AgentFactory.get_persona_agent(Role.CPO, state)
 
+
 def _safe_cpo_run_impl(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = _create_cpo_agent(state)
@@ -348,6 +354,7 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
 def _transition_phase(updates: dict[str, Any], phase: Phase) -> dict[str, Any]:
     updates["phase"] = phase
     return updates
+
 
 def _governance_node_impl(state: GlobalState) -> dict[str, Any]:
     """

@@ -10,7 +10,13 @@ from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.state import GlobalState
 
 
-@patch.dict(os.environ, {"OPENAI_API_KEY": "sk-dummy", "TAVILY_API_KEY": "tv-dummy"})
+@patch.dict(
+    os.environ,
+    {
+        "OPENAI_API_KEY": "sk-dummy-long-enough-for-validation",
+        "TAVILY_API_KEY": "tvly-dummy-long-enough-for-validation",
+    },
+)
 class TestCycle06UAT:
     @pytest.fixture
     def initial_state(self) -> GlobalState:
@@ -44,6 +50,7 @@ class TestCycle06UAT:
         Verify that the system calculates financials and flags unviable business models.
         """
         from src.core.config import get_settings
+
         settings = get_settings()
 
         # Update settings instance correctly
@@ -76,20 +83,21 @@ class TestCycle06UAT:
                 ):
                     mock_llm = mock_llm_factory.return_value
 
-                # Mock 2 LLM calls with streaming
-                chunk_fin = MagicMock()
-                chunk_fin.content = (
-                    f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
-                )
+                    # Mock 2 LLM calls with streaming
+                    chunk_fin = MagicMock()
+                    chunk_fin.content = (
+                        f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
+                    )
 
-                chunk_ringi = MagicMock()
-                chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea.", "risks": ["High churn"]}'
+                    chunk_ringi = MagicMock()
+                    chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea.", "risks": ["High churn"]}'
 
-                # stream returns iterator
-                mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
+                    # stream returns iterator
+                    mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
+                    mock_llm_factory.return_value = mock_llm
 
-                # Run agent
-                result = agent.run(initial_state)
+                    # Run agent
+                    result = agent.run(initial_state)
 
                 # Verify RingiSho created
                 if "ringi_sho" in result:
@@ -110,6 +118,7 @@ class TestCycle06UAT:
         Verify generation of the final approval document.
         """
         from src.core.config import get_settings
+
         settings = get_settings()
 
         settings.governance.min_roi_threshold = 3.0
@@ -139,19 +148,18 @@ class TestCycle06UAT:
                 ):
                     mock_llm = mock_llm_factory.return_value
 
-                chunk_fin = MagicMock()
-                chunk_fin.content = (
-                    f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
-                )
+                    chunk_fin = MagicMock()
+                    chunk_fin.content = (
+                        f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
+                    )
 
-                chunk_ringi = MagicMock()
-                chunk_ringi.content = (
-                    '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
-                )
+                    chunk_ringi = MagicMock()
+                    chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
 
-                mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
+                    mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
+                    mock_llm_factory.return_value = mock_llm
 
-                result = agent.run(initial_state)
+                    result = agent.run(initial_state)
 
                 if "ringi_sho" in result:
                     ringi_sho = result["ringi_sho"]

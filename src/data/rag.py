@@ -26,7 +26,7 @@ from src.core.constants import (
     ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
-from src.core.utils import AsyncRateLimiter, sanitize_html_xss
+from src.core.utils import AsyncRateLimiter, strip_html_tags
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
@@ -39,9 +39,6 @@ def _scan_dir_size_cached(path: str, depth_limit: int | None = None, ttl_hash: i
     ttl_hash is a trick to invalidate cache by passing a changing value (like time // 60).
     """
     return _scan_dir_size(path, depth_limit)
-
-
-
 
 
 def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
@@ -101,24 +98,37 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
 
             with os.scandir(current_path) as it:
                 for entry in it:
-                    if entry.is_file(follow_symlinks=False):
-                        try:
-                            stat_res = Path(entry.path).stat(follow_symlinks=False)
-                            total_size += stat_res.st_size
-                            file_count += 1
-                        except OSError as e:
-                            logger.warning(f"Error stating file {entry.path}: {e}")
-                            continue
+                    try:
+                        if entry.is_symlink():
+                            continue  # explicitly skip symlinks to prevent loops
 
-                        if file_count > max_files:
-                            logger.warning(
-                                f"Scan file limit ({max_files}) reached. Returning partial size."
-                            )
-                            return total_size
-                    elif entry.is_dir(follow_symlinks=False):
-                        stack.append((entry.path, current_depth + 1))
+                        if entry.is_file(follow_symlinks=False):
+                            try:
+                                stat_res = entry.stat(follow_symlinks=False)
+                                total_size += stat_res.st_size
+                                file_count += 1
+                            except OSError as e:
+                                logger.warning(f"Error stating file {entry.path}: {e}")
+                                continue
+
+                            if file_count > max_files:
+                                logger.warning(
+                                    f"Scan file limit ({max_files}) reached. Returning partial size."
+                                )
+                                return total_size
+                        elif entry.is_dir(follow_symlinks=False):
+                            stack.append((entry.path, current_depth + 1))
+                    except PermissionError:
+                        logger.warning(f"Permission denied accessing entry: {entry.name}")
+                    except OSError as e:
+                        logger.warning(f"OS error accessing entry: {entry.name}, {e}")
+                    except Exception as e:
+                        logger.warning(f"Unexpected error accessing entry: {entry.name}, {e}")
+
         except OSError as e:
-            logger.warning(f"Error scanning index directory {current_path}: {e}")
+            logger.warning(f"OS error scanning index directory {current_path}: {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error scanning directory {current_path}: {e}")
 
     return total_size
 
@@ -154,6 +164,13 @@ class RAG:
         raw_path = persist_dir or self.settings.rag.persist_dir
         self.persist_dir = self._validate_path(raw_path)
 
+        # Ensure the directory exists or can be created
+        try:
+            Path(self.persist_dir).mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            msg = f"Failed to access or create persist directory at {self.persist_dir}: {e}"
+            raise ConfigurationError(msg) from e
+
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(
             fail_max=self.settings.resiliency.circuit_breaker_fail_max,
@@ -179,36 +196,35 @@ class RAG:
     def _validate_path(self, path_str: str) -> str:
         """
         Ensure persist directory is safe and absolute using atomic path validation.
-        Implements symlink loop detection and file descriptor-based validation.
         """
         if not isinstance(path_str, str) or not path_str.strip():
             msg = "Path must be a non-empty string."
             raise ConfigurationError(msg)
 
         try:
-            # Atomic resolution and absolute path validation
-            path = Path(path_str).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
-
             allowed_rel_paths = self.settings.rag.allowed_paths
             allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
 
-            # Symlink validation
-            if Path(path_str).exists():
-                import stat
-                try:
-                    stat_info = os.lstat(path_str)
-                    if isinstance(stat_info.st_mode, int):
-                        if stat.S_ISLNK(stat_info.st_mode):
-                            msg = "Symlinks not allowed in persist_dir."
-                            raise ConfigurationError(msg)
-                        if not stat.S_ISDIR(stat_info.st_mode):
-                            msg = f"Path must be a directory: {path_str}"
-                            raise ConfigurationError(msg)
-                except (TypeError, AttributeError):
-                    pass # Ignore for mocks during tests
+            # Use strict=True to prevent TOCTOU and canonicalize path
+            try:
+                path = Path(path_str).resolve(strict=True)
+            except FileNotFoundError:
+                # If path doesn't exist, we resolve its parent to check traversal
+                path = Path(path_str).resolve(strict=False)
+                if not any(path.is_relative_to(parent) for parent in allowed_parents):
+                    logger.exception(ERR_PATH_TRAVERSAL)
+                    raise ConfigurationError(ERR_PATH_TRAVERSAL) from None
+                return str(path)
 
-            # Strict traversal check
+            if path.is_symlink():
+                msg = "Symlinks not allowed in persist_dir."
+                raise ConfigurationError(msg)
+            if not path.is_dir():
+                msg = f"Path must be a directory: {path_str}"
+                raise ConfigurationError(msg)
+
+            # Strict traversal check using canonical paths
             if not any(path.is_relative_to(parent) for parent in allowed_parents):
                 logger.error(ERR_PATH_TRAVERSAL)
                 raise ConfigurationError(ERR_PATH_TRAVERSAL)
@@ -387,7 +403,7 @@ class RAG:
             msg = "Query cannot be empty."
             raise ValueError(msg)
 
-        question = sanitize_html_xss(question)
+        question = strip_html_tags(question)
 
         max_len = self.settings.rag.max_query_length
         if len(question) > max_len:

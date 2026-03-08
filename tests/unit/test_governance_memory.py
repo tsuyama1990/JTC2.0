@@ -31,7 +31,6 @@ class TestGovernanceMemorySafety:
         # Mock streaming response
         # Create chunks that sum up to > limit
         # Limit set to 10 bytes for testing
-        settings = get_settings()
 
         chunk1 = MagicMock()
         chunk1.content = "12345"

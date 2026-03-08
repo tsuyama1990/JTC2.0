@@ -18,6 +18,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     Verify that injecting negative customer feedback causes the CPO to suggest a pivot.
     """
     from src.core.config import Settings
+
     Settings.reload()
     try:
         from src.agents.cpo import CPOAgent
@@ -87,6 +88,7 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
     Verify that positive feedback reinforces the plan.
     """
     from src.core.config import Settings
+
     Settings.reload()
     try:
         from src.agents.cpo import CPOAgent

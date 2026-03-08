@@ -37,6 +37,7 @@ class TestCycle05UAT:
         Verify that BuilderAgent properly generates AgentPromptSpec.
         """
         from src.core.config import Settings
+
         Settings.reload()
 
         mock_llm = MagicMock()

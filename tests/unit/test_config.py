@@ -25,7 +25,6 @@ def test_config_loading_success() -> None:
         assert settings.tavily_api_key.get_secret_value() == "tvly-12345678901234567890"
 
 
-
 def test_config_missing_openai_key() -> None:
     """Test validation error when OpenAI key is missing."""
     with patch.dict(os.environ, {}, clear=True):
@@ -59,11 +58,18 @@ def test_config_caching() -> None:
             "TAVILY_API_KEY": "tvly-12345678901234567890",
         },
     ):
-        # Clear out existing state and grab a new instance
+        from src.core.config import clear_settings_cache
+
+        clear_settings_cache()
+
         s1 = get_settings()
         s2 = get_settings()
-        # Since caching was removed to favor explicit DI, get_settings() now returns a new instance each time
-        assert s1 is not s2
+
+        # Caching is now implemented as a singleton
+        assert s1 is s2
+
+        s3 = get_settings().reload()
+        assert s1 is not s3
 
 
 def test_invalid_log_level() -> None:

@@ -26,24 +26,20 @@ class FileService:
         """
         try:
             cwd = Path.cwd().resolve(strict=True)
-            # Use strict=False initially to construct path, then resolve based on absolute bounds
-            # For writing, the exact file might not exist yet, so resolve(strict=True) on the parent.
-            p = Path(path)
-            if not p.is_absolute():
-                p = cwd / p
+            # Use strict=False to handle paths that don't exist yet
+            p = Path(path).resolve(strict=False)
 
-            # Resolve the parent directory strictly to ensure it exists and is secure
-            parent_path = p.parent.resolve(strict=True)
-            target_path = parent_path / p.name
+            # Verify the resolved path is within the allowed boundary
+            if not p.is_relative_to(cwd):
+                msg = f"Path traversal detected: {p}"
+                raise ConfigurationError(msg)
+        except ConfigurationError:
+            raise
         except Exception as e:
-            msg = f"Invalid path resolution: {e}"
+            msg = f"Invalid path format: {e}"
             raise ConfigurationError(msg) from e
-
-        if not target_path.is_relative_to(cwd):
-            msg = f"Path traversal detected: {target_path}"
-            raise ConfigurationError(msg)
-
-        return target_path
+        else:
+            return p
 
     def save_text_async(self, content: str, path: str | Path) -> None:
         """
@@ -63,14 +59,30 @@ class FileService:
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Uses RetryHandler for robustness.
+        Uses RetryHandler and atomic file write strategy for robustness.
         """
 
         def _write_action() -> None:
+            import os
+            import tempfile
+
             # Ensure parent exists
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
-            logger.info(f"File saved successfully to {path}")
+
+            # Atomic write pattern: write to temp file, then atomic rename
+            fd, temp_path = tempfile.mkstemp(dir=path.parent, text=True)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(content)
+                # Atomic replace
+                Path(temp_path).replace(path)
+                logger.info(f"File saved successfully to {path}")
+            except Exception:
+                import contextlib
+
+                with contextlib.suppress(OSError):
+                    Path(temp_path).unlink()
+                raise
 
         RetryHandler.execute_with_retry(
             _write_action, max_attempts=3, error_msg=f"Error writing to {path}"

@@ -1,3 +1,4 @@
+import threading
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,6 +25,13 @@ from src.core.constants import (
     DEFAULT_MAX_TURNS,
     DEFAULT_MAX_Y,
     DEFAULT_MIN_ROI_THRESHOLD,
+    DEFAULT_MAX_CONTENT_LENGTH,
+    DEFAULT_MAX_CUSTOM_METRICS,
+    DEFAULT_MAX_LIST_LENGTH,
+    DEFAULT_MAX_PERCENTAGE_VALUE,
+    DEFAULT_MIN_CONTENT_LENGTH,
+    DEFAULT_MIN_LIST_LENGTH,
+    DEFAULT_MIN_METRIC_VALUE,
     DEFAULT_MIN_TITLE_LENGTH,
     DEFAULT_NEMAWASHI_BOOST,
     DEFAULT_NEMAWASHI_MAX_STEPS,
@@ -89,15 +97,15 @@ class ValidationConfig(BaseSettings):
     max_title_length: int = Field(
         default=DEFAULT_MAX_TITLE_LENGTH, description="Maximum length for titles"
     )
-    min_content_length: int = Field(default=3, description="Minimum length for content blocks")
-    max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
+    min_content_length: int = Field(default=DEFAULT_MIN_CONTENT_LENGTH, description="Minimum length for content blocks")
+    max_content_length: int = Field(default=DEFAULT_MAX_CONTENT_LENGTH, description="Maximum length for content blocks")
 
-    min_list_length: int = Field(default=1, description="Minimum items in lists")
-    max_list_length: int = Field(default=20, description="Maximum items in lists")
+    min_list_length: int = Field(default=DEFAULT_MIN_LIST_LENGTH, description="Minimum items in lists")
+    max_list_length: int = Field(default=DEFAULT_MAX_LIST_LENGTH, description="Maximum items in lists")
 
-    max_custom_metrics: int = Field(default=50, description="Maximum custom metrics allowed")
-    min_metric_value: float = Field(default=0.0, description="Minimum value for metrics")
-    max_percentage_value: float = Field(default=100.0, description="Maximum percentage value")
+    max_custom_metrics: int = Field(default=DEFAULT_MAX_CUSTOM_METRICS, description="Maximum custom metrics allowed")
+    min_metric_value: float = Field(default=DEFAULT_MIN_METRIC_VALUE, description="Minimum value for metrics")
+    max_percentage_value: float = Field(default=DEFAULT_MAX_PERCENTAGE_VALUE, description="Maximum percentage value")
 
 
 class ErrorMessages(BaseSettings):
@@ -140,7 +148,7 @@ class UIConfig(BaseSettings):
     execution_error: str = MSG_EXECUTION_ERROR
 
 
-class AgentConfig(BaseModel):
+class AgentConfig(BaseSettings):
     """Configuration for a single agent in the UI."""
 
     model_config = SettingsConfigDict(frozen=True)
@@ -188,6 +196,11 @@ class NemawashiConfig(BaseSettings):
         alias="NEMAWASHI_NOMIKAI_REDUCTION",
         default=DEFAULT_NEMAWASHI_REDUCTION,
         description="Stubbornness reduction from Nomikai",
+    )
+    timeout: float = Field(
+        alias="NEMAWASHI_TIMEOUT",
+        default=10.0,
+        description="Timeout for consensus calculation in seconds",
     )
 
 
@@ -342,8 +355,8 @@ class GovernanceConfig(BaseSettings):
     )
 
 
-class RAGConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class RAGConfig(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
     persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
     chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
     max_document_length: int = Field(
@@ -378,13 +391,11 @@ class RAGConfig(BaseModel):
         default=DEFAULT_MAX_FILES,
         description="Maximum files to scan",
     )
-    query_timeout: float = Field(
-        default=30.0, description="Timeout for RAG queries in seconds"
-    )
+    query_timeout: float = Field(default=30.0, description="Timeout for RAG queries in seconds")
 
 
-class SearchConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class SearchConfig(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
     max_results: int = Field(default=5, description="Max search results")
     depth: str = Field(default="advanced", description="Search depth (basic/advanced)")
     query_template: str = Field(
@@ -393,8 +404,8 @@ class SearchConfig(BaseModel):
     )
 
 
-class ResiliencyConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ResiliencyConfig(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
     circuit_breaker_fail_max: int = Field(
         default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold"
     )
@@ -406,13 +417,22 @@ class ResiliencyConfig(BaseModel):
     )
 
 
+import os  # noqa: E402
+
+
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="forbid"
+    )
 
-    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=20)
-    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=20)
+    openai_api_key: SecretStr = Field(
+        alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=20
+    )
+    tavily_api_key: SecretStr = Field(
+        alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=20
+    )
 
     @field_validator("openai_api_key")
     @classmethod
@@ -421,6 +441,20 @@ class Settings(BaseSettings):
         if not val.startswith("sk-"):
             msg = "OpenAI API Key must start with 'sk-'"
             raise ValueError(msg)
+        if len(val) < 20:
+            msg = "OpenAI API Key must be at least 20 characters long."
+            raise ValueError(msg)
+
+        import re
+
+        key_pattern = re.compile(r"^[A-Za-z0-9_\-\.]+$")
+        if not key_pattern.match(val):
+            msg = "OpenAI API Key format is invalid."
+            raise ValueError(msg)
+
+        from src.core.validators import ApiKeyValidator
+
+        ApiKeyValidator._verify_openai_key(val)
         return v
 
     @field_validator("tavily_api_key")
@@ -430,6 +464,20 @@ class Settings(BaseSettings):
         if not val.startswith("tvly-"):
             msg = "Tavily API Key must start with 'tvly-'"
             raise ValueError(msg)
+        if len(val) < 20:
+            msg = "Tavily API Key must be at least 20 characters long."
+            raise ValueError(msg)
+
+        import re
+
+        key_pattern = re.compile(r"^[A-Za-z0-9_\-\.]+$")
+        if not key_pattern.match(val):
+            msg = "Tavily API Key format is invalid."
+            raise ValueError(msg)
+
+        from src.core.validators import ApiKeyValidator
+
+        ApiKeyValidator._verify_tavily_key(val)
         return v
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
@@ -477,8 +525,29 @@ class Settings(BaseSettings):
     @classmethod
     def reload(cls) -> "Settings":
         """Force a reload of the configuration."""
-        return get_settings()
+        global _settings_instance
+        with _settings_lock:
+            _settings_instance = None
+            _settings_instance = Settings()
+        return _settings_instance
+
+
+_settings_lock = threading.Lock()
+_settings_instance: Settings | None = None
+
 
 def get_settings() -> Settings:
-    """Factory to get the configuration settings."""
-    return Settings()
+    """Factory to get the configuration settings, using a singleton instance."""
+    global _settings_instance
+    if _settings_instance is None:
+        with _settings_lock:
+            if _settings_instance is None:
+                _settings_instance = Settings()
+    return _settings_instance
+
+
+def clear_settings_cache() -> None:
+    """Clear the settings cache for tests."""
+    global _settings_instance
+    with _settings_lock:
+        _settings_instance = None

@@ -34,6 +34,7 @@ class GovernanceAgent(BaseAgent):
         logger.info("Governance Agent: Starting analysis...")
         # Get settings locally or from dependency injection, to fix tests we can fetch explicitly here
         from src.core.config import get_settings
+
         settings = get_settings()
 
         # 1. Context & Search
@@ -72,16 +73,20 @@ class GovernanceAgent(BaseAgent):
         return {"ringi_sho": ringi_sho, "metrics_data": updated_metrics}
 
     def _get_industry_context(self, state: GlobalState) -> str:
-        import re
 
         industry = state.topic
         if state.selected_idea:
             industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
-        # Security: Whitelist characters to prevent injection attacks (alphanumeric and spaces only)
-        # As per audit requirement to remove dangerous chars like . and ,
-        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", industry)
-        return sanitized.strip()
+        import re
+
+        from src.core.utils import strip_html_tags
+
+        # Note: Do not rely on string sanitization for database queries.
+        # This regex is used to keep search queries clean, NOT for SQL/Command injection security.
+        stripped = strip_html_tags(industry)
+        clean_query = re.sub(r"[^a-zA-Z0-9\s]", "", stripped)
+        return clean_query.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
         settings = get_settings()

@@ -40,37 +40,69 @@ class WorkflowBuilder:
         return self
 
     def _validate_no_cycles(self) -> None:
-        """Validates the graph to ensure no cyclic dependencies exist using Kahn's Algorithm."""
-        # Setup in-degrees and adjacency list
-        in_degree: dict[str, int] = dict.fromkeys(self.nodes, 0)
+        """Validates the graph to ensure no cyclic dependencies exist using Tarjan's strongly connected components algorithm."""
         adj_list: dict[str, list[str]] = {node: [] for node in self.nodes}
+        adj_list["__end__"] = []
 
         for start, end in self.edges:
-            if end != "__end__":
-                if end not in in_degree:
-                    in_degree[end] = 0
-                    adj_list[end] = []
-                adj_list[start].append(end)
-                in_degree[end] += 1
+            if start not in self.nodes:
+                msg = f"Edge references undefined start node: {start}"
+                raise ValueError(msg)
+            if end != "__end__" and end not in self.nodes:
+                msg = f"Edge references undefined end node: {end}"
+                raise ValueError(msg)
 
-        # Find all nodes with 0 in-degree
-        from collections import deque
-        queue = deque([node for node in in_degree if in_degree[node] == 0])
+            if start == end:
+                msg = f"Self-loop detected on node {start}."
+                raise ValueError(msg)
 
-        visited_count = 0
-        while queue:
-            current = queue.popleft()
-            visited_count += 1
+            if start not in adj_list:
+                adj_list[start] = []
+            if end not in adj_list:
+                adj_list[end] = []
 
-            for neighbor in adj_list.get(current, []):
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
+            if end in adj_list[start]:
+                msg = f"Parallel edges detected from {start} to {end}."
+                raise ValueError(msg)
 
-        # If we couldn't visit all nodes that have edges/definitions, there's a cycle
-        if visited_count != len(in_degree):
-            msg = "Cyclic dependency detected in graph structure."
-            raise ValueError(msg)
+            adj_list[start].append(end)
+
+        index = 0
+        indices: dict[str, int] = {}
+        lowlinks: dict[str, int] = {}
+        on_stack: set[str] = set()
+        stack: list[str] = []
+
+        def strongconnect(v: str) -> None:
+            nonlocal index
+            indices[v] = index
+            lowlinks[v] = index
+            index += 1
+            stack.append(v)
+            on_stack.add(v)
+
+            for w in adj_list.get(v, []):
+                if w not in indices:
+                    strongconnect(w)
+                    lowlinks[v] = min(lowlinks[v], lowlinks[w])
+                elif w in on_stack:
+                    lowlinks[v] = min(lowlinks[v], indices[w])
+
+            if lowlinks[v] == indices[v]:
+                component = []
+                while True:
+                    w = stack.pop()
+                    on_stack.remove(w)
+                    component.append(w)
+                    if w == v:
+                        break
+                if len(component) > 1:
+                    msg = "Cyclic dependency detected in graph structure."
+                    raise ValueError(msg)
+
+        for node in list(adj_list.keys()):
+            if node not in indices:
+                strongconnect(node)
 
     def build(self) -> CompiledStateGraph[Any, Any]:
         """Constructs and compiles the graph with validations."""
@@ -85,11 +117,11 @@ class WorkflowBuilder:
 
         for start, end in self.edges:
             if start not in self.nodes:
-                 msg = f"Edge references invalid start node: {start}"
-                 raise ValueError(msg)
+                msg = f"Edge references invalid start node: {start}"
+                raise ValueError(msg)
             if end != "__end__" and end not in self.nodes:
-                 msg = f"Edge references invalid end node: {end}"
-                 raise ValueError(msg)
+                msg = f"Edge references invalid end node: {end}"
+                raise ValueError(msg)
 
             self.workflow.add_edge(start, end)
 

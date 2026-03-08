@@ -58,6 +58,7 @@ def test_rag_initialization(
     rag = RAG(persist_dir="tests")
     assert rag.index is None
 
+
 @patch("src.data.rag.RAG._validate_path", return_value="/app/tests")
 def test_rag_ingest_text(
     mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]

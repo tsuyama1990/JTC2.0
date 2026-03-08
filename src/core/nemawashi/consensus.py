@@ -32,6 +32,12 @@ class ConsensusEngine:
         Returns:
             A list of final opinion values (0.0 to 1.0) for each stakeholder.
         """
+        if not network or not hasattr(network, "stakeholders") or network.stakeholders is None:
+            msg = "Network must contain a valid stakeholders list."
+            from src.core.exceptions import ValidationError
+
+            raise ValidationError(msg)
+
         n = len(network.stakeholders)
         if n == 0:
             return []
@@ -44,6 +50,11 @@ class ConsensusEngine:
         # Build Sparse Matrix using shared utility
         matrix_op = NemawashiUtils.build_sparse_matrix(network, n)
 
+        # Memory bounds checking: Ensure matrix data footprint is under 100MB
+        if matrix_op.data.nbytes > 100 * 1024 * 1024:
+            msg = "Network influence matrix exceeds safe memory boundaries."
+            raise MemoryError(msg)
+
         # Validate using shared utility
         NemawashiUtils.validate_stochasticity(matrix_op, self.settings.tolerance)
 
@@ -53,11 +64,12 @@ class ConsensusEngine:
 
         current_ops = opinions
 
-        import gc
         import time
 
         start_time = time.time()
-        timeout = 10.0 # Strict timeout to prevent infinite loops
+        timeout = getattr(self.settings, "timeout", 10.0)
+
+        history = []
 
         for step in range(max_steps):
             if time.time() - start_time > timeout:
@@ -69,20 +81,21 @@ class ConsensusEngine:
 
             if np.allclose(current_ops, next_ops, rtol=tolerance, atol=tolerance):
                 logger.info(f"Consensus converged in {step + 1} steps.")
-                result = list(next_ops)
-                # Explicit cleanup of arrays
-                del current_ops
-                del next_ops
-                gc.collect()
-                return result
+                return list(next_ops)
 
-            # Explicitly delete old array memory reference
-            if step > 0:
-                del current_ops
+            # Oscillation detection
+            history.append(next_ops)
+            if len(history) > 5:
+                history.pop(0)
+                # Check if the current state is very close to a state 2 steps ago (oscillation)
+                if len(history) >= 3 and np.allclose(
+                    next_ops, history[-3], rtol=tolerance, atol=tolerance
+                ):
+                    logger.warning(f"Consensus oscillating. Early termination at step {step + 1}.")
+                    # Return the average of the oscillating states
+                    return list((next_ops + history[-2]) / 2.0)
+
             current_ops = next_ops
 
         logger.warning(f"Consensus stopped. Converged=False. Steps: {max_steps}")
-        result = list(current_ops)
-        del current_ops
-        gc.collect()
-        return result
+        return list(current_ops)
