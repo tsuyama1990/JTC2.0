@@ -86,7 +86,7 @@ src/core/services/file_service.py                                  34     12    
 src/core/services/pdf_generator.py                                 49      5    90%   35-36, 41, 52-53
 src/core/simulation.py                                             39      5    87%   37-38, 51-55
 src/core/theme.py                                                  18      0   100%
-src/core/utils.py                                                  49     17    65%   44-66, 76-77
+src/core/utils.py                                                  48     17    65%   21-22, 35-36, 61-77, 90-93
 src/core/validators.py                                             71     30    58%   28, 33, 35-36, 39-40, 42-43, 51-52, 89-98, 103-112
 src/core/workflow_builder.py                                       38      2    95%   57-58
 src/data/__init__.py                                                2      0   100%
@@ -130,7 +130,7 @@ tests/unit/domain_models/test_politics.py                          38      0   1
 tests/unit/domain_models/test_remastered_models.py                 52      0   100%
 tests/unit/domain_models/test_simulation_models.py                 33      0   100%
 tests/unit/domain_models/test_state_integration.py                 36      0   100%
-tests/unit/domain_models/test_state_remastered_integration.py      28      0   100%
+tests/unit/domain_models/test_state_remastered_integration.py      31      0   100%
 tests/unit/domain_models/test_transcript.py                        14      0   100%
 tests/unit/test_builder_agent.py                                   34      4    88%   12-13, 19, 34
 tests/unit/test_cli_input.py                                       12      0   100%
@@ -156,7 +156,7 @@ tests/unit/test_tools.py                                           40      0   1
 tests/unit/test_ui.py                                              55      0   100%
 tests/unit/test_v0_client.py                                       47      2    96%   12-13
 ---------------------------------------------------------------------------------------------
-TOTAL                                                            4747    783    84%
-============================= 149 passed in 21.73s =============================
+TOTAL                                                            4749    783    84%
+============================= 149 passed in 19.51s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

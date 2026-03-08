@@ -25,7 +25,7 @@ from src.core.constants import (
     ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
-from src.core.utils import AsyncRateLimiter, sanitize_query
+from src.core.utils import AsyncRateLimiter, sanitize_html_xss
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
@@ -362,7 +362,7 @@ class RAG:
             msg = "Query cannot be empty."
             raise ValueError(msg)
 
-        question = sanitize_query(question)
+        question = sanitize_html_xss(question)
 
         max_len = self.settings.rag_max_query_length
         if len(question) > max_len:
