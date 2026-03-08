@@ -17,7 +17,7 @@ def test_config_loading_success() -> None:
             "V0_API_KEY": "v0-12345678901234567890",
         },
     ):
-        get_settings.cache_clear()
+        get_settings().reload()
         settings = get_settings()
         assert settings.openai_api_key is not None
         assert settings.openai_api_key.get_secret_value() == "sk-12345678901234567890"
@@ -25,26 +25,29 @@ def test_config_loading_success() -> None:
         assert settings.tavily_api_key.get_secret_value() == "tvly-12345678901234567890"
 
 
+
 def test_config_missing_openai_key() -> None:
     """Test validation error when OpenAI key is missing."""
     with patch.dict(os.environ, {}, clear=True):
         # We need to set TAVILY_API_KEY to isolate the OPENAI_API_KEY check
         os.environ["TAVILY_API_KEY"] = "tvly-12345678901234567890"
-        get_settings.cache_clear()
 
-        # Validation happens on init
-        with pytest.raises(ValueError, match=".*"):
-            get_settings()
+        from src.core.config import Settings
+
+        # Validation happens on init, pydantic raises pydantic_core.ValidationError, we catch broad Exception
+        with pytest.raises(ValidationError, match=".*"):
+            Settings.reload()
 
 
 def test_config_missing_tavily_key() -> None:
     """Test validation error when Tavily key is missing."""
     with patch.dict(os.environ, {}, clear=True):
         os.environ["OPENAI_API_KEY"] = "sk-12345678901234567890"
-        get_settings.cache_clear()
 
-        with pytest.raises(ValueError, match=".*"):
-            get_settings()
+        from src.core.config import Settings
+
+        with pytest.raises(ValidationError, match=".*"):
+            Settings.reload()
 
 
 def test_config_caching() -> None:
@@ -56,7 +59,7 @@ def test_config_caching() -> None:
             "TAVILY_API_KEY": "tvly-12345678901234567890",
         },
     ):
-        get_settings.cache_clear()
+        get_settings().reload()
         s1 = get_settings()
         s2 = get_settings()
         assert s1 is s2  # Same object instance
@@ -72,7 +75,7 @@ def test_invalid_log_level() -> None:
             "LOG_LEVEL": "INVALID",
         },
     ):
-        get_settings.cache_clear()
+        get_settings().reload()
         s = get_settings()
         assert s.log_level == "INVALID"
 

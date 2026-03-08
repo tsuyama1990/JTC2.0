@@ -1,8 +1,6 @@
-import re
 
 import pytest
 
-from src.core.constants import ERR_PATH_TRAVERSAL
 from src.core.exceptions import ConfigurationError
 from src.data.rag import RAG
 

@@ -53,13 +53,36 @@ class ConsensusEngine:
 
         current_ops = opinions
 
-        for _ in range(max_steps):
+        import gc
+        import time
+
+        start_time = time.time()
+        timeout = 10.0 # Strict timeout to prevent infinite loops
+
+        for step in range(max_steps):
+            if time.time() - start_time > timeout:
+                logger.warning("Consensus calculation timed out.")
+                break
+
             # Sparse Matrix-Vector Multiplication
             next_ops = matrix_op.dot(current_ops)
 
-            if np.allclose(current_ops, next_ops, atol=tolerance):
-                logger.info("Consensus converged.")
-                return list(next_ops)
+            if np.allclose(current_ops, next_ops, rtol=tolerance, atol=tolerance):
+                logger.info(f"Consensus converged in {step + 1} steps.")
+                result = list(next_ops)
+                # Explicit cleanup of arrays
+                del current_ops
+                del next_ops
+                gc.collect()
+                return result
+
+            # Explicitly delete old array memory reference
+            if step > 0:
+                del current_ops
             current_ops = next_ops
 
-        return list(current_ops)
+        logger.warning(f"Consensus stopped. Converged=False. Steps: {max_steps}")
+        result = list(current_ops)
+        del current_ops
+        gc.collect()
+        return result

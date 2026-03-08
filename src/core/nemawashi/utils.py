@@ -15,7 +15,7 @@ class NemawashiUtils:
         matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6
     ) -> None:
         """
-        Validate that matrix rows sum to approximately 1.0.
+        Validate that matrix rows sum to approximately 1.0 and bounds are [0,1].
         Supports both sparse (csr_matrix) and dense (list[list[float]]) inputs.
         """
         try:
@@ -24,16 +24,28 @@ class NemawashiUtils:
                 row_sums = matrix.sum(axis=1)
                 # Convert to 1D array
                 row_sums = row_sums.A1 if hasattr(row_sums, "A1") else np.array(row_sums).flatten()
+
+                # Retrieve actual values for bounds checking
+                values = matrix.data if hasattr(matrix, "data") else np.asarray(matrix).flatten()
             else:
                 # List of lists
                 dense = cast(list[list[float]], matrix)
                 row_sums = np.array([sum(row) for row in dense])
+                values = np.array(dense).flatten()
         except Exception as e:
-            msg = f"Stochasticity check failed: {e}"
+            msg = f"Stochasticity check failed during summation: {e}"
             raise ValidationError(msg) from e
 
-        if not np.allclose(row_sums, 1.0, atol=tolerance):
-            msg = "Influence matrix rows must sum to 1.0"
+        if not np.all(np.isfinite(values)):
+            msg = "Influence matrix contains NaN or Inf values."
+            raise ValidationError(msg)
+
+        if np.any((values < -tolerance) | (values > 1.0 + tolerance)):
+            msg = "Influence matrix entries must be within bounds [0, 1]."
+            raise ValidationError(msg)
+
+        if not np.allclose(row_sums, 1.0, rtol=tolerance, atol=tolerance):
+            msg = "Influence matrix rows must precisely sum to 1.0"
             raise ValidationError(msg)
 
     @staticmethod

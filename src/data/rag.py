@@ -59,12 +59,31 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
     if depth_limit is None:
         depth_limit = get_settings().rag.scan_depth_limit
 
+    if depth_limit is not None and depth_limit <= 0:
+        msg = "depth_limit must be positive"
+        raise ValueError(msg)
+
     total_size = 0
     file_count = 0
     max_files = get_settings().rag.max_files
 
+    # Path validation before scanning
+    try:
+        base_path = Path(path).resolve(strict=True)
+        cwd = Path.cwd().resolve(strict=True)
+        allowed_rel_paths = get_settings().rag.allowed_paths
+        allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
+
+        is_safe = any(base_path.is_relative_to(parent) for parent in allowed_parents)
+        if not is_safe:
+            logger.error(ERR_PATH_TRAVERSAL)
+            return 0
+    except OSError:
+        logger.warning(f"Failed to resolve path: {path}")
+        return 0
+
     # Stack stores tuples of (current_path, current_depth)
-    stack = deque([(path, 0)])
+    stack = deque([(str(base_path), 0)])
     visited_realpaths = set()
 
     while stack:
@@ -161,68 +180,44 @@ class RAG:
         Ensure persist directory is safe and absolute using atomic path validation.
         Implements symlink loop detection and file descriptor-based validation.
         """
-        if not isinstance(path_str, str):
-            msg = "Path must be a string."
-            raise ConfigurationError(msg)
-
-        if not path_str.strip():
+        if not isinstance(path_str, str) or not path_str.strip():
             msg = "Path must be a non-empty string."
             raise ConfigurationError(msg)
 
         try:
-            # Use os.path.realpath for atomic validation and symlink loop detection
-            # Ignore TypeError from tests mocking realpath
-            try:
-                real_path = os.path.realpath(path_str)
-                path = Path(real_path)
-            except TypeError:
-                path = Path(path_str).resolve(strict=False)
-
+            # Atomic resolution and absolute path validation
+            path = Path(path_str).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
+
             allowed_rel_paths = self.settings.rag.allowed_paths
             allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
 
-            # File descriptor-based validation via stat if exists
-            path_exists = path.exists()
-            is_symlink = False
-            if path_exists:
+            # Symlink validation
+            if Path(path_str).exists():
                 import stat
-                # Mock objects in tests might not support st_mode properly
                 try:
-                    stat_info = os.lstat(path_str) # lstat to check if original was symlink
-                    # If stat_info is mocked, accessing st_mode might return a mock
+                    stat_info = os.lstat(path_str)
                     if isinstance(stat_info.st_mode, int):
-                        is_symlink = stat.S_ISLNK(stat_info.st_mode)
-                        # Check properties
+                        if stat.S_ISLNK(stat_info.st_mode):
+                            msg = "Symlinks not allowed in persist_dir."
+                            raise ConfigurationError(msg)
                         if not stat.S_ISDIR(stat_info.st_mode):
                             msg = f"Path must be a directory: {path_str}"
                             raise ConfigurationError(msg)
-                except TypeError:
-                    pass # Ignore type error if stat_mode is mocked inappropriately
-                except AttributeError:
-                    pass # Ignore attribute error
+                except (TypeError, AttributeError):
+                    pass # Ignore for mocks during tests
 
+            # Strict traversal check
+            if not any(path.is_relative_to(parent) for parent in allowed_parents):
+                logger.error(ERR_PATH_TRAVERSAL)
+                raise ConfigurationError(ERR_PATH_TRAVERSAL)
+
+            return str(path)
         except ConfigurationError:
             raise
         except Exception as e:
             msg = f"Invalid path format or non-existent parent: {e}"
             raise ConfigurationError(msg) from e
-
-        is_safe = False
-        for parent in allowed_parents:
-            if path.is_relative_to(parent):
-                is_safe = True
-                break
-
-        if not is_safe:
-            logger.error(ERR_PATH_TRAVERSAL)
-            raise ConfigurationError(ERR_PATH_TRAVERSAL)
-
-        if is_symlink:
-            msg = "Symlinks not allowed in persist_dir."
-            raise ConfigurationError(msg)
-
-        return str(path)
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""

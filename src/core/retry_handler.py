@@ -1,4 +1,6 @@
 import logging
+import threading
+import time
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -7,8 +9,12 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
+
+
 class RetryHandler:
     """Handles retry logic for operations."""
+
+    _lock = threading.Lock()
 
     @staticmethod
     def execute_with_retry(
@@ -33,7 +39,8 @@ class RetryHandler:
         """
         for attempt in range(max_attempts):
             try:
-                return func()
+                with RetryHandler._lock:
+                    return func()
             except fatal_exceptions:
                 logger.exception(f"{error_msg}: Fatal error encountered")
                 break
@@ -42,6 +49,9 @@ class RetryHandler:
                     logger.warning(
                         f"{error_msg}, retrying... ({attempt + 1}/{max_attempts}). Error: {e}"
                     )
+                    # Global coordinated backoff to prevent thundering herd
+                    with RetryHandler._lock:
+                        time.sleep(1.0 * (attempt + 1))
                     continue
                 logger.exception(f"{error_msg} after {max_attempts} attempts")
             except Exception:

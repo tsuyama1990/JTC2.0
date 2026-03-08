@@ -1,4 +1,3 @@
-from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -412,8 +411,26 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
-    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=20)
+    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=20)
+
+    @field_validator("openai_api_key")
+    @classmethod
+    def validate_openai_key(cls, v: SecretStr) -> SecretStr:
+        val = v.get_secret_value()
+        if not val.startswith("sk-"):
+            msg = "OpenAI API Key must start with 'sk-'"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("tavily_api_key")
+    @classmethod
+    def validate_tavily_key(cls, v: SecretStr) -> SecretStr:
+        val = v.get_secret_value()
+        if not val.startswith("tvly-"):
+            msg = "Tavily API Key must start with 'tvly-'"
+            raise ValueError(msg)
+        return v
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
 
@@ -456,15 +473,25 @@ class Settings(BaseSettings):
 
     def rotate_keys(self) -> None:
         """Clear the cached settings instance and re-initialize keys, allowing hot-reloading in long-running processes."""
-        get_settings.cache_clear()
+        global _cached_settings
+        _cached_settings = None
 
     @classmethod
     def reload(cls) -> "Settings":
         """Force a reload of the configuration."""
-        get_settings.cache_clear()
+        global _cached_settings
+        _cached_settings = None
         return get_settings()
 
-@lru_cache(maxsize=1)
+_cached_settings: Settings | None = None
+_settings_load_time: float = 0.0
+
 def get_settings() -> Settings:
-    """Load and cache settings."""
-    return Settings()
+    """Load and cache settings with a 60-second TTL to support hot-reloading."""
+    global _cached_settings, _settings_load_time
+    import time
+    now = time.time()
+    if _cached_settings is None or (now - _settings_load_time > 60):
+        _cached_settings = Settings()
+        _settings_load_time = now
+    return _cached_settings

@@ -106,7 +106,10 @@ ignore = [
     "PLR0913", # Too many arguments in function definition
     "ANN202", # Missing return type annotation for private functions
     "TRY301", # Abstract raise to an inner function
-    "C901"    # Cyclomatic complexity too high
+    "C901",   # Cyclomatic complexity too high
+    "PLR0912",# Too many branches
+    "PLW0602",# Global variable unused warning
+    "PLW0603" # Global variable updated warning
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.agents.builder import BuilderAgent
-from src.core.config import get_settings
 from src.domain_models.agent_prompt import AgentPromptSpec, StateMachine
 from src.domain_models.sitemap import Route, SitemapAndStory, UserStory
 from src.domain_models.state import GlobalState
@@ -37,7 +36,8 @@ class TestCycle05UAT:
         Scenario 1: AgentPromptSpec Generation Integration
         Verify that BuilderAgent properly generates AgentPromptSpec.
         """
-        get_settings.cache_clear()
+        from src.core.config import Settings
+        Settings.reload()
 
         mock_llm = MagicMock()
         mock_chain = MagicMock()
