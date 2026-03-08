@@ -12,8 +12,7 @@ from tests.conftest import DUMMY_ENV_VARS
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 @patch("src.agents.cpo.RAG")
-@patch("src.agents.cpo.ChatOpenAI")
-def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
+def test_uat_c03_01_mom_test_failure(mock_rag_cls: MagicMock) -> None:
     """
     Scenario 1: Transcript Injection and 'Mom Test' Failure.
     Verify that injecting negative customer feedback causes the CPO to suggest a pivot.
@@ -47,24 +46,10 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     mock_rag_instance.query.return_value = "Customer says: I would never pay for this."
 
     # Mock LLM response to simulate CPO advice based on RAG
-    # The agent calls chain.invoke({}), which returns a message
-    mock_chain_result = MagicMock()
-    mock_chain_result.content = (
+    mock_llm_instance = MagicMock()
+    mock_llm_instance.generate.return_value = (
         "Based on the transcript, the customer said they would never pay. You should pivot."
     )
-
-    # The chain is prompt | llm. invoke returns LLMResult (or similar message object)
-    # We can mock the LLM instance to return this when invoked as a chain
-    # But CPOAgent constructs `chain = prompt | self.llm`
-    # Mocking chain construction is hard. We mock LLM invocation.
-    mock_llm_instance = mock_llm.return_value
-    mock_llm_instance.invoke.return_value = mock_chain_result
-    # Also set return_value for direct call (LangChain fallback)
-    mock_llm_instance.return_value = mock_chain_result
-
-    # Ensure LangChain invoke works. When pipe is used, `self.llm` is called with input.
-    # If self.llm is a mock, it returns `self.llm()`.
-    # We set `return_value` so `self.llm(...)` returns `mock_chain_result`.
 
     cpo = CPOAgent(mock_llm_instance)
     result = cpo.run(state)
@@ -80,8 +65,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 @patch("src.agents.cpo.RAG")
-@patch("src.agents.cpo.ChatOpenAI")
-def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
+def test_uat_c03_02_validation_success(mock_rag_cls: MagicMock) -> None:
     """
     Scenario 2: Validation Success.
     Verify that positive feedback reinforces the plan.
@@ -113,12 +97,8 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
     mock_rag_instance.query.return_value = "Customer says: I love this!"
 
     # Mock LLM response
-    mock_chain_result = MagicMock()
-    mock_chain_result.content = "Customer validation is strong. Proceed."
-
-    mock_llm_instance = mock_llm.return_value
-    mock_llm_instance.invoke.return_value = mock_chain_result
-    mock_llm_instance.return_value = mock_chain_result
+    mock_llm_instance = MagicMock()
+    mock_llm_instance.generate.return_value = "Customer validation is strong. Proceed."
 
     # Run CPO Agent
     cpo = CPOAgent(mock_llm_instance)

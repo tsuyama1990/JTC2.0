@@ -1,11 +1,47 @@
+import os
+import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.core.config import Settings
+
 from pydantic import SecretStr
 
 from src.core.constants import (
+    ERR_CONFIG_MISSING_OPENAI_KEY,
     ERR_INVALID_COLOR,
     ERR_INVALID_DIMENSIONS,
     ERR_INVALID_FPS,
     ERR_INVALID_RESOLUTION,
 )
+
+
+class ApiKeyValidator:
+    """Validates API keys for external services."""
+
+    @staticmethod
+    def validate_keys(settings: "Settings") -> "Settings":
+        """Validate API keys are present and have correct format."""
+        # Enforce that keys come from environment
+        if not os.getenv("OPENAI_API_KEY") and not settings.openai_api_key:
+            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
+
+        key_pattern = re.compile(r"^[A-Za-z0-9_\-\.]+$")
+
+        if not settings.openai_api_key or not settings.openai_api_key.get_secret_value():
+            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
+        if not key_pattern.match(settings.openai_api_key.get_secret_value()):
+            msg = "OpenAI API Key format is invalid. Keys must be strictly formatted."
+            raise ValueError(msg)
+
+        if not settings.tavily_api_key or not settings.tavily_api_key.get_secret_value():
+            msg = "Tavily API Key is missing or empty."
+            raise ValueError(msg)
+        if not key_pattern.match(settings.tavily_api_key.get_secret_value()):
+            msg = "Tavily API Key format is invalid."
+            raise ValueError(msg)
+
+        return settings
 
 
 class ConfigValidators:

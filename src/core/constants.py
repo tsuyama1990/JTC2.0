@@ -24,6 +24,8 @@ DEFAULT_RAG_MAX_DOC_LENGTH: Final[int] = 1_000_000  # 1MB text limit
 DEFAULT_RAG_MAX_QUERY_LENGTH: Final[int] = 1000
 DEFAULT_RAG_MAX_INDEX_SIZE_MB: Final[int] = 500  # 500MB index limit
 DEFAULT_RAG_BATCH_SIZE: Final[int] = 100
+DEFAULT_RAG_QUERY_TIMEOUT: Final[float] = 30.0
+DEFAULT_MAX_FILES: Final[int] = 10000
 
 # --- Feature Extraction Defaults ---
 DEFAULT_FEATURE_CHUNK_SIZE: Final[int] = 2000
@@ -86,6 +88,9 @@ ERR_PATH_TRAVERSAL: Final[str] = "Path traversal detected."
 ERR_RAG_INDEX_SIZE: Final[str] = "Index size limit exceeded."
 ERR_RAG_QUERY_TOO_LARGE: Final[str] = "Query too large."
 ERR_RAG_TEXT_TOO_LARGE: Final[str] = "Document text too large."
+ERR_RAG_NO_DATA: Final[str] = "No data available."
+ERR_RAG_QUERY_FAILED: Final[str] = "Query execution failed: {error}"
+ERR_RAG_QUERY_TIMEOUT: Final[str] = "Query execution timed out"
 
 # --- UI Messages ---
 MSG_NO_IDEAS: Final[str] = "No ideas generated yet."

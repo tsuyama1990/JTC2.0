@@ -67,8 +67,8 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
     # We must patch OpenAI class to return our MockLLM instance.
 
     with (
-        patch("src.data.rag.OpenAI", return_value=MockLLM()),
-        patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+        patch("src.adapters.rag_adapter.OpenAI", return_value=MockLLM()),
+        patch("src.adapters.rag_adapter.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
     ):
         rag = RAG(persist_dir=temp_vector_store)
         transcript = Transcript(
@@ -86,7 +86,7 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
 
         # Reload and query
         rag_loaded = RAG(persist_dir=temp_vector_store)
-        assert rag_loaded.index is not None
+        assert getattr(rag_loaded, "adapter").index is not None
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
@@ -98,8 +98,8 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     get_settings.cache_clear()
 
     with (
-        patch("src.data.rag.OpenAI", return_value=MockLLM()),
-        patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+        patch("src.adapters.rag_adapter.OpenAI", return_value=MockLLM()),
+        patch("src.adapters.rag_adapter.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
     ):
         # Initialize RAG with temp path
         rag = RAG(persist_dir=temp_vector_store)
@@ -118,7 +118,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 
         # 3. Reload (simulate new instance)
         rag_loaded = RAG(persist_dir=temp_vector_store)
-        assert rag_loaded.index is not None
+        assert getattr(rag_loaded, "adapter").index is not None
 
         # 4. Query - We trust the index is built.
         # With MockEmbedding, queries might return low scores or nothing,
@@ -134,11 +134,7 @@ def test_cpo_agent_behavior() -> None:
     """Test CPO Agent behavior with mocked RAG."""
     get_settings.cache_clear()
     llm = MagicMock()
-    # Mock chain invoke
-    mock_msg = MagicMock()
-    mock_msg.content = "Pivot now."
-    llm.invoke.return_value = mock_msg
-    llm.return_value = mock_msg
+    llm.generate.return_value = "Pivot now."
 
     # Init agent with valid path to pass strict validation
     # This path is relative to CWD and starts with 'tests'

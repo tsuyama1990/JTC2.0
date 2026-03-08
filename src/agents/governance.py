@@ -152,18 +152,6 @@ class GovernanceAgent(BaseAgent):
     def _safe_llm_call(self, prompt: str, model_class: type[T]) -> T:
         """
         Execute LLM call safely with streaming size validation and Pydantic parsing.
-
-        Args:
-            prompt: Input prompt.
-            model_class: Pydantic model to validate response against.
-
-        Returns:
-            Validated Pydantic model instance.
-
-        Raises:
-            ValueError: If response is too large.
-            JSONDecodeError: If parsing fails.
-            ValidationError: If schema validation fails.
         """
         settings = get_settings()
         llm = get_llm()

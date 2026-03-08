@@ -3,65 +3,72 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.agents.builder import FeatureList
-from src.domain_models.lean_canvas import LeanCanvas
+from src.agents.builder import BuilderAgent
+from src.domain_models.agent_prompt import AgentPromptSpec, StateMachine
+from src.domain_models.sitemap import Route, SitemapAndStory, UserStory
 from src.domain_models.state import GlobalState
-
-try:
-    from src.agents.builder import BuilderAgent
-except ImportError:
-    BuilderAgent = None  # type: ignore
 
 
 class TestBuilderAgent:
     @pytest.fixture
-    def state_with_idea(self) -> GlobalState:
-        return GlobalState(
-            topic="Test Topic",
-            selected_idea=LeanCanvas(
-                id=1,
-                title="Test App",
-                problem="Problem is strictly big enough.",
-                solution="Feature A long description, Feature B long description, Feature C long description",
-                customer_segments="Users segment is defined.",
-                unique_value_prop="Value proposition is clear.",
-            ),
+    def state_with_sitemap(self) -> GlobalState:
+        story = UserStory(
+            as_a="User",
+            i_want_to="Login",
+            so_that="I can access my dashboard",
+            acceptance_criteria=["Must have email", "Must have password"],
+            target_route="/login",
         )
+        sitemap = SitemapAndStory(
+            sitemap=[
+                Route(path="/", name="Home", purpose="Landing", is_protected=False),
+                Route(path="/login", name="Login", purpose="Auth", is_protected=False),
+            ],
+            core_story=story,
+        )
+        return GlobalState(sitemap_and_story=sitemap)
 
     @pytest.fixture
     def agent(self) -> BuilderAgent:
-        if BuilderAgent is None:
-            pytest.skip("BuilderAgent not implemented")
         # Mock LLM
         mock_llm = MagicMock()
         return BuilderAgent(llm=mock_llm)
 
-    def test_extract_features_real_call(self, agent: BuilderAgent) -> None:
+    def test_generate_agent_prompt_spec(
+        self, agent: BuilderAgent, state_with_sitemap: GlobalState
+    ) -> None:
         """
-        Test _extract_features with mocked LLM response.
-        Ensures the chain invoke is mocked properly to be deterministic.
+        Test generate_agent_prompt_spec with mocked LLM response.
         """
-        # Mock the specific chain construction in the method
-        with patch("src.agents.builder.ChatPromptTemplate.from_messages") as mock_prompt:
-            mock_prompt_tmpl = MagicMock()
-            mock_prompt.return_value = mock_prompt_tmpl
+        assert state_with_sitemap.sitemap_and_story is not None
+        mock_spec = AgentPromptSpec(
+            sitemap="Mapped Routes",
+            routing_and_constraints="No server components",
+            core_user_story=state_with_sitemap.sitemap_and_story.core_story,
+            state_machine=StateMachine(
+                success="Success UI",
+                loading="Loading Spinner",
+                error="Error Toast",
+                empty="Empty State",
+            ),
+            validation_rules="Zod schemas",
+            mermaid_flowchart="graph TD;",
+        )
 
-            mock_model_runnable = MagicMock()
-            mock_llm = cast(MagicMock, agent.llm)
-            mock_llm.with_structured_output.return_value = mock_model_runnable
+        mock_llm = cast(MagicMock, agent.llm)
+        mock_llm.generate_structured.return_value = mock_spec
 
-            mock_chain = MagicMock()
-            mock_prompt_tmpl.__or__.return_value = mock_chain
+        result = agent.generate_agent_prompt_spec(state_with_sitemap)
 
-            # Mock the invoke result
-            mock_chain.invoke.return_value = FeatureList(features=["F1", "F2"])
+        assert "agent_prompt_spec" in result
+        assert result["agent_prompt_spec"].sitemap == "Mapped Routes"
+        assert result["agent_prompt_spec"].validation_rules == "Zod schemas"
+        mock_llm.generate_structured.assert_called_once()
 
-            # Execute with input long enough to pass short-check
-            input_text = "solution that is sufficiently long to pass the length validation check"
-            features = list(agent._extract_features(input_text))
-
-            assert features == ["F1", "F2"]
-            # Verify invocation happened
-            mock_chain.invoke.assert_called()
-
-    # ... (other existing tests)
+    def test_generate_agent_prompt_spec_missing_state(self, agent: BuilderAgent) -> None:
+        """
+        Test generate_agent_prompt_spec with missing sitemap_and_story.
+        """
+        state = GlobalState()
+        result = agent.generate_agent_prompt_spec(state)
+        assert result == {}

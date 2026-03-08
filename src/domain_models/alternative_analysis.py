@@ -35,7 +35,9 @@ class AlternativeTool(BaseModel):
         for field in ["name", "financial_cost", "time_cost", "ux_friction"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                msg = (
+                    f"{field} must be at least {settings.validation.min_content_length} characters"
+                )
                 raise ValueError(msg)
         return self
 
@@ -59,7 +61,9 @@ class AlternativeAnalysis(BaseModel):
         for field in ["switching_cost", "ten_x_value"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                msg = (
+                    f"{field} must be at least {settings.validation.min_content_length} characters"
+                )
                 raise ValueError(msg)
 
         if len(self.current_alternatives) < settings.validation.min_list_length:

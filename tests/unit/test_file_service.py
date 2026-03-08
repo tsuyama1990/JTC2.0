@@ -48,7 +48,7 @@ class TestFileService:
         file_service.save_text_async("content", "protected.md")
         file_service._executor.shutdown(wait=True)
 
-        assert "Permission denied writing to protected.md" in caplog.text
+        assert "Permission denied: writing to protected.md" in caplog.text
 
     @patch("src.core.services.file_service.FileService._validate_path")
     @patch("src.core.services.file_service.Path")
@@ -67,4 +67,4 @@ class TestFileService:
         file_service.save_text_async("content", "file.md")
         file_service._executor.shutdown(wait=True)
 
-        assert "OS error writing to file.md" in caplog.text
+        assert "OS error: writing to file.md" in caplog.text

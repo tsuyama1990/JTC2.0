@@ -74,7 +74,7 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     # which is outside project root, so _validate_path would fail before size check.
     # We allow the path for this test.
     with (
-        patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
+            patch("src.adapters.rag_adapter.LlamaIndexRAGAdapter._validate_path", side_effect=lambda x: str(Path(x).resolve())),
         patch.object(get_settings(), "rag_max_index_size_mb", 1),
         # Updated error message constant in Cycle 06
         pytest.raises(MemoryError, match="Index size limit exceeded"),
@@ -92,12 +92,12 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
 
     # Patch _validate_path
     with (
-        patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
+            patch("src.adapters.rag_adapter.LlamaIndexRAGAdapter._validate_path", side_effect=lambda x: str(Path(x).resolve())),
         patch.object(get_settings(), "rag_chunk_size", 10),
     ):
         rag = RAG(persist_dir=temp_rag_dir)
         # Mock index to verify insertion calls
-        rag.index = MagicMock()
+        rag.adapter.index = MagicMock()
 
         long_text = "This is a very long text that should be chunked."
         rag.ingest_text(long_text, source="test")
@@ -107,11 +107,11 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
         # insert_nodes should be called once with a list of 5 items.
 
         # Verify that insert_nodes was called
-        assert rag.index.insert_nodes.called
+        assert rag.adapter.index.insert_nodes.called
 
         # Calculate total docs passed
         total_docs = 0
-        for call in rag.index.insert_nodes.call_args_list:
+        for call in rag.adapter.index.insert_nodes.call_args_list:
             # call.args[0] is the batch list
             total_docs += len(call.args[0])
 

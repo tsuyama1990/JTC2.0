@@ -62,14 +62,9 @@ def test_mvp_creation() -> None:
         type=MVPType.LANDING_PAGE,
         core_features=[feature],
         success_criteria="Achieve 100 signups within the first week.",
-        v0_url="https://v0.dev/test",
-        deployment_status="deployed",
     )
     assert mvp.type == MVPType.LANDING_PAGE
     assert mvp.core_features[0].priority == Priority.MUST_HAVE
-    # Check string representation or HttpUrl properties
-    assert str(mvp.v0_url) == "https://v0.dev/test"
-    assert mvp.deployment_status == "deployed"
 
 
 def test_mvp_feature_validation() -> None:

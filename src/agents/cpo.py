@@ -2,11 +2,10 @@ import logging
 import time
 from typing import Any
 
-from langchain_openai import ChatOpenAI
-
 from src.agents.base import SearchTool
 from src.agents.personas import PersonaAgent
 from src.core.config import Settings
+from src.core.interfaces import LLMInterface
 from src.data.rag import RAG
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
@@ -24,7 +23,7 @@ class CPOAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMInterface,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
         rag_path: str | None = None,

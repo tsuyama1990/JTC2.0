@@ -45,7 +45,9 @@ class JourneyPhase(BaseModel):
         for field in ["phase_name", "touchpoint", "customer_action", "mental_tower_ref"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = f"{field} must be at least {settings.validation.min_content_length} characters"
+                msg = (
+                    f"{field} must be at least {settings.validation.min_content_length} characters"
+                )
                 raise ValueError(msg)
 
         if len(self.pain_points) < settings.validation.min_list_length:
@@ -79,7 +81,7 @@ class CustomerJourney(BaseModel):
 
         settings = get_settings()
         if len(self.worst_pain_phase) < settings.validation.min_content_length:
-             msg = f"worst_pain_phase must be at least {settings.validation.min_content_length} characters"
-             raise ValueError(msg)
+            msg = f"worst_pain_phase must be at least {settings.validation.min_content_length} characters"
+            raise ValueError(msg)
 
         return self
