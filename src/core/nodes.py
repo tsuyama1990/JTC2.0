@@ -14,14 +14,18 @@ from src.domain_models.validators import StateValidator
 logger = logging.getLogger(__name__)
 
 
-def _ideator_run_impl(state: GlobalState) -> dict[str, Any]:
-    ideator = AgentFactory.get_ideator_agent()
-    return ideator.run(state)
+def make_ideator_node(ideator_agent: Any = None) -> Any:
+    def _ideator_run_impl(state: GlobalState) -> dict[str, Any]:
+        agent = ideator_agent or AgentFactory.get_ideator_agent()
+        return agent.run(state)
 
+    def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
+        """Wrapper for Ideator execution with error handling."""
+        return NodeExecutor.execute(_ideator_run_impl, state, "Error in Ideator Agent")
 
-def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
-    """Wrapper for Ideator execution with error handling."""
-    return NodeExecutor.execute(_ideator_run_impl, state, "Error in Ideator Agent")
+    return safe_ideator_run
+
+safe_ideator_run = make_ideator_node()
 
 
 def _verification_node_impl(state: GlobalState) -> dict[str, Any]:

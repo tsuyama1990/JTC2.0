@@ -472,26 +472,13 @@ class Settings(BaseSettings):
         ApiKeyValidator.validate(self)
 
     def rotate_keys(self) -> None:
-        """Clear the cached settings instance and re-initialize keys, allowing hot-reloading in long-running processes."""
-        global _cached_settings
-        _cached_settings = None
+        """Placeholder for key rotation."""
 
     @classmethod
     def reload(cls) -> "Settings":
         """Force a reload of the configuration."""
-        global _cached_settings
-        _cached_settings = None
         return get_settings()
 
-_cached_settings: Settings | None = None
-_settings_load_time: float = 0.0
-
 def get_settings() -> Settings:
-    """Load and cache settings with a 60-second TTL to support hot-reloading."""
-    global _cached_settings, _settings_load_time
-    import time
-    now = time.time()
-    if _cached_settings is None or (now - _settings_load_time > 60):
-        _cached_settings = Settings()
-        _settings_load_time = now
-    return _cached_settings
+    """Factory to get the configuration settings."""
+    return Settings()

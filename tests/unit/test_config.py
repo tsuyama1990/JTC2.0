@@ -59,10 +59,11 @@ def test_config_caching() -> None:
             "TAVILY_API_KEY": "tvly-12345678901234567890",
         },
     ):
-        get_settings().reload()
+        # Clear out existing state and grab a new instance
         s1 = get_settings()
         s2 = get_settings()
-        assert s1 is s2  # Same object instance
+        # Since caching was removed to favor explicit DI, get_settings() now returns a new instance each time
+        assert s1 is not s2
 
 
 def test_invalid_log_level() -> None:

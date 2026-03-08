@@ -2,7 +2,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.core.config import get_settings
+from src.core.config import Settings, get_settings
 from src.core.exceptions import ConfigurationError
 from src.core.retry_handler import RetryHandler
 
@@ -15,10 +15,10 @@ class FileService:
     Uses ThreadPoolExecutor for non-blocking I/O in async contexts.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         # Max workers limited to avoid thread exhaustion
         self._executor = ThreadPoolExecutor(max_workers=5)
-        self.settings = get_settings()
+        self.settings = settings or get_settings()
 
     def _validate_path(self, path: str | Path) -> Path:
         """

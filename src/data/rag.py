@@ -77,10 +77,11 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
         is_safe = any(base_path.is_relative_to(parent) for parent in allowed_parents)
         if not is_safe:
             logger.error(ERR_PATH_TRAVERSAL)
-            return 0
-    except OSError:
+            raise ConfigurationError(ERR_PATH_TRAVERSAL)
+    except OSError as e:
         logger.warning(f"Failed to resolve path: {path}")
-        return 0
+        msg = f"Invalid path: {e}"
+        raise ConfigurationError(msg) from e
 
     # Stack stores tuples of (current_path, current_depth)
     stack = deque([(str(base_path), 0)])

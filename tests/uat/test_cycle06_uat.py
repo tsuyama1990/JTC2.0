@@ -43,27 +43,38 @@ class TestCycle06UAT:
         Scenario 1: Financial Viability Check
         Verify that the system calculates financials and flags unviable business models.
         """
-        agent = GovernanceAgent()
+        from src.core.config import get_settings
+        settings = get_settings()
+
+        # Update settings instance correctly
+        settings.governance.min_roi_threshold = 3.0
+        settings.governance.default_cac = 500.0
+        settings.governance.default_arpu = 50.0
+        settings.governance.default_churn = 0.05
 
         # Define mock inputs
         mock_cac = 500.0
         mock_arpu = 20.0
         mock_churn = 0.05
 
-        # Calculate expected derived values based on logic in src/core/metrics.py
-        expected_ltv = mock_arpu / mock_churn  # 400.0
-        expected_roi = expected_ltv / mock_cac  # 0.8
+        # We need to mock get_settings to avoid test conflicts since we no longer cache the global
+        with patch("src.agents.governance.get_settings", return_value=settings):
+            agent = GovernanceAgent()
 
-        # Mock dependencies
-        with patch("src.agents.governance.TavilySearch") as mock_search_cls:
-            mock_search = mock_search_cls.return_value
-            mock_search.safe_search.return_value = "Search result"
+            # Calculate expected derived values based on logic in src/core/metrics.py
+            expected_ltv = mock_arpu / mock_churn  # 400.0
+            expected_roi = expected_ltv / mock_cac  # 0.8
 
-            with (
-                patch("src.agents.governance.get_llm") as mock_llm_factory,
-                patch("src.agents.governance.GovernanceAgent._save_to_file"),
-            ):
-                mock_llm = mock_llm_factory.return_value
+            # Mock dependencies
+            with patch("src.agents.governance.TavilySearch") as mock_search_cls:
+                mock_search = mock_search_cls.return_value
+                mock_search.safe_search.return_value = "Search result"
+
+                with (
+                    patch("src.agents.governance.get_llm") as mock_llm_factory,
+                    patch("src.agents.governance.GovernanceAgent._save_to_file"),
+                ):
+                    mock_llm = mock_llm_factory.return_value
 
                 # Mock 2 LLM calls with streaming
                 chunk_fin = MagicMock()
@@ -98,26 +109,35 @@ class TestCycle06UAT:
         Scenario 2: Ringi-sho Generation
         Verify generation of the final approval document.
         """
-        agent = GovernanceAgent()
+        from src.core.config import get_settings
+        settings = get_settings()
+
+        settings.governance.min_roi_threshold = 3.0
+        settings.governance.default_cac = 500.0
+        settings.governance.default_arpu = 50.0
+        settings.governance.default_churn = 0.05
 
         # Define mock inputs for SUCCESS case
         mock_cac = 600.0
         mock_arpu = 100.0
         mock_churn = 0.02
 
-        # Expected
-        expected_ltv = mock_arpu / mock_churn  # 5000.0
-        expected_roi = expected_ltv / mock_cac  # 8.33...
+        with patch("src.agents.governance.get_settings", return_value=settings):
+            agent = GovernanceAgent()
 
-        with patch("src.agents.governance.TavilySearch") as mock_search_cls:
-            mock_search = mock_search_cls.return_value
-            mock_search.safe_search.return_value = "Search result"
+            # Expected
+            expected_ltv = mock_arpu / mock_churn  # 5000.0
+            expected_roi = expected_ltv / mock_cac  # 8.33...
 
-            with (
-                patch("src.agents.governance.get_llm") as mock_llm_factory,
-                patch("src.agents.governance.GovernanceAgent._save_to_file"),
-            ):
-                mock_llm = mock_llm_factory.return_value
+            with patch("src.agents.governance.TavilySearch") as mock_search_cls:
+                mock_search = mock_search_cls.return_value
+                mock_search.safe_search.return_value = "Search result"
+
+                with (
+                    patch("src.agents.governance.get_llm") as mock_llm_factory,
+                    patch("src.agents.governance.GovernanceAgent._save_to_file"),
+                ):
+                    mock_llm = mock_llm_factory.return_value
 
                 chunk_fin = MagicMock()
                 chunk_fin.content = (

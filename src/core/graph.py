@@ -90,15 +90,15 @@ def _configure_interrupts(builder: WorkflowBuilder) -> None:
     builder.set_interrupts(interrupts)
 
 
-def create_app() -> CompiledStateGraph[Any, Any]:
+def create_app(builder: WorkflowBuilder | None = None) -> CompiledStateGraph[Any, Any]:
     """
     Create and compile the LangGraph application.
     This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
-    builder = WorkflowBuilder()
-
-    _register_nodes(builder)
-    _register_edges(builder)
-    _configure_interrupts(builder)
+    if builder is None:
+        builder = WorkflowBuilder()
+        _register_nodes(builder)
+        _register_edges(builder)
+        _configure_interrupts(builder)
 
     return builder.build()
