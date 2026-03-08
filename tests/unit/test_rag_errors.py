@@ -17,9 +17,9 @@ def test_rag_circuit_breaker() -> None:
 
     # Mock the internal implementation to raise pybreaker.CircuitBreakerError
     # We must patch the breaker instance itself or the call method
-    rag.breaker = MagicMock()
+    rag.adapter.breaker = MagicMock()
     # Simulate pybreaker behavior: .call raises CircuitBreakerError if open
-    rag.breaker.call.side_effect = pybreaker.CircuitBreakerError("Circuit is open")
+    rag.adapter.breaker.call.side_effect = pybreaker.CircuitBreakerError("Circuit is open")
 
     with pytest.raises(NetworkError, match=ERR_CIRCUIT_OPEN):
         rag.query("Test query")
@@ -31,18 +31,18 @@ def test_rag_memory_limit() -> None:
     rag = RAG(persist_dir="./tests/temp_rag_mem")
 
     # Mock settings to have a small limit
-    rag.settings.rag_max_index_size_mb = 1  # 1 MB
+    rag.adapter.settings.rag_max_index_size_mb = 1  # 1 MB
     limit_bytes = 1 * 1024 * 1024
 
     # Simulate current index size exceeding limit
-    rag._current_index_size = limit_bytes + 100
+    rag.adapter._current_index_size = limit_bytes + 100
 
     # Verify check raises MemoryError
     expected_msg = ERR_RAG_INDEX_SIZE.format(limit=1)
 
     # We must escape regex characters because the error message contains parens
     with pytest.raises(MemoryError, match=re.escape(expected_msg)):
-        rag._check_index_size_limit()
+        rag.adapter._check_index_size_limit()
 
     # Also verify ingest_text triggers it
     # ingest_text wraps exceptions in RuntimeError now
@@ -57,13 +57,13 @@ def test_rag_input_validation() -> None:
     rag = RAG(persist_dir="./tests/temp_rag_val")
 
     # Text too large
-    large_text = "a" * (rag.settings.rag_max_document_length + 1)
+    large_text = "a" * (rag.adapter.settings.rag_max_document_length + 1)
     # ingest_text catches ValidationError and raises RuntimeError
     with pytest.raises(RuntimeError, match="Ingestion failed"):
         rag.ingest_text(large_text, "source")
 
     # Query too large
-    large_query = "a" * (rag.settings.rag_max_query_length + 1)
+    large_query = "a" * (rag.adapter.settings.rag_max_query_length + 1)
     with pytest.raises(ValidationError, match="Query too large"):
         rag.query(large_query)
 

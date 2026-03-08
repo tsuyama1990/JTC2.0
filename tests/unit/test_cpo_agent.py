@@ -5,8 +5,8 @@ from src.domain_models.simulation import Role
 
 
 @patch("src.agents.cpo.RAG")
-@patch("src.agents.cpo.ChatOpenAI")
-def test_cpo_agent_init(mock_llm: MagicMock, mock_rag: MagicMock) -> None:
+def test_cpo_agent_init(mock_rag: MagicMock) -> None:
+    mock_llm = MagicMock()
     agent = CPOAgent(llm=mock_llm)
     assert agent.role == Role.CPO
     assert "Chief Product Officer" in agent.system_prompt
@@ -14,8 +14,8 @@ def test_cpo_agent_init(mock_llm: MagicMock, mock_rag: MagicMock) -> None:
 
 
 @patch("src.agents.cpo.RAG")
-@patch("src.agents.cpo.ChatOpenAI")
-def test_cpo_research(mock_llm: MagicMock, mock_rag: MagicMock) -> None:
+def test_cpo_research(mock_rag: MagicMock) -> None:
+    mock_llm = MagicMock()
     agent = CPOAgent(llm=mock_llm)
     # Mock RAG inside agent
     agent.rag = MagicMock()

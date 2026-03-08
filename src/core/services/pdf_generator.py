@@ -15,30 +15,11 @@ class PDFGenerator:
 
     @staticmethod
     def _write_content_to_pdf(pdf: FPDF, data: dict[str, Any]) -> None:
-        def add_list_to_pdf(lst: list[Any], indent: int) -> None:
-            for item in lst:
-                if isinstance(item, dict):
-                    add_dict_to_pdf(item, indent)
-                else:
-                    text = f"{'  ' * (indent - 1)}  - {item!s}"
-                    pdf.multi_cell(w=190, h=10, text=text)
+        from src.core.renderers.data_renderer import DataRenderer
 
-        def add_dict_to_pdf(d: dict[str, Any], indent: int = 0) -> None:
-            for key, value in d.items():
-                indent_str = "  " * indent
-                title_key = key.replace("_", " ").title()
-
-                if isinstance(value, dict):
-                    pdf.multi_cell(w=190, h=10, text=f"{indent_str}{title_key}:")
-                    add_dict_to_pdf(value, indent + 1)
-                elif isinstance(value, list):
-                    pdf.multi_cell(w=190, h=10, text=f"{indent_str}{title_key}:")
-                    add_list_to_pdf(value, indent + 1)
-                else:
-                    text = f"{indent_str}{title_key}: {value!s}"
-                    pdf.multi_cell(w=190, h=10, text=text)
-
-        add_dict_to_pdf(data)
+        lines = DataRenderer.render_dict(data)
+        for line in lines:
+            pdf.multi_cell(w=190, h=10, text=line)
 
     @staticmethod
     def generate_canvas_pdf(model: BaseModel, filename: str) -> str | None:

@@ -11,7 +11,7 @@ except ImportError:
 
 @pytest.fixture
 def mock_settings() -> Generator[MagicMock, None, None]:
-    with patch("src.data.rag.get_settings") as mock:
+    with patch("src.adapters.rag_adapter.get_settings") as mock:
         mock.return_value.openai_api_key.get_secret_value.return_value = "sk-test"
         mock.return_value.llm_model = "gpt-4o"
         # Mock rag_persist_dir - must be a valid subdir relative to CWD, e.g. tests/
@@ -36,13 +36,13 @@ def mock_settings() -> Generator[MagicMock, None, None]:
 @pytest.fixture
 def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
     with (
-        patch("src.data.rag.VectorStoreIndex") as mock_index,
-        patch("src.data.rag.Document") as mock_doc,
-        patch("src.data.rag.StorageContext") as mock_storage,
-        patch("src.data.rag.load_index_from_storage") as mock_load,
-        patch("src.data.rag.OpenAI"),
-        patch("src.data.rag.OpenAIEmbedding"),
-        patch("src.data.rag.LlamaSettings"),
+        patch("src.adapters.rag_adapter.VectorStoreIndex") as mock_index,
+        patch("src.adapters.rag_adapter.Document") as mock_doc,
+        patch("src.adapters.rag_adapter.StorageContext") as mock_storage,
+        patch("src.adapters.rag_adapter.load_index_from_storage") as mock_load,
+        patch("src.adapters.rag_adapter.OpenAI"),
+        patch("src.adapters.rag_adapter.OpenAIEmbedding"),
+        patch("src.adapters.rag_adapter.LlamaSettings"),
     ):  # Mock Settings to avoid type checks
         yield {"index": mock_index, "doc": mock_doc, "storage": mock_storage, "load": mock_load}
 
@@ -61,12 +61,12 @@ def test_rag_initialization(
     # RAG code uses Path(path_str).resolve() (default strict=False).
 
     rag = RAG()
-    assert rag.index is None
+    assert rag.adapter.index is None
     # Path is resolved to absolute
     from pathlib import Path
 
     expected = str(Path("tests/mock_vector_store").resolve())
-    assert rag.persist_dir == expected
+    assert rag.adapter.persist_dir == expected
 
 
 def test_rag_ingest_text(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
@@ -89,13 +89,13 @@ def test_rag_persist_index(
     """Test explicit persist."""
     rag = RAG()
     # Mock index existence
-    rag.index = MagicMock()
+    rag.adapter.index = MagicMock()
 
     rag.persist_index()
     from pathlib import Path
 
     expected = str(Path("tests/mock_vector_store").resolve())
-    rag.index.storage_context.persist.assert_called_with(persist_dir=expected)
+    rag.adapter.index.storage_context.persist.assert_called_with(persist_dir=expected)
 
 
 def test_rag_query(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
@@ -109,12 +109,12 @@ def test_rag_query(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMo
     mock_query_engine.query.return_value = mock_response
 
     # Manually set the index mock
-    rag.index = MagicMock()
-    rag.index.as_query_engine.return_value = mock_query_engine
+    rag.adapter.index = MagicMock()
+    rag.adapter.index.as_query_engine.return_value = mock_query_engine
 
     response = rag.query("What does the customer hate?")
     assert response == "The customer hates it."
-    rag.index.as_query_engine.assert_called_once()
+    rag.adapter.index.as_query_engine.assert_called_once()
 
 
 def test_rag_query_validation(

@@ -1,10 +1,9 @@
-import functools
 import logging
-from collections.abc import Callable
 from typing import Any
 
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
+from src.core.node_executor import safe_node
 from src.core.services.pdf_generator import PDFGenerator
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
@@ -13,25 +12,6 @@ from src.domain_models.state import GlobalState, Phase
 from src.domain_models.validators import StateValidator
 
 logger = logging.getLogger(__name__)
-
-
-def safe_node(
-    error_msg: str = "Error in graph node",
-) -> Callable[[Callable[..., Any]], Callable[..., dict[str, Any]]]:
-    """Decorator to wrap graph nodes with consistent error handling."""
-
-    def decorator(func: Callable[..., Any]) -> Callable[..., dict[str, Any]]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
-            try:
-                return func(*args, **kwargs)  # type: ignore[no-any-return]
-            except Exception:
-                logger.exception(error_msg)
-                return {}
-
-        return wrapper
-
-    return decorator
 
 
 @safe_node("Error in Ideator Agent")

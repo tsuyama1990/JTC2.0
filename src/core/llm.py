@@ -1,13 +1,12 @@
 from functools import lru_cache
 
-from langchain_openai import ChatOpenAI
-
 from src.core.config import get_settings
 from src.core.constants import ERR_LLM_CONFIG_MISSING
+from src.core.interfaces import LLMInterface
 
 
 @lru_cache
-def get_llm(model: str | None = None) -> ChatOpenAI:
+def get_llm(model: str | None = None) -> LLMInterface:
     """
     Factory to get the LLM client.
     Cached to prevent resource waste (Architecture constraint).
@@ -16,7 +15,7 @@ def get_llm(model: str | None = None) -> ChatOpenAI:
         model: Optional model name override. Defaults to config settings.
 
     Returns:
-        ChatOpenAI instance.
+        LLMInterface instance.
 
     Raises:
         ValueError: If OpenAI API key is missing.
@@ -25,4 +24,6 @@ def get_llm(model: str | None = None) -> ChatOpenAI:
     if not settings.openai_api_key:
         raise ValueError(ERR_LLM_CONFIG_MISSING)
 
-    return ChatOpenAI(model=model or settings.llm_model, api_key=settings.openai_api_key)
+    from src.adapters.llm_adapter import LangChainLLMAdapter
+
+    return LangChainLLMAdapter(model=model or settings.llm_model)

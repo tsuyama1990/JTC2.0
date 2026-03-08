@@ -56,25 +56,14 @@ class TestCycle05UAT:
             mermaid_flowchart="graph TD;",
         )
 
-        with patch("src.agents.builder.ChatPromptTemplate.from_messages") as mock_prompt:
-            mock_prompt_tmpl = MagicMock()
-            mock_prompt.return_value = mock_prompt_tmpl
+        mock_llm.generate_structured.return_value = mock_spec
 
-            mock_model_runnable = MagicMock()
-            mock_llm.with_structured_output.return_value = mock_model_runnable
+        # Execute
+        result = agent.generate_agent_prompt_spec(initial_state)
 
-            mock_chain = MagicMock()
-            mock_prompt_tmpl.__or__.return_value = mock_chain
+        assert "agent_prompt_spec" in result
+        assert result["agent_prompt_spec"].sitemap == "Mapped Routes"
+        assert result["agent_prompt_spec"].validation_rules == "Zod schemas"
 
-            # Mock the invoke result
-            mock_chain.invoke.return_value = mock_spec
-
-            # Execute
-            result = agent.generate_agent_prompt_spec(initial_state)
-
-            assert "agent_prompt_spec" in result
-            assert result["agent_prompt_spec"].sitemap == "Mapped Routes"
-            assert result["agent_prompt_spec"].validation_rules == "Zod schemas"
-
-            # Verify network call was made
-            mock_chain.invoke.assert_called_once()
+        # Verify network call was made
+        mock_llm.generate_structured.assert_called_once()

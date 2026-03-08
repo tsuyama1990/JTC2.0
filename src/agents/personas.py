@@ -2,12 +2,10 @@ import logging
 import time
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
 from src.agents.base import BaseAgent, SearchTool
 from src.agents.mixins import RateLimitMixin
 from src.core.config import Settings, get_settings
+from src.core.interfaces import LLMInterface
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
@@ -20,7 +18,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMInterface,
         role: Role,
         system_prompt: str,
         search_tool: SearchTool | None = None,
@@ -31,10 +29,6 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         self.role = role
         self.system_prompt = system_prompt
         self.settings = app_settings or get_settings()
-
-        # Ensure API keys are present if we are initializing default tools
-        if search_tool is None:
-            self.settings.validate_api_keys()
 
         self.search_tool = search_tool or TavilySearch(
             api_key=self.settings.tavily_api_key.get_secret_value()
@@ -61,18 +55,8 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
 
     def _generate_response(self, context: str, research_data: str = "") -> str:
         """Generate response using LLM."""
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", self.system_prompt),
-                (
-                    "user",
-                    f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:",
-                ),
-            ]
-        )
-        chain = prompt | self.llm
-        response = chain.invoke({})
-        return str(response.content)
+        prompt = f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:"
+        return self.llm.generate(prompt, system_message=self.system_prompt)
 
     def _cached_research(self, topic: str) -> str:
         """Cache research results to avoid redundant API calls."""
@@ -128,7 +112,7 @@ class FinanceAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMInterface,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -151,7 +135,7 @@ class SalesAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMInterface,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -168,7 +152,7 @@ class NewEmployeeAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMInterface,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:

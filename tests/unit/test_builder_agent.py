@@ -55,26 +55,15 @@ class TestBuilderAgent:
             mermaid_flowchart="graph TD;",
         )
 
-        with patch("src.agents.builder.ChatPromptTemplate.from_messages") as mock_prompt:
-            mock_prompt_tmpl = MagicMock()
-            mock_prompt.return_value = mock_prompt_tmpl
+        mock_llm = cast(MagicMock, agent.llm)
+        mock_llm.generate_structured.return_value = mock_spec
 
-            mock_model_runnable = MagicMock()
-            mock_llm = cast(MagicMock, agent.llm)
-            mock_llm.with_structured_output.return_value = mock_model_runnable
+        result = agent.generate_agent_prompt_spec(state_with_sitemap)
 
-            mock_chain = MagicMock()
-            mock_prompt_tmpl.__or__.return_value = mock_chain
-
-            # Mock the invoke result
-            mock_chain.invoke.return_value = mock_spec
-
-            result = agent.generate_agent_prompt_spec(state_with_sitemap)
-
-            assert "agent_prompt_spec" in result
-            assert result["agent_prompt_spec"].sitemap == "Mapped Routes"
-            assert result["agent_prompt_spec"].validation_rules == "Zod schemas"
-            mock_chain.invoke.assert_called_once()
+        assert "agent_prompt_spec" in result
+        assert result["agent_prompt_spec"].sitemap == "Mapped Routes"
+        assert result["agent_prompt_spec"].validation_rules == "Zod schemas"
+        mock_llm.generate_structured.assert_called_once()
 
     def test_generate_agent_prompt_spec_missing_state(self, agent: BuilderAgent) -> None:
         """

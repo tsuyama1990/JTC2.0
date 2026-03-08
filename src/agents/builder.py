@@ -1,11 +1,9 @@
 import logging
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
+from src.core.interfaces import LLMInterface
 from src.domain_models.agent_prompt import AgentPromptSpec
 from src.domain_models.state import GlobalState
 
@@ -19,7 +17,7 @@ class BuilderAgent(BaseAgent):
     that is applicable to any AI coding tool.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: LLMInterface) -> None:
         self.llm = llm
         self.settings = get_settings()
 
@@ -29,21 +27,12 @@ class BuilderAgent(BaseAgent):
             logger.warning("Missing sitemap for Agent Prompt Spec.")
             return {}
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are a Senior Technical Lead. Generate a perfect AgentPromptSpec markdown specification for AI coding tools.",
-                ),
-                (
-                    "user",
-                    f"Core Story: {state.sitemap_and_story.core_story.model_dump()}\n\nGenerate Agent Prompt Spec:",
-                ),
-            ]
-        )
-        chain = prompt | self.llm.with_structured_output(AgentPromptSpec)
+        system_message = "You are a Senior Technical Lead. Generate a perfect AgentPromptSpec markdown specification for AI coding tools."
+        prompt = f"Core Story: {state.sitemap_and_story.core_story.model_dump()}\n\nGenerate Agent Prompt Spec:"
         try:
-            result = chain.invoke({})
+            result = self.llm.generate_structured(
+                prompt, AgentPromptSpec, system_message=system_message
+            )
             if isinstance(result, AgentPromptSpec):
                 return {"agent_prompt_spec": result}
         except Exception:

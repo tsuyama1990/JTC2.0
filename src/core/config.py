@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import Self
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -460,42 +459,9 @@ class Settings(BaseSettings):
     def model_post_init(self, __context: object) -> None:
         """Validate API keys on initialization."""
         super().model_post_init(__context)
-        self.validate_api_keys()
+        from src.core.validators import ApiKeyValidator
 
-    def validate_api_keys(self) -> Self:
-        """Validate API keys are present and have correct format."""
-        import os
-        import re
-
-        # Enforce that keys come from environment
-        if not os.getenv("OPENAI_API_KEY") and not self.openai_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-
-        key_pattern = re.compile(r"^[A-Za-z0-9_\-\.]+$")
-
-        if not self.openai_api_key or not self.openai_api_key.get_secret_value():
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-        if not key_pattern.match(self.openai_api_key.get_secret_value()):
-            msg = "OpenAI API Key format is invalid. Keys must be strictly formatted."
-            raise ValueError(msg)
-
-        if not self.tavily_api_key or not self.tavily_api_key.get_secret_value():
-            msg = "Tavily API Key is missing or empty."
-            raise ValueError(msg)
-        if not key_pattern.match(self.tavily_api_key.get_secret_value()):
-            msg = "Tavily API Key format is invalid."
-            raise ValueError(msg)
-
-        # Validate v0 api key too if it is present
-        if (
-            getattr(self, "v0_api_key", None)
-            and self.v0_api_key.get_secret_value()
-            and not key_pattern.match(self.v0_api_key.get_secret_value())
-        ):
-            msg = "v0 API Key format is invalid."
-            raise ValueError(msg)
-
-        return self
+        ApiKeyValidator.validate_keys(self)
 
     def rotate_keys(self) -> None:
         """Placeholder for key rotation."""

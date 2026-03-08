@@ -56,24 +56,12 @@ class FileService:
         Synchronous implementation of save text.
         Includes simple retry logic for robustness.
         """
-        attempts = 3
-        for attempt in range(attempts):
-            try:
-                # Ensure parent exists
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(content, encoding="utf-8")
-                logger.info(f"File saved successfully to {path}")
-                break
-            except PermissionError:
-                logger.exception(f"Permission denied writing to {path}")
-                break  # No point retrying permission error
-            except OSError:
-                if attempt < attempts - 1:
-                    logger.warning(
-                        f"OS error writing to {path}, retrying... ({attempt + 1}/{attempts})"
-                    )
-                    continue
-                logger.exception(f"OS error writing to {path} after {attempts} attempts")
-            except Exception:
-                logger.exception(f"Unexpected error writing to {path}")
-                break
+        from src.core.retry_handler import RetryHandler
+
+        def _write() -> None:
+            # Ensure parent exists
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            logger.info(f"File saved successfully to {path}")
+
+        RetryHandler.execute_with_retry(_write, max_attempts=3, error_msg=f"writing to {path}")
