@@ -19,8 +19,6 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-
-
 def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
     """
     Create the simulation sub-graph based on configured turn sequence.

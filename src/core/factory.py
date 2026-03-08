@@ -1,4 +1,3 @@
-
 from src.agents.builder import BuilderAgent
 from src.agents.cpo import CPOAgent
 from src.agents.governance import GovernanceAgent
@@ -96,7 +95,9 @@ class AgentFactory:
         return SalesAgent(get_llm(), app_settings=get_settings())
 
     @staticmethod
-    def get_persona_agent(role: Role, state: GlobalState | None = None) -> CPOAgent | NewEmployeeAgent | FinanceAgent | SalesAgent:
+    def get_persona_agent(
+        role: Role, state: GlobalState | None = None
+    ) -> CPOAgent | NewEmployeeAgent | FinanceAgent | SalesAgent:
         """
         Get a persona agent instance. Maps role to specific factory method.
 

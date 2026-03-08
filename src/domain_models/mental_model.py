@@ -29,7 +29,9 @@ class MentalTower(BaseModel):
             raise ValueError(msg)
 
         if len(self.cognitive_tasks) < settings.validation.min_list_length:
-            msg = f"cognitive_tasks must contain at least {settings.validation.min_list_length} items"
+            msg = (
+                f"cognitive_tasks must contain at least {settings.validation.min_list_length} items"
+            )
             raise ValueError(msg)
 
         return self
