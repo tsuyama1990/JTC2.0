@@ -348,6 +348,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
+    uv_project_environment: str | None = Field(
+        default=None, description="Force virtual environment path for uv"
+    )
     openai_api_key: SecretStr | None = Field(
         alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
     )
