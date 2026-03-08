@@ -75,7 +75,7 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     # We allow the path for this test.
     with (
         patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
-        patch.object(get_settings(), "rag_max_index_size_mb", 1),
+        patch.object(get_settings().rag, "max_index_size_mb", 1),
         # Updated error message constant in Cycle 06
         pytest.raises(MemoryError, match="Index size limit exceeded"),
     ):
@@ -93,7 +93,7 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
     # Patch _validate_path
     with (
         patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
-        patch.object(get_settings(), "rag_chunk_size", 10),
+        patch.object(get_settings().rag, "chunk_size", 10),
     ):
         rag = RAG(persist_dir=temp_rag_dir)
         # Mock index to verify insertion calls

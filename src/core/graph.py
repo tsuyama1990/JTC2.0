@@ -25,15 +25,8 @@ from src.core.workflow_builder import WorkflowBuilder
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> CompiledStateGraph[Any, Any]:
-    """
-    Create and compile the LangGraph application.
-
-    This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
-    """
-    builder = WorkflowBuilder()
-
-    # --- NODE DEFINITIONS ---
+def _register_nodes(builder: WorkflowBuilder) -> None:
+    """Register all nodes into the workflow builder."""
     builder.add_node("ideator", safe_ideator_run)
     builder.add_node("verification", verification_node)
 
@@ -57,7 +50,9 @@ def create_app() -> CompiledStateGraph[Any, Any]:
     builder.add_node("experiment_planning", experiment_planning_node)
     builder.add_node("governance", governance_node)
 
-    # --- EDGE DEFINITIONS ---
+
+def _register_edges(builder: WorkflowBuilder) -> None:
+    """Register all edges mapping the workflow."""
     builder.set_entry_point("ideator")
 
     # Gate 1: Idea Verification
@@ -88,8 +83,22 @@ def create_app() -> CompiledStateGraph[Any, Any]:
     builder.add_edge("experiment_planning", "governance")
     builder.add_edge("governance", END)
 
-    interrupts = ["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]
 
+def _configure_interrupts(builder: WorkflowBuilder) -> None:
+    """Configure human-in-the-loop interruption points."""
+    interrupts = ["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]
     builder.set_interrupts(interrupts)
+
+
+def create_app() -> CompiledStateGraph[Any, Any]:
+    """
+    Create and compile the LangGraph application.
+    This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
+    """
+    builder = WorkflowBuilder()
+
+    _register_nodes(builder)
+    _register_edges(builder)
+    _configure_interrupts(builder)
 
     return builder.build()

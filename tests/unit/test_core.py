@@ -17,7 +17,7 @@ def test_config_values() -> None:
         TAVILY_API_KEY=SecretStr("tvly-12345678901234567890"),
     )
     assert s.llm_model == "gpt-4o"
-    assert s.search_max_results == 5
+    assert s.search.max_results == 5
     assert s.openai_api_key == SecretStr("sk-12345678901234567890")
 
 

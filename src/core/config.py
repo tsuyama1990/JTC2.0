@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
@@ -343,69 +343,84 @@ class GovernanceConfig(BaseSettings):
     )
 
 
+class RAGConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
+    chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
+    max_document_length: int = Field(
+        default=DEFAULT_RAG_MAX_DOC_LENGTH,
+        description="Max document length",
+    )
+    max_query_length: int = Field(
+        default=DEFAULT_RAG_MAX_QUERY_LENGTH,
+        description="Max query length",
+    )
+    max_index_size_mb: int = Field(
+        default=DEFAULT_RAG_MAX_INDEX_SIZE_MB,
+        description="Max index size in MB",
+    )
+    allowed_paths: list[str] = Field(
+        default_factory=lambda: ["data", "vector_store", "tests"],
+        description="Allowed directories for RAG",
+    )
+    rate_limit_interval: float = Field(
+        default=0.1,
+        description="Min interval between RAG calls in seconds",
+    )
+    scan_depth_limit: int = Field(
+        default=10,
+        description="Max recursion depth for directory scanning",
+    )
+    batch_size: int = Field(
+        default=DEFAULT_RAG_BATCH_SIZE,
+        description="Batch size for RAG ingestion",
+    )
+    max_files: int = Field(
+        default=DEFAULT_MAX_FILES,
+        description="Maximum files to scan",
+    )
+    query_timeout: float = Field(
+        default=30.0, description="Timeout for RAG queries in seconds"
+    )
+
+
+class SearchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    max_results: int = Field(default=5, description="Max search results")
+    depth: str = Field(default="advanced", description="Search depth (basic/advanced)")
+    query_template: str = Field(
+        default="emerging business trends and painful problems in {topic}",
+        description="Template for search queries",
+    )
+
+
+class ResiliencyConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    circuit_breaker_fail_max: int = Field(
+        default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold"
+    )
+    circuit_breaker_reset_timeout: int = Field(
+        default=DEFAULT_CB_RESET_TIMEOUT, description="Circuit breaker reset timeout"
+    )
+    iterator_safety_limit: int = Field(
+        default=DEFAULT_ITERATOR_SAFETY_LIMIT, description="Max items for iterators"
+    )
+
+
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
     tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
 
-    rag_persist_dir: str = Field(
-        alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index"
-    )
-
     canvas_output_dir: str = Field(
         alias="CANVAS_OUTPUT_DIR",
         default="outputs/canvas",
         description="Directory for PDF Canvas outputs",
-    )
-    rag_chunk_size: int = Field(
-        alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG"
-    )
-    rag_max_document_length: int = Field(
-        alias="RAG_MAX_DOC_LENGTH",
-        default=DEFAULT_RAG_MAX_DOC_LENGTH,
-        description="Max document length",
-    )
-    rag_max_query_length: int = Field(
-        alias="RAG_MAX_QUERY_LENGTH",
-        default=DEFAULT_RAG_MAX_QUERY_LENGTH,
-        description="Max query length",
-    )
-    rag_max_index_size_mb: int = Field(
-        alias="RAG_MAX_INDEX_SIZE_MB",
-        default=DEFAULT_RAG_MAX_INDEX_SIZE_MB,
-        description="Max index size in MB",
-    )
-    rag_allowed_paths: list[str] = Field(
-        default_factory=lambda: ["data", "vector_store", "tests"],
-        description="Allowed directories for RAG",
-    )
-    rag_rate_limit_interval: float = Field(
-        alias="RAG_RATE_LIMIT_INTERVAL",
-        default=0.1,
-        description="Min interval between RAG calls in seconds",
-    )
-    rag_scan_depth_limit: int = Field(
-        alias="RAG_SCAN_DEPTH_LIMIT",
-        default=10,
-        description="Max recursion depth for directory scanning",
-    )
-    rag_batch_size: int = Field(
-        alias="RAG_BATCH_SIZE",
-        default=DEFAULT_RAG_BATCH_SIZE,
-        description="Batch size for RAG ingestion",
-    )
-    rag_max_files: int = Field(
-        alias="RAG_MAX_FILES",
-        default=DEFAULT_MAX_FILES,
-        description="Maximum files to scan",
-    )
-    rag_query_timeout: float = Field(
-        alias="RAG_QUERY_TIMEOUT", default=30.0, description="Timeout for RAG queries in seconds"
     )
 
     feature_chunk_size: int = Field(
@@ -414,41 +429,16 @@ class Settings(BaseSettings):
         description="Chunk size for feature extraction",
     )
 
-    circuit_breaker_fail_max: int = Field(
-        alias="CB_FAIL_MAX",
-        default=DEFAULT_CB_FAIL_MAX,
-        description="Circuit breaker fail threshold",
-    )
-    circuit_breaker_reset_timeout: int = Field(
-        alias="CB_RESET_TIMEOUT",
-        default=DEFAULT_CB_RESET_TIMEOUT,
-        description="Circuit breaker reset timeout",
-    )
-
-    iterator_safety_limit: int = Field(
-        alias="ITERATOR_SAFETY_LIMIT",
-        default=DEFAULT_ITERATOR_SAFETY_LIMIT,
-        description="Max items for iterators",
-    )
-
-    search_max_results: int = Field(
-        alias="SEARCH_MAX_RESULTS", default=5, description="Max search results"
-    )
-    search_depth: str = Field(
-        alias="SEARCH_DEPTH", default="advanced", description="Search depth (basic/advanced)"
-    )
-    search_query_template: str = Field(
-        alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}",
-        description="Template for search queries",
-    )
-
     log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
     ui_page_size: int = Field(
         alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI"
     )
 
-    # Nested configurations - Use Field to allow Pydantic to manage them
+    # Nested configurations
+    rag: RAGConfig = Field(default_factory=RAGConfig)
+    search: SearchConfig = Field(default_factory=SearchConfig)
+    resiliency: ResiliencyConfig = Field(default_factory=ResiliencyConfig)
+
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
     errors: ErrorMessages = Field(default_factory=ErrorMessages)
     ui: UIConfig = Field(default_factory=UIConfig)
@@ -465,10 +455,16 @@ class Settings(BaseSettings):
         ApiKeyValidator.validate(self)
 
     def rotate_keys(self) -> None:
-        """Placeholder for key rotation."""
+        """Clear the cached settings instance and re-initialize keys, allowing hot-reloading in long-running processes."""
+        get_settings.cache_clear()
 
+    @classmethod
+    def reload(cls) -> "Settings":
+        """Force a reload of the configuration."""
+        get_settings.cache_clear()
+        return get_settings()
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Load and cache settings."""
     return Settings()

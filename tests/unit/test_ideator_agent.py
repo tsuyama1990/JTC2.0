@@ -21,7 +21,7 @@ def test_ideator_agent_run_success(
 ) -> None:
     # Setup settings
     mock_settings = mock_get_settings.return_value
-    mock_settings.search_query_template = "Trends in {topic}"
+    mock_settings.search.query_template = "Trends in {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "tv-key"
 
     # Setup Search - Mock the public interface of SearchTool
@@ -47,7 +47,7 @@ def test_ideator_agent_flow(
 
     # 1. Setup Dependencies
     mock_settings = mock_get_settings.return_value
-    mock_settings.search_query_template = "Q: {topic}"
+    mock_settings.search.query_template = "Q: {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "key"
 
     mock_search_tool = mock_tavily.return_value
@@ -95,7 +95,7 @@ def test_ideator_agent_research_logic(
 ) -> None:
     # Test `_research` specifically
     mock_settings = mock_get_settings.return_value
-    mock_settings.search_query_template = "Search {topic}"
+    mock_settings.search.query_template = "Search {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "key"
 
     mock_search = mock_tavily.return_value

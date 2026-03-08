@@ -39,8 +39,39 @@ class WorkflowBuilder:
         self.interrupts = interrupts
         return self
 
+    def _validate_no_cycles(self) -> None:
+        """Validates the graph to ensure no cyclic dependencies exist using DFS."""
+        adj_list: dict[str, list[str]] = {node: [] for node in self.nodes}
+        for start, end in self.edges:
+            if end != "__end__": # Ignore edges to END
+                adj_list[start].append(end)
+
+        visited = set()
+        rec_stack = set()
+
+        def dfs(node: str) -> bool:
+            visited.add(node)
+            rec_stack.add(node)
+
+            for neighbor in adj_list.get(node, []):
+                if neighbor not in visited:
+                    if dfs(neighbor):
+                        return True
+                elif neighbor in rec_stack:
+                    return True
+            rec_stack.remove(node)
+            return False
+
+        for node in self.nodes:
+            if node not in visited and dfs(node):
+                msg = f"Cyclic dependency detected involving node: {node}"
+                raise ValueError(msg)
+
     def build(self) -> CompiledStateGraph[Any, Any]:
-        """Constructs and compiles the graph."""
+        """Constructs and compiles the graph with validations."""
+        # Cycle detection
+        self._validate_no_cycles()
+
         for name, action in self.nodes.items():
             self.workflow.add_node(name, action)
 
@@ -48,6 +79,13 @@ class WorkflowBuilder:
             self.workflow.set_entry_point(self.entry_point)
 
         for start, end in self.edges:
+            if start not in self.nodes:
+                 msg = f"Edge references invalid start node: {start}"
+                 raise ValueError(msg)
+            if end != "__end__" and end not in self.nodes:
+                 msg = f"Edge references invalid end node: {end}"
+                 raise ValueError(msg)
+
             self.workflow.add_edge(start, end)
 
         # Validate interrupt sequence
