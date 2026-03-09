@@ -157,27 +157,25 @@ def make_spec_generation_node(agent: Any) -> Any:
                 output_dir = Path.cwd() / output_dir
             output_dir.mkdir(parents=True, exist_ok=True)
 
-            import os
-            import pathlib
-            import tempfile
+            from src.core.services.file_service import FileService
+            from src.core.utils import strip_html_tags
 
             target_path = output_dir / "AgentPromptSpec.md"
-            fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
-            temp_path = pathlib.Path(temp_path_str)
-            try:
-                with os.fdopen(fd, "w") as f:
-                    spec = updates["agent_prompt_spec"]
-                    f.write(
-                        f"# Agent Prompt Specification\n\n"
-                        f"## Core Story\n```json\n{spec.core_user_story.model_dump_json(indent=2)}\n```\n\n"
-                        f"## State Machine\n```json\n{spec.state_machine.model_dump_json(indent=2)}\n```\n\n"
-                        f"## State Machine (Mermaid)\n```mermaid\n{spec.mermaid_flowchart}\n```\n"
-                    )
-                temp_path.replace(target_path)
-            except Exception:
-                logger.exception("Failed to write AgentPromptSpec.md")
-                if temp_path.exists():
-                    temp_path.unlink()
+            spec = updates["agent_prompt_spec"]
+
+            # Safe string formatting with sanitization for mermaid block
+            safe_mermaid = strip_html_tags(spec.mermaid_flowchart)
+
+            content = (
+                f"# Agent Prompt Specification\n\n"
+                f"## Core Story\n```json\n{spec.core_user_story.model_dump_json(indent=2)}\n```\n\n"
+                f"## State Machine\n```json\n{spec.state_machine.model_dump_json(indent=2)}\n```\n\n"
+                f"## State Machine (Mermaid)\n```mermaid\n{safe_mermaid}\n```\n"
+            )
+
+            file_service = FileService()
+            file_service.save_text_async(content, target_path)
+
             ApprovalStampRenderer("Agent Prompt Spec").start()
         return updates if isinstance(updates, dict) else {}
 
@@ -205,23 +203,15 @@ def make_experiment_planning_node(agent: Any) -> Any:
             if not output_dir.is_absolute():
                 output_dir = Path.cwd() / output_dir
             output_dir.mkdir(parents=True, exist_ok=True)
-            import os
-            import pathlib
-            import tempfile
+            from src.core.services.file_service import FileService
 
             target_path = output_dir / "ExperimentPlan.md"
-            fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
-            temp_path = pathlib.Path(temp_path_str)
-            try:
-                with os.fdopen(fd, "w") as f:
-                    f.write(
-                        f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
-                    )
-                temp_path.replace(target_path)
-            except Exception:
-                logger.exception("Failed to write ExperimentPlan.md")
-                if temp_path.exists():
-                    temp_path.unlink()
+
+            content = f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
+
+            file_service = FileService()
+            file_service.save_text_async(content, target_path)
+
             ApprovalStampRenderer("Experiment Plan").start()
         return updates if isinstance(updates, dict) else {}
 

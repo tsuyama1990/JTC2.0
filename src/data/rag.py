@@ -147,14 +147,24 @@ class IngestionRequest(BaseModel):
         return v
 
 
+from typing import Any
+
 class RAG:
     """
     Retrieval-Augmented Generation (RAG) engine using LlamaIndex.
     """
 
-    def __init__(self, persist_dir: str | None = None, repository: IFileRepository | None = None) -> None:
+    def __init__(
+        self,
+        persist_dir: str | None = None,
+        repository: IFileRepository | None = None,
+        llm: Any | None = None,
+        embed_model: Any | None = None
+    ) -> None:
         self.settings = get_settings()
         self.repository = repository or FileRepository()
+        self.llm = llm
+        self.embed_model = embed_model
 
         # Security: Validate persist_dir path
         raw_path = persist_dir or self.settings.rag.persist_dir
@@ -231,8 +241,15 @@ class RAG:
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
 
-        LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
-        LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
+        if self.llm is not None:
+            LlamaSettings.llm = self.llm
+        else:
+            LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
+
+        if self.embed_model is not None:
+            LlamaSettings.embed_model = self.embed_model
+        else:
+            LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
         if self.repository.file_exists(self.persist_dir):
             self._load_existing_index()

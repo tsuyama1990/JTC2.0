@@ -170,8 +170,9 @@ class GovernanceAgent(BaseAgent):
             JSONDecodeError: If parsing fails.
             ValidationError: If schema validation fails.
         """
-        settings = get_settings()
-        llm = LLMFactory().get_llm()
+        # Allow testing overrides
+        settings = getattr(self, "settings", get_settings())
+        llm = getattr(self, "llm", LLMFactory().get_llm())
 
         content = ""
         max_bytes = settings.governance.max_llm_response_size

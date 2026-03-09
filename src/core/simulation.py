@@ -40,28 +40,32 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
     workflow = StateGraph(GlobalState)
     previous_node = None
 
+    import re
+
     for step in steps:
         node_name = step["node_name"]
         role_str = step["role"]
         desc = step["description"]
 
-        # Ensure role is a valid Role enum member
+        # Strict validation of node_name to prevent code injection via name manipulation
+        if not re.match(r"^[a-zA-Z0-9_-]+$", node_name):
+            msg = f"Invalid node_name '{node_name}' in simulation config. Must be alphanumeric."
+            raise ValueError(msg)
+
+        # Ensure role is a valid Role enum member (acts as a strict whitelist)
         try:
             role = Role(role_str)
-        except ValueError:
-            logger.exception(
-                f"Invalid role '{role_str}' in simulation config. Skipping step {node_name}."
-            )
-            continue
+        except ValueError as err:
+            msg = f"Invalid role '{role_str}' in simulation config. Must be one of {list(Role)}."
+            raise ValueError(msg) from err
 
         # Create a closure for the node function
         # We must bind defaults to capture the current iteration's values
         def step_runner(
             state: GlobalState, _role: Role = role, _desc: str = desc
         ) -> dict[str, object]:
-            from src.core.factory import AgentFactory
-            from src.core.llm import LLMFactory
             from src.core.config import get_settings
+            from src.core.llm import LLMFactory
 
             logger.info(_desc)
             factory = AgentFactory(llm=LLMFactory().get_llm(), settings=get_settings())

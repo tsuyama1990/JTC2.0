@@ -1,5 +1,6 @@
-import marimo
 from typing import Any
+
+import marimo
 
 __generated_with = "0.20.4"
 app = marimo.App(width="medium")
@@ -44,8 +45,10 @@ def _second() -> "Any":
 
     # We must patch the environment before importing src modules to prevent config validation errors on load
     if _mode == "Mock Mode":
-        os.environ["OPENAI_API_KEY"] = "sk-dummy-test-key-long-enough-for-validation"
-        os.environ["TAVILY_API_KEY"] = "tvly-dummy-test-key-long-enough-for-validation"
+        # Secure credential management: use dummy strings strictly for structural validation
+        # in a controlled test environment, avoiding any real credential patterns.
+        os.environ["OPENAI_API_KEY"] = "dummy" * 10
+        os.environ["TAVILY_API_KEY"] = "dummy" * 10
 
     # Core imports
     from src.core.config import clear_settings_cache, get_settings
@@ -74,8 +77,8 @@ def _third(detect_mode: "Any", os: "Any") -> None:
     if detect_mode() == "Mock Mode":
         from unittest.mock import patch
 
-        os.environ["OPENAI_API_KEY"] = "sk-dummy-test-key-long-enough-for-validation"
-        os.environ["TAVILY_API_KEY"] = "tvly-dummy-test-key-long-enough-for-validation"
+        os.environ["OPENAI_API_KEY"] = "dummy" * 10
+        os.environ["TAVILY_API_KEY"] = "dummy" * 10
 
         # Start a bunch of patchers
         _patcher_llm = patch("src.core.llm.LLMFactory.get_llm")
@@ -259,7 +262,7 @@ def _sixth(os: "Any", pathlib: "Any", mo: "Any") -> "Any":
 
         return "✅ All final Pydantic schemas and output specs successfully serialized and saved to disk!"
 
-    if os.environ.get("OPENAI_API_KEY") == "sk-dummy-test-key-long-enough-for-validation":
+    if os.environ.get("OPENAI_API_KEY") == "dummy" * 10:
         res = check_outputs()
         mo.md(res)
     return check_outputs,
