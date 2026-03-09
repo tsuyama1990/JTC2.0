@@ -1,4 +1,5 @@
 import logging
+import threading
 from typing import Any
 
 from langgraph.graph import END
@@ -10,14 +11,20 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
+import threading
+
+
 class GraphBuilderService:
     _instance: "GraphBuilderService | None" = None
     _compiled_graph: CompiledStateGraph[Any, Any] | None = None
+    _lock = threading.Lock()
 
     def __new__(cls, registry: WorkflowRegistry[GlobalState]) -> "GraphBuilderService":
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance.registry = registry
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance.registry = registry
         return cls._instance
 
     def __init__(self, registry: WorkflowRegistry[GlobalState]) -> None:

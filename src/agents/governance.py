@@ -195,26 +195,28 @@ class GovernanceAgent(BaseAgent):
         """
         text = text.strip()
 
-        # Avoid complex regex if the string is just a raw JSON block
-        if not text.startswith("{") and "```" in text:
-            import re
-            # Extract JSON cleanly while avoiding backtracking vulnerabilities
-            match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-            if match:
-                text = match.group(1).strip()
-
-        if not text.startswith("{") or not text.endswith("}"):
-            msg = "Response does not contain a valid JSON object structure."
-            raise ValueError(msg)
+        import re
+        # Try extracting JSON cleanly using non-greedy matching while avoiding catastrophic backtracking.
+        # Fallback to the whole string if no code block exists.
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        if match:
+            text = match.group(1).strip()
+        else:
+            # Fallback for plain braces
+            match_fallback = re.search(r"(\{.*?\})", text, re.DOTALL)
+            if match_fallback:
+                text = match_fallback.group(1).strip()
 
         try:
+            # Pydantic core handles dictionary validation, but let's strictly load first
             parsed = json.loads(text)
-        except json.JSONDecodeError:
-            logger.exception(f"Failed to parse JSON. Snippet: {text[:50]}")
-            raise
+        except json.JSONDecodeError as e:
+            logger.exception(f"Failed to parse JSON. Error at line {e.lineno}. Snippet: {text[:50]}")
+            msg = "Response does not contain a valid JSON object."
+            raise ValueError(msg) from e
         else:
             if not isinstance(parsed, dict):
-                msg = "Parsed JSON is not a dictionary"
+                msg = f"Parsed JSON is not a dictionary. Got: {type(parsed)}"
                 raise TypeError(msg)
             return parsed
 

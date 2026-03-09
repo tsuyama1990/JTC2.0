@@ -213,26 +213,32 @@ class RAG:
             # Also allow cwd itself if configured or dynamically running tests
             allowed_parents.append(cwd)
 
-            # Resolve the parent strictly to prevent symlink traversal race conditions
+            # Explicit symlink check first before attempting resolution
             target_path = Path(path_str)
             if target_path.exists():
-                path = target_path.resolve(strict=True)
-            else:
-                # If the target doesn't exist, ensure its parent directory is valid
-                parent = target_path.parent.resolve(strict=True)
-                path = parent / target_path.name
-
-            if not any(path.is_relative_to(parent) for parent in allowed_parents):
-                logger.exception(ERR_PATH_TRAVERSAL)
-                raise ConfigurationError(ERR_PATH_TRAVERSAL)
-
-            if path.exists():
-                if path.is_symlink():
+                if target_path.is_symlink():
                     msg = "Symlinks not allowed in persist_dir."
                     raise ConfigurationError(msg)
+
+                # Resolve strictly to prevent symlink bypasses
+                path = target_path.resolve(strict=True)
+
                 if not path.is_dir():
                     msg = f"Path must be a directory: {path_str}"
                     raise ConfigurationError(msg)
+            else:
+                # If the target doesn't exist, ensure its parent directory is valid and not a symlink
+                if target_path.parent.is_symlink():
+                    msg = "Symlinks not allowed in parent path."
+                    raise ConfigurationError(msg)
+
+                parent = target_path.parent.resolve(strict=True)
+                path = parent / target_path.name
+
+            # Now verify the resolved absolute path is safely within allowed boundaries
+            if not any(path.is_relative_to(parent) for parent in allowed_parents):
+                logger.exception(ERR_PATH_TRAVERSAL)
+                raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
             return str(path)
         except ConfigurationError:
@@ -434,15 +440,13 @@ class RAG:
         timeout = getattr(self.settings.rag, "query_timeout", 30.0)
 
         future = None
+        executor = ThreadPoolExecutor(max_workers=1)
         try:
             query_engine = self.index.as_query_engine()
-
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(query_engine.query, question)
-                response = future.result(timeout=timeout)
+            future = executor.submit(query_engine.query, question)
+            response = future.result(timeout=timeout)
 
             return str(response)
-
         except FuturesTimeoutError:
             if future is not None:
                 future.cancel()
@@ -455,3 +459,6 @@ class RAG:
             logger.exception("LlamaIndex query failed: %s", e.__class__.__name__)
             msg = f"Query execution failed: {e}"
             raise RuntimeError(msg) from e
+        finally:
+            # Force thread teardown immediately without waiting for blocked processes
+            executor.shutdown(wait=False, cancel_futures=True)

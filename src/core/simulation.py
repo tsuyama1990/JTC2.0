@@ -43,9 +43,14 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
     import re
 
     for step in steps:
-        node_name = step["node_name"]
-        role_str = step["role"]
-        desc = step["description"]
+        node_name = step.get("node_name")
+        role_str = step.get("role")
+        desc = step.get("description", "Simulation Step")
+
+        if not node_name or not isinstance(node_name, str):
+            raise ValueError("Simulation step must have a valid string 'node_name'.")
+        if not role_str or not isinstance(role_str, str):
+            raise ValueError("Simulation step must have a valid string 'role'.")
 
         # Strict validation of node_name to prevent code injection via name manipulation
         if not re.match(r"^[a-zA-Z0-9_-]+$", node_name):
