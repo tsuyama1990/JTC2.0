@@ -23,6 +23,10 @@ from src.core.constants import (
 )
 
 
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
 class EmpathyMap(BaseModel):
     """
     Represents the Empathy Map of the persona.
@@ -30,30 +34,25 @@ class EmpathyMap(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    says: list[str] = Field(
-        ...,
-        description=DESC_EMPATHY_SAYS,
-        min_length=get_settings().validation.min_list_length,
-        max_length=get_settings().validation.max_list_length,
-    )
-    thinks: list[str] = Field(
-        ...,
-        description=DESC_EMPATHY_THINKS,
-        min_length=get_settings().validation.min_list_length,
-        max_length=get_settings().validation.max_list_length,
-    )
-    does: list[str] = Field(
-        ...,
-        description=DESC_EMPATHY_DOES,
-        min_length=get_settings().validation.min_list_length,
-        max_length=get_settings().validation.max_list_length,
-    )
-    feels: list[str] = Field(
-        ...,
-        description=DESC_EMPATHY_FEELS,
-        min_length=get_settings().validation.min_list_length,
-        max_length=get_settings().validation.max_list_length,
-    )
+    says: list[str] = Field(..., description=DESC_EMPATHY_SAYS)
+    thinks: list[str] = Field(..., description=DESC_EMPATHY_THINKS)
+    does: list[str] = Field(..., description=DESC_EMPATHY_DOES)
+    feels: list[str] = Field(..., description=DESC_EMPATHY_FEELS)
+
+    @model_validator(mode="after")
+    def validate_lengths(self) -> Self:
+        settings = get_settings()
+        min_len = settings.validation.min_list_length
+        max_len = settings.validation.max_list_length
+        for field in ["says", "thinks", "does", "feels"]:
+            val = getattr(self, field)
+            if len(val) < min_len:
+                msg = f"{field} must have at least {min_len} items"
+                raise ValueError(msg)
+            if len(val) > max_len:
+                msg = f"{field} must have at most {max_len} items"
+                raise ValueError(msg)
+        return self
 
 
 class Persona(BaseModel):
@@ -86,21 +85,43 @@ class Persona(BaseModel):
     goals: list[str] = Field(
         ...,
         description=DESC_PERSONA_GOALS,
-        min_length=get_settings().validation.min_list_length,
-        max_length=get_settings().validation.max_list_length,
     )
     frustrations: list[str] = Field(
         ...,
         description=DESC_PERSONA_FRUSTRATIONS,
-        min_length=get_settings().validation.min_list_length,
-        max_length=get_settings().validation.max_list_length,
     )
     bio: str = Field(
         ...,
         description=DESC_PERSONA_BIO,
-        min_length=get_settings().validation.min_content_length,
-        max_length=get_settings().validation.max_content_length,
     )
+
+    @model_validator(mode="after")
+    def validate_lengths(self) -> Self:
+        settings = get_settings()
+
+        # List field validation
+        min_list_len = settings.validation.min_list_length
+        max_list_len = settings.validation.max_list_length
+        for field in ["goals", "frustrations"]:
+            val = getattr(self, field)
+            if len(val) < min_list_len:
+                msg = f"{field} must have at least {min_list_len} items"
+                raise ValueError(msg)
+            if len(val) > max_list_len:
+                msg = f"{field} must have at most {max_list_len} items"
+                raise ValueError(msg)
+
+        # Content validation
+        min_content_len = settings.validation.min_content_length
+        max_content_len = settings.validation.max_content_length
+        if len(self.bio) < min_content_len:
+            msg = f"bio must be at least {min_content_len} characters"
+            raise ValueError(msg)
+        if len(self.bio) > max_content_len:
+            msg = f"bio must be at most {max_content_len} characters"
+            raise ValueError(msg)
+
+        return self
     empathy_map: EmpathyMap | None = None
 
     # New fields for fact-based validation

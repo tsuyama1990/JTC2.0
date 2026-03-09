@@ -49,11 +49,11 @@ def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -
     from src.core.validators import ApiKeyValidator
 
     # Strictly validate key formatting and readiness before creating the client
-    val1 = settings.openai_api_key.get_secret_value()
-    ApiKeyValidator.validate_openai(val1)
-
     if getattr(settings, "openai_api_key", None) is None:
         raise ValueError(ERR_LLM_CONFIG_MISSING)
+
+    val1 = settings.openai_api_key.get_secret_value()
+    ApiKeyValidator.validate_openai(val1)
 
     target_model = model or settings.llm_model
 

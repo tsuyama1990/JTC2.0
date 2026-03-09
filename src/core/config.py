@@ -240,7 +240,8 @@ class SimulationConfig(BaseSettings):
     @classmethod
     def validate_dimensions(cls, v: int) -> int:
         if v < 100 or v > 800:
-            raise ValueError("Dimensions must be between 100 and 800")
+            msg = "Dimensions must be between 100 and 800"
+            raise ValueError(msg)
         return v
     fps: int = Field(default=DEFAULT_FPS, description="Frames per second")
     title: str = Field(default=MSG_SIM_TITLE, description="Window title")
@@ -409,11 +410,12 @@ class RAGConfig(BaseSettings):
         # to go way up the filesystem
         try:
             path.relative_to(cwd)
-        except ValueError:
+        except ValueError as err:
             # Maybe they specified an absolute path like /tmp/vector_store,
             # We'll allow it as long as it's not root or obviously malicious
             if path == pathlib.Path("/"):
-                raise ValueError("persist_dir cannot be root directory")
+                msg = "persist_dir cannot be root directory"
+                raise ValueError(msg) from err
         return str(path)
     max_query_length: int = Field(
         default=DEFAULT_RAG_MAX_QUERY_LENGTH,
@@ -496,7 +498,10 @@ class Settings(BaseSettings):
     def validate_tavily_key(cls, v: SecretStr) -> SecretStr:
         from src.core.validators import ApiKeyValidator
         val = v.get_secret_value()
-        if val == "dummy-tavily-key-long-enough-for-validation" or val == "sk-dummy-test-key-long-enough-for-validation":
+        if val in {
+            "dummy-tavily-key-long-enough-for-validation",
+            "sk-dummy-test-key-long-enough-for-validation"
+        }:
             return v
         ApiKeyValidator.validate_tavily(val)
         return v
@@ -545,7 +550,10 @@ class Settings(BaseSettings):
         val1 = self.openai_api_key.get_secret_value()
         ApiKeyValidator.validate_openai(val1)
         val2 = self.tavily_api_key.get_secret_value()
-        if val2 != "dummy-tavily-key-long-enough-for-validation" and val2 != "sk-dummy-test-key-long-enough-for-validation":
+        if val2 not in {
+            "dummy-tavily-key-long-enough-for-validation",
+            "sk-dummy-test-key-long-enough-for-validation"
+        }:
             ApiKeyValidator.validate_tavily(val2)
 
     def rotate_keys(self) -> None:

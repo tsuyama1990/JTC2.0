@@ -36,7 +36,8 @@ class RemasteredAgent(BaseAgent):
         """Generate Persona based on the selected idea."""
         if not state.selected_idea:
             logger.warning("No idea selected for Persona generation.")
-            raise ValueError("No idea selected for Persona generation.")
+            msg = "No idea selected for Persona generation."
+            raise ValueError(msg)
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -63,7 +64,8 @@ class RemasteredAgent(BaseAgent):
         """Generate Alternative Analysis based on Persona and Idea."""
         if not state.selected_idea or not state.target_persona:
             logger.warning("Missing idea or persona for Alternative Analysis generation.")
-            raise ValueError("Missing idea or persona for Alternative Analysis generation.")
+            msg = "Missing idea or persona for Alternative Analysis generation."
+            raise ValueError(msg)
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -90,7 +92,8 @@ class RemasteredAgent(BaseAgent):
         """Generate Value Proposition Canvas based on previous contexts."""
         if not state.selected_idea or not state.target_persona:
             logger.warning("Missing context for VPC generation.")
-            raise ValueError("Missing context for VPC generation.")
+            msg = "Missing context for VPC generation."
+            raise ValueError(msg)
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -119,7 +122,8 @@ class RemasteredAgent(BaseAgent):
             logger.warning(
                 "Missing VPC or Alternative Analysis for Mental Model/Journey generation."
             )
-            raise ValueError("Missing VPC or Alternative Analysis for Mental Model/Journey generation.")
+            msg = "Missing VPC or Alternative Analysis for Mental Model/Journey generation."
+            raise ValueError(msg)
 
         # 1. Mental Model Diagram
         mm_prompt = ChatPromptTemplate.from_messages(
@@ -166,7 +170,8 @@ class RemasteredAgent(BaseAgent):
         """Generate Sitemap and Wireframe based on Customer Journey."""
         if not state.customer_journey:
             logger.warning("Missing Customer Journey for Sitemap generation.")
-            raise ValueError("Missing Customer Journey for Sitemap generation.")
+            msg = "Missing Customer Journey for Sitemap generation."
+            raise ValueError(msg)
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -315,7 +320,8 @@ class OutputGenerationAgent(BaseAgent):
         """Generate Experiment Plan."""
         if not state.selected_idea:
             logger.warning("Missing idea for Experiment Plan.")
-            raise ValueError("Missing idea for Experiment Plan.")
+            msg = "Missing idea for Experiment Plan."
+            raise ValueError(msg)
 
         context_str = f"Idea: {state.selected_idea.title}\n"
         if state.target_persona:

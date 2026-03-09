@@ -26,7 +26,8 @@ class BuilderAgent(BaseAgent):
         """Generate Agent Prompt Spec."""
         if not state.sitemap_and_story:
             logger.warning("Missing sitemap for Agent Prompt Spec generation.")
-            raise ValueError("Missing sitemap for Agent Prompt Spec generation.")
+            msg = "Missing sitemap for Agent Prompt Spec generation."
+            raise ValueError(msg)
 
         context_str = f"Core Story: {state.sitemap_and_story.core_story.model_dump_json()}\n"
         if state.value_proposition:
