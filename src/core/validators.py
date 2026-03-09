@@ -1,4 +1,3 @@
-import os
 from typing import TYPE_CHECKING
 
 from pydantic import SecretStr
@@ -11,36 +10,41 @@ from src.core.constants import (
 )
 
 if TYPE_CHECKING:
-    from src.core.config import Settings
+    pass
 
 
 class ApiKeyValidator:
     """Validates API keys from settings."""
 
     @staticmethod
-    def validate(settings: "Settings") -> None:
-        """Validate API keys are present and have correct format."""
-        from src.core.constants import ERR_CONFIG_MISSING_OPENAI_KEY
-
-        # Enforce that keys come from environment
-        if not os.getenv("OPENAI_API_KEY") and not settings.openai_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-
-        if getattr(settings, "openai_api_key", None) is None:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-
-        openai_val = settings.openai_api_key.get_secret_value()
-        if not openai_val:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-
-        if getattr(settings, "tavily_api_key", None) is None:
-            msg = "Tavily API Key is missing or empty."
+    def validate_openai(val: str, prefix: str = "sk-", min_len: int = 20, pattern: str = r"^[A-Za-z0-9_\-\.]+$") -> str:
+        if not val.startswith(prefix):
+            msg = f"OpenAI API Key must start with '{prefix}'"
+            raise ValueError(msg)
+        if len(val) < min_len:
+            msg = f"OpenAI API Key must be at least {min_len} characters long."
             raise ValueError(msg)
 
-        tavily_val = settings.tavily_api_key.get_secret_value()
-        if not tavily_val:
-            msg = "Tavily API Key is missing or empty."
+        import re
+        if not re.match(pattern, val):
+            msg = "OpenAI API Key contains invalid characters."
             raise ValueError(msg)
+        return val
+
+    @staticmethod
+    def validate_tavily(val: str, prefix: str = "tvly-", min_len: int = 20, pattern: str = r"^[A-Za-z0-9_\-\.]+$") -> str:
+        if not val.startswith(prefix):
+            msg = f"Tavily API Key must start with '{prefix}'"
+            raise ValueError(msg)
+        if len(val) < min_len:
+            msg = f"Tavily API Key must be at least {min_len} characters long."
+            raise ValueError(msg)
+
+        import re
+        if not re.match(pattern, val):
+            msg = "Tavily API Key contains invalid characters."
+            raise ValueError(msg)
+        return val
 
 
 class ConfigValidators:
