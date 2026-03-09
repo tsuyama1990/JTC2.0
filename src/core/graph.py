@@ -69,15 +69,12 @@ class GraphBuilderService:
 
 
 def create_app(
+    registry: WorkflowRegistry[GlobalState],
     builder: WorkflowBuilder[GlobalState] | None = None,
-    registry: WorkflowRegistry[GlobalState] | None = None
 ) -> CompiledStateGraph[Any, Any]:
     """
     Create and compile the LangGraph application.
     This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
-    if registry is None:
-        registry = node_registry
-
     service = GraphBuilderService(registry)
     return service.build_graph(builder)

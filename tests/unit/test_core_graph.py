@@ -32,7 +32,8 @@ def mock_state() -> GlobalState:
 
 def test_create_app_structure() -> None:
     """Test that the main application graph is created correctly."""
-    app = create_app()
+    from src.core.workflow_builder import node_registry
+    app = create_app(registry=node_registry)
     assert isinstance(app, CompiledStateGraph)
     # detailed graph structure assertions are hard with compiled graph,
     # but we can check if it compiles without error.

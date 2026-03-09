@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 
@@ -42,4 +43,13 @@ class IFileRepository(Protocol):
 class IFileWriter(Protocol):
     def save_text_async(self, content: str, path: str | Path) -> None:
         """Save text to a file asynchronously."""
+        ...
+
+
+
+
+@runtime_checkable
+class IOpenAIProvider(Protocol):
+    def get_llm(self, model: str | None = None) -> ChatOpenAI:
+        """Retrieve the managed ChatOpenAI instance."""
         ...
