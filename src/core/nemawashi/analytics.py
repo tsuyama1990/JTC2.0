@@ -18,7 +18,29 @@ class InfluenceAnalyzer:
     Analyzes the structure and key influencers of the network.
     """
 
+    def __init__(self) -> None:
+        self._cache: dict[str, list[str]] = {}
+
     def identify_influencers(self, network: InfluenceNetwork) -> list[str]:
+        try:
+            cache_key = network.model_dump_json()
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+
+            result = self._identify_influencers_impl(network)
+
+            # Simple bounded cache
+            if len(self._cache) > 10:
+                # Remove oldest (in Python 3.7+ dicts preserve insertion order)
+                self._cache.pop(next(iter(self._cache)))
+
+            self._cache[cache_key] = result
+        except Exception:
+            return self._identify_influencers_impl(network)
+        else:
+            return result
+
+    def _identify_influencers_impl(self, network: InfluenceNetwork) -> list[str]:
         """
         Identify key influencers based on eigenvector centrality.
         Uses sparse matrices for efficiency if the network is large (>1000 nodes).

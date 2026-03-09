@@ -35,10 +35,10 @@ class HTTPClientManager:
             self.client.close()
 
 
-from functools import cache  # noqa: E402
+from functools import lru_cache  # noqa: E402
 
 
-@cache
+@lru_cache(maxsize=5)
 def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -> ChatOpenAI:
     """
     Factory to get a cached LLM client instance.

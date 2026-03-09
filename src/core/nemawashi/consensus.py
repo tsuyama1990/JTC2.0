@@ -20,8 +20,26 @@ class ConsensusEngine:
             settings: Configuration settings for Nemawashi. If None, loads from global settings.
         """
         self.settings = settings or get_settings().nemawashi
+        self._cache: dict[str, list[float]] = {}
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
+        try:
+            cache_key = network.model_dump_json()
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+
+            result = self._calculate_consensus_impl(network)
+
+            if len(self._cache) > 10:
+                self._cache.pop(next(iter(self._cache)))
+
+            self._cache[cache_key] = result
+        except Exception:
+            return self._calculate_consensus_impl(network)
+        else:
+            return result
+
+    def _calculate_consensus_impl(self, network: InfluenceNetwork) -> list[float]:
         """
         Run the DeGroot model to calculate final opinion distribution.
         Always uses sparse matrices (CSR) for memory efficiency.
