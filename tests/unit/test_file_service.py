@@ -23,8 +23,10 @@ class TestFileService:
             patch("os.replace") as mock_replace,
         ):
             mock_path = MagicMock()
+            mock_path.__str__.return_value = "protected.md"  # type: ignore[attr-defined]
             mock_validate.return_value = mock_path
-            mock_path.__str__.return_value = "protected.md"
+            mock_path.__str__.return_value = "protected.md"  # type: ignore[attr-defined]
+            mock_validate.return_value = mock_path
             mock_path.parent = MagicMock()
             mock_mkstemp.return_value = (1, "temp.md")
 
@@ -42,7 +44,6 @@ class TestFileService:
             mock_file.write.assert_called_with("content")
             # In the updated implementation, Path('temp.md').replace(path) is used.
             # We must assert against Path objects.
-            from pathlib import Path
             mock_replace.assert_called_once()
 
     @patch("src.core.services.file_service.FileService._validate_path")
@@ -55,8 +56,8 @@ class TestFileService:
         """Verify handling of PermissionError."""
         with patch("tempfile.mkstemp") as mock_mkstemp:
             mock_path = MagicMock()
+            mock_path.__str__.return_value = "protected.md"  # type: ignore[attr-defined]
             mock_validate.return_value = mock_path
-            mock_path.__str__.return_value = "protected.md"
             mock_mkstemp.side_effect = PermissionError("Access denied")
 
             file_service.save_text_async("content", "protected.md")
@@ -74,8 +75,8 @@ class TestFileService:
         """Verify handling of generic OSError."""
         with patch("tempfile.mkstemp") as mock_mkstemp:
             mock_path = MagicMock()
+            mock_path.__str__.return_value = "file.md"  # type: ignore[attr-defined]
             mock_validate.return_value = mock_path
-            mock_path.__str__.return_value = "file.md"
             mock_mkstemp.side_effect = OSError("Disk full")
 
             file_service.save_text_async("content", "file.md")

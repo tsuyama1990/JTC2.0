@@ -1,6 +1,6 @@
 import threading
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
@@ -18,20 +18,20 @@ from src.core.constants import (
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
+    DEFAULT_MAX_CONTENT_LENGTH,
+    DEFAULT_MAX_CUSTOM_METRICS,
     DEFAULT_MAX_FILES,
+    DEFAULT_MAX_LIST_LENGTH,
     DEFAULT_MAX_LLM_RESPONSE_SIZE,
+    DEFAULT_MAX_PERCENTAGE_VALUE,
     DEFAULT_MAX_SEARCH_RESULT_SIZE,
     DEFAULT_MAX_TITLE_LENGTH,
     DEFAULT_MAX_TURNS,
     DEFAULT_MAX_Y,
-    DEFAULT_MIN_ROI_THRESHOLD,
-    DEFAULT_MAX_CONTENT_LENGTH,
-    DEFAULT_MAX_CUSTOM_METRICS,
-    DEFAULT_MAX_LIST_LENGTH,
-    DEFAULT_MAX_PERCENTAGE_VALUE,
     DEFAULT_MIN_CONTENT_LENGTH,
     DEFAULT_MIN_LIST_LENGTH,
     DEFAULT_MIN_METRIC_VALUE,
+    DEFAULT_MIN_ROI_THRESHOLD,
     DEFAULT_MIN_TITLE_LENGTH,
     DEFAULT_NEMAWASHI_BOOST,
     DEFAULT_NEMAWASHI_MAX_STEPS,
@@ -97,15 +97,29 @@ class ValidationConfig(BaseSettings):
     max_title_length: int = Field(
         default=DEFAULT_MAX_TITLE_LENGTH, description="Maximum length for titles"
     )
-    min_content_length: int = Field(default=DEFAULT_MIN_CONTENT_LENGTH, description="Minimum length for content blocks")
-    max_content_length: int = Field(default=DEFAULT_MAX_CONTENT_LENGTH, description="Maximum length for content blocks")
+    min_content_length: int = Field(
+        default=DEFAULT_MIN_CONTENT_LENGTH, description="Minimum length for content blocks"
+    )
+    max_content_length: int = Field(
+        default=DEFAULT_MAX_CONTENT_LENGTH, description="Maximum length for content blocks"
+    )
 
-    min_list_length: int = Field(default=DEFAULT_MIN_LIST_LENGTH, description="Minimum items in lists")
-    max_list_length: int = Field(default=DEFAULT_MAX_LIST_LENGTH, description="Maximum items in lists")
+    min_list_length: int = Field(
+        default=DEFAULT_MIN_LIST_LENGTH, description="Minimum items in lists"
+    )
+    max_list_length: int = Field(
+        default=DEFAULT_MAX_LIST_LENGTH, description="Maximum items in lists"
+    )
 
-    max_custom_metrics: int = Field(default=DEFAULT_MAX_CUSTOM_METRICS, description="Maximum custom metrics allowed")
-    min_metric_value: float = Field(default=DEFAULT_MIN_METRIC_VALUE, description="Minimum value for metrics")
-    max_percentage_value: float = Field(default=DEFAULT_MAX_PERCENTAGE_VALUE, description="Maximum percentage value")
+    max_custom_metrics: int = Field(
+        default=DEFAULT_MAX_CUSTOM_METRICS, description="Maximum custom metrics allowed"
+    )
+    min_metric_value: float = Field(
+        default=DEFAULT_MIN_METRIC_VALUE, description="Minimum value for metrics"
+    )
+    max_percentage_value: float = Field(
+        default=DEFAULT_MAX_PERCENTAGE_VALUE, description="Maximum percentage value"
+    )
 
 
 class ErrorMessages(BaseSettings):
@@ -271,25 +285,37 @@ class SimulationConfig(BaseSettings):
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP
+            role="New Employee",
+            label="NewEmp",
+            color=COLOR_NEW_EMP,
+            **AGENT_POS_NEW_EMP,  # type: ignore[arg-type]
         ),
         description="Configuration for New Employee Agent",
     )
     agent_finance: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE
+            role="Finance Manager",
+            label="Finance",
+            color=COLOR_FINANCE,
+            **AGENT_POS_FINANCE,  # type: ignore[arg-type]
         ),
         description="Configuration for Finance Agent",
     )
     agent_sales: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES
+            role="Sales Manager",
+            label="Sales",
+            color=COLOR_SALES,
+            **AGENT_POS_SALES,  # type: ignore[arg-type]
         ),
         description="Configuration for Sales Agent",
     )
     agent_cpo: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO
+            role="CPO",
+            label="CPO",
+            color=COLOR_CPO,
+            **AGENT_POS_CPO,  # type: ignore[arg-type]
         ),
         description="Configuration for CPO Agent",
     )

@@ -317,13 +317,19 @@ class OutputGenerationAgent(BaseAgent):
             logger.warning("Missing idea for Experiment Plan.")
             return {}
 
+        context_str = f"Idea: {state.selected_idea.title}\n"
+        if state.target_persona:
+            context_str += f"Persona: {state.target_persona.model_dump()}\n"
+        if state.value_proposition:
+            context_str += f"VPC: {state.value_proposition.model_dump()}\n"
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are a growth hacker. Generate an Experiment Plan defining 'What and How to measure' using the MVP.",
+                    "You are a growth hacker. Generate an Experiment Plan defining 'What and How to measure' using the MVP based on the provided contexts.",
                 ),
-                ("user", f"Idea: {state.selected_idea.title}\n\nGenerate Experiment Plan:"),
+                ("user", f"{context_str}\n\nGenerate Experiment Plan:"),
             ]
         )
         chain = prompt | self.llm.with_structured_output(ExperimentPlan)

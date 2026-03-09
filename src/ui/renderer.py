@@ -13,6 +13,57 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
+class ApprovalStampRenderer:
+    """
+    Displays an 'Approval Stamp' (赤いハンコ) animation in Pyxel.
+    """
+
+    def __init__(self, title: str = "Approval Stamp") -> None:
+        self.headless = os.getenv("HEADLESS_MODE", "false").lower() == "true"
+        self.title = title
+        self.frame_count = 0
+        self.max_frames = 60  # Play animation for ~2 seconds at 30 FPS
+
+    def start(self) -> None:
+        if self.headless:
+            logger.info(f"Headless mode: [STAMP] {self.title} APPROVED")
+            return
+
+        try:
+            pyxel.init(160, 120, title=self.title, fps=30)
+            pyxel.run(self.update, self.draw)
+        except Exception as e:
+            logger.warning(f"Failed to initialize Pyxel for Approval Stamp: {e}")
+        finally:
+            if not self.headless:
+                with contextlib.suppress(Exception):
+                    pyxel.quit()
+
+    def update(self) -> None:
+        self.frame_count += 1
+        if self.frame_count > self.max_frames:
+            pyxel.quit()
+
+    def draw(self) -> None:
+        pyxel.cls(7)  # White background
+
+        text_x = 40
+        text_y = 50
+
+        color = 8  # Red
+
+        # Only draw the stamp if animation has "landed"
+        if self.frame_count > 10:
+            # Draw a simple stamp outline
+            pyxel.rectb(text_x - 5, text_y - 5, 70, 20, color)
+            pyxel.text(text_x, text_y, "APPROVED", color)
+            # Add some "ink splatter" effect randomly
+            for _ in range(5):
+                rx = text_x + (self.frame_count * 13) % 70 - 5
+                ry = text_y + (self.frame_count * 17) % 20 - 5
+                pyxel.pset(rx, ry, color)
+
+
 class SimulationRenderer:
     """
     Renders the simulation state using Pyxel (Retro RPG style).

@@ -10,6 +10,7 @@ from src.data.rag import RAG
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.validators import StateValidator
+from src.ui.renderer import ApprovalStampRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ def _vpc_node_impl(state: GlobalState) -> dict[str, Any]:
         PDFGenerator.generate_canvas_pdf(
             updates["value_proposition"], "value_proposition_canvas.pdf"
         )
+        ApprovalStampRenderer("VPC Canvas").start()
     return updates
 
 
@@ -103,6 +105,9 @@ def _mental_model_journey_node_impl(state: GlobalState) -> dict[str, Any]:
         PDFGenerator.generate_canvas_pdf(updates["mental_model"], "mental_model_diagram.pdf")
     if updates.get("customer_journey"):
         PDFGenerator.generate_canvas_pdf(updates["customer_journey"], "customer_journey.pdf")
+
+    if updates.get("mental_model") or updates.get("customer_journey"):
+        ApprovalStampRenderer("Mental Model & Journey").start()
     return updates
 
 
@@ -119,6 +124,7 @@ def _sitemap_wireframe_node_impl(state: GlobalState) -> dict[str, Any]:
     updates = agent.generate_sitemap_and_wireframe(state)
     if updates.get("sitemap_and_story"):
         PDFGenerator.generate_canvas_pdf(updates["sitemap_and_story"], "sitemap_and_story.pdf")
+        ApprovalStampRenderer("Sitemap & Story").start()
     return updates
 
 
@@ -143,10 +149,14 @@ def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
         if not output_dir.is_absolute():
             output_dir = Path.cwd() / output_dir
         output_dir.mkdir(parents=True, exist_ok=True)
+        spec = updates["agent_prompt_spec"]
         with (output_dir / "AgentPromptSpec.md").open("w") as f:
             f.write(
-                f"# Agent Prompt Specification\n\n```json\n{updates['agent_prompt_spec'].model_dump_json(indent=2)}\n```\n"
+                f"# Agent Prompt Specification\n\n"
+                f"```json\n{spec.model_dump_json(indent=2)}\n```\n\n"
+                f"## State Machine (Mermaid)\n```mermaid\n{spec.mermaid_flowchart}\n```\n"
             )
+        ApprovalStampRenderer("Agent Prompt Spec").start()
     return updates
 
 
@@ -161,6 +171,20 @@ def _experiment_planning_node_impl(state: GlobalState) -> dict[str, Any]:
     updates = agent.generate_experiment_plan(state)
     if updates.get("experiment_plan"):
         PDFGenerator.generate_canvas_pdf(updates["experiment_plan"], "experiment_plan.pdf")
+        from pathlib import Path
+
+        from src.core.config import get_settings
+
+        settings = get_settings()
+        output_dir = Path(settings.canvas_output_dir)
+        if not output_dir.is_absolute():
+            output_dir = Path.cwd() / output_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
+        with (output_dir / "ExperimentPlan.md").open("w") as f:
+            f.write(
+                f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
+            )
+        ApprovalStampRenderer("Experiment Plan").start()
     return updates
 
 
