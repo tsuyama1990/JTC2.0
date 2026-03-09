@@ -4,7 +4,7 @@ from typing import Any
 from langgraph.graph import END
 from langgraph.graph.state import CompiledStateGraph
 
-from src.core.workflow_builder import WorkflowBuilder, WorkflowRegistry, node_registry
+from src.core.workflow_builder import WorkflowBuilder, WorkflowRegistry
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)

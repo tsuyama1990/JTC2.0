@@ -27,10 +27,6 @@ def make_ideator_node(ideator_agent: Any) -> Any:
     return safe_ideator_run
 
 
-safe_ideator_run = make_ideator_node()
-node_registry.register("ideator")(safe_ideator_run)
-
-
 def _verification_node_impl(state: GlobalState) -> dict[str, Any]:
     """
     Transition to Verification Phase.
@@ -63,9 +59,6 @@ def make_persona_node(agent: Any) -> Any:
         return NodeExecutor.execute(_persona_node_impl, state, "Error in Persona Node")
     return persona_node
 
-persona_node = make_persona_node()
-node_registry.register("persona")(persona_node)
-
 
 def make_alternative_analysis_node(agent: Any) -> Any:
     def _alternative_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
@@ -84,9 +77,6 @@ def make_alternative_analysis_node(agent: Any) -> Any:
         )
     return alternative_analysis_node
 
-alternative_analysis_node = make_alternative_analysis_node()
-node_registry.register("alternative_analysis")(alternative_analysis_node)
-
 
 def make_vpc_node(agent: Any) -> Any:
     def _vpc_node_impl(state: GlobalState) -> dict[str, Any]:
@@ -103,9 +93,6 @@ def make_vpc_node(agent: Any) -> Any:
     def vpc_node(state: GlobalState) -> dict[str, Any]:
         return NodeExecutor.execute(_vpc_node_impl, state, "Error in VPC Node")
     return vpc_node
-
-vpc_node = make_vpc_node()
-node_registry.register("vpc")(vpc_node)
 
 
 def make_mental_model_journey_node(agent: Any) -> Any:
@@ -128,9 +115,6 @@ def make_mental_model_journey_node(agent: Any) -> Any:
         )
     return mental_model_journey_node
 
-mental_model_journey_node = make_mental_model_journey_node()
-node_registry.register("mental_model_journey")(mental_model_journey_node)
-
 
 def make_sitemap_wireframe_node(agent: Any) -> Any:
     def _sitemap_wireframe_node_impl(state: GlobalState) -> dict[str, Any]:
@@ -147,48 +131,6 @@ def make_sitemap_wireframe_node(agent: Any) -> Any:
             _sitemap_wireframe_node_impl, state, "Error in Sitemap & Wireframe Node"
         )
     return sitemap_wireframe_node
-
-sitemap_wireframe_node = make_sitemap_wireframe_node()
-node_registry.register("sitemap_wireframe")(sitemap_wireframe_node)
-
-
-def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 5: Generate Agent Prompt Spec."""
-    logger.info("Generating Agent Prompt Spec...")
-    agent = AgentFactory.get_builder_agent()
-    updates = agent.generate_agent_prompt_spec(state)
-    if updates.get("agent_prompt_spec"):
-        from pathlib import Path
-
-        from src.core.config import get_settings
-
-        settings = get_settings()
-        output_dir = Path(settings.canvas_output_dir)
-        if not output_dir.is_absolute():
-            output_dir = Path.cwd() / output_dir
-        output_dir.mkdir(parents=True, exist_ok=True)
-        spec = updates["agent_prompt_spec"]
-        import os
-        import pathlib
-        import tempfile
-
-        target_path = output_dir / "AgentPromptSpec.md"
-        fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
-        temp_path = pathlib.Path(temp_path_str)
-        try:
-            with os.fdopen(fd, "w") as f:
-                f.write(
-                    f"# Agent Prompt Specification\n\n"
-                    f"```json\n{spec.model_dump_json(indent=2)}\n```\n\n"
-                    f"## State Machine (Mermaid)\n```mermaid\n{spec.mermaid_flowchart}\n```\n"
-                )
-            temp_path.replace(target_path)
-        except Exception:
-            logger.exception("Failed to write AgentPromptSpec.md")
-            if temp_path.exists():
-                temp_path.unlink()
-        ApprovalStampRenderer("Agent Prompt Spec").start()
-    return updates
 
 
 def make_spec_generation_node(agent: Any) -> Any:
@@ -237,9 +179,6 @@ def make_spec_generation_node(agent: Any) -> Any:
         )
     return spec_generation_node
 
-spec_generation_node = make_spec_generation_node()
-node_registry.register("spec_generation")(spec_generation_node)
-
 
 def make_experiment_planning_node(agent: Any) -> Any:
     def _experiment_planning_node_impl(state: GlobalState) -> dict[str, Any]:
@@ -283,8 +222,7 @@ def make_experiment_planning_node(agent: Any) -> Any:
         )
     return experiment_planning_node
 
-experiment_planning_node = make_experiment_planning_node()
-node_registry.register("experiment_planning")(experiment_planning_node)
+# We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
 
 def make_virtual_customer_node(agent: Any) -> Any:
@@ -299,8 +237,7 @@ def make_virtual_customer_node(agent: Any) -> Any:
         )
     return virtual_customer_node
 
-virtual_customer_node = make_virtual_customer_node()
-node_registry.register("virtual_customer")(virtual_customer_node)
+# We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
 
 def make_review_3h_node(hacker_agent: Any, hipster_agent: Any, hustler_agent: Any) -> Any:
@@ -328,8 +265,7 @@ def make_review_3h_node(hacker_agent: Any, hipster_agent: Any, hustler_agent: An
         return NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
     return review_3h_node
 
-review_3h_node = make_review_3h_node()
-node_registry.register("review_3h")(review_3h_node)
+# We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
 
 def _validate_transcripts(state: GlobalState) -> None:
@@ -398,8 +334,7 @@ def make_transcript_ingestion_node() -> Any:
         )
     return transcript_ingestion_node
 
-transcript_ingestion_node = make_transcript_ingestion_node()
-node_registry.register("transcript_ingestion")(transcript_ingestion_node)
+# We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
 
 def _transform_simulation_state(final_state: Any) -> dict[str, Any]:
@@ -427,7 +362,6 @@ def _safe_simulation_run_impl(state: GlobalState) -> dict[str, Any]:
 def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     return NodeExecutor.execute(_safe_simulation_run_impl, state, "Error in Simulation Graph")
 
-node_registry.register("simulation_round")(safe_simulation_run)
 
 def _identify_and_log_influencers(engine: NemawashiEngine, network: Any) -> None:
     influencers = engine.identify_influencers(network)
@@ -466,8 +400,7 @@ def make_nemawashi_analysis_node(engine_factory: Any) -> Any:
         return NodeExecutor.execute(_nemawashi_analysis_node_impl, state, "Error in Nemawashi Analysis")
     return nemawashi_analysis_node
 
-nemawashi_analysis_node = make_nemawashi_analysis_node()
-node_registry.register("nemawashi_analysis")(nemawashi_analysis_node)
+# We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
 
 def _create_cpo_agent(state: GlobalState) -> Any:
@@ -507,7 +440,6 @@ def make_governance_node(agent: Any) -> Any:
         return NodeExecutor.execute(_governance_node_impl, state, "Error in Governance Check")
     return governance_node
 
-governance_node = make_governance_node()
-node_registry.register("governance")(governance_node)
+# We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
 

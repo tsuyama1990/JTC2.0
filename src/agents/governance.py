@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
-from src.core.llm import get_llm
+from src.core.llm import LLMFactory
 from src.core.metrics import calculate_ltv, calculate_payback_period, calculate_roi
 from src.core.services.file_service import FileService
 from src.domain_models.metrics import FinancialEstimates, Financials, Metrics, RingiSho
@@ -171,7 +171,7 @@ class GovernanceAgent(BaseAgent):
             ValidationError: If schema validation fails.
         """
         settings = get_settings()
-        llm = get_llm()
+        llm = LLMFactory().get_llm()
 
         content = ""
         max_bytes = settings.governance.max_llm_response_size
