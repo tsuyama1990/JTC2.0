@@ -70,7 +70,7 @@ def validate_topic(topic: str) -> str:
         raise ValueError(msg)
 
     # Strict whitelist to prevent SQL injection logic like '; DROP TABLE'
-    if not re.match(r"^[a-zA-Z0-9\s\-_]+$", topic):
+    if not re.match(r"^[a-zA-Z0-9\s]+$", topic):
         msg = f"Topic contains invalid characters: {topic}"
         logger.error(msg)
         raise ValueError(msg)
@@ -86,13 +86,21 @@ def validate_filepath(filepath: str) -> Path:
     """
     cwd = Path.cwd().resolve(strict=True)
 
+    raw_path = Path(filepath)
+
+    # Explicit symlink check before resolving
+    if raw_path.exists() and raw_path.is_symlink():
+        msg = "Symlinks are not allowed for security reasons."
+        raise ValueError(msg)
+
     try:
-        path = Path(filepath).resolve(strict=True)
+        path = raw_path.resolve(strict=True)
     except FileNotFoundError as e:
         msg = f"File not found: {filepath}"
         raise ValueError(msg) from e
 
-    # Strict path traversal check
+    # Strict path traversal check against allowed directory whitelist
+    # For main.py, the allowed root is explicitly the CWD
     if not path.is_relative_to(cwd):
         msg = "File path must be within the project directory."
         raise ValueError(msg)

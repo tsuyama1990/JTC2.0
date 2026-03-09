@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
@@ -52,4 +52,34 @@ class IFileWriter(Protocol):
 class IOpenAIProvider(Protocol):
     def get_llm(self, model: str | None = None) -> ChatOpenAI:
         """Retrieve the managed ChatOpenAI instance."""
+        ...
+
+
+
+
+
+@runtime_checkable
+class IAgent(Protocol):
+    def run(self, state: "Any") -> dict[str, Any]:
+        """Execute agent logic returning a state update."""
+        ...
+
+@runtime_checkable
+class IRemasteredAgent(Protocol):
+    def generate_persona(self, state: "Any") -> dict[str, Any]:
+        ...
+    def generate_alternative_analysis(self, state: "Any") -> dict[str, Any]:
+        ...
+    def generate_vpc(self, state: "Any") -> dict[str, Any]:
+        ...
+    def generate_mental_model_and_journey(self, state: "Any") -> dict[str, Any]:
+        ...
+    def generate_sitemap_and_wireframe(self, state: "Any") -> dict[str, Any]:
+        ...
+
+@runtime_checkable
+class IOutputGenerationAgent(Protocol):
+    def generate_agent_prompt_spec(self, state: "Any") -> dict[str, Any]:
+        ...
+    def generate_experiment_plan(self, state: "Any") -> dict[str, Any]:
         ...

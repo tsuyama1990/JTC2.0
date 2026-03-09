@@ -75,29 +75,8 @@ def _second() -> "Any":
 def _third(detect_mode: "Any", os: "Any") -> None:
     # Setup Mocking if in Mock Mode
     if detect_mode() == "Mock Mode":
-        from unittest.mock import patch
-
         os.environ["OPENAI_API_KEY"] = "dummy" * 10
         os.environ["TAVILY_API_KEY"] = "dummy" * 10
-
-        # Start a bunch of patchers
-        _patcher_llm = patch("src.core.llm.LLMFactory.get_llm")
-        _mock_llm = _patcher_llm.start()
-
-        _patcher_search = patch("src.tools.search.TavilySearch.safe_search")
-        _mock_search = _patcher_search.start()
-        _mock_search.return_value = "Mocked search results about painful problems."
-
-        _patcher_rag = patch("src.data.rag.RAG")
-        _mock_rag = _patcher_rag.start()
-        _mock_rag.return_value.query.return_value = "Mocked RAG insights: Customers are frustrated with switching costs."
-
-        # Setup Mock LLM Structured Outputs
-        # We need to return specific Pydantic schemas depending on the step
-        def setup_mocks() -> None:
-            pass
-
-        setup_mocks()
 
 
 

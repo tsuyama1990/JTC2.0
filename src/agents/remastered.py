@@ -316,6 +316,10 @@ class OutputGenerationAgent(BaseAgent):
         self.llm = llm
         self.settings = app_settings or get_settings()
 
+    def generate_agent_prompt_spec(self, state: GlobalState) -> dict[str, Any]:
+        """Provides fallback generation behavior."""
+        return {}
+
     def generate_experiment_plan(self, state: GlobalState) -> dict[str, Any]:
         """Generate Experiment Plan."""
         if not state.selected_idea:

@@ -48,9 +48,11 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
         desc = step.get("description", "Simulation Step")
 
         if not node_name or not isinstance(node_name, str):
-            raise ValueError("Simulation step must have a valid string 'node_name'.")
+            msg = "Simulation step must have a valid string 'node_name'."
+            raise ValueError(msg)
         if not role_str or not isinstance(role_str, str):
-            raise ValueError("Simulation step must have a valid string 'role'.")
+            msg = "Simulation step must have a valid string 'role'."
+            raise ValueError(msg)
 
         # Strict validation of node_name to prevent code injection via name manipulation
         if not re.match(r"^[a-zA-Z0-9_-]+$", node_name):
@@ -64,22 +66,31 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
             msg = f"Invalid role '{role_str}' in simulation config. Must be one of {list(Role)}."
             raise ValueError(msg) from err
 
+        from functools import partial
+
         # Create a closure for the node function
-        # We must bind defaults to capture the current iteration's values
-        def step_runner(
-            state: GlobalState, _role: Role = role, _desc: str = desc
+        def _execute_step(
+            state: GlobalState, bound_role: Role, bound_desc: str
         ) -> dict[str, object]:
             from src.core.config import get_settings
             from src.core.llm import LLMFactory
 
-            logger.info(_desc)
+            logger.info(bound_desc)
             factory = AgentFactory(llm=LLMFactory().get_llm(), settings=get_settings())
-            return factory.get_persona_agent(_role).run(state)
+            res = factory.get_persona_agent(bound_role).run(state)
+            return res if isinstance(res, dict) else {}
 
-        # Name the function for debugging
-        step_runner.__name__ = f"run_{node_name}"
+        # We must bind defaults securely using partial to prevent late binding loop closures
+        bound_runner = partial(_execute_step, bound_role=role, bound_desc=desc)
 
-        workflow.add_node(node_name, step_runner)
+        # For LangGraph tracking, we can wrap the partial to give it a proper name
+        def named_runner(state: GlobalState, _runner: Any = bound_runner) -> dict[str, object]:
+            res = _runner(state)
+            return res if isinstance(res, dict) else {}
+
+        named_runner.__name__ = f"run_{node_name}"
+
+        workflow.add_node(node_name, named_runner)
 
         if previous_node:
             workflow.add_edge(previous_node, node_name)

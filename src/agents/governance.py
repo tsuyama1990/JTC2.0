@@ -80,12 +80,14 @@ class GovernanceAgent(BaseAgent):
 
         import re
 
-        from src.core.utils import strip_html_tags
+        import bleach
 
-        # Note: Do not rely on string sanitization for database queries.
-        # This regex is used to keep search queries clean, NOT for SQL/Command injection security.
-        stripped = strip_html_tags(industry)
-        clean_query = re.sub(r"[^a-zA-Z0-9\s]", "", stripped)
+        # Strip all HTML tags to prevent prompt injection vectors
+        stripped = bleach.clean(industry, tags=[], attributes={}, strip=True)
+
+        # Enforce strict alphanumeric whitelist, supporting unicode letters optionally
+        # Since we use this for a simple Tavily search query string, standard alphanumerics + spaces are safe and sufficient.
+        clean_query = re.sub(r"[^\w\s-]", "", stripped, flags=re.UNICODE)
         return clean_query.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
