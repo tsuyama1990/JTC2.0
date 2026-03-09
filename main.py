@@ -188,7 +188,8 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
     echo(ui_config.researching.format(topic=topic))
     echo(ui_config.wait)
 
-    app = create_app()
+    from src.core.workflow_builder import node_registry
+    app = create_app(registry=node_registry)
     initial_state = GlobalState(topic=topic)
     final_state = app.invoke(initial_state)
 

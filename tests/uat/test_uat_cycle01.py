@@ -40,7 +40,7 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 @patch("src.core.factory.IdeatorAgent")
-@patch("src.core.factory.get_llm")
+@patch("src.core.llm.LLMFactory.get_llm")
 def test_ideation_scalability(
     mock_get_llm: MagicMock,
     mock_ideator_cls: MagicMock,
@@ -50,9 +50,9 @@ def test_ideation_scalability(
     Verify that the Ideation phase handles large/infinite iterators safely
     by consuming only what is needed (pagination).
     """
-    from src.core.config import Settings
+    from src.core.config import clear_settings_cache
 
-    Settings.reload()
+    clear_settings_cache()
 
     mock_ideator_instance = mock_ideator_cls.return_value
     # Return wrapped iterator as expected by strict validation
@@ -85,7 +85,7 @@ def test_ideation_scalability(
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 @patch("src.core.factory.IdeatorAgent")
-@patch("src.core.factory.get_llm")
+@patch("src.core.llm.LLMFactory.get_llm")
 def test_gate_transitions_data_integrity(
     mock_get_llm: MagicMock, mock_ideator_cls: MagicMock
 ) -> None:
@@ -93,9 +93,9 @@ def test_gate_transitions_data_integrity(
     Verify that state transitions through gates maintain data integrity
     and validation rules hold.
     """
-    from src.core.config import Settings
+    from src.core.config import clear_settings_cache
 
-    Settings.reload()
+    clear_settings_cache()
 
     # Setup initial state simulating post-Ideation (Gate 1 passed)
     # We construct a valid state manually as if we just picked an idea.

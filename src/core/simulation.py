@@ -59,8 +59,13 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
         def step_runner(
             state: GlobalState, _role: Role = role, _desc: str = desc
         ) -> dict[str, object]:
+            from src.core.factory import AgentFactory
+            from src.core.llm import LLMFactory
+            from src.core.config import get_settings
+
             logger.info(_desc)
-            return AgentFactory.get_persona_agent(_role).run(state)
+            factory = AgentFactory(llm=LLMFactory().get_llm(), settings=get_settings())
+            return factory.get_persona_agent(_role).run(state)
 
         # Name the function for debugging
         step_runner.__name__ = f"run_{node_name}"

@@ -21,7 +21,7 @@ class TestGovernanceMemorySafety:
     def agent(self) -> GovernanceAgent:
         return GovernanceAgent(file_service=MagicMock(spec=FileService))
 
-    @patch("src.agents.governance.get_llm")
+    @patch("src.core.llm.LLMFactory.get_llm")
     def test_safe_llm_call_rejects_large_response(
         self, mock_llm_factory: MagicMock, agent: GovernanceAgent
     ) -> None:

@@ -99,6 +99,7 @@ ignore = [
     "PLC0415", # Import should be at top-level
     "BLE001", # Blind exception catch
     "PT019",  # Fixture without value injection
+    "PT012",  # pytest.raises() block should contain a single simple statement
     "RUF003", # Ambiguous multiplication sign
     "ARG002", # Unused method argument
     "RUF043", # Pattern metacharacters not escaped in match
@@ -114,6 +115,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]  # Allow assert in tests
+"tutorials/*.py" = ["N807", "N803", "RET503", "RET504", "F821", "E501", "F401", "F811", "ANN"] # Marimo specific
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10  # Exceeding this prompts function splitting (prevent AI long functions)

@@ -18,11 +18,13 @@ logger = logging.getLogger(__name__)
 
 def make_ideator_node(ideator_agent: Any) -> Any:
     def _ideator_run_impl(state: GlobalState) -> dict[str, Any]:
-        return ideator_agent.run(state)
+        res = ideator_agent.run(state)
+        return res if isinstance(res, dict) else {}
 
     def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
         """Wrapper for Ideator execution with error handling."""
-        return NodeExecutor.execute(_ideator_run_impl, state, "Error in Ideator Agent")
+        res = NodeExecutor.execute(_ideator_run_impl, state, "Error in Ideator Agent")
+        return res if isinstance(res, dict) else {}
 
     return safe_ideator_run
 
@@ -53,10 +55,12 @@ def make_persona_node(agent: Any) -> Any:
     def _persona_node_impl(state: GlobalState) -> dict[str, Any]:
         """Phase 2: Generate Persona."""
         logger.info("Generating Persona...")
-        return agent.generate_persona(state)
+        res = agent.generate_persona(state)
+        return res if isinstance(res, dict) else {}
 
     def persona_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(_persona_node_impl, state, "Error in Persona Node")
+        res = NodeExecutor.execute(_persona_node_impl, state, "Error in Persona Node")
+        return res if isinstance(res, dict) else {}
     return persona_node
 
 
@@ -69,12 +73,13 @@ def make_alternative_analysis_node(agent: Any) -> Any:
             PDFGenerator.generate_canvas_pdf(
                 updates["alternative_analysis"], "alternative_analysis.pdf"
             )
-        return updates
+        return updates if isinstance(updates, dict) else {}
 
     def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(
+        res = NodeExecutor.execute(
             _alternative_analysis_node_impl, state, "Error in Alternative Analysis Node"
         )
+        return res if isinstance(res, dict) else {}
     return alternative_analysis_node
 
 
@@ -88,10 +93,11 @@ def make_vpc_node(agent: Any) -> Any:
                 updates["value_proposition"], "value_proposition_canvas.pdf"
             )
             ApprovalStampRenderer("VPC Canvas").start()
-        return updates
+        return updates if isinstance(updates, dict) else {}
 
     def vpc_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(_vpc_node_impl, state, "Error in VPC Node")
+        res = NodeExecutor.execute(_vpc_node_impl, state, "Error in VPC Node")
+        return res if isinstance(res, dict) else {}
     return vpc_node
 
 
@@ -107,12 +113,13 @@ def make_mental_model_journey_node(agent: Any) -> Any:
 
         if updates.get("mental_model") or updates.get("customer_journey"):
             ApprovalStampRenderer("Mental Model & Journey").start()
-        return updates
+        return updates if isinstance(updates, dict) else {}
 
     def mental_model_journey_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(
+        res = NodeExecutor.execute(
             _mental_model_journey_node_impl, state, "Error in Mental Model & Journey Node"
         )
+        return res if isinstance(res, dict) else {}
     return mental_model_journey_node
 
 
@@ -124,12 +131,13 @@ def make_sitemap_wireframe_node(agent: Any) -> Any:
         if updates.get("sitemap_and_story"):
             PDFGenerator.generate_canvas_pdf(updates["sitemap_and_story"], "sitemap_and_story.pdf")
             ApprovalStampRenderer("Sitemap & Story").start()
-        return updates
+        return updates if isinstance(updates, dict) else {}
 
     def sitemap_wireframe_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(
+        res = NodeExecutor.execute(
             _sitemap_wireframe_node_impl, state, "Error in Sitemap & Wireframe Node"
         )
+        return res if isinstance(res, dict) else {}
     return sitemap_wireframe_node
 
 
@@ -171,12 +179,13 @@ def make_spec_generation_node(agent: Any) -> Any:
                 if temp_path.exists():
                     temp_path.unlink()
             ApprovalStampRenderer("Agent Prompt Spec").start()
-        return updates
+        return updates if isinstance(updates, dict) else {}
 
     def spec_generation_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(
+        res = NodeExecutor.execute(
             _spec_generation_node_impl, state, "Error in Spec Generation Node"
         )
+        return res if isinstance(res, dict) else {}
     return spec_generation_node
 
 
@@ -214,12 +223,13 @@ def make_experiment_planning_node(agent: Any) -> Any:
                 if temp_path.exists():
                     temp_path.unlink()
             ApprovalStampRenderer("Experiment Plan").start()
-        return updates
+        return updates if isinstance(updates, dict) else {}
 
     def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(
+        res = NodeExecutor.execute(
             _experiment_planning_node_impl, state, "Error in Experiment Planning Node"
         )
+        return res if isinstance(res, dict) else {}
     return experiment_planning_node
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -229,12 +239,14 @@ def make_virtual_customer_node(agent: Any) -> Any:
     def _virtual_customer_node_impl(state: GlobalState) -> dict[str, Any]:
         """Phase 4: Virtual Customer Interview."""
         logger.info("Running Virtual Customer Simulation...")
-        return agent.run(state)
+        res = agent.run(state)
+        return res if isinstance(res, dict) else {}
 
     def virtual_customer_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(
+        res = NodeExecutor.execute(
             _virtual_customer_node_impl, state, "Error in Virtual Customer Node"
         )
+        return res if isinstance(res, dict) else {}
     return virtual_customer_node
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -262,7 +274,8 @@ def make_review_3h_node(hacker_agent: Any, hipster_agent: Any, hustler_agent: An
         return state_updates
 
     def review_3h_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
+        res = NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
+        return res if isinstance(res, dict) else {}
     return review_3h_node
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -404,7 +417,13 @@ def make_nemawashi_analysis_node(engine_factory: Any) -> Any:
 
 
 def _create_cpo_agent(state: GlobalState) -> Any:
-    return AgentFactory.get_persona_agent(Role.CPO, state)
+    from src.core.config import get_settings
+    from src.core.llm import LLMFactory
+
+    settings = get_settings()
+    llm = LLMFactory().get_llm()
+    factory = AgentFactory(llm=llm, settings=settings)
+    return factory.get_persona_agent(Role.CPO, state)
 
 
 def _safe_cpo_run_impl(state: GlobalState) -> dict[str, Any]:

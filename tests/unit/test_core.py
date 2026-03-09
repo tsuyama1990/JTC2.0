@@ -4,7 +4,7 @@ import pytest
 from pydantic import SecretStr
 
 # Note: We patch 'src.core.llm.settings' instead of 'OPENAI_API_KEY'
-from src.core.llm import clear_llm_cache, get_llm
+from src.core.llm import LLMFactory
 
 
 def test_config_values() -> None:
@@ -22,39 +22,36 @@ def test_config_values() -> None:
 
 
 @patch("src.core.llm.get_settings")
-@patch("src.core.validators.ApiKeyValidator.validate")
+@patch("src.core.validators.ApiKeyValidator.validate_openai")
 def test_get_llm_success(mock_validate: MagicMock, mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = SecretStr("test-key")
     mock_settings.llm_model = "gpt-4o"
 
-    llm = get_llm()
+    llm_factory = LLMFactory()
+    llm = llm_factory.get_llm()
     assert llm.model_name == "gpt-4o"
     assert llm.openai_api_key == SecretStr("test-key")
     mock_validate.assert_called_once()
 
 
 @patch("src.core.llm.get_settings")
-@patch("src.core.validators.ApiKeyValidator.validate")
+@patch("src.core.validators.ApiKeyValidator.validate_openai")
 def test_get_llm_override(mock_validate: MagicMock, mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = SecretStr("test-key")
 
-    llm = get_llm(model="gpt-3.5-turbo")
+    llm_factory = LLMFactory()
+    llm = llm_factory.get_llm(model="gpt-3.5-turbo")
     assert llm.model_name == "gpt-3.5-turbo"
 
 
 @patch("src.core.llm.get_settings")
-@patch("src.core.validators.ApiKeyValidator.validate")
+@patch("src.core.validators.ApiKeyValidator.validate_openai")
 def test_get_llm_missing_key(mock_validate: MagicMock, mock_get_settings: MagicMock) -> None:
-    # Clear lru_cache to ensure we get a fresh execution
-    clear_llm_cache()
-
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = None
     # Updated error message constant in Cycle 06
     with pytest.raises(ValueError, match="LLM configuration invalid"):
-        get_llm()
-
-    # Clear again for safety
-    clear_llm_cache()
+        llm_factory = LLMFactory()
+        llm_factory.get_llm()
