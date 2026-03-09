@@ -38,29 +38,61 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
     return _gen()
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.core.factory.IdeatorAgent")
-@patch("src.core.factory.get_llm")
-def test_ideation_scalability(
-    mock_get_llm: MagicMock,
-    mock_ideator_cls: MagicMock,
-    limited_lean_canvas_generator: Iterator[LeanCanvas],
-) -> None:
+def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas]) -> None: # noqa: PLR0915
     """
     Verify that the Ideation phase handles large/infinite iterators safely
     by consuming only what is needed (pagination).
     """
-    from src.core.config import Settings
+    from src.core.config import clear_settings_cache
 
-    Settings.reload()
+    clear_settings_cache()
+    os.environ.update(DUMMY_ENV_VARS)
 
-    mock_ideator_instance = mock_ideator_cls.return_value
+    mock_ideator_instance = MagicMock()
     # Return wrapped iterator as expected by strict validation
     mock_ideator_instance.run.return_value = {
         "generated_ideas": LazyIdeaIterator(limited_lean_canvas_generator)
     }
 
+    import src.core.nodes
+    from src.core.factory import AgentFactory
     from src.core.workflow_builder import node_registry
+
+    # Quick fix for test specifically: ensure node is registered for test
+    if "ideator" not in node_registry.nodes:
+        # Mock factory
+        factory = MagicMock(spec=AgentFactory)
+        factory.get_ideator_agent.return_value = mock_ideator_instance
+        node_registry.nodes["ideator"] = src.core.nodes.make_ideator_node(factory.get_ideator_agent())
+
+        # Provide a mock for persona as well to avoid undefined node error during build
+        if "persona" not in node_registry.nodes:
+            node_registry.nodes["persona"] = MagicMock()
+        if "verification" not in node_registry.nodes:
+            node_registry.nodes["verification"] = MagicMock()
+        if "alternative_analysis" not in node_registry.nodes:
+            node_registry.nodes["alternative_analysis"] = MagicMock()
+        if "vpc" not in node_registry.nodes:
+            node_registry.nodes["vpc"] = MagicMock()
+        if "transcript_ingestion" not in node_registry.nodes:
+            node_registry.nodes["transcript_ingestion"] = MagicMock()
+        if "mental_model_journey" not in node_registry.nodes:
+            node_registry.nodes["mental_model_journey"] = MagicMock()
+        if "sitemap_wireframe" not in node_registry.nodes:
+            node_registry.nodes["sitemap_wireframe"] = MagicMock()
+        if "virtual_customer" not in node_registry.nodes:
+            node_registry.nodes["virtual_customer"] = MagicMock()
+        if "simulation_round" not in node_registry.nodes:
+            node_registry.nodes["simulation_round"] = MagicMock()
+        if "review_3h" not in node_registry.nodes:
+            node_registry.nodes["review_3h"] = MagicMock()
+        if "spec_generation" not in node_registry.nodes:
+            node_registry.nodes["spec_generation"] = MagicMock()
+        if "experiment_planning" not in node_registry.nodes:
+            node_registry.nodes["experiment_planning"] = MagicMock()
+        if "governance" not in node_registry.nodes:
+            node_registry.nodes["governance"] = MagicMock()
+
     app = create_app(registry=node_registry)
     initial_state = GlobalState(topic="AI for Scalability")
 
@@ -83,19 +115,15 @@ def test_ideation_scalability(
     assert next_item.id == 5
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.core.factory.IdeatorAgent")
-@patch("src.core.factory.get_llm")
-def test_gate_transitions_data_integrity(
-    mock_get_llm: MagicMock, mock_ideator_cls: MagicMock
-) -> None:
+def test_gate_transitions_data_integrity() -> None:
     """
     Verify that state transitions through gates maintain data integrity
     and validation rules hold.
     """
-    from src.core.config import Settings
+    from src.core.config import clear_settings_cache
 
-    Settings.reload()
+    clear_settings_cache()
+    os.environ.update(DUMMY_ENV_VARS)
 
     # Setup initial state simulating post-Ideation (Gate 1 passed)
     # We construct a valid state manually as if we just picked an idea.

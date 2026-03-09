@@ -9,6 +9,7 @@ from src.core.config import AgentConfig, SimulationConfig, get_settings
 
 def test_config_loading_success() -> None:
     """Test successful configuration loading."""
+    from src.core.config import clear_settings_cache
     with patch.dict(
         os.environ,
         {
@@ -17,7 +18,7 @@ def test_config_loading_success() -> None:
             "V0_API_KEY": "v0-12345678901234567890",
         },
     ):
-        get_settings().reload()
+        clear_settings_cache()
         settings = get_settings()
         assert settings.openai_api_key is not None
         assert settings.openai_api_key.get_secret_value() == "sk-12345678901234567890"
@@ -31,11 +32,12 @@ def test_config_missing_openai_key() -> None:
         # We need to set TAVILY_API_KEY to isolate the OPENAI_API_KEY check
         os.environ["TAVILY_API_KEY"] = "tvly-12345678901234567890"
 
-        from src.core.config import Settings
+        from src.core.config import clear_settings_cache
 
         # Validation happens on init, pydantic raises pydantic_core.ValidationError, we catch broad Exception
         with pytest.raises(ValidationError, match=".*"):
-            Settings.reload()
+            clear_settings_cache()
+            get_settings()
 
 
 def test_config_missing_tavily_key() -> None:
@@ -43,10 +45,11 @@ def test_config_missing_tavily_key() -> None:
     with patch.dict(os.environ, {}, clear=True):
         os.environ["OPENAI_API_KEY"] = "sk-12345678901234567890"
 
-        from src.core.config import Settings
+        from src.core.config import clear_settings_cache
 
         with pytest.raises(ValidationError, match=".*"):
-            Settings.reload()
+            clear_settings_cache()
+            get_settings()
 
 
 def test_config_caching() -> None:
@@ -68,12 +71,14 @@ def test_config_caching() -> None:
         # Caching is now implemented as a singleton
         assert s1 is s2
 
-        s3 = get_settings().reload()
+        clear_settings_cache()
+        s3 = get_settings()
         assert s1 is not s3
 
 
 def test_invalid_log_level() -> None:
     """Test loading with invalid log level (although Pydantic might coerce it)."""
+    from src.core.config import clear_settings_cache
     with patch.dict(
         os.environ,
         {
@@ -82,7 +87,7 @@ def test_invalid_log_level() -> None:
             "LOG_LEVEL": "INVALID",
         },
     ):
-        get_settings().reload()
+        clear_settings_cache()
         s = get_settings()
         assert s.log_level == "INVALID"
 

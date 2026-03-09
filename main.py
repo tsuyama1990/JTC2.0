@@ -49,9 +49,11 @@ def safe_input(prompt: str) -> str:
 
 def validate_topic(topic: str) -> str:
     """
-    Sanitize and validate the topic string.
-    Allow alphanumeric, spaces, and basic punctuation.
+    Validate the topic string.
+    Reject topics with dangerous characters and sanitize output.
     """
+    import bleach
+
     if not topic or not topic.strip():
         msg = "Topic cannot be empty."
         raise ValueError(msg)
@@ -60,14 +62,17 @@ def validate_topic(topic: str) -> str:
         msg = "Topic is too long (max 200 chars)."
         raise ValueError(msg)
 
-    # Allow alphanumeric, spaces, - _ . : ,
-    if not re.match(r"^[a-zA-Z0-9\s\-_\.,:]+$", topic):
-        logger.warning(f"Topic contains special characters: {topic}")
-        # STRICT sanitization: Remove anything not in allowlist
-        topic = re.sub(r"[^a-zA-Z0-9\s\-_\.,:]", "", topic)
+    # Sanitize with bleach to prevent HTML/Command injection vectors
+    cleaned_topic = bleach.clean(topic)
+    if cleaned_topic != topic:
+        msg = "Topic contained potentially dangerous HTML/Command injection tags."
+        logger.error(msg)
+        raise ValueError(msg)
 
-    if not topic.strip():
-        msg = "Topic is empty after sanitization."
+    # Strict whitelist to prevent SQL injection logic like '; DROP TABLE'
+    if not re.match(r"^[a-zA-Z0-9\s]+$", topic):
+        msg = f"Topic contains invalid characters: {topic}"
+        logger.error(msg)
         raise ValueError(msg)
 
     return topic
@@ -77,17 +82,27 @@ def validate_filepath(filepath: str) -> Path:
     """
     Validate filepath to prevent traversal attacks.
     Ensures path is within the current working directory.
+    Resolves symmetrically with strict mode to prevent symlink bypass.
     """
-    path = Path(filepath).resolve()
-    cwd = Path.cwd().resolve()
+    cwd = Path.cwd().resolve(strict=True)
 
-    # Strict path traversal check
-    if not path.is_relative_to(cwd):
-        msg = "File path must be within the project directory."
+    raw_path = Path(filepath)
+
+    # Explicit symlink check before resolving
+    if raw_path.exists() and raw_path.is_symlink():
+        msg = "Symlinks are not allowed for security reasons."
         raise ValueError(msg)
 
-    if not path.exists():
+    try:
+        path = raw_path.resolve(strict=True)
+    except FileNotFoundError as e:
         msg = f"File not found: {filepath}"
+        raise ValueError(msg) from e
+
+    # Strict path traversal check against allowed directory whitelist
+    # For main.py, the allowed root is explicitly the CWD
+    if not path.is_relative_to(cwd):
+        msg = "File path must be within the project directory."
         raise ValueError(msg)
 
     return path
@@ -181,14 +196,53 @@ def browse_and_select(
     return None
 
 
-def _process_execution(topic: str) -> Iterator[LeanCanvas]:
+def _process_execution(topic: str) -> Iterator[LeanCanvas]: # noqa: PLR0915
     """Execute the ideation workflow."""
     ui_config = get_settings().ui
     echo(ui_config.phase_start.format(phase=Phase.IDEATION))
     echo(ui_config.researching.format(topic=topic))
     echo(ui_config.wait)
 
-    app = create_app()
+    from src.core.factory import AgentFactory
+    from src.core.llm import LLMFactory
+    from src.core.workflow_builder import node_registry
+
+    llm = LLMFactory().get_llm()
+    factory = AgentFactory(llm=llm, settings=get_settings())
+
+    import src.core.nodes
+
+    # Register node if not already in registry
+    if "ideator" not in node_registry.nodes:
+        node_registry.nodes["ideator"] = src.core.nodes.make_ideator_node(factory.get_ideator_agent())
+    if "persona" not in node_registry.nodes:
+        node_registry.nodes["persona"] = src.core.nodes.make_persona_node(factory.get_remastered_agent())
+    if "alternative_analysis" not in node_registry.nodes:
+        node_registry.nodes["alternative_analysis"] = src.core.nodes.make_alternative_analysis_node(factory.get_remastered_agent())
+    if "vpc" not in node_registry.nodes:
+        node_registry.nodes["vpc"] = src.core.nodes.make_vpc_node(factory.get_remastered_agent())
+    if "mental_model_journey" not in node_registry.nodes:
+        node_registry.nodes["mental_model_journey"] = src.core.nodes.make_mental_model_journey_node(factory.get_remastered_agent())
+    if "sitemap_wireframe" not in node_registry.nodes:
+        node_registry.nodes["sitemap_wireframe"] = src.core.nodes.make_sitemap_wireframe_node(factory.get_remastered_agent())
+    if "virtual_customer" not in node_registry.nodes:
+        node_registry.nodes["virtual_customer"] = src.core.nodes.make_virtual_customer_node(factory.get_virtual_customer_agent())
+    if "review_3h" not in node_registry.nodes:
+        node_registry.nodes["review_3h"] = src.core.nodes.make_review_3h_node(
+            factory.get_hacker_agent(), factory.get_hipster_agent(), factory.get_hustler_agent()
+        )
+    if "spec_generation" not in node_registry.nodes:
+        node_registry.nodes["spec_generation"] = src.core.nodes.make_spec_generation_node(factory.get_output_generation_agent())
+    if "experiment_planning" not in node_registry.nodes:
+        node_registry.nodes["experiment_planning"] = src.core.nodes.make_experiment_planning_node(factory.get_output_generation_agent())
+    if "governance" not in node_registry.nodes:
+        node_registry.nodes["governance"] = src.core.nodes.make_governance_node(factory.get_governance_agent())
+    if "transcript_ingestion" not in node_registry.nodes:
+        node_registry.nodes["transcript_ingestion"] = src.core.nodes.make_transcript_ingestion_node()
+    if "simulation_round" not in node_registry.nodes:
+        node_registry.nodes["simulation_round"] = src.core.nodes.safe_simulation_run
+
+    app = create_app(registry=node_registry)
     initial_state = GlobalState(topic=topic)
     final_state = app.invoke(initial_state)
 

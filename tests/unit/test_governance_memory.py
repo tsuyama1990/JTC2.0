@@ -21,7 +21,7 @@ class TestGovernanceMemorySafety:
     def agent(self) -> GovernanceAgent:
         return GovernanceAgent(file_service=MagicMock(spec=FileService))
 
-    @patch("src.agents.governance.get_llm")
+    @patch("src.core.llm.LLMFactory.get_llm")
     def test_safe_llm_call_rejects_large_response(
         self, mock_llm_factory: MagicMock, agent: GovernanceAgent
     ) -> None:
@@ -37,16 +37,27 @@ class TestGovernanceMemorySafety:
         chunk2 = MagicMock()
         chunk2.content = "678901"  # Total 11 chars
 
-        # Patch the settings object instance directly
-        with patch("src.agents.governance.get_settings") as mock_get_settings:
-            mock_settings = mock_get_settings.return_value
-            mock_settings.governance.max_llm_response_size = 10
+        # Use settings factory to create isolated settings with a low limit
+        from src.core.config import Settings
 
-            # mock_llm is the Client instance. We mock the stream method.
-            mock_llm.stream.return_value = iter([chunk1, chunk2])
+        # Avoid global patches, configure test-specific settings locally to the agent
+        test_settings = Settings(
+            OPENAI_API_KEY="sk-12345678901234567890",
+            TAVILY_API_KEY="tvly-12345678901234567890"
+        )
+        test_settings.governance.max_llm_response_size = 10
+        agent.settings = test_settings  # type: ignore[attr-defined]
 
-            with pytest.raises(ValueError, match=ERR_LLM_RESPONSE_TOO_LARGE):
-                agent._safe_llm_call("prompt", DummyModel)
+        # Inject directly into agent
+        agent.llm = mock_llm  # type: ignore[attr-defined]
+
+        # mock_llm is the Client instance. We mock the stream method.
+        mock_llm.stream.return_value = iter([chunk1, chunk2])
+
+        # Pydantic 2.x throws ValidationError if model is incorrectly mocked,
+        # but in this case, we expect it to hit the size limit FIRST and raise ValueError.
+        with pytest.raises(ValueError, match=ERR_LLM_RESPONSE_TOO_LARGE):
+            agent._safe_llm_call("prompt", DummyModel)
 
     @patch("src.agents.governance.TavilySearch")
     def test_search_result_truncation(

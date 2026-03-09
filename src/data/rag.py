@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import pybreaker
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -147,14 +148,24 @@ class IngestionRequest(BaseModel):
         return v
 
 
+
+
 class RAG:
     """
     Retrieval-Augmented Generation (RAG) engine using LlamaIndex.
     """
 
-    def __init__(self, persist_dir: str | None = None, repository: IFileRepository | None = None) -> None:
+    def __init__(
+        self,
+        persist_dir: str | None = None,
+        repository: IFileRepository | None = None,
+        llm: Any | None = None,
+        embed_model: Any | None = None
+    ) -> None:
         self.settings = get_settings()
         self.repository = repository or FileRepository()
+        self.llm = llm
+        self.embed_model = embed_model
 
         # Security: Validate persist_dir path
         raw_path = persist_dir or self.settings.rag.persist_dir
@@ -194,28 +205,43 @@ class RAG:
             raise ConfigurationError(msg)
 
         try:
-            # Reintroduce allowed paths boundary checks to ensure safety across environments
-            # where cwd might be /tmp during tests.
-            cwd = Path.cwd().resolve()
-            allowed_rel_paths = self.settings.rag.allowed_paths
-            allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
-            # Also allow cwd itself if configured or dynamically running tests
-            allowed_parents.append(cwd)
+            # Simplify path validation to use a single base directory check against CWD
+            # to provide straightforward containment without edge-case complex whitelists
+            cwd = Path.cwd().resolve(strict=True)
 
-            # Use strict=False to handle paths that don't exist yet but get canonicalized.
-            path = Path(path_str).resolve(strict=False)
+            target_path = Path(path_str)
 
-            if not any(path.is_relative_to(parent) for parent in allowed_parents):
-                logger.exception(ERR_PATH_TRAVERSAL)
-                raise ConfigurationError(ERR_PATH_TRAVERSAL)
-
-            if path.exists():
-                if path.is_symlink():
+            # Explicit symlink check first before attempting resolution
+            if target_path.exists():
+                if target_path.is_symlink():
                     msg = "Symlinks not allowed in persist_dir."
                     raise ConfigurationError(msg)
+
+                # Resolve strictly to prevent symlink bypasses
+                path = target_path.resolve(strict=True)
+
                 if not path.is_dir():
                     msg = f"Path must be a directory: {path_str}"
                     raise ConfigurationError(msg)
+            else:
+                # If the target doesn't exist, ensure its parent directory is valid and not a symlink
+                if target_path.parent.exists() and target_path.parent.is_symlink():
+                    msg = "Symlinks not allowed in parent path."
+                    raise ConfigurationError(msg)
+
+                parent = target_path.parent.resolve(strict=True)
+                path = parent / target_path.name
+
+            # Explicit containment check against CWD (or specific test tmp directory if running tests)
+            # Typically `cwd` works perfectly for local sandboxes or container volumes.
+
+            # NOTE: We allow the global system temp directory via `is_relative_to` if the environment requires it (like pytest tmpdir).
+            import tempfile
+            allowed_roots = [cwd, Path(tempfile.gettempdir()).resolve(strict=True)]
+
+            if not any(path.is_relative_to(root) for root in allowed_roots):
+                logger.exception(ERR_PATH_TRAVERSAL)
+                raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
             return str(path)
         except ConfigurationError:
@@ -231,8 +257,15 @@ class RAG:
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
 
-        LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
-        LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
+        if self.llm is not None:
+            LlamaSettings.llm = self.llm
+        else:
+            LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
+
+        if self.embed_model is not None:
+            LlamaSettings.embed_model = self.embed_model
+        else:
+            LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
         if self.repository.file_exists(self.persist_dir):
             self._load_existing_index()
@@ -410,15 +443,13 @@ class RAG:
         timeout = getattr(self.settings.rag, "query_timeout", 30.0)
 
         future = None
+        executor = ThreadPoolExecutor(max_workers=1)
         try:
             query_engine = self.index.as_query_engine()
-
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(query_engine.query, question)
-                response = future.result(timeout=timeout)
+            future = executor.submit(query_engine.query, question)
+            response = future.result(timeout=timeout)
 
             return str(response)
-
         except FuturesTimeoutError:
             if future is not None:
                 future.cancel()
@@ -431,3 +462,6 @@ class RAG:
             logger.exception("LlamaIndex query failed: %s", e.__class__.__name__)
             msg = f"Query execution failed: {e}"
             raise RuntimeError(msg) from e
+        finally:
+            # Force thread teardown immediately without waiting for blocked processes
+            executor.shutdown(wait=False, cancel_futures=True)

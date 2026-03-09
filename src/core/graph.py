@@ -10,13 +10,16 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
+
+
 class GraphBuilderService:
+    """Builds the execution graph using the provided registry."""
+
     def __init__(self, registry: WorkflowRegistry[GlobalState]) -> None:
         self.registry = registry
 
     def _register_nodes(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
         """Register all nodes into the workflow builder using the registry."""
-        import src.core.nodes  # noqa: F401
         current_builder = builder
         for name, func in self.registry.nodes.items():
             current_builder = current_builder.add_node(name, func)
@@ -60,12 +63,11 @@ class GraphBuilderService:
         return builder.set_interrupts(interrupts)
 
     def build_graph(self, builder: WorkflowBuilder[GlobalState] | None = None) -> CompiledStateGraph[Any, Any]:
-        if builder is None:
-            builder = WorkflowBuilder[GlobalState](GlobalState)
-        builder = self._register_nodes(builder)
-        builder = self._register_edges(builder)
-        builder = self._configure_interrupts(builder)
-        return builder.build()
+        current_builder = builder if builder is not None else WorkflowBuilder[GlobalState](GlobalState)
+        current_builder = self._register_nodes(current_builder)
+        current_builder = self._register_edges(current_builder)
+        current_builder = self._configure_interrupts(current_builder)
+        return current_builder.build()
 
 
 def create_app(
@@ -76,5 +78,9 @@ def create_app(
     Create and compile the LangGraph application.
     This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
-    service = GraphBuilderService(registry)
-    return service.build_graph(builder)
+    try:
+        service = GraphBuilderService(registry)
+        return service.build_graph(builder)
+    except Exception as e:
+        logger.error(f"Failed to build application graph: {e}")
+        raise RuntimeError(f"Workflow initialization failed: {e}") from e

@@ -80,12 +80,14 @@ class GovernanceAgent(BaseAgent):
 
         import re
 
-        from src.core.utils import strip_html_tags
+        import bleach
 
-        # Note: Do not rely on string sanitization for database queries.
-        # This regex is used to keep search queries clean, NOT for SQL/Command injection security.
-        stripped = strip_html_tags(industry)
-        clean_query = re.sub(r"[^a-zA-Z0-9\s]", "", stripped)
+        # Strip all HTML tags to prevent prompt injection vectors
+        stripped = bleach.clean(industry, tags=[], attributes={}, strip=True)
+
+        # Enforce strict alphanumeric whitelist, supporting unicode letters optionally
+        # Since we use this for a simple Tavily search query string, standard alphanumerics + spaces are safe and sufficient.
+        clean_query = re.sub(r"[^\w\s-]", "", stripped, flags=re.UNICODE)
         return clean_query.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
@@ -170,8 +172,9 @@ class GovernanceAgent(BaseAgent):
             JSONDecodeError: If parsing fails.
             ValidationError: If schema validation fails.
         """
-        settings = get_settings()
-        llm = LLMFactory().get_llm()
+        # Allow testing overrides
+        settings = getattr(self, "settings", get_settings())
+        llm = getattr(self, "llm", LLMFactory().get_llm())
 
         content = ""
         max_bytes = settings.governance.max_llm_response_size
@@ -190,27 +193,34 @@ class GovernanceAgent(BaseAgent):
 
     def _parse_json(self, text: str) -> dict[str, Any]:
         """
-        Helper to parse JSON from LLM response.
-        Uses regex to extract JSON block for robustness.
-
-        Raises:
-            JSONDecodeError: If parsing fails.
+        Helper to parse JSON safely from LLM responses, avoiding dangerous edge cases.
         """
-        import re
-
-        # Try finding JSON block first
-        match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
-        if match:
-            text = match.group(1)
-        else:
-            # Fallback: Try finding any code block
-            match = re.search(r"```\s*(.*?)\s*```", text, re.DOTALL)
-            if match:
-                text = match.group(1)
-
-        # Strip whitespace
         text = text.strip()
-        return json.loads(text)  # type: ignore
+
+        import re
+        # Try extracting JSON cleanly using non-greedy matching while avoiding catastrophic backtracking.
+        # Fallback to the whole string if no code block exists.
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        if match:
+            text = match.group(1).strip()
+        else:
+            # Fallback for plain braces
+            match_fallback = re.search(r"(\{.*?\})", text, re.DOTALL)
+            if match_fallback:
+                text = match_fallback.group(1).strip()
+
+        try:
+            # Pydantic core handles dictionary validation, but let's strictly load first
+            parsed = json.loads(text)
+        except json.JSONDecodeError as e:
+            logger.exception(f"Failed to parse JSON. Error at line {e.lineno}. Snippet: {text[:50]}")
+            msg = "Response does not contain a valid JSON object."
+            raise ValueError(msg) from e
+        else:
+            if not isinstance(parsed, dict):
+                msg = f"Parsed JSON is not a dictionary. Got: {type(parsed)}"
+                raise TypeError(msg)
+            return parsed
 
     def _save_to_file(self, ringi: RingiSho) -> None:
         """

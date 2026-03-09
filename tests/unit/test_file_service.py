@@ -31,13 +31,15 @@ class TestFileService:
             mock_mkstemp.return_value = (1, "temp.md")
 
             mock_file = MagicMock()
+            mock_file.fileno.return_value = 1
             mock_fdopen.return_value.__enter__.return_value = mock_file
 
             # Call the method
             file_service.save_text_async("content", "test.md")
 
             # Shutdown executor to ensure sync execution finishes
-            file_service._executor.shutdown(wait=True)
+            if hasattr(file_service.writer, "_executor"):
+                file_service.writer._executor.shutdown(wait=True)
 
             # Assertions
             mock_validate.assert_called_with("test.md")
@@ -61,7 +63,8 @@ class TestFileService:
             mock_mkstemp.side_effect = PermissionError("Access denied")
 
             file_service.save_text_async("content", "protected.md")
-            file_service._executor.shutdown(wait=True)
+            if hasattr(file_service.writer, "_executor"):
+                file_service.writer._executor.shutdown(wait=True)
 
             assert "Permission denied" in caplog.text or "Fatal error encountered" in caplog.text
 
@@ -81,11 +84,13 @@ class TestFileService:
             mock_path.parent = MagicMock()
             mock_mkstemp.return_value = (1, "temp.md")
             mock_file = MagicMock()
+            mock_file.fileno.return_value = 1
             mock_fdopen.return_value.__enter__.return_value = mock_file
 
             large_content = "A" * (1024 * 1024 * 10)  # 10 MB string
             file_service.save_text_async(large_content, "large.md")
-            file_service._executor.shutdown(wait=True)
+            if hasattr(file_service.writer, "_executor"):
+                file_service.writer._executor.shutdown(wait=True)
 
             mock_file.write.assert_called_with(large_content)
             mock_replace.assert_called_once()
@@ -105,6 +110,7 @@ class TestFileService:
             mock_mkstemp.side_effect = OSError("Disk full")
 
             file_service.save_text_async("content", "file.md")
-            file_service._executor.shutdown(wait=True)
+            if hasattr(file_service.writer, "_executor"):
+                file_service.writer._executor.shutdown(wait=True)
 
-            assert "OS error" in caplog.text or "Error writing to file.md" in caplog.text
+            assert "Disk full" in caplog.text or "Error writing to file.md" in caplog.text

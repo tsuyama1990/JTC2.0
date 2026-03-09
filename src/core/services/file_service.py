@@ -39,8 +39,24 @@ class ThreadedFileWriter(IFileWriter):
             fd, temp_path = tempfile.mkstemp(dir=path.parent, text=True)
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
-                    f.write(content)
-                # Atomic replace
+                    try:
+                        import fcntl
+                        # Implement file locking to prevent concurrent writes from stomping each other
+                        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        locked = True
+                    except (ImportError, AttributeError, OSError):
+                        locked = False
+
+                    try:
+                        f.write(content)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    finally:
+                        if locked:
+                            import fcntl
+                            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+                # Atomic replace (POSIX/Windows safe starting Python 3.3)
                 Path(temp_path).replace(path)
                 logger.info(f"File saved successfully to {path}")
             except Exception:

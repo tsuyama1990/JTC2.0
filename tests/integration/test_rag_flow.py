@@ -53,39 +53,28 @@ def temp_vector_store() -> Generator[str, None, None]:
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_transcript_ingestion(temp_vector_store: str) -> None:
     """Test that ingest_transcript works correctly."""
-    # Using LlamaIndex's MockLLM and MockEmbedding directly injected via Settings
-    # This avoids patching the class definition, allowing RAG to instantiate normally.
-    from llama_index.core import Settings as LlamaSettings
 
-    LlamaSettings.llm = MockLLM()
-    LlamaSettings.embed_model = MockEmbedding(embed_dim=1536)
+    # Use proper dependency injection to avoid polluting global state
+    mock_llm = MockLLM()
+    mock_embed_model = MockEmbedding(embed_dim=1536)
 
-    # We still patch the constructor call in RAG._init_llama to avoid re-overwriting settings with real OpenAI
-    # However, since we set global LlamaSettings, we can just ensure RAG uses them.
-    # But RAG._init_llama explicitly sets LlamaSettings.llm = OpenAI(...).
-    # We must patch OpenAI class to return our MockLLM instance.
+    rag = RAG(persist_dir=temp_vector_store, llm=mock_llm, embed_model=mock_embed_model)
+    transcript = Transcript(
+        source="Test Interview",
+        content="Customer says: I hate waiting in line.",
+        date="2023-01-01",
+    )
 
-    with (
-        patch("src.data.rag.OpenAI", return_value=MockLLM()),
-        patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
-    ):
-        rag = RAG(persist_dir=temp_vector_store)
-        transcript = Transcript(
-            source="Test Interview",
-            content="Customer says: I hate waiting in line.",
-            date="2023-01-01",
-        )
+    # Test ingestion
+    rag.ingest_transcript(transcript)
+    rag.persist_index()
 
-        # Test ingestion
-        rag.ingest_transcript(transcript)
-        rag.persist_index()
+    # Verify persistence
+    assert any(Path(temp_vector_store).iterdir())
 
-        # Verify persistence
-        assert any(Path(temp_vector_store).iterdir())
-
-        # Reload and query
-        rag_loaded = RAG(persist_dir=temp_vector_store)
-        assert rag_loaded.index is not None
+    # Reload and query
+    rag_loaded = RAG(persist_dir=temp_vector_store, llm=mock_llm, embed_model=mock_embed_model)
+    assert rag_loaded.index is not None
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
@@ -94,48 +83,48 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     Integration test for RAG: Ingest -> Persist -> Query.
     Uses real LlamaIndex components (mocked LLM/Embeddings to avoid API calls).
     """
-    from src.core.config import Settings
+    from src.core.config import clear_settings_cache
 
-    Settings.reload()
+    clear_settings_cache()
 
-    with (
-        patch("src.data.rag.OpenAI", return_value=MockLLM()),
-        patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
-    ):
-        # Initialize RAG with temp path
-        rag = RAG(persist_dir=temp_vector_store)
+    # Use explicit DI for isolation
+    mock_llm = MockLLM()
+    mock_embed_model = MockEmbedding(embed_dim=1536)
 
-        # 1. Ingest
-        text = "Customers prefer subscription models."
-        rag.ingest_text(text, source="test_interview.txt")
+    # Initialize RAG with temp path
+    rag = RAG(persist_dir=temp_vector_store, llm=mock_llm, embed_model=mock_embed_model)
 
-        # 2. Persist
-        rag.persist_index()
+    # 1. Ingest
+    text = "Customers prefer subscription models."
+    rag.ingest_text(text, source="test_interview.txt")
 
-        # Verify files created
-        from pathlib import Path
+    # 2. Persist
+    rag.persist_index()
 
-        assert any(Path(temp_vector_store).iterdir())
+    # Verify files created
+    from pathlib import Path
 
-        # 3. Reload (simulate new instance)
-        rag_loaded = RAG(persist_dir=temp_vector_store)
-        assert rag_loaded.index is not None
+    assert any(Path(temp_vector_store).iterdir())
 
-        # 4. Query - We trust the index is built.
-        # With MockEmbedding, queries might return low scores or nothing,
-        # but the machinery works.
-        # We assume LlamaIndex works. We check if .query() executes without error.
+    # 3. Reload (simulate new instance)
+    rag_loaded = RAG(persist_dir=temp_vector_store, llm=mock_llm, embed_model=mock_embed_model)
+    assert rag_loaded.index is not None
 
-        response = rag_loaded.query("What do customers prefer?")
-        assert isinstance(response, str)
+    # 4. Query - We trust the index is built.
+    # With MockEmbedding, queries might return low scores or nothing,
+    # but the machinery works.
+    # We assume LlamaIndex works. We check if .query() executes without error.
+
+    response = rag_loaded.query("What do customers prefer?")
+    assert isinstance(response, str)
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_cpo_agent_behavior() -> None:
     """Test CPO Agent behavior with mocked RAG."""
-    from src.core.config import Settings
+    from src.core.config import clear_settings_cache
 
-    Settings.reload()
+    clear_settings_cache()
     llm = MagicMock()
     # Mock chain invoke
     mock_msg = MagicMock()

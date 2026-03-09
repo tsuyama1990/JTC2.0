@@ -78,7 +78,7 @@ class TestCycle06UAT:
                 mock_search.safe_search.return_value = "Search result"
 
                 with (
-                    patch("src.agents.governance.get_llm") as mock_llm_factory,
+                    patch("src.core.llm.LLMFactory.get_llm") as mock_llm_factory,
                     patch("src.agents.governance.GovernanceAgent._save_to_file"),
                 ):
                     mock_llm = mock_llm_factory.return_value
@@ -143,7 +143,7 @@ class TestCycle06UAT:
                 mock_search.safe_search.return_value = "Search result"
 
                 with (
-                    patch("src.agents.governance.get_llm") as mock_llm_factory,
+                    patch("src.core.llm.LLMFactory.get_llm") as mock_llm_factory,
                     patch("src.agents.governance.GovernanceAgent._save_to_file"),
                 ):
                     mock_llm = mock_llm_factory.return_value

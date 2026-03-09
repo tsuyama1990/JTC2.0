@@ -62,7 +62,7 @@ class TestGovernanceAgent:
 
         # Check `src/core/llm.py` later. For now, let's assume it runs.
 
-        with patch("src.agents.governance.get_llm") as mock_llm_factory:
+        with patch("src.core.llm.LLMFactory.get_llm") as mock_llm_factory:
             mock_llm = mock_llm_factory.return_value
 
             # Mock LLM responses (called twice: financials, then ringi-sho)
