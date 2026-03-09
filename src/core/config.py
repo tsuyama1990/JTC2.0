@@ -440,6 +440,7 @@ def _get_safe_env_file() -> str:
     """Get and validate the .env file path securely."""
     import logging
     from pathlib import Path
+
     logger = logging.getLogger(__name__)
 
     env_path_str = os.getenv("ENV_FILE", ".env")

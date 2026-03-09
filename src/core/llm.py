@@ -23,7 +23,10 @@ class HTTPClientManager:
 
     def _init(self) -> None:
         settings = get_settings()
-        limits = httpx.Limits(max_keepalive_connections=settings.resiliency.max_keepalive_connections, max_connections=settings.resiliency.max_connections)
+        limits = httpx.Limits(
+            max_keepalive_connections=settings.resiliency.max_keepalive_connections,
+            max_connections=settings.resiliency.max_connections,
+        )
         timeout = httpx.Timeout(60.0, connect=10.0)
         self.client = httpx.Client(limits=limits, timeout=timeout)
         atexit.register(self.close)

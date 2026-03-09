@@ -3,7 +3,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from src.core.config import Settings, get_settings
-from src.core.exceptions import ConfigurationError
 from src.core.retry_handler import RetryHandler
 
 logger = logging.getLogger(__name__)
@@ -21,25 +20,9 @@ class FileService:
         self.settings = settings or get_settings()
 
     def _validate_path(self, path: str | Path) -> Path:
-        """
-        Validate path to prevent traversal strictly using absolute paths and containment.
-        """
-        try:
-            cwd = Path.cwd().resolve(strict=True)
-            # Use strict=False to handle paths that don't exist yet
-            p = Path(path).resolve(strict=False)
+        from src.core.utils import validate_safe_path
 
-            # Verify the resolved path is within the allowed boundary
-            if not p.is_relative_to(cwd):
-                msg = f"Path traversal detected: {p}"
-                raise ConfigurationError(msg)
-        except ConfigurationError:
-            raise
-        except Exception as e:
-            msg = f"Invalid path format: {e}"
-            raise ConfigurationError(msg) from e
-        else:
-            return p
+        return validate_safe_path(path, self.settings.rag.allowed_paths)
 
     def save_text_async(self, content: str, path: str | Path) -> None:
         """

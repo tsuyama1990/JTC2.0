@@ -42,23 +42,9 @@ def _scan_dir_size_cached(path: str, depth_limit: int | None = None, ttl_hash: i
 
 
 def _validate_scan_path(path: str) -> Path:
-    """Validate path before scanning to prevent path traversal."""
-    try:
-        base_path = Path(path).resolve(strict=True)
-        cwd = Path.cwd().resolve(strict=True)
-        allowed_rel_paths = get_settings().rag.allowed_paths
-        allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
+    from src.core.utils import validate_safe_path
 
-        is_safe = any(base_path.is_relative_to(parent) for parent in allowed_parents)
-        if not is_safe:
-            logger.error(ERR_PATH_TRAVERSAL)
-            raise ConfigurationError(ERR_PATH_TRAVERSAL)
-    except OSError as e:
-        logger.warning(f"Failed to resolve path: {path}")
-        msg = f"Invalid path: {e}"
-        raise ConfigurationError(msg) from e
-    else:
-        return base_path
+    return validate_safe_path(path, get_settings().rag.allowed_paths)
 
 
 def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
@@ -70,7 +56,7 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
         msg = "depth_limit must be positive"
         raise ValueError(msg)
 
-    if depth_limit is not None and depth_limit > 100:
+    if depth_limit is not None and depth_limit > get_settings().rag.scan_depth_limit:
         msg = "depth_limit exceeds safety bounds"
         raise ValueError(msg)
 

@@ -69,8 +69,6 @@ def test_stakeholder_validation() -> None:
         Stakeholder(name="Alice", initial_support=0.5, stubbornness=-0.1)
 
 
-
-
 def test_sparse_matrix() -> None:
     s1 = Stakeholder(name="Alice", initial_support=0.5, stubbornness=0.2)
     s2 = Stakeholder(name="Bob", initial_support=0.8, stubbornness=0.1)
