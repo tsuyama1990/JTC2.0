@@ -60,7 +60,8 @@ def test_ideation_scalability(
         "generated_ideas": LazyIdeaIterator(limited_lean_canvas_generator)
     }
 
-    app = create_app()
+    from src.core.workflow_builder import node_registry
+    app = create_app(registry=node_registry)
     initial_state = GlobalState(topic="AI for Scalability")
 
     # Run to Ideation interrupt

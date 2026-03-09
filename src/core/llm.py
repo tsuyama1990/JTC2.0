@@ -1,31 +1,26 @@
-import atexit
-import threading
+from typing import Any
 
 import httpx
 from langchain_openai import ChatOpenAI
 
 from src.core.config import get_settings
 from src.core.constants import ERR_LLM_CONFIG_MISSING
+from src.core.interfaces import IOpenAIProvider
 
 
-# Global thread-safe HTTP client pool manager
 class HTTPClientManager:
-    _instance = None
-    _lock = threading.Lock()
+    """
+    HTTP client manager handling connection pools.
+    Designed for lifecycle management via dependency injection, avoiding atexit global locks.
+    """
 
-    def __new__(cls) -> "HTTPClientManager":
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._init()
-        return cls._instance
-
-    def _init(self) -> None:
-        limits = httpx.Limits(max_keepalive_connections=10, max_connections=50)
-        timeout = httpx.Timeout(60.0, connect=10.0)
-        self.client = httpx.Client(limits=limits, timeout=timeout)
-        atexit.register(self.close)
+    def __init__(self, client: httpx.Client | None = None) -> None:
+        if client:
+            self.client = client
+        else:
+            limits = httpx.Limits(max_keepalive_connections=10, max_connections=50)
+            timeout = httpx.Timeout(60.0, connect=10.0)
+            self.client = httpx.Client(limits=limits, timeout=timeout)
 
     def get_client(self) -> httpx.Client:
         return self.client
@@ -35,43 +30,44 @@ class HTTPClientManager:
             self.client.close()
 
 
-from functools import lru_cache  # noqa: E402
 
 
-@lru_cache(maxsize=5)
-def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -> ChatOpenAI:
+class LLMProvider(IOpenAIProvider):
     """
-    Factory to get a cached LLM client instance.
-    Uses a properly pooled and managed global HTTP client instance unless one is injected.
-    The ChatOpenAI instance itself is cached to prevent connection exhaustion.
+    Concrete implementation providing parameterized access to ChatOpenAI instances.
     """
-    settings = get_settings()
-    from src.core.validators import ApiKeyValidator
+    def __init__(self, settings: Any = None, http_client: httpx.Client | None = None) -> None:
+        self.settings = settings or get_settings()
+        self.http_client = http_client
 
-    # Strictly validate key formatting and readiness before creating the client
-    val1 = settings.openai_api_key.get_secret_value()
-    ApiKeyValidator.validate_openai(val1)
+    def get_llm(self, model: str | None = None) -> ChatOpenAI:
+        from src.core.validators import ApiKeyValidator
 
-    if getattr(settings, "openai_api_key", None) is None:
-        raise ValueError(ERR_LLM_CONFIG_MISSING)
+        if getattr(self.settings, "openai_api_key", None) is None:
+            raise ValueError(ERR_LLM_CONFIG_MISSING)
 
-    target_model = model or settings.llm_model
+        val1 = self.settings.openai_api_key.get_secret_value()
+        ApiKeyValidator.validate_openai(val1)
 
-    # Use provided client or global pooled client to prevent connection leaking
-    client_to_use = http_client if http_client is not None else HTTPClientManager().get_client()
+        target_model = model or self.settings.llm_model
+        client_to_use = self.http_client if self.http_client is not None else HTTPClientManager().get_client()
 
-    return ChatOpenAI(
-        model=target_model,
-        api_key=settings.openai_api_key,
-        max_retries=settings.resiliency.circuit_breaker_fail_max,
-        http_client=client_to_use,
-    )
+        return ChatOpenAI(
+            model=target_model,
+            api_key=self.settings.openai_api_key,
+            max_retries=self.settings.resiliency.circuit_breaker_fail_max,
+            http_client=client_to_use,
+        )
 
+class LLMFactory:
+    """
+    Factory class for creating LLM instances.
+    Accepts an abstract IOpenAIProvider to completely decouple ChatOpenAI bindings for mocks.
+    """
+    def __init__(self, provider: IOpenAIProvider | None = None) -> None:
+        self.provider = provider or LLMProvider()
 
-def clear_llm_cache() -> None:
-    """Helper for testing to reset the LLM cache and HTTP client pool."""
-    get_llm.cache_clear()
-    manager = HTTPClientManager()
-    with manager._lock:
-        manager.close()
-        HTTPClientManager._instance = None
+    def get_llm(self, model: str | None = None) -> ChatOpenAI:
+        """Retrieve the LLM instance from the underlying provider."""
+        return self.provider.get_llm(model)
+

@@ -7,8 +7,9 @@ and success criteria, following the 'Lean Startup' methodology.
 
 import re
 from enum import StrEnum
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -57,9 +58,20 @@ class Feature(BaseModel):
     description: str = Field(
         ...,
         description=DESC_FEATURE_DESC,
-        min_length=get_settings().validation.min_content_length,
-        max_length=200,
     )
+
+    @model_validator(mode="after")
+    def validate_lengths(self) -> Self:
+        settings = get_settings()
+        min_content_len = settings.validation.min_content_length
+        if len(self.description) < min_content_len:
+            msg = f"description must be at least {min_content_len} characters"
+            raise ValueError(msg)
+        if len(self.description) > 200:
+            msg = "description must be at most 200 characters"
+            raise ValueError(msg)
+
+        return self
     priority: Priority = Field(..., description=DESC_FEATURE_PRIORITY)
 
 
@@ -83,11 +95,26 @@ class MVP(BaseModel):
     core_features: list[Feature] = Field(
         ...,
         description=DESC_MVP_CORE_FEATURES,
-        min_length=get_settings().validation.min_list_length,
     )
     success_criteria: str = Field(
         ...,
         description=DESC_MVP_SUCCESS_CRITERIA,
-        min_length=get_settings().validation.min_content_length,
-        max_length=500,
     )
+
+    @model_validator(mode="after")
+    def validate_lengths(self) -> Self:
+        settings = get_settings()
+        min_len = settings.validation.min_list_length
+        if len(self.core_features) < min_len:
+            msg = f"core_features must have at least {min_len} items"
+            raise ValueError(msg)
+
+        min_content_len = settings.validation.min_content_length
+        if len(self.success_criteria) < min_content_len:
+            msg = f"success_criteria must be at least {min_content_len} characters"
+            raise ValueError(msg)
+        if len(self.success_criteria) > 500:
+            msg = "success_criteria must be at most 500 characters"
+            raise ValueError(msg)
+
+        return self

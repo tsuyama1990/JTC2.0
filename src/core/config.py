@@ -72,6 +72,7 @@ from src.core.constants import (
     MSG_WAIT,
     MSG_WAITING_FOR_DEBATE,
 )
+from src.core.interfaces import IConfigValidator
 from src.core.theme import (
     AGENT_POS_CPO,
     AGENT_POS_FINANCE,
@@ -240,7 +241,8 @@ class SimulationConfig(BaseSettings):
     @classmethod
     def validate_dimensions(cls, v: int) -> int:
         if v < 100 or v > 800:
-            raise ValueError("Dimensions must be between 100 and 800")
+            msg = "Dimensions must be between 100 and 800"
+            raise ValueError(msg)
         return v
     fps: int = Field(default=DEFAULT_FPS, description="Frames per second")
     title: str = Field(default=MSG_SIM_TITLE, description="Window title")
@@ -409,11 +411,12 @@ class RAGConfig(BaseSettings):
         # to go way up the filesystem
         try:
             path.relative_to(cwd)
-        except ValueError:
+        except ValueError as err:
             # Maybe they specified an absolute path like /tmp/vector_store,
             # We'll allow it as long as it's not root or obviously malicious
             if path == pathlib.Path("/"):
-                raise ValueError("persist_dir cannot be root directory")
+                msg = "persist_dir cannot be root directory"
+                raise ValueError(msg) from err
         return str(path)
     max_query_length: int = Field(
         default=DEFAULT_RAG_MAX_QUERY_LENGTH,
@@ -483,29 +486,6 @@ class Settings(BaseSettings):
     )
     llm_model: str = Field(default="gpt-4o", description="LLM model name")
 
-    @field_validator("openai_api_key")
-    @classmethod
-    def validate_openai_key(cls, v: SecretStr) -> SecretStr:
-        from src.core.validators import ApiKeyValidator
-        val = v.get_secret_value()
-        ApiKeyValidator.validate_openai(val)
-        return v
-
-    @field_validator("tavily_api_key")
-    @classmethod
-    def validate_tavily_key(cls, v: SecretStr) -> SecretStr:
-        from src.core.validators import ApiKeyValidator
-        val = v.get_secret_value()
-        if val == "dummy-tavily-key-long-enough-for-validation" or val == "sk-dummy-test-key-long-enough-for-validation":
-            return v
-        ApiKeyValidator.validate_tavily(val)
-        return v
-
-    def clear_credentials(self) -> None:
-        """Clear sensitive credentials from memory (e.g. for key rotation)."""
-        self.openai_api_key = SecretStr("sk-cleared-credential-000000000000")
-        self.tavily_api_key = SecretStr("tvly-cleared-credential-00000000000")
-
 
     canvas_output_dir: str = Field(
         alias="CANVAS_OUTPUT_DIR",
@@ -537,46 +517,48 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
-    def model_post_init(self, __context: object) -> None:
-        """Validate API keys on initialization."""
-        super().model_post_init(__context)
-        from src.core.validators import ApiKeyValidator
-
-        val1 = self.openai_api_key.get_secret_value()
-        ApiKeyValidator.validate_openai(val1)
-        val2 = self.tavily_api_key.get_secret_value()
-        if val2 != "dummy-tavily-key-long-enough-for-validation" and val2 != "sk-dummy-test-key-long-enough-for-validation":
-            ApiKeyValidator.validate_tavily(val2)
+class CredentialManager:
+    """
+    Manager specifically responsible for handling sensitive credentials securely.
+    """
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
 
     def rotate_keys(self) -> None:
-        """Placeholder for key rotation."""
-
-    @classmethod
-    def reload(cls) -> "Settings":
-        """Force a reload of the configuration."""
-        global _settings_instance
-        with _settings_lock:
-            _settings_instance = None
-            _settings_instance = Settings()
-        return _settings_instance
+        """Placeholder for credential rotation logic."""
 
 
-_settings_lock = threading.Lock()
-_settings_instance: Settings | None = None
+class SettingsFactory:
+    """
+    Factory to build Settings using an injected validator service.
+    This allows fully decoupled testing and mock validations.
+    """
+    def __init__(self, validator: IConfigValidator | None = None) -> None:
+        self.validator = validator
 
+    def build(self) -> Settings:
+        settings = Settings()
+        if self.validator:
+            self.validator.validate_openai_key(settings.openai_api_key)
+            self.validator.validate_tavily_key(settings.tavily_api_key)
+        return settings
+
+
+_legacy_settings_instance: Settings | None = None
+_legacy_lock = threading.Lock()
 
 def get_settings() -> Settings:
-    """Factory to get the configuration settings, using a singleton instance."""
-    global _settings_instance
-    if _settings_instance is None:
-        with _settings_lock:
-            if _settings_instance is None:
-                _settings_instance = Settings()
-    return _settings_instance
-
+    """Legacy singleton retriever. Left for backwards compatibility across tests."""
+    global _legacy_settings_instance
+    if _legacy_settings_instance is None:
+        with _legacy_lock:
+            if _legacy_settings_instance is None:
+                from src.core.validators import ConfigValidators
+                _legacy_settings_instance = SettingsFactory(validator=ConfigValidators()).build()
+    return _legacy_settings_instance
 
 def clear_settings_cache() -> None:
-    """Clear the settings cache for tests."""
-    global _settings_instance
-    with _settings_lock:
-        _settings_instance = None
+    """Legacy helper for testing configurations."""
+    global _legacy_settings_instance
+    with _legacy_lock:
+        _legacy_settings_instance = None

@@ -8,14 +8,20 @@ from src.domain_models.politics import InfluenceNetwork
 class NemawashiEngine:
     """
     Core engine for Nemawashi (Consensus Building).
-    Aggregates consensus calculation, analytics, and simulation logic.
+    Aggregates consensus calculation, analytics, and simulation logic through dependency injection.
     """
 
-    def __init__(self, settings: NemawashiConfig | None = None) -> None:
+    def __init__(
+        self,
+        consensus: ConsensusEngine | None = None,
+        analytics: InfluenceAnalyzer | None = None,
+        simulator: NomikaiSimulator | None = None,
+        settings: NemawashiConfig | None = None,
+    ) -> None:
         self.settings = settings or get_settings().nemawashi
-        self.consensus = ConsensusEngine(self.settings)
-        self.analytics = InfluenceAnalyzer()
-        self.simulator = NomikaiSimulator(self.settings)
+        self.consensus = consensus or ConsensusEngine(self.settings)
+        self.analytics = analytics or InfluenceAnalyzer()
+        self.simulator = simulator or NomikaiSimulator(self.settings)
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """Run the DeGroot model to calculate final opinion distribution."""

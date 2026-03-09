@@ -4,101 +4,77 @@ from typing import Any
 from langgraph.graph import END
 from langgraph.graph.state import CompiledStateGraph
 
-from src.core.nodes import (
-    alternative_analysis_node,
-    experiment_planning_node,
-    governance_node,
-    mental_model_journey_node,
-    persona_node,
-    review_3h_node,
-    safe_ideator_run,
-    safe_simulation_run,
-    sitemap_wireframe_node,
-    spec_generation_node,
-    transcript_ingestion_node,
-    verification_node,
-    virtual_customer_node,
-    vpc_node,
-)
-from src.core.workflow_builder import WorkflowBuilder
+from src.core.workflow_builder import WorkflowBuilder, WorkflowRegistry
+from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
 
-def _register_nodes(builder: WorkflowBuilder) -> None:
-    """Register all nodes into the workflow builder."""
-    builder.add_node("ideator", safe_ideator_run)
-    builder.add_node("verification", verification_node)
+class GraphBuilderService:
+    def __init__(self, registry: WorkflowRegistry[GlobalState]) -> None:
+        self.registry = registry
 
-    # Phase 2
-    builder.add_node("persona", persona_node)
-    builder.add_node("alternative_analysis", alternative_analysis_node)
-    builder.add_node("vpc", vpc_node)
-    builder.add_node("transcript_ingestion", transcript_ingestion_node)
+    def _register_nodes(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
+        """Register all nodes into the workflow builder using the registry."""
+        import src.core.nodes  # noqa: F401
+        current_builder = builder
+        for name, func in self.registry.nodes.items():
+            current_builder = current_builder.add_node(name, func)
+        return current_builder
 
-    # Phase 3
-    builder.add_node("mental_model_journey", mental_model_journey_node)
-    builder.add_node("sitemap_wireframe", sitemap_wireframe_node)
+    def _register_edges(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
+        """Register all edges mapping the workflow."""
+        current_builder = builder.set_entry_point("ideator")
 
-    # Phase 4
-    builder.add_node("virtual_customer", virtual_customer_node)
-    builder.add_node("simulation_round", safe_simulation_run)
-    builder.add_node("review_3h", review_3h_node)
+        # Gate 1: Idea Verification
+        current_builder = current_builder.add_edge("ideator", "verification")
+        current_builder = current_builder.add_edge("verification", "persona")
+        current_builder = current_builder.add_edge("persona", "alternative_analysis")
+        current_builder = current_builder.add_edge("alternative_analysis", "vpc")
 
-    # Phase 5 & 6
-    builder.add_node("spec_generation", spec_generation_node)
-    builder.add_node("experiment_planning", experiment_planning_node)
-    builder.add_node("governance", governance_node)
+        # Gate 1.5: CPF Feedback (Interrupt after VPC)
+        current_builder = current_builder.add_edge("vpc", "transcript_ingestion")
 
+        # Phase 3
+        current_builder = current_builder.add_edge("transcript_ingestion", "mental_model_journey")
+        current_builder = current_builder.add_edge("mental_model_journey", "sitemap_wireframe")
 
-def _register_edges(builder: WorkflowBuilder) -> None:
-    """Register all edges mapping the workflow."""
-    builder.set_entry_point("ideator")
+        # Gate 1.8: PSF Feedback (Interrupt after Sitemap)
+        current_builder = current_builder.add_edge("sitemap_wireframe", "virtual_customer")
 
-    # Gate 1: Idea Verification
-    builder.add_edge("ideator", "verification")
-    builder.add_edge("verification", "persona")
-    builder.add_edge("persona", "alternative_analysis")
-    builder.add_edge("alternative_analysis", "vpc")
+        # Gate 2: Virtual Market Pivot Decision (Interrupt after Virtual Customer)
+        current_builder = current_builder.add_edge("virtual_customer", "simulation_round")
 
-    # Gate 1.5: CPF Feedback (Interrupt after VPC)
-    builder.add_edge("vpc", "transcript_ingestion")
+        current_builder = current_builder.add_edge("simulation_round", "review_3h")
 
-    # Phase 3
-    builder.add_edge("transcript_ingestion", "mental_model_journey")
-    builder.add_edge("mental_model_journey", "sitemap_wireframe")
+        current_builder = current_builder.add_edge("review_3h", "spec_generation")
+        current_builder = current_builder.add_edge("spec_generation", "experiment_planning")
 
-    # Gate 1.8: PSF Feedback (Interrupt after Sitemap)
-    builder.add_edge("sitemap_wireframe", "virtual_customer")
+        # Gate 3: Final Output FB (Interrupt after Experiment Plan)
+        current_builder = current_builder.add_edge("experiment_planning", "governance")
+        return current_builder.add_edge("governance", END)
 
-    # Gate 2: Virtual Market Pivot Decision (Interrupt after Virtual Customer)
-    builder.add_edge("virtual_customer", "simulation_round")
+    def _configure_interrupts(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
+        """Configure human-in-the-loop interruption points."""
+        interrupts = ["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]
+        return builder.set_interrupts(interrupts)
 
-    builder.add_edge("simulation_round", "review_3h")
-
-    builder.add_edge("review_3h", "spec_generation")
-    builder.add_edge("spec_generation", "experiment_planning")
-
-    # Gate 3: Final Output FB (Interrupt after Experiment Plan)
-    builder.add_edge("experiment_planning", "governance")
-    builder.add_edge("governance", END)
-
-
-def _configure_interrupts(builder: WorkflowBuilder) -> None:
-    """Configure human-in-the-loop interruption points."""
-    interrupts = ["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]
-    builder.set_interrupts(interrupts)
+    def build_graph(self, builder: WorkflowBuilder[GlobalState] | None = None) -> CompiledStateGraph[Any, Any]:
+        if builder is None:
+            builder = WorkflowBuilder[GlobalState](GlobalState)
+        builder = self._register_nodes(builder)
+        builder = self._register_edges(builder)
+        builder = self._configure_interrupts(builder)
+        return builder.build()
 
 
-def create_app(builder: WorkflowBuilder | None = None) -> CompiledStateGraph[Any, Any]:
+def create_app(
+    registry: WorkflowRegistry[GlobalState],
+    builder: WorkflowBuilder[GlobalState] | None = None,
+) -> CompiledStateGraph[Any, Any]:
     """
     Create and compile the LangGraph application.
     This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
-    if builder is None:
-        builder = WorkflowBuilder()
-        _register_nodes(builder)
-        _register_edges(builder)
-        _configure_interrupts(builder)
-
-    return builder.build()
+    service = GraphBuilderService(registry)
+    return service.build_graph(builder)
