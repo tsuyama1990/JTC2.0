@@ -18,20 +18,20 @@ from src.core.constants import (
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
+    DEFAULT_MAX_CONTENT_LENGTH,
+    DEFAULT_MAX_CUSTOM_METRICS,
     DEFAULT_MAX_FILES,
+    DEFAULT_MAX_LIST_LENGTH,
     DEFAULT_MAX_LLM_RESPONSE_SIZE,
+    DEFAULT_MAX_PERCENTAGE_VALUE,
     DEFAULT_MAX_SEARCH_RESULT_SIZE,
     DEFAULT_MAX_TITLE_LENGTH,
     DEFAULT_MAX_TURNS,
     DEFAULT_MAX_Y,
-    DEFAULT_MIN_ROI_THRESHOLD,
-    DEFAULT_MAX_CONTENT_LENGTH,
-    DEFAULT_MAX_CUSTOM_METRICS,
-    DEFAULT_MAX_LIST_LENGTH,
-    DEFAULT_MAX_PERCENTAGE_VALUE,
     DEFAULT_MIN_CONTENT_LENGTH,
     DEFAULT_MIN_LIST_LENGTH,
     DEFAULT_MIN_METRIC_VALUE,
+    DEFAULT_MIN_ROI_THRESHOLD,
     DEFAULT_MIN_TITLE_LENGTH,
     DEFAULT_NEMAWASHI_BOOST,
     DEFAULT_NEMAWASHI_MAX_STEPS,
@@ -97,15 +97,29 @@ class ValidationConfig(BaseSettings):
     max_title_length: int = Field(
         default=DEFAULT_MAX_TITLE_LENGTH, description="Maximum length for titles"
     )
-    min_content_length: int = Field(default=DEFAULT_MIN_CONTENT_LENGTH, description="Minimum length for content blocks")
-    max_content_length: int = Field(default=DEFAULT_MAX_CONTENT_LENGTH, description="Maximum length for content blocks")
+    min_content_length: int = Field(
+        default=DEFAULT_MIN_CONTENT_LENGTH, description="Minimum length for content blocks"
+    )
+    max_content_length: int = Field(
+        default=DEFAULT_MAX_CONTENT_LENGTH, description="Maximum length for content blocks"
+    )
 
-    min_list_length: int = Field(default=DEFAULT_MIN_LIST_LENGTH, description="Minimum items in lists")
-    max_list_length: int = Field(default=DEFAULT_MAX_LIST_LENGTH, description="Maximum items in lists")
+    min_list_length: int = Field(
+        default=DEFAULT_MIN_LIST_LENGTH, description="Minimum items in lists"
+    )
+    max_list_length: int = Field(
+        default=DEFAULT_MAX_LIST_LENGTH, description="Maximum items in lists"
+    )
 
-    max_custom_metrics: int = Field(default=DEFAULT_MAX_CUSTOM_METRICS, description="Maximum custom metrics allowed")
-    min_metric_value: float = Field(default=DEFAULT_MIN_METRIC_VALUE, description="Minimum value for metrics")
-    max_percentage_value: float = Field(default=DEFAULT_MAX_PERCENTAGE_VALUE, description="Maximum percentage value")
+    max_custom_metrics: int = Field(
+        default=DEFAULT_MAX_CUSTOM_METRICS, description="Maximum custom metrics allowed"
+    )
+    min_metric_value: float = Field(
+        default=DEFAULT_MIN_METRIC_VALUE, description="Minimum value for metrics"
+    )
+    max_percentage_value: float = Field(
+        default=DEFAULT_MAX_PERCENTAGE_VALUE, description="Maximum percentage value"
+    )
 
 
 class ErrorMessages(BaseSettings):
@@ -148,10 +162,10 @@ class UIConfig(BaseSettings):
     execution_error: str = MSG_EXECUTION_ERROR
 
 
-class AgentConfig(BaseSettings):
+class AgentConfig(BaseModel):
     """Configuration for a single agent in the UI."""
 
-    model_config = SettingsConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True)
 
     role: str = Field(..., description="Role name of the agent")
     label: str = Field(..., description="Short label for UI")
@@ -356,7 +370,7 @@ class GovernanceConfig(BaseSettings):
 
 
 class RAGConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="forbid")
+    model_config = SettingsConfigDict(extra="ignore")
     persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
     chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
     max_document_length: int = Field(
@@ -395,7 +409,7 @@ class RAGConfig(BaseSettings):
 
 
 class SearchConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="forbid")
+    model_config = SettingsConfigDict(extra="ignore")
     max_results: int = Field(default=5, description="Max search results")
     depth: str = Field(default="advanced", description="Search depth (basic/advanced)")
     query_template: str = Field(
@@ -405,7 +419,9 @@ class SearchConfig(BaseSettings):
 
 
 class ResiliencyConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="forbid")
+    max_keepalive_connections: int = Field(default=20, description="Max keepalive connections")
+    max_connections: int = Field(default=100, description="Max total connections")
+    model_config = SettingsConfigDict(extra="ignore")
     circuit_breaker_fail_max: int = Field(
         default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold"
     )
@@ -420,11 +436,35 @@ class ResiliencyConfig(BaseSettings):
 import os  # noqa: E402
 
 
+def _get_safe_env_file() -> str:
+    """Get and validate the .env file path securely."""
+    import logging
+    from pathlib import Path
+
+    logger = logging.getLogger(__name__)
+
+    env_path_str = os.getenv("ENV_FILE", ".env")
+    if not env_path_str:
+        return ".env"
+
+    try:
+        path = Path(env_path_str).resolve(strict=False)
+        cwd = Path.cwd().resolve(strict=True)
+        # Only allow .env files within the current working directory tree
+        if not path.is_relative_to(cwd):
+            logger.warning(f"Path traversal attempt detected for env file: {env_path_str}")
+            return ".env"
+        return str(path)
+    except Exception as e:
+        logger.warning(f"Invalid env file path: {e}")
+        return ".env"
+
+
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(
-        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="forbid"
+        env_file=_get_safe_env_file(), env_file_encoding="utf-8", extra="ignore"
     )
 
     openai_api_key: SecretStr = Field(

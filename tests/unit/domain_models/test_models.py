@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 import pytest
 from pydantic import ValidationError
 
@@ -185,3 +187,49 @@ def test_agent_states_validation() -> None:
     invalid_states = {Role.SALES: AgentState(role=Role.FINANCE, degroot_profile=profile)}
     with pytest.raises(ValidationError, match="Key Sales Manager does not match"):
         GlobalState(agent_states=invalid_states)
+
+
+def test_lazy_idea_iterator_stop_iteration() -> None:
+    import pytest
+
+    from src.core.config import get_settings
+    from src.domain_models.common import LazyIdeaIterator
+    from src.domain_models.lean_canvas import LeanCanvas
+
+    def infinite_ideas() -> Iterator[LeanCanvas]:
+        while True:
+            yield LeanCanvas(
+                id=1,
+                title="Title 1 2 3",
+                problem="A B C",
+                solution="A B C",
+                customer_segments="A B C",
+                unique_value_prop="A B C",
+            )
+
+    iterator = LazyIdeaIterator(infinite_ideas())
+    limit = get_settings().resiliency.iterator_safety_limit
+
+    for _ in range(limit):
+        next(iterator)
+
+    with pytest.raises(StopIteration):
+        next(iterator)
+
+
+def test_lazy_idea_iterator_iter() -> None:
+    from src.domain_models.common import LazyIdeaIterator
+    from src.domain_models.lean_canvas import LeanCanvas
+
+    def iter_ideas() -> Iterator[LeanCanvas]:
+        yield LeanCanvas(
+            id=1,
+            title="Title 1 2 3",
+            problem="A B C",
+            solution="A B C",
+            customer_segments="A B C",
+            unique_value_prop="A B C",
+        )
+
+    it = LazyIdeaIterator(iter_ideas())
+    assert iter(it) is it

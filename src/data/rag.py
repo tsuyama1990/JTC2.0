@@ -41,18 +41,14 @@ def _scan_dir_size_cached(path: str, depth_limit: int | None = None, ttl_hash: i
     return _scan_dir_size(path, depth_limit)
 
 
+def _validate_scan_path(path: str) -> Path:
+    from src.core.utils import validate_safe_path
+
+    return validate_safe_path(path, get_settings().rag.allowed_paths)
+
+
 def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
-    """
-    Calculate directory size using an iterative approach with explicit stack management,
-    configurable depth limits, and symlink loop detection.
-
-    Args:
-        path: Path to scan.
-        depth_limit: Maximum recursion depth.
-
-    Returns:
-        Total size in bytes.
-    """
+    """Calculate directory size using an iterative approach."""
     if depth_limit is None:
         depth_limit = get_settings().rag.scan_depth_limit
 
@@ -60,33 +56,21 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
         msg = "depth_limit must be positive"
         raise ValueError(msg)
 
+    if depth_limit is not None and depth_limit > get_settings().rag.scan_depth_limit:
+        msg = "depth_limit exceeds safety bounds"
+        raise ValueError(msg)
+
     total_size = 0
     file_count = 0
     max_files = get_settings().rag.max_files
 
-    # Path validation before scanning
-    try:
-        base_path = Path(path).resolve(strict=True)
-        cwd = Path.cwd().resolve(strict=True)
-        allowed_rel_paths = get_settings().rag.allowed_paths
-        allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
+    base_path = _validate_scan_path(path)
 
-        is_safe = any(base_path.is_relative_to(parent) for parent in allowed_parents)
-        if not is_safe:
-            logger.error(ERR_PATH_TRAVERSAL)
-            raise ConfigurationError(ERR_PATH_TRAVERSAL)
-    except OSError as e:
-        logger.warning(f"Failed to resolve path: {path}")
-        msg = f"Invalid path: {e}"
-        raise ConfigurationError(msg) from e
-
-    # Stack stores tuples of (current_path, current_depth)
     stack = deque([(str(base_path), 0)])
     visited_realpaths = set()
 
     while stack:
         current_path, current_depth = stack.pop()
-
         if current_depth > depth_limit:
             continue
 
@@ -100,7 +84,7 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
                 for entry in it:
                     try:
                         if entry.is_symlink():
-                            continue  # explicitly skip symlinks to prevent loops
+                            continue
 
                         if entry.is_file(follow_symlinks=False):
                             try:
@@ -112,9 +96,7 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
                                 continue
 
                             if file_count > max_files:
-                                logger.warning(
-                                    f"Scan file limit ({max_files}) reached. Returning partial size."
-                                )
+                                logger.warning("Scan file limit reached.")
                                 return total_size
                         elif entry.is_dir(follow_symlinks=False):
                             stack.append((entry.path, current_depth + 1))
@@ -122,13 +104,11 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
                         logger.warning(f"Permission denied accessing entry: {entry.name}")
                     except OSError as e:
                         logger.warning(f"OS error accessing entry: {entry.name}, {e}")
-                    except Exception as e:
-                        logger.warning(f"Unexpected error accessing entry: {entry.name}, {e}")
 
+        except PermissionError:
+            logger.warning(f"Permission denied accessing directory: {current_path}")
         except OSError as e:
-            logger.warning(f"OS error scanning index directory {current_path}: {e}")
-        except Exception as e:
-            logger.warning(f"Unexpected error scanning directory {current_path}: {e}")
+            logger.warning(f"OS error accessing directory: {current_path}, {e}")
 
     return total_size
 

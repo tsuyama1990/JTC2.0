@@ -23,6 +23,8 @@ def mock_settings() -> Generator[MagicMock, None, None]:
         mock.return_value.rag.max_query_length = 500
         mock.return_value.rag.max_index_size_mb = 500
         mock.return_value.rag.max_document_length = 10000
+        mock.return_value.resiliency.max_keepalive_connections = 10
+        mock.return_value.resiliency.max_connections = 50
         mock.return_value.resiliency.circuit_breaker_fail_max = 5
         mock.return_value.resiliency.circuit_breaker_reset_timeout = 60
         mock.return_value.rag.allowed_paths = ["data", "vector_store", "tests"]

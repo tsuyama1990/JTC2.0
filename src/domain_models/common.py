@@ -38,7 +38,7 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
     def __next__(self) -> LeanCanvas:
         if self._count >= self._max_items:
             # Safety break
-            raise StopIteration
+            raise StopIteration()
 
         item = next(self._iterator)
         self._consumed = True

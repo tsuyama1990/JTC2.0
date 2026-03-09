@@ -2,6 +2,7 @@ import asyncio
 import threading
 import time
 from collections.abc import Generator
+from pathlib import Path
 
 import bleach
 
@@ -109,3 +110,35 @@ class AsyncRateLimiter:
 
         # Sleep outside the lock so other threads don't block
         time.sleep(wait_time)
+
+
+def validate_safe_path(path: str | Path, allowed_paths: list[str]) -> Path:
+    """Validate path to prevent directory traversal."""
+    import logging
+
+    from src.core.constants import ERR_PATH_TRAVERSAL
+    from src.core.exceptions import ConfigurationError
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        base_path = Path(path)
+        if base_path.exists() and base_path.is_symlink():
+            msg = "Symlinks not allowed"
+            raise ConfigurationError(msg)
+
+        base_path = base_path.resolve(strict=True)
+        cwd = Path.cwd().resolve(strict=True)
+        allowed_parents = [(cwd / p).resolve() for p in allowed_paths]
+
+        if not any(base_path.is_relative_to(parent) for parent in allowed_parents):
+            logger.error(ERR_PATH_TRAVERSAL)
+            raise ConfigurationError(ERR_PATH_TRAVERSAL)
+
+    except OSError as e:
+        logger.warning(f"Failed to resolve path: {path}")
+        msg = f"Invalid path: {e}"
+        raise ConfigurationError(msg) from e
+
+    else:
+        return base_path
