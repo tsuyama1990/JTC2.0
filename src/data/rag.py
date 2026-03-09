@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
@@ -31,11 +30,30 @@ from src.domain_models.transcript import Transcript
 logger = logging.getLogger(__name__)
 
 
+def _get_directory_mtime(path: str) -> float:
+    """Get the latest modification time in the directory."""
+    try:
+        base_path = Path(path)
+        if not base_path.exists():
+            return 0.0
+        max_mtime = base_path.stat().st_mtime
+        import contextlib
+        for root, _dirs, files in os.walk(str(base_path), followlinks=False):
+            for name in files:
+                file_path = Path(root) / name
+                if not file_path.is_symlink():
+                    with contextlib.suppress(OSError):
+                        max_mtime = max(max_mtime, file_path.stat(follow_symlinks=False).st_mtime)
+    except OSError:
+        return 0.0
+    else:
+        return max_mtime
+
 @lru_cache(maxsize=1)
-def _scan_dir_size_cached(path: str, depth_limit: int | None = None, ttl_hash: int = 0) -> int:
+def _scan_dir_size_cached(path: str, depth_limit: int | None = None, mtime: float = 0.0) -> int:
     """
     Cached version of directory size calculation.
-    ttl_hash is a trick to invalidate cache by passing a changing value (like time // 60).
+    Invalidated automatically when the directory's maximum modification time changes.
     """
     return _scan_dir_size(path, depth_limit)
 
@@ -151,7 +169,7 @@ class RAG:
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
                 depth_limit=self.settings.rag.scan_depth_limit,
-                ttl_hash=int(time.time() // 60),  # Refresh every minute
+                mtime=_get_directory_mtime(self.persist_dir),
             )
 
         self.index: VectorStoreIndex | None = None
@@ -350,7 +368,7 @@ class RAG:
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
                 self.settings.rag.scan_depth_limit,
-                ttl_hash=int(time.time() // 60),
+                mtime=_get_directory_mtime(self.persist_dir),
             )
 
     def query(self, question: str) -> str:

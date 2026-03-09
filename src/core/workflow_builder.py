@@ -1,5 +1,6 @@
 import logging
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Generic, TypeVar
 
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -8,33 +9,47 @@ from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
 
-class WorkflowBuilder:
+class WorkflowRegistry(Generic[T]):
+    """Registry for declarative workflow nodes."""
+    def __init__(self) -> None:
+        self.nodes: dict[str, Callable[[T], dict[str, Any]]] = {}
+
+    def register(self, name: str) -> Callable[[Callable[[T], dict[str, Any]]], Callable[[T], dict[str, Any]]]:
+        def decorator(func: Callable[[T], dict[str, Any]]) -> Callable[[T], dict[str, Any]]:
+            self.nodes[name] = func
+            return func
+        return decorator
+
+node_registry: WorkflowRegistry[GlobalState] = WorkflowRegistry()
+
+class WorkflowBuilder(Generic[T]):
     """Builds the StateGraph workflow, decoupling structure from implementation."""
 
-    def __init__(self) -> None:
-        self.workflow = StateGraph(GlobalState)
-        self.nodes: dict[str, Any] = {}
+    def __init__(self, state_schema: type[Any]) -> None:
+        self.workflow = StateGraph(state_schema)
+        self.nodes: dict[str, Callable[[Any], dict[str, Any]]] = {}
         self.edges: list[tuple[str, str]] = []
         self.entry_point: str | None = None
         self.interrupts: list[str] = []
 
-    def add_node(self, name: str, action: Any) -> "WorkflowBuilder":
+    def add_node(self, name: str, action: Callable[[Any], dict[str, Any]]) -> "WorkflowBuilder[T]":
         """Add a node to the workflow."""
         self.nodes[name] = action
         return self
 
-    def add_edge(self, start_key: str, end_key: str) -> "WorkflowBuilder":
+    def add_edge(self, start_key: str, end_key: str) -> "WorkflowBuilder[T]":
         """Add a directed edge between nodes."""
         self.edges.append((start_key, end_key))
         return self
 
-    def set_entry_point(self, key: str) -> "WorkflowBuilder":
+    def set_entry_point(self, key: str) -> "WorkflowBuilder[T]":
         """Set the entry point of the graph."""
         self.entry_point = key
         return self
 
-    def set_interrupts(self, interrupts: list[str]) -> "WorkflowBuilder":
+    def set_interrupts(self, interrupts: list[str]) -> "WorkflowBuilder[T]":
         """Set nodes to interrupt after."""
         self.interrupts = interrupts
         return self
@@ -95,7 +110,7 @@ class WorkflowBuilder:
         self._validate_no_cycles()
 
         for name, action in self.nodes.items():
-            self.workflow.add_node(name, action)
+            self.workflow.add_node(name, action)  # type: ignore[call-overload]
 
         if self.entry_point:
             self.workflow.set_entry_point(self.entry_point)

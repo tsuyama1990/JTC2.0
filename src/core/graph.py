@@ -1,57 +1,22 @@
 import logging
-from typing import Any
 
 from langgraph.graph import END
 from langgraph.graph.state import CompiledStateGraph
 
-from src.core.nodes import (
-    alternative_analysis_node,
-    experiment_planning_node,
-    governance_node,
-    mental_model_journey_node,
-    persona_node,
-    review_3h_node,
-    safe_ideator_run,
-    safe_simulation_run,
-    sitemap_wireframe_node,
-    spec_generation_node,
-    transcript_ingestion_node,
-    verification_node,
-    virtual_customer_node,
-    vpc_node,
-)
-from src.core.workflow_builder import WorkflowBuilder
+from src.core.workflow_builder import WorkflowBuilder, node_registry
+from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
 
-def _register_nodes(builder: WorkflowBuilder) -> None:
-    """Register all nodes into the workflow builder."""
-    builder.add_node("ideator", safe_ideator_run)
-    builder.add_node("verification", verification_node)
-
-    # Phase 2
-    builder.add_node("persona", persona_node)
-    builder.add_node("alternative_analysis", alternative_analysis_node)
-    builder.add_node("vpc", vpc_node)
-    builder.add_node("transcript_ingestion", transcript_ingestion_node)
-
-    # Phase 3
-    builder.add_node("mental_model_journey", mental_model_journey_node)
-    builder.add_node("sitemap_wireframe", sitemap_wireframe_node)
-
-    # Phase 4
-    builder.add_node("virtual_customer", virtual_customer_node)
-    builder.add_node("simulation_round", safe_simulation_run)
-    builder.add_node("review_3h", review_3h_node)
-
-    # Phase 5 & 6
-    builder.add_node("spec_generation", spec_generation_node)
-    builder.add_node("experiment_planning", experiment_planning_node)
-    builder.add_node("governance", governance_node)
+def _register_nodes(builder: WorkflowBuilder[GlobalState]) -> None:
+    """Register all nodes into the workflow builder using the registry."""
+    import src.core.nodes  # noqa: F401
+    for name, func in node_registry.nodes.items():
+        builder.add_node(name, func)
 
 
-def _register_edges(builder: WorkflowBuilder) -> None:
+def _register_edges(builder: WorkflowBuilder[GlobalState]) -> None:
     """Register all edges mapping the workflow."""
     builder.set_entry_point("ideator")
 
@@ -84,19 +49,20 @@ def _register_edges(builder: WorkflowBuilder) -> None:
     builder.add_edge("governance", END)
 
 
-def _configure_interrupts(builder: WorkflowBuilder) -> None:
+def _configure_interrupts(builder: WorkflowBuilder[GlobalState]) -> None:
     """Configure human-in-the-loop interruption points."""
     interrupts = ["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]
     builder.set_interrupts(interrupts)
 
 
-def create_app(builder: WorkflowBuilder | None = None) -> CompiledStateGraph[Any, Any]:
+from typing import Any
+def create_app(builder: WorkflowBuilder[GlobalState] | None = None) -> CompiledStateGraph[Any, Any]:
     """
     Create and compile the LangGraph application.
     This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
     if builder is None:
-        builder = WorkflowBuilder()
+        builder = WorkflowBuilder[GlobalState](GlobalState)
         _register_nodes(builder)
         _register_edges(builder)
         _configure_interrupts(builder)

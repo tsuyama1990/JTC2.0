@@ -7,7 +7,6 @@ and success criteria, following the 'Lean Startup' methodology.
 
 import re
 from enum import StrEnum
-
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator

@@ -12,12 +12,11 @@ logger = logging.getLogger(__name__)
 class FileService:
     """
     Service for handling file operations securely and efficiently.
-    Uses ThreadPoolExecutor for non-blocking I/O in async contexts.
+    Uses injected ThreadPoolExecutor for non-blocking I/O in async contexts.
     """
 
-    def __init__(self, settings: Settings | None = None) -> None:
-        # Max workers limited to avoid thread exhaustion
-        self._executor = ThreadPoolExecutor(max_workers=5)
+    def __init__(self, executor: ThreadPoolExecutor | None = None, settings: Settings | None = None) -> None:
+        self._executor = executor or ThreadPoolExecutor(max_workers=5)
         self.settings = settings or get_settings()
 
     def _validate_path(self, path: str | Path) -> Path:
@@ -84,6 +83,5 @@ class FileService:
                     Path(temp_path).unlink()
                 raise
 
-        RetryHandler.execute_with_retry(
-            _write_action, max_attempts=3, error_msg=f"Error writing to {path}"
-        )
+        handler = RetryHandler()
+        handler.execute_with_retry(_write_action, error_msg=f"Error writing to {path}")

@@ -488,22 +488,15 @@ class Settings(BaseSettings):
     @field_validator("openai_api_key")
     @classmethod
     def validate_openai_key(cls, v: SecretStr) -> SecretStr:
-        from src.core.validators import ApiKeyValidator
-        val = v.get_secret_value()
-        ApiKeyValidator.validate_openai(val)
+        from src.core.validators import ConfigValidators
+        ConfigValidators.validate_openai_key(v)
         return v
 
     @field_validator("tavily_api_key")
     @classmethod
     def validate_tavily_key(cls, v: SecretStr) -> SecretStr:
-        from src.core.validators import ApiKeyValidator
-        val = v.get_secret_value()
-        if val in {
-            "dummy-tavily-key-long-enough-for-validation",
-            "sk-dummy-test-key-long-enough-for-validation"
-        }:
-            return v
-        ApiKeyValidator.validate_tavily(val)
+        from src.core.validators import ConfigValidators
+        ConfigValidators.validate_tavily_key(v)
         return v
 
     def clear_credentials(self) -> None:
@@ -545,16 +538,10 @@ class Settings(BaseSettings):
     def model_post_init(self, __context: object) -> None:
         """Validate API keys on initialization."""
         super().model_post_init(__context)
-        from src.core.validators import ApiKeyValidator
+        from src.core.validators import ConfigValidators
 
-        val1 = self.openai_api_key.get_secret_value()
-        ApiKeyValidator.validate_openai(val1)
-        val2 = self.tavily_api_key.get_secret_value()
-        if val2 not in {
-            "dummy-tavily-key-long-enough-for-validation",
-            "sk-dummy-test-key-long-enough-for-validation"
-        }:
-            ApiKeyValidator.validate_tavily(val2)
+        ConfigValidators.validate_openai_key(self.openai_api_key)
+        ConfigValidators.validate_tavily_key(self.tavily_api_key)
 
     def rotate_keys(self) -> None:
         """Placeholder for key rotation."""

@@ -6,6 +6,7 @@ from src.core.nemawashi.engine import NemawashiEngine
 from src.core.node_executor import NodeExecutor
 from src.core.services.pdf_generator import PDFGenerator
 from src.core.simulation import create_simulation_graph
+from src.core.workflow_builder import node_registry
 from src.data.rag import RAG
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
@@ -28,6 +29,7 @@ def make_ideator_node(ideator_agent: Any = None) -> Any:
 
 
 safe_ideator_run = make_ideator_node()
+node_registry.register("ideator")(safe_ideator_run)
 
 
 def _verification_node_impl(state: GlobalState) -> dict[str, Any]:
@@ -49,89 +51,111 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Verification Phase."""
     return NodeExecutor.execute(_verification_node_impl, state, "Error in Verification Node")
 
-
-def _persona_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 2: Generate Persona."""
-    logger.info("Generating Persona...")
-    agent = AgentFactory.get_remastered_agent()
-    return agent.generate_persona(state)
+node_registry.register("verification")(verification_node)
 
 
-def persona_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_persona_node_impl, state, "Error in Persona Node")
+def make_persona_node(agent: Any = None) -> Any:
+    def _persona_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 2: Generate Persona."""
+        logger.info("Generating Persona...")
+        node_agent = agent or AgentFactory.get_remastered_agent()
+        return node_agent.generate_persona(state)
+
+    def persona_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(_persona_node_impl, state, "Error in Persona Node")
+    return persona_node
+
+persona_node = make_persona_node()
+node_registry.register("persona")(persona_node)
 
 
-def _alternative_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 2: Generate Alternative Analysis."""
-    logger.info("Generating Alternative Analysis...")
-    agent = AgentFactory.get_remastered_agent()
-    updates = agent.generate_alternative_analysis(state)
-    if updates.get("alternative_analysis"):
-        PDFGenerator.generate_canvas_pdf(
-            updates["alternative_analysis"], "alternative_analysis.pdf"
+def make_alternative_analysis_node(agent: Any = None) -> Any:
+    def _alternative_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 2: Generate Alternative Analysis."""
+        logger.info("Generating Alternative Analysis...")
+        node_agent = agent or AgentFactory.get_remastered_agent()
+        updates = node_agent.generate_alternative_analysis(state)
+        if updates.get("alternative_analysis"):
+            PDFGenerator.generate_canvas_pdf(
+                updates["alternative_analysis"], "alternative_analysis.pdf"
+            )
+        return updates
+
+    def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(
+            _alternative_analysis_node_impl, state, "Error in Alternative Analysis Node"
         )
-    return updates
+    return alternative_analysis_node
+
+alternative_analysis_node = make_alternative_analysis_node()
+node_registry.register("alternative_analysis")(alternative_analysis_node)
 
 
-def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(
-        _alternative_analysis_node_impl, state, "Error in Alternative Analysis Node"
-    )
+def make_vpc_node(agent: Any = None) -> Any:
+    def _vpc_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 2: Generate Value Proposition Canvas."""
+        logger.info("Generating Value Proposition Canvas...")
+        node_agent = agent or AgentFactory.get_remastered_agent()
+        updates = node_agent.generate_vpc(state)
+        if updates.get("value_proposition"):
+            PDFGenerator.generate_canvas_pdf(
+                updates["value_proposition"], "value_proposition_canvas.pdf"
+            )
+            ApprovalStampRenderer("VPC Canvas").start()
+        return updates
+
+    def vpc_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(_vpc_node_impl, state, "Error in VPC Node")
+    return vpc_node
+
+vpc_node = make_vpc_node()
+node_registry.register("vpc")(vpc_node)
 
 
-def _vpc_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 2: Generate Value Proposition Canvas."""
-    logger.info("Generating Value Proposition Canvas...")
-    agent = AgentFactory.get_remastered_agent()
-    updates = agent.generate_vpc(state)
-    if updates.get("value_proposition"):
-        PDFGenerator.generate_canvas_pdf(
-            updates["value_proposition"], "value_proposition_canvas.pdf"
+def make_mental_model_journey_node(agent: Any = None) -> Any:
+    def _mental_model_journey_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 3: Generate Mental Model & Customer Journey."""
+        logger.info("Generating Mental Model and Customer Journey...")
+        node_agent = agent or AgentFactory.get_remastered_agent()
+        updates = node_agent.generate_mental_model_and_journey(state)
+        if updates.get("mental_model"):
+            PDFGenerator.generate_canvas_pdf(updates["mental_model"], "mental_model_diagram.pdf")
+        if updates.get("customer_journey"):
+            PDFGenerator.generate_canvas_pdf(updates["customer_journey"], "customer_journey.pdf")
+
+        if updates.get("mental_model") or updates.get("customer_journey"):
+            ApprovalStampRenderer("Mental Model & Journey").start()
+        return updates
+
+    def mental_model_journey_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(
+            _mental_model_journey_node_impl, state, "Error in Mental Model & Journey Node"
         )
-        ApprovalStampRenderer("VPC Canvas").start()
-    return updates
+    return mental_model_journey_node
+
+mental_model_journey_node = make_mental_model_journey_node()
+node_registry.register("mental_model_journey")(mental_model_journey_node)
 
 
-def vpc_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_vpc_node_impl, state, "Error in VPC Node")
+def make_sitemap_wireframe_node(agent: Any = None) -> Any:
+    def _sitemap_wireframe_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 3: Generate Sitemap and Wireframe (User Story)."""
+        logger.info("Generating Sitemap and User Story...")
+        node_agent = agent or AgentFactory.get_remastered_agent()
+        updates = node_agent.generate_sitemap_and_wireframe(state)
+        if updates.get("sitemap_and_story"):
+            PDFGenerator.generate_canvas_pdf(updates["sitemap_and_story"], "sitemap_and_story.pdf")
+            ApprovalStampRenderer("Sitemap & Story").start()
+        return updates
 
+    def sitemap_wireframe_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(
+            _sitemap_wireframe_node_impl, state, "Error in Sitemap & Wireframe Node"
+        )
+    return sitemap_wireframe_node
 
-def _mental_model_journey_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 3: Generate Mental Model & Customer Journey."""
-    logger.info("Generating Mental Model and Customer Journey...")
-    agent = AgentFactory.get_remastered_agent()
-    updates = agent.generate_mental_model_and_journey(state)
-    if updates.get("mental_model"):
-        PDFGenerator.generate_canvas_pdf(updates["mental_model"], "mental_model_diagram.pdf")
-    if updates.get("customer_journey"):
-        PDFGenerator.generate_canvas_pdf(updates["customer_journey"], "customer_journey.pdf")
-
-    if updates.get("mental_model") or updates.get("customer_journey"):
-        ApprovalStampRenderer("Mental Model & Journey").start()
-    return updates
-
-
-def mental_model_journey_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(
-        _mental_model_journey_node_impl, state, "Error in Mental Model & Journey Node"
-    )
-
-
-def _sitemap_wireframe_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 3: Generate Sitemap and Wireframe (User Story)."""
-    logger.info("Generating Sitemap and User Story...")
-    agent = AgentFactory.get_remastered_agent()
-    updates = agent.generate_sitemap_and_wireframe(state)
-    if updates.get("sitemap_and_story"):
-        PDFGenerator.generate_canvas_pdf(updates["sitemap_and_story"], "sitemap_and_story.pdf")
-        ApprovalStampRenderer("Sitemap & Story").start()
-    return updates
-
-
-def sitemap_wireframe_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(
-        _sitemap_wireframe_node_impl, state, "Error in Sitemap & Wireframe Node"
-    )
+sitemap_wireframe_node = make_sitemap_wireframe_node()
+node_registry.register("sitemap_wireframe")(sitemap_wireframe_node)
 
 
 def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
@@ -173,92 +197,151 @@ def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
     return updates
 
 
-def spec_generation_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_spec_generation_node_impl, state, "Error in Spec Generation Node")
+def make_spec_generation_node(agent: Any = None) -> Any:
+    def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 5: Generate Agent Prompt Spec."""
+        logger.info("Generating Agent Prompt Spec...")
+        node_agent = agent or AgentFactory.get_builder_agent()
+        updates = node_agent.generate_agent_prompt_spec(state)
+        if updates.get("agent_prompt_spec"):
+            from pathlib import Path
+
+            from src.core.config import get_settings
+
+            settings = get_settings()
+            output_dir = Path(settings.canvas_output_dir)
+            if not output_dir.is_absolute():
+                output_dir = Path.cwd() / output_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            import os
+            import pathlib
+            import tempfile
+
+            target_path = output_dir / "AgentPromptSpec.md"
+            fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
+            temp_path = pathlib.Path(temp_path_str)
+            try:
+                with os.fdopen(fd, "w") as f:
+                    spec = updates["agent_prompt_spec"]
+                    f.write(
+                        f"# Agent Prompt Specification\n\n"
+                        f"## Core Story\n```json\n{spec.core_user_story.model_dump_json(indent=2)}\n```\n\n"
+                        f"## State Machine\n```json\n{spec.state_machine.model_dump_json(indent=2)}\n```\n\n"
+                        f"## State Machine (Mermaid)\n```mermaid\n{spec.mermaid_flowchart}\n```\n"
+                    )
+                temp_path.replace(target_path)
+            except Exception:
+                logger.exception("Failed to write AgentPromptSpec.md")
+                if temp_path.exists():
+                    temp_path.unlink()
+            ApprovalStampRenderer("Agent Prompt Spec").start()
+        return updates
+
+    def spec_generation_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(
+            _spec_generation_node_impl, state, "Error in Spec Generation Node"
+        )
+    return spec_generation_node
+
+spec_generation_node = make_spec_generation_node()
+node_registry.register("spec_generation")(spec_generation_node)
 
 
-def _experiment_planning_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 6: Generate Experiment Plan."""
-    logger.info("Generating Experiment Plan...")
-    agent = AgentFactory.get_output_generation_agent()
-    updates = agent.generate_experiment_plan(state)
-    if updates.get("experiment_plan"):
-        PDFGenerator.generate_canvas_pdf(updates["experiment_plan"], "experiment_plan.pdf")
-        from pathlib import Path
+def make_experiment_planning_node(agent: Any = None) -> Any:
+    def _experiment_planning_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 6: Generate Experiment Plan."""
+        logger.info("Generating Experiment Plan...")
+        node_agent = agent or AgentFactory.get_output_generation_agent()
+        updates = node_agent.generate_experiment_plan(state)
+        if updates.get("experiment_plan"):
+            PDFGenerator.generate_canvas_pdf(updates["experiment_plan"], "experiment_plan.pdf")
+            from pathlib import Path
 
-        from src.core.config import get_settings
+            from src.core.config import get_settings
 
-        settings = get_settings()
-        output_dir = Path(settings.canvas_output_dir)
-        if not output_dir.is_absolute():
-            output_dir = Path.cwd() / output_dir
-        output_dir.mkdir(parents=True, exist_ok=True)
-        import os
-        import pathlib
-        import tempfile
+            settings = get_settings()
+            output_dir = Path(settings.canvas_output_dir)
+            if not output_dir.is_absolute():
+                output_dir = Path.cwd() / output_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+            import os
+            import pathlib
+            import tempfile
 
-        target_path = output_dir / "ExperimentPlan.md"
-        fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
-        temp_path = pathlib.Path(temp_path_str)
-        try:
-            with os.fdopen(fd, "w") as f:
-                f.write(
-                    f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
+            target_path = output_dir / "ExperimentPlan.md"
+            fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
+            temp_path = pathlib.Path(temp_path_str)
+            try:
+                with os.fdopen(fd, "w") as f:
+                    f.write(
+                        f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
+                    )
+                temp_path.replace(target_path)
+            except Exception:
+                logger.exception("Failed to write ExperimentPlan.md")
+                if temp_path.exists():
+                    temp_path.unlink()
+            ApprovalStampRenderer("Experiment Plan").start()
+        return updates
+
+    def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(
+            _experiment_planning_node_impl, state, "Error in Experiment Planning Node"
+        )
+    return experiment_planning_node
+
+experiment_planning_node = make_experiment_planning_node()
+node_registry.register("experiment_planning")(experiment_planning_node)
+
+
+def make_virtual_customer_node(agent: Any = None) -> Any:
+    def _virtual_customer_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 4: Virtual Customer Interview."""
+        logger.info("Running Virtual Customer Simulation...")
+        node_agent = agent or AgentFactory.get_virtual_customer_agent()
+        return node_agent.run(state)
+
+    def virtual_customer_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(
+            _virtual_customer_node_impl, state, "Error in Virtual Customer Node"
+        )
+    return virtual_customer_node
+
+virtual_customer_node = make_virtual_customer_node()
+node_registry.register("virtual_customer")(virtual_customer_node)
+
+
+def make_review_3h_node(hacker_agent: Any = None, hipster_agent: Any = None, hustler_agent: Any = None) -> Any:
+    def _review_3h_node_impl(state: GlobalState) -> dict[str, Any]:
+        """Phase 4: 3H Review (Hacker, Hipster, Hustler)."""
+        logger.info("Running 3H Review...")
+        hacker = hacker_agent or AgentFactory.get_hacker_agent()
+        hipster = hipster_agent or AgentFactory.get_hipster_agent()
+        hustler = hustler_agent or AgentFactory.get_hustler_agent()
+
+        # Run sequentially and accumulate messages
+        state_updates: dict[str, Any] = {"debate_history": list(state.debate_history)}
+        for a in [hacker, hipster, hustler]:
+            updates = a.run(state)
+            if "debate_history" in updates:
+                state_updates["debate_history"].extend(
+                    [
+                        msg
+                        for msg in updates["debate_history"]
+                        if msg not in state_updates["debate_history"]
+                    ]
                 )
-            temp_path.replace(target_path)
-        except Exception:
-            logger.exception("Failed to write ExperimentPlan.md")
-            if temp_path.exists():
-                temp_path.unlink()
-        ApprovalStampRenderer("Experiment Plan").start()
-    return updates
+                state.debate_history = state_updates["debate_history"]
 
+        return state_updates
 
-def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(
-        _experiment_planning_node_impl, state, "Error in Experiment Planning Node"
-    )
+    def review_3h_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
+    return review_3h_node
 
-
-def _virtual_customer_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 4: Virtual Customer Interview."""
-    logger.info("Running Virtual Customer Simulation...")
-    agent = AgentFactory.get_virtual_customer_agent()
-    return agent.run(state)
-
-
-def virtual_customer_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(
-        _virtual_customer_node_impl, state, "Error in Virtual Customer Node"
-    )
-
-
-def _review_3h_node_impl(state: GlobalState) -> dict[str, Any]:
-    """Phase 4: 3H Review (Hacker, Hipster, Hustler)."""
-    logger.info("Running 3H Review...")
-    hacker = AgentFactory.get_hacker_agent()
-    hipster = AgentFactory.get_hipster_agent()
-    hustler = AgentFactory.get_hustler_agent()
-
-    # Run sequentially and accumulate messages
-    state_updates: dict[str, Any] = {"debate_history": list(state.debate_history)}
-    for agent in [hacker, hipster, hustler]:
-        updates = agent.run(state)
-        if "debate_history" in updates:
-            state_updates["debate_history"].extend(
-                [
-                    msg
-                    for msg in updates["debate_history"]
-                    if msg not in state_updates["debate_history"]
-                ]
-            )
-            state.debate_history = state_updates["debate_history"]
-
-    return state_updates
-
-
-def review_3h_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
+review_3h_node = make_review_3h_node()
+node_registry.register("review_3h")(review_3h_node)
 
 
 def _validate_transcripts(state: GlobalState) -> None:
@@ -311,20 +394,24 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     return {}
 
 
-def _transcript_ingestion_node_impl(state: GlobalState) -> dict[str, Any]:
-    """
-    Ingest customer transcripts into the RAG system.
-    Runs after Gate 2 (User Input of Transcript).
-    """
-    logger.info("Ingesting transcripts into RAG...")
-    _validate_transcripts(state)
-    return _ingest_impl(state)
+def make_transcript_ingestion_node() -> Any:
+    def _transcript_ingestion_node_impl(state: GlobalState) -> dict[str, Any]:
+        """
+        Ingest customer transcripts into the RAG system.
+        Runs after Gate 2 (User Input of Transcript).
+        """
+        logger.info("Ingesting transcripts into RAG...")
+        _validate_transcripts(state)
+        return _ingest_impl(state)
 
+    def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(
+            _transcript_ingestion_node_impl, state, "Error during transcript ingestion"
+        )
+    return transcript_ingestion_node
 
-def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(
-        _transcript_ingestion_node_impl, state, "Error during transcript ingestion"
-    )
+transcript_ingestion_node = make_transcript_ingestion_node()
+node_registry.register("transcript_ingestion")(transcript_ingestion_node)
 
 
 def _transform_simulation_state(final_state: Any) -> dict[str, Any]:
@@ -352,42 +439,47 @@ def _safe_simulation_run_impl(state: GlobalState) -> dict[str, Any]:
 def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     return NodeExecutor.execute(_safe_simulation_run_impl, state, "Error in Simulation Graph")
 
+node_registry.register("simulation_round")(safe_simulation_run)
 
 def _identify_and_log_influencers(engine: NemawashiEngine, network: Any) -> None:
     influencers = engine.identify_influencers(network)
     logger.info(f"Identified Key Influencers: {influencers}")
 
 
-def _nemawashi_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
-    """
-    Run Nemawashi (Consensus) analysis after the simulation.
-    Updates the influence network with new opinion dynamics.
-    """
-    logger.info("Running Nemawashi Consensus Analysis...")
+def make_nemawashi_analysis_node(engine_factory: Any = None) -> Any:
+    def _nemawashi_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
+        """
+        Run Nemawashi (Consensus) analysis after the simulation.
+        Updates the influence network with new opinion dynamics.
+        """
+        logger.info("Running Nemawashi Consensus Analysis...")
 
-    if not state.influence_network:
-        logger.warning("No influence network found. Skipping Nemawashi analysis.")
-        return {}
+        if not state.influence_network:
+            logger.warning("No influence network found. Skipping Nemawashi analysis.")
+            return {}
 
-    engine = NemawashiEngine()
+        engine = engine_factory() if engine_factory else NemawashiEngine()
 
-    # Calculate new consensus (opinions)
-    new_opinions = engine.calculate_consensus(state.influence_network)
+        # Calculate new consensus (opinions)
+        new_opinions = engine.calculate_consensus(state.influence_network)
 
-    # Update the influence network in state
-    updated_network = state.influence_network.model_copy(deep=True)
+        # Update the influence network in state
+        updated_network = state.influence_network.model_copy(deep=True)
 
-    for i, stakeholder in enumerate(updated_network.stakeholders):
-        if i < len(new_opinions):
-            stakeholder.initial_support = new_opinions[i]
+        for i, stakeholder in enumerate(updated_network.stakeholders):
+            if i < len(new_opinions):
+                stakeholder.initial_support = new_opinions[i]
 
-    _identify_and_log_influencers(engine, updated_network)
+        _identify_and_log_influencers(engine, updated_network)
 
-    return {"influence_network": updated_network}
+        return {"influence_network": updated_network}
 
+    def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(_nemawashi_analysis_node_impl, state, "Error in Nemawashi Analysis")
+    return nemawashi_analysis_node
 
-def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_nemawashi_analysis_node_impl, state, "Error in Nemawashi Analysis")
+nemawashi_analysis_node = make_nemawashi_analysis_node()
+node_registry.register("nemawashi_analysis")(nemawashi_analysis_node)
 
 
 def _create_cpo_agent(state: GlobalState) -> Any:
@@ -412,17 +504,23 @@ def _transition_phase(updates: dict[str, Any], phase: Phase) -> dict[str, Any]:
     return updates
 
 
-def _governance_node_impl(state: GlobalState) -> dict[str, Any]:
-    """
-    Run Governance Agent for Cycle 6 (Ringi-sho).
-    """
-    logger.info("Running Governance Check...")
+def make_governance_node(agent: Any = None) -> Any:
+    def _governance_node_impl(state: GlobalState) -> dict[str, Any]:
+        """
+        Run Governance Agent for Cycle 6 (Ringi-sho).
+        """
+        logger.info("Running Governance Check...")
 
-    agent = AgentFactory.get_governance_agent()
-    updates = agent.run(state)
+        node_agent = agent or AgentFactory.get_governance_agent()
+        updates = node_agent.run(state)
 
-    return _transition_phase(updates, Phase.GOVERNANCE)
+        return _transition_phase(updates, Phase.GOVERNANCE)
+
+    def governance_node(state: GlobalState) -> dict[str, Any]:
+        return NodeExecutor.execute(_governance_node_impl, state, "Error in Governance Check")
+    return governance_node
+
+governance_node = make_governance_node()
+node_registry.register("governance")(governance_node)
 
 
-def governance_node(state: GlobalState) -> dict[str, Any]:
-    return NodeExecutor.execute(_governance_node_impl, state, "Error in Governance Check")

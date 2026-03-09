@@ -1,5 +1,6 @@
 import atexit
 import threading
+from typing import Any
 
 import httpx
 from langchain_openai import ChatOpenAI
@@ -35,42 +36,52 @@ class HTTPClientManager:
             self.client.close()
 
 
-from functools import lru_cache  # noqa: E402
+class LLMFactory:
+    """
+    Factory class for creating LLM instances.
+    Provides methods to instantiate ChatOpenAI using dependency injection.
+    """
+
+    def __init__(self, settings: Any = None, http_client: httpx.Client | None = None) -> None:
+        self.settings = settings or get_settings()
+        self.http_client = http_client
+
+    def create_llm(self, model: str | None = None) -> ChatOpenAI:
+        """
+        Creates and returns a ChatOpenAI instance using configured settings.
+        """
+        from src.core.validators import ApiKeyValidator
+
+        # Strictly validate key formatting and readiness before creating the client
+        if getattr(self.settings, "openai_api_key", None) is None:
+            raise ValueError(ERR_LLM_CONFIG_MISSING)
+
+        val1 = self.settings.openai_api_key.get_secret_value()
+        ApiKeyValidator.validate_openai(val1)
+
+        target_model = model or self.settings.llm_model
+
+        # Use provided client or global pooled client to prevent connection leaking
+        client_to_use = self.http_client if self.http_client is not None else HTTPClientManager().get_client()
+
+        return ChatOpenAI(
+            model=target_model,
+            api_key=self.settings.openai_api_key,
+            max_retries=self.settings.resiliency.circuit_breaker_fail_max,
+            http_client=client_to_use,
+        )
 
 
-@lru_cache(maxsize=5)
 def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -> ChatOpenAI:
     """
-    Factory to get a cached LLM client instance.
-    Uses a properly pooled and managed global HTTP client instance unless one is injected.
-    The ChatOpenAI instance itself is cached to prevent connection exhaustion.
+    Legacy helper function mapping to LLMFactory.create_llm().
     """
-    settings = get_settings()
-    from src.core.validators import ApiKeyValidator
-
-    # Strictly validate key formatting and readiness before creating the client
-    if getattr(settings, "openai_api_key", None) is None:
-        raise ValueError(ERR_LLM_CONFIG_MISSING)
-
-    val1 = settings.openai_api_key.get_secret_value()
-    ApiKeyValidator.validate_openai(val1)
-
-    target_model = model or settings.llm_model
-
-    # Use provided client or global pooled client to prevent connection leaking
-    client_to_use = http_client if http_client is not None else HTTPClientManager().get_client()
-
-    return ChatOpenAI(
-        model=target_model,
-        api_key=settings.openai_api_key,
-        max_retries=settings.resiliency.circuit_breaker_fail_max,
-        http_client=client_to_use,
-    )
+    factory = LLMFactory(http_client=http_client)
+    return factory.create_llm(model)
 
 
 def clear_llm_cache() -> None:
-    """Helper for testing to reset the LLM cache and HTTP client pool."""
-    get_llm.cache_clear()
+    """Helper for testing to reset the HTTP client pool."""
     manager = HTTPClientManager()
     with manager._lock:
         manager.close()

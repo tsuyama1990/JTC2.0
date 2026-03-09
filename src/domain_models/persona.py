@@ -6,7 +6,9 @@ and their empathy map (Says, Thinks, Does, Feels), critical for
 Customer-Problem Fit.
 """
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -22,10 +24,6 @@ from src.core.constants import (
     DESC_PERSONA_OCCUPATION,
 )
 
-
-from typing import Self
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 class EmpathyMap(BaseModel):
     """
