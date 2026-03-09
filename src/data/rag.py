@@ -232,12 +232,14 @@ class RAG:
                 parent = target_path.parent.resolve(strict=True)
                 path = parent / target_path.name
 
-            import tempfile
-            temp_dir = tempfile.gettempdir()
-
             # Explicit containment check against CWD (or specific test tmp directory if running tests)
             # Typically `cwd` works perfectly for local sandboxes or container volumes.
-            if not path.is_relative_to(cwd) and not str(path).startswith(temp_dir):
+
+            # NOTE: We allow the global system temp directory via `is_relative_to` if the environment requires it (like pytest tmpdir).
+            import tempfile
+            allowed_roots = [cwd, Path(tempfile.gettempdir()).resolve(strict=True)]
+
+            if not any(path.is_relative_to(root) for root in allowed_roots):
                 logger.exception(ERR_PATH_TRAVERSAL)
                 raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
