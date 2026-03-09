@@ -18,7 +18,8 @@ class InfluenceAnalyzer:
     Analyzes the structure and key influencers of the network.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cache_size: int = 100) -> None:
+        self._cache_size = cache_size
         self._cache: dict[str, list[str]] = {}
 
     def identify_influencers(self, network: InfluenceNetwork) -> list[str]:
@@ -30,7 +31,7 @@ class InfluenceAnalyzer:
             result = self._identify_influencers_impl(network)
 
             # Simple bounded cache
-            if len(self._cache) > 10:
+            if len(self._cache) >= self._cache_size:
                 # Remove oldest (in Python 3.7+ dicts preserve insertion order)
                 self._cache.pop(next(iter(self._cache)))
 

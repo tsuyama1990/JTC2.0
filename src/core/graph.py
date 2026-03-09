@@ -78,6 +78,10 @@ def create_app(
     Create and compile the LangGraph application.
     This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
+    if not isinstance(registry, WorkflowRegistry):
+        msg = f"Expected WorkflowRegistry, got {type(registry).__name__}"
+        raise TypeError(msg)
+
     try:
         service = GraphBuilderService(registry)
         return service.build_graph(builder)

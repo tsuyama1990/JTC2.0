@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class ThreadedFileWriter(IFileWriter):
-    def __init__(self, executor: ThreadPoolExecutor | None = None) -> None:
-        self._executor = executor or ThreadPoolExecutor(max_workers=5)
+    def __init__(self, executor: ThreadPoolExecutor | None = None, settings: Settings | None = None) -> None:
+        self.settings = settings or get_settings()
+        self._executor = executor or ThreadPoolExecutor(max_workers=self.settings.threadpool.max_workers)
 
     def save_text_async(self, content: str, path: str | Path) -> None:
         try:
@@ -112,3 +113,32 @@ class FileService:
         """
         valid_path = self._validate_path(path)
         self.writer.save_text_async(content, valid_path)
+
+    def save_canvas_output_async(self, content: str, filename: str) -> None:
+        """
+        Saves output file inside the configurable canvas outputs directory.
+
+        Args:
+            content: The content to save.
+            filename: The target filename.
+        """
+        import re
+
+        # Sanitize filename
+        safe_filename = re.sub(r"[^a-zA-Z0-9_\-\.]", "", filename)
+        if not safe_filename:
+            logger.error("Invalid filename provided for save_canvas_output_async.")
+            return
+
+        output_dir = Path(self.settings.canvas_output_dir).resolve()
+        if not output_dir.is_absolute():
+            output_dir = (Path.cwd() / output_dir).resolve()
+
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            logger.exception("Failed to create outputs directory.")
+            return
+
+        target_path = output_dir / safe_filename
+        self.save_text_async(content, target_path)

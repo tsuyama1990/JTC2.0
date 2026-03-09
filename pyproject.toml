@@ -1,3 +1,5 @@
+project-environment = ".venv"
+
 [project]
 name = "jtc2-0"
 version = "0.1.0"

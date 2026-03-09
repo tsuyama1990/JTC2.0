@@ -12,15 +12,25 @@ class NemawashiUtils:
 
     @staticmethod
     def validate_stochasticity(
-        matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6
+        matrix: csr_matrix | list[list[float]], tolerance: float | None = None
     ) -> None:
         """
         Validate that matrix rows sum to approximately 1.0 and bounds are [0,1].
         Supports both sparse (csr_matrix) and dense (list[list[float]]) inputs.
         """
+        from src.core.config import get_settings
+
+        settings = get_settings().nemawashi
+        tol = tolerance if tolerance is not None else settings.tolerance
+
         try:
             if hasattr(matrix, "sum"):
                 # Sparse or numpy matrix
+                shape = getattr(matrix, "shape", (0, 0))
+                if shape[0] > settings.max_network_size or shape[1] > settings.max_network_size:
+                    msg = f"Matrix dimensions {shape} exceed maximum allowed size of {settings.max_network_size}"
+                    raise ValueError(msg)
+
                 row_sums = matrix.sum(axis=1)
                 # Convert to 1D array
                 row_sums = row_sums.A1 if hasattr(row_sums, "A1") else np.array(row_sums).flatten()
@@ -30,6 +40,21 @@ class NemawashiUtils:
             else:
                 # List of lists
                 dense = cast(list[list[float]], matrix)
+                if len(dense) > settings.max_network_size or (len(dense) > 0 and len(dense[0]) > settings.max_network_size):
+                    msg = f"Matrix dimensions exceed maximum allowed size of {settings.max_network_size}"
+                    raise ValueError(msg)
+
+                # For very large lists, iterative row checking is safer than creating a giant numpy array
+                if len(dense) > 1000:
+                    for row in dense:
+                        if not all(0.0 - tol <= val <= 1.0 + tol for val in row):
+                            msg_bounds = "Influence matrix entries must be within bounds [0, 1]."
+                            raise ValidationError(msg_bounds)
+                        if not np.isclose(sum(row), 1.0, rtol=tol, atol=tol):
+                            msg_sum = "Influence matrix rows must precisely sum to 1.0"
+                            raise ValidationError(msg_sum)
+                    return  # Successfully validated large list line by line
+
                 row_sums = np.array([sum(row) for row in dense])
                 values = np.array(dense).flatten()
         except Exception as e:
@@ -40,11 +65,12 @@ class NemawashiUtils:
             msg = "Influence matrix contains NaN or Inf values."
             raise ValidationError(msg)
 
-        if np.any((values < -tolerance) | (values > 1.0 + tolerance)):
+        # tolerance check safely against a scalar tol explicitly
+        if np.any((values < -tol) | (values > 1.0 + tol)):
             msg = "Influence matrix entries must be within bounds [0, 1]."
             raise ValidationError(msg)
 
-        if not np.allclose(row_sums, 1.0, rtol=tolerance, atol=tolerance):
+        if not np.allclose(row_sums, 1.0, rtol=tol, atol=tol):
             msg = "Influence matrix rows must precisely sum to 1.0"
             raise ValidationError(msg)
 
@@ -54,8 +80,12 @@ class NemawashiUtils:
         Construct a CSR matrix from the network data efficiently.
         Handles both dense and sparse input formats.
         """
-        if n > 10000:
-            msg = f"Network size {n} exceeds limit of 10,000 stakeholders."
+        from src.core.config import get_settings
+
+        settings = get_settings().nemawashi
+
+        if n > settings.max_network_size:
+            msg = f"Network size {n} exceeds limit of {settings.max_network_size} stakeholders."
             raise ValueError(msg)
 
         if not network.matrix:

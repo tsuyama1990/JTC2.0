@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 class RetryStrategy(BaseModel):
     max_attempts: int = Field(default=3, ge=1)
+    jitter_pct_min: float = Field(default=0.0, ge=0.0, le=1.0)
+    jitter_pct_max: float = Field(default=0.5, ge=0.0, le=1.0)
     retryable_exceptions: tuple[type[Exception], ...] = Field(default=(OSError,))
     fatal_exceptions: tuple[type[Exception], ...] = Field(default=(PermissionError,))
 
@@ -44,12 +46,11 @@ class RetryHandler:
                     logger.warning(
                         f"{error_msg}, retrying... ({attempt + 1}/{self.strategy.max_attempts}). Error: {e}"
                     )
-                    import secrets
+                    import random
 
-                    # Exponential backoff with secure jitter
+                    # Exponential backoff with configurable jitter
                     base_delay = 1.0 * (2**attempt)
-                    # randbelow requires an int, we use it to get a percentage
-                    jitter_pct = secrets.randbelow(51) / 100.0  # 0 to 50%
+                    jitter_pct = random.uniform(self.strategy.jitter_pct_min, self.strategy.jitter_pct_max)
                     jitter = jitter_pct * base_delay
                     time.sleep(base_delay + jitter)
                     continue
@@ -85,11 +86,11 @@ class AsyncRetryHandler:
                     logger.warning(
                         f"{error_msg}, retrying... ({attempt + 1}/{self.strategy.max_attempts}). Error: {e}"
                     )
-                    import secrets
+                    import random
 
                     # Exponential backoff with secure jitter
                     base_delay = 1.0 * (2**attempt)
-                    jitter_pct = secrets.randbelow(51) / 100.0  # 0 to 50%
+                    jitter_pct = random.uniform(self.strategy.jitter_pct_min, self.strategy.jitter_pct_max)
                     jitter = jitter_pct * base_delay
                     await asyncio.sleep(base_delay + jitter)
                     continue

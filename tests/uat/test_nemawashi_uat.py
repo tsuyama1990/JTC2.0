@@ -21,7 +21,16 @@ def test_identify_key_influencer_uat() -> None:
     net = InfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
     state = GlobalState(influence_network=net)
 
-    engine = NemawashiEngine()
+    from src.core.config import get_settings
+    from src.core.nemawashi.analytics import InfluenceAnalyzer
+    from src.core.nemawashi.consensus import ConsensusEngine
+    from src.core.nemawashi.nomikai import NomikaiSimulator
+
+    settings = get_settings().nemawashi
+    consensus = ConsensusEngine(settings)
+    analytics = InfluenceAnalyzer(settings.analytics_cache_size)
+    simulator = NomikaiSimulator(settings)
+    engine = NemawashiEngine(consensus, analytics, simulator, settings)
 
     try:
         influencers = engine.identify_influencers(state.influence_network)  # type: ignore
@@ -43,7 +52,16 @@ def test_nomikai_effect_uat() -> None:
 
     net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
 
-    engine = NemawashiEngine()
+    from src.core.config import get_settings
+    from src.core.nemawashi.analytics import InfluenceAnalyzer
+    from src.core.nemawashi.consensus import ConsensusEngine
+    from src.core.nemawashi.nomikai import NomikaiSimulator
+
+    settings = get_settings().nemawashi
+    consensus = ConsensusEngine(settings)
+    analytics = InfluenceAnalyzer(settings.analytics_cache_size)
+    simulator = NomikaiSimulator(settings)
+    engine = NemawashiEngine(consensus, analytics, simulator, settings)
 
     try:
         initial_ops = engine.calculate_consensus(net)

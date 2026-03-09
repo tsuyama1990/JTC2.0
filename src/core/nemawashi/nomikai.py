@@ -13,8 +13,8 @@ class NomikaiSimulator:
     Simulates 'Nomikai' events (informal gatherings) to influence opinion dynamics.
     """
 
-    def __init__(self, settings: NemawashiConfig | None = None) -> None:
-        self.settings = settings or get_settings().nemawashi
+    def __init__(self, settings: NemawashiConfig) -> None:
+        self.settings = settings
 
     def run_nomikai(self, network: InfluenceNetwork, target_name: str) -> InfluenceNetwork:
         """

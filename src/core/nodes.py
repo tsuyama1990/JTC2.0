@@ -145,26 +145,14 @@ def make_sitemap_wireframe_node(agent: IRemasteredAgent) -> Callable[[GlobalStat
     return sitemap_wireframe_node
 
 
-def make_spec_generation_node(agent: IOutputGenerationAgent) -> Callable[[GlobalState], dict[str, Any]]:
+def make_spec_generation_node(agent: IOutputGenerationAgent, file_service: Any | None = None) -> Callable[[GlobalState], dict[str, Any]]:
     def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
         """Phase 5: Generate Agent Prompt Spec."""
         logger.info("Generating Agent Prompt Spec...")
         updates = agent.generate_agent_prompt_spec(state)
         if updates.get("agent_prompt_spec"):
-            from pathlib import Path
-
-            from src.core.config import get_settings
-
-            settings = get_settings()
-            output_dir = Path(settings.canvas_output_dir)
-            if not output_dir.is_absolute():
-                output_dir = Path.cwd() / output_dir
-            output_dir.mkdir(parents=True, exist_ok=True)
-
-            from src.core.services.file_service import FileService
             from src.core.utils import strip_html_tags
 
-            target_path = output_dir / "AgentPromptSpec.md"
             spec = updates["agent_prompt_spec"]
 
             # Safe string formatting with sanitization for mermaid block
@@ -177,8 +165,14 @@ def make_spec_generation_node(agent: IOutputGenerationAgent) -> Callable[[Global
                 f"## State Machine (Mermaid)\n```mermaid\n{safe_mermaid}\n```\n"
             )
 
-            file_service = FileService()
-            file_service.save_text_async(content, target_path)
+            # Lazy inject FileService if not provided to avoid circular imports during registry loading
+            if file_service is not None:
+                service = file_service
+            else:
+                from src.core.services.file_service import FileService
+                service = FileService()
+
+            service.save_canvas_output_async(content, "AgentPromptSpec.md")
 
             ApprovalStampRenderer("Agent Prompt Spec").start()
         return updates if isinstance(updates, dict) else {}
@@ -375,7 +369,7 @@ def _identify_and_log_influencers(engine: NemawashiEngine, network: Any) -> None
     logger.info(f"Identified Key Influencers: {influencers}")
 
 
-def make_nemawashi_analysis_node(engine_factory: Callable[[], NemawashiEngine]) -> Callable[[GlobalState], dict[str, Any]]:
+def make_nemawashi_analysis_node(engine_factory: Callable[[], NemawashiEngine] | None = None) -> Callable[[GlobalState], dict[str, Any]]:
     def _nemawashi_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
         """
         Run Nemawashi (Consensus) analysis after the simulation.
@@ -387,7 +381,20 @@ def make_nemawashi_analysis_node(engine_factory: Callable[[], NemawashiEngine]) 
             logger.warning("No influence network found. Skipping Nemawashi analysis.")
             return {}
 
-        engine = engine_factory()
+        if engine_factory is not None:
+            engine = engine_factory()
+        else:
+            from src.core.config import get_settings
+            from src.core.nemawashi.analytics import InfluenceAnalyzer
+            from src.core.nemawashi.consensus import ConsensusEngine
+            from src.core.nemawashi.engine import NemawashiEngine
+            from src.core.nemawashi.nomikai import NomikaiSimulator
+
+            settings = get_settings().nemawashi
+            consensus = ConsensusEngine(settings)
+            analytics = InfluenceAnalyzer(settings.analytics_cache_size)
+            simulator = NomikaiSimulator(settings)
+            engine = NemawashiEngine(consensus, analytics, simulator, settings)
 
         # Calculate new consensus (opinions)
         new_opinions = engine.calculate_consensus(state.influence_network)

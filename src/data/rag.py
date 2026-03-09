@@ -205,37 +205,19 @@ class RAG:
             raise ConfigurationError(msg)
 
         try:
-            # Simplify path validation to use a single base directory check against CWD
-            # to provide straightforward containment without edge-case complex whitelists
             cwd = Path.cwd().resolve(strict=True)
-
             target_path = Path(path_str)
 
-            # Explicit symlink check first before attempting resolution
-            if target_path.exists():
-                if target_path.is_symlink():
-                    msg = "Symlinks not allowed in persist_dir."
-                    raise ConfigurationError(msg)
+            # Resolve strictly to get the absolute path
+            # We don't check strict=True here because the directory might not exist yet
+            path = target_path.resolve()
 
-                # Resolve strictly to prevent symlink bypasses
-                path = target_path.resolve(strict=True)
-
-                if not path.is_dir():
-                    msg = f"Path must be a directory: {path_str}"
-                    raise ConfigurationError(msg)
-            else:
-                # If the target doesn't exist, ensure its parent directory is valid and not a symlink
-                if target_path.parent.exists() and target_path.parent.is_symlink():
-                    msg = "Symlinks not allowed in parent path."
-                    raise ConfigurationError(msg)
-
-                parent = target_path.parent.resolve(strict=True)
-                path = parent / target_path.name
+            # Ensure it's not a file
+            if path.exists() and not path.is_dir():
+                msg = f"Path must be a directory: {path_str}"
+                raise ConfigurationError(msg)
 
             # Explicit containment check against CWD (or specific test tmp directory if running tests)
-            # Typically `cwd` works perfectly for local sandboxes or container volumes.
-
-            # NOTE: We allow the global system temp directory via `is_relative_to` if the environment requires it (like pytest tmpdir).
             import tempfile
             allowed_roots = [cwd, Path(tempfile.gettempdir()).resolve(strict=True)]
 

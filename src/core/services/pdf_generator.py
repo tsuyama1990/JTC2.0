@@ -53,12 +53,15 @@ class PDFGenerator:
             return None
 
         try:
-            pdf = FPDF()
+            pdf_config = settings.pdf
+            pdf = FPDF(format=pdf_config.page_format)
             pdf.add_page()
-            pdf.set_font("Helvetica", size=12)
 
-            # Title
-            pdf.set_font("Helvetica", style="B", size=16)
+            # Base text configuration
+            pdf.set_font(pdf_config.font_family, size=pdf_config.font_size)
+
+            # Title configuration
+            pdf.set_font(pdf_config.font_family, style="B", size=pdf_config.title_font_size)
             pdf.cell(
                 w=200,
                 h=10,
@@ -69,8 +72,8 @@ class PDFGenerator:
             )
             pdf.ln(10)
 
-            # Content mapping
-            pdf.set_font("Helvetica", size=12)
+            # Revert to standard base font config for content mapping
+            pdf.set_font(pdf_config.font_family, size=pdf_config.font_size)
 
             PDFGenerator._write_content_to_pdf(pdf, model.model_dump())
 
