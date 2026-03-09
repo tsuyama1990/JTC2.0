@@ -10,6 +10,8 @@ app = mo.App()
 def __init_environment() -> tuple[bool, str, Any]:
     import os as _os
 
+    import marimo as mo
+
     has_api_key = bool(_os.getenv("OPENAI_API_KEY"))
     mode = "Real Mode" if has_api_key else "Mock Mode"
 
@@ -107,7 +109,7 @@ def __run_uat_003(has_api_key: bool, mo: Any) -> tuple[Any]:
 
 
 @app.cell
-def __verify_outputs(mo: Any, has_api_key: bool) -> tuple[Any]:
+def __verify_outputs(has_api_key: bool, mo: Any) -> tuple[Any]:
     if not has_api_key:
         _verification = mo.md(
             "## Output Verification\n\n*Skipping Output Verification as tests ran in Mock Mode.*"
