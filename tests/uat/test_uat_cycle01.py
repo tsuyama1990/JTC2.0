@@ -38,9 +38,7 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
     return _gen()
 
 
-def test_ideation_scalability(
-    limited_lean_canvas_generator: Iterator[LeanCanvas],
-) -> None:
+def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas]) -> None: # noqa: PLR0915
     """
     Verify that the Ideation phase handles large/infinite iterators safely
     by consuming only what is needed (pagination).

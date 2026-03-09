@@ -31,6 +31,7 @@ class TestFileService:
             mock_mkstemp.return_value = (1, "temp.md")
 
             mock_file = MagicMock()
+            mock_file.fileno.return_value = 1
             mock_fdopen.return_value.__enter__.return_value = mock_file
 
             # Call the method
@@ -83,6 +84,7 @@ class TestFileService:
             mock_path.parent = MagicMock()
             mock_mkstemp.return_value = (1, "temp.md")
             mock_file = MagicMock()
+            mock_file.fileno.return_value = 1
             mock_fdopen.return_value.__enter__.return_value = mock_file
 
             large_content = "A" * (1024 * 1024 * 10)  # 10 MB string

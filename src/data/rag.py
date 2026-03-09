@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import pybreaker
 from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
@@ -147,7 +148,7 @@ class IngestionRequest(BaseModel):
         return v
 
 
-from typing import Any
+
 
 class RAG:
     """
@@ -212,8 +213,14 @@ class RAG:
             # Also allow cwd itself if configured or dynamically running tests
             allowed_parents.append(cwd)
 
-            # Use strict=False to handle paths that don't exist yet but get canonicalized.
-            path = Path(path_str).resolve(strict=False)
+            # Resolve the parent strictly to prevent symlink traversal race conditions
+            target_path = Path(path_str)
+            if target_path.exists():
+                path = target_path.resolve(strict=True)
+            else:
+                # If the target doesn't exist, ensure its parent directory is valid
+                parent = target_path.parent.resolve(strict=True)
+                path = parent / target_path.name
 
             if not any(path.is_relative_to(parent) for parent in allowed_parents):
                 logger.exception(ERR_PATH_TRAVERSAL)

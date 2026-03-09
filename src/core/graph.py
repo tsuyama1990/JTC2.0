@@ -11,7 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 class GraphBuilderService:
+    _instance: "GraphBuilderService | None" = None
+    _compiled_graph: CompiledStateGraph[Any, Any] | None = None
+
+    def __new__(cls, registry: WorkflowRegistry[GlobalState]) -> "GraphBuilderService":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.registry = registry
+        return cls._instance
+
     def __init__(self, registry: WorkflowRegistry[GlobalState]) -> None:
+        # Define attribute type for mypy since __new__ assignment doesn't satisfy it
         self.registry = registry
 
     def _register_nodes(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
@@ -59,12 +69,20 @@ class GraphBuilderService:
         return builder.set_interrupts(interrupts)
 
     def build_graph(self, builder: WorkflowBuilder[GlobalState] | None = None) -> CompiledStateGraph[Any, Any]:
+        # Return cached instance if available
+        if self._compiled_graph is not None and builder is None:
+            return self._compiled_graph
+
+        current_builder = builder if builder is not None else WorkflowBuilder[GlobalState](GlobalState)
+        current_builder = self._register_nodes(current_builder)
+        current_builder = self._register_edges(current_builder)
+        current_builder = self._configure_interrupts(current_builder)
+
+        compiled = current_builder.build()
         if builder is None:
-            builder = WorkflowBuilder[GlobalState](GlobalState)
-        builder = self._register_nodes(builder)
-        builder = self._register_edges(builder)
-        builder = self._configure_interrupts(builder)
-        return builder.build()
+            self.__class__._compiled_graph = compiled
+
+        return compiled
 
 
 def create_app(

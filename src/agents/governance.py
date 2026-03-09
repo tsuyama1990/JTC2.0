@@ -191,27 +191,32 @@ class GovernanceAgent(BaseAgent):
 
     def _parse_json(self, text: str) -> dict[str, Any]:
         """
-        Helper to parse JSON from LLM response.
-        Uses regex to extract JSON block for robustness.
-
-        Raises:
-            JSONDecodeError: If parsing fails.
+        Helper to parse JSON safely from LLM responses, avoiding dangerous edge cases.
         """
-        import re
-
-        # Try finding JSON block first
-        match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
-        if match:
-            text = match.group(1)
-        else:
-            # Fallback: Try finding any code block
-            match = re.search(r"```\s*(.*?)\s*```", text, re.DOTALL)
-            if match:
-                text = match.group(1)
-
-        # Strip whitespace
         text = text.strip()
-        return json.loads(text)  # type: ignore
+
+        # Avoid complex regex if the string is just a raw JSON block
+        if not text.startswith("{") and "```" in text:
+            import re
+            # Extract JSON cleanly while avoiding backtracking vulnerabilities
+            match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+            if match:
+                text = match.group(1).strip()
+
+        if not text.startswith("{") or not text.endswith("}"):
+            msg = "Response does not contain a valid JSON object structure."
+            raise ValueError(msg)
+
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            logger.exception(f"Failed to parse JSON. Snippet: {text[:50]}")
+            raise
+        else:
+            if not isinstance(parsed, dict):
+                msg = "Parsed JSON is not a dictionary"
+                raise TypeError(msg)
+            return parsed
 
     def _save_to_file(self, ringi: RingiSho) -> None:
         """

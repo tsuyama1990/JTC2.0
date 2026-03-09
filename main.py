@@ -50,8 +50,10 @@ def safe_input(prompt: str) -> str:
 def validate_topic(topic: str) -> str:
     """
     Validate the topic string.
-    Reject topics with dangerous characters.
+    Reject topics with dangerous characters and sanitize output.
     """
+    import bleach
+
     if not topic or not topic.strip():
         msg = "Topic cannot be empty."
         raise ValueError(msg)
@@ -60,7 +62,14 @@ def validate_topic(topic: str) -> str:
         msg = "Topic is too long (max 200 chars)."
         raise ValueError(msg)
 
-    # Allow alphanumeric, spaces, - _
+    # Sanitize with bleach to prevent HTML/Command injection vectors
+    cleaned_topic = bleach.clean(topic)
+    if cleaned_topic != topic:
+        msg = "Topic contained potentially dangerous HTML/Command injection tags."
+        logger.error(msg)
+        raise ValueError(msg)
+
+    # Strict whitelist to prevent SQL injection logic like '; DROP TABLE'
     if not re.match(r"^[a-zA-Z0-9\s\-_]+$", topic):
         msg = f"Topic contains invalid characters: {topic}"
         logger.error(msg)
