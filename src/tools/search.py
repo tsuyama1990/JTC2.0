@@ -12,7 +12,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.core.constants import ERR_SEARCH_CONFIG_MISSING, ERR_SEARCH_FAILED
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class TavilySearch:
         Args:
             api_key: Optional API key override.
         """
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         # Prioritize explicit key, then config
         if api_key:
@@ -61,7 +61,7 @@ class TavilySearch:
         expects a string block. We optimize by building the string efficiently,
         but ultimately we must return a single string for the prompt.
         """
-        settings = get_settings()
+        settings = SettingsFactory().build()
         # Cast necessary because model defaults return str instead of Literal
         depth: Literal["basic", "advanced"] = search_depth or settings.search.depth  # type: ignore[assignment]
 

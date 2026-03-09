@@ -11,7 +11,8 @@ except ImportError:
 
 @pytest.fixture
 def mock_settings() -> Generator[MagicMock, None, None]:
-    with patch("src.data.rag.get_settings") as mock:
+    with patch("src.data.rag.SettingsFactory") as mock:
+        mock.return_value.build.return_value = mock.return_value
         mock.return_value.openai_api_key.get_secret_value.return_value = "sk-test"
         mock.return_value.llm_model = "gpt-4o"
         # Mock rag_persist_dir - must be a valid subdir relative to CWD, e.g. tests/
@@ -53,7 +54,7 @@ def test_rag_initialization(
     mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test RAG initialization."""
-    mock_settings.return_value.rag.max_index_size_mb = 100
+    mock_settings.rag.max_index_size_mb = 100
     mock_llama_index["load"].side_effect = Exception("No index")
     rag = RAG(persist_dir="tests")
     assert rag.index is None
@@ -64,8 +65,8 @@ def test_rag_ingest_text(
     mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test text ingestion."""
-    mock_settings.return_value.rag.batch_size = 100
-    mock_settings.return_value.rag.max_index_size_mb = 100
+    mock_settings.rag.batch_size = 100
+    mock_settings.rag.max_index_size_mb = 100
     mock_llama_index["load"].side_effect = Exception("No index")
 
     rag = RAG(persist_dir="tests")

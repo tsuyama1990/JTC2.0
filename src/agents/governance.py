@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel
 
 from src.agents.base import BaseAgent
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
 from src.core.llm import LLMFactory
 from src.core.metrics import calculate_ltv, calculate_payback_period, calculate_roi
@@ -33,9 +33,9 @@ class GovernanceAgent(BaseAgent):
         """
         logger.info("Governance Agent: Starting analysis...")
         # Get settings locally or from dependency injection, to fix tests we can fetch explicitly here
-        from src.core.config import get_settings
+        from src.core.config import SettingsFactory
 
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         # 1. Context & Search
         industry = self._get_industry_context(state)
@@ -91,7 +91,7 @@ class GovernanceAgent(BaseAgent):
         return clean_query.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         prompt = (
             f"Context: Startup idea in {industry}.\n"
@@ -173,8 +173,10 @@ class GovernanceAgent(BaseAgent):
             ValidationError: If schema validation fails.
         """
         # Allow testing overrides
-        settings = getattr(self, "settings", get_settings())
-        llm = getattr(self, "llm", LLMFactory().get_llm())
+        from src.core.llm import LLMProvider
+
+        settings = getattr(self, "settings", SettingsFactory().build())
+        llm = getattr(self, "llm", LLMFactory(LLMProvider(settings)).get_llm())
 
         content = ""
         max_bytes = settings.governance.max_llm_response_size
@@ -229,7 +231,7 @@ class GovernanceAgent(BaseAgent):
         """
         Save Ringi-Sho to file using FileService.
         """
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         # Optimize string construction
         lines = [

@@ -83,9 +83,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     Integration test for RAG: Ingest -> Persist -> Query.
     Uses real LlamaIndex components (mocked LLM/Embeddings to avoid API calls).
     """
-    from src.core.config import clear_settings_cache
 
-    clear_settings_cache()
 
     # Use explicit DI for isolation
     mock_llm = MockLLM()
@@ -122,9 +120,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_cpo_agent_behavior() -> None:
     """Test CPO Agent behavior with mocked RAG."""
-    from src.core.config import clear_settings_cache
 
-    clear_settings_cache()
     llm = MagicMock()
     # Mock chain invoke
     mock_msg = MagicMock()

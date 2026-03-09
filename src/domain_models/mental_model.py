@@ -6,7 +6,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 
 
 class MentalTower(BaseModel):
@@ -23,7 +23,8 @@ class MentalTower(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+        settings = SettingsFactory().build()
+        settings = SettingsFactory().build()
         if len(self.belief) < settings.validation.min_content_length:
             msg = f"belief must be at least {settings.validation.min_content_length} characters"
             raise ValueError(msg)
@@ -51,7 +52,7 @@ class MentalModelDiagram(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+        settings = SettingsFactory().build()
         if len(self.feature_alignment) < settings.validation.min_content_length:
             msg = f"feature_alignment must be at least {settings.validation.min_content_length} characters"
             raise ValueError(msg)

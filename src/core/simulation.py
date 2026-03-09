@@ -11,7 +11,7 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.core.factory import AgentFactory
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
@@ -24,7 +24,7 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
     Create the simulation sub-graph based on configured turn sequence.
     Dynamically builds nodes and edges from Settings.
     """
-    settings = get_settings()
+    settings = SettingsFactory().build()
 
     # Load sequence from settings.
     # Settings.simulation.turn_sequence is a list of dicts.
@@ -72,11 +72,13 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
         def _execute_step(
             state: GlobalState, bound_role: Role, bound_desc: str
         ) -> dict[str, object]:
-            from src.core.config import get_settings
-            from src.core.llm import LLMFactory
+            from src.core.config import SettingsFactory
+            from src.core.llm import LLMFactory, LLMProvider
 
             logger.info(bound_desc)
-            factory = AgentFactory(llm=LLMFactory().get_llm(), settings=get_settings())
+            settings = SettingsFactory().build()
+            llm = LLMFactory(LLMProvider(settings)).get_llm()
+            factory = AgentFactory(llm=llm, settings=settings)
             res = factory.get_persona_agent(bound_role).run(state)
             return res if isinstance(res, dict) else {}
 

@@ -18,23 +18,26 @@ class InfluenceAnalyzer:
     Analyzes the structure and key influencers of the network.
     """
 
-    def __init__(self) -> None:
-        self._cache: dict[str, list[str]] = {}
+    def __init__(self, cache_size: int = 100) -> None:
+        import collections
+
+        self._cache: collections.OrderedDict[str, list[str]] = collections.OrderedDict()
+        self._cache_size = cache_size
 
     def identify_influencers(self, network: InfluenceNetwork) -> list[str]:
         try:
             cache_key = network.model_dump_json()
             if cache_key in self._cache:
+                # Move to end to mark as recently used
+                self._cache.move_to_end(cache_key)
                 return self._cache[cache_key]
 
             result = self._identify_influencers_impl(network)
 
-            # Simple bounded cache
-            if len(self._cache) > 10:
-                # Remove oldest (in Python 3.7+ dicts preserve insertion order)
-                self._cache.pop(next(iter(self._cache)))
-
             self._cache[cache_key] = result
+            if len(self._cache) > self._cache_size:
+                self._cache.popitem(last=False)
+
         except Exception:
             return self._identify_influencers_impl(network)
         else:

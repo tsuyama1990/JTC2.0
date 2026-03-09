@@ -2,7 +2,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.core.config import Settings, get_settings
+from src.core.config import Settings
 from src.core.exceptions import ConfigurationError
 from src.core.interfaces import IFileWriter
 from src.core.retry_handler import RetryHandler
@@ -39,24 +39,11 @@ class ThreadedFileWriter(IFileWriter):
             fd, temp_path = tempfile.mkstemp(dir=path.parent, text=True)
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
-                    try:
-                        import fcntl
-
-                        # Implement file locking to prevent concurrent writes from stomping each other
-                        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        locked = True
-                    except (ImportError, AttributeError, OSError):
-                        locked = False
-
-                    try:
-                        f.write(content)
-                        f.flush()
-                        os.fsync(f.fileno())
-                    finally:
-                        if locked:
-                            import fcntl
-
-                            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                    # Platform-agnostic approach using generic temp file replace
+                    # No need for fcntl since the file is temporary and isolated to this process
+                    f.write(content)
+                    f.flush()
+                    os.fsync(f.fileno())
 
                 # Atomic replace (POSIX/Windows safe starting Python 3.3)
                 Path(temp_path).replace(path)
@@ -78,9 +65,9 @@ class FileService:
     Uses injected IFileWriter for non-blocking I/O in async contexts.
     """
 
-    def __init__(self, writer: IFileWriter | None = None, settings: Settings | None = None) -> None:
+    def __init__(self, settings: Settings, writer: IFileWriter | None = None) -> None:
         self.writer = writer or ThreadedFileWriter()
-        self.settings = settings or get_settings()
+        self.settings = settings
 
     def _validate_path(self, path: str | Path) -> Path:
         """

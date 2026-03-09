@@ -10,7 +10,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.core.constants import (
     DESC_EMPATHY_DOES,
     DESC_EMPATHY_FEELS,
@@ -39,7 +39,7 @@ class EmpathyMap(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+        settings = SettingsFactory().build()
         min_len = settings.validation.min_list_length
         max_len = settings.validation.max_list_length
         for field in ["says", "thinks", "does", "feels"]:
@@ -95,7 +95,7 @@ class Persona(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         # List field validation
         min_list_len = settings.validation.min_list_length

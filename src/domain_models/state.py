@@ -3,7 +3,7 @@ from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.enums import Phase, Role
 from src.domain_models.validators import StateValidator
@@ -67,7 +67,7 @@ class GlobalState(BaseModel):
         default_factory=list, description="Raw transcripts from PLAUD or interviews"
     )
     rag_index_path: str = Field(
-        default_factory=lambda: get_settings().rag.persist_dir,
+        default_factory=lambda: SettingsFactory().build().rag.persist_dir,
         description="Path to the local vector store",
     )
 
@@ -86,7 +86,7 @@ class GlobalState(BaseModel):
             msg = "Duplicate transcript sources found."
             raise ValueError(msg)
 
-        settings = get_settings()
+        settings = SettingsFactory().build()
         for t in v:
             if not t.content or len(t.content.strip()) < settings.validation.min_content_length:
                 msg = f"Transcript from {t.source} is too short or empty."

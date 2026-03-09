@@ -3,7 +3,6 @@ from typing import Any
 import httpx
 from langchain_openai import ChatOpenAI
 
-from src.core.config import get_settings
 from src.core.constants import ERR_LLM_CONFIG_MISSING
 from src.core.interfaces import IOpenAIProvider
 
@@ -35,8 +34,8 @@ class LLMProvider(IOpenAIProvider):
     Concrete implementation providing parameterized access to ChatOpenAI instances.
     """
 
-    def __init__(self, settings: Any = None, http_client: httpx.Client | None = None) -> None:
-        self.settings = settings or get_settings()
+    def __init__(self, settings: Any, http_client: httpx.Client | None = None) -> None:
+        self.settings = settings
         self.http_client = http_client
 
     def get_llm(self, model: str | None = None) -> ChatOpenAI:
@@ -67,8 +66,8 @@ class LLMFactory:
     Accepts an abstract IOpenAIProvider to completely decouple ChatOpenAI bindings for mocks.
     """
 
-    def __init__(self, provider: IOpenAIProvider | None = None) -> None:
-        self.provider = provider or LLMProvider()
+    def __init__(self, provider: IOpenAIProvider) -> None:
+        self.provider = provider
 
     def get_llm(self, model: str | None = None) -> ChatOpenAI:
         """Retrieve the LLM instance from the underlying provider."""

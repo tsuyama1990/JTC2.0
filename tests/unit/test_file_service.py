@@ -10,7 +10,8 @@ class TestFileService:
 
     @pytest.fixture
     def file_service(self) -> FileService:
-        return FileService()
+        from src.core.config import SettingsFactory
+        return FileService(settings=SettingsFactory().build())
 
     @patch("src.core.services.file_service.FileService._validate_path")
     def test_save_text_async_success(

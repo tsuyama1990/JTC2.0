@@ -6,7 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent
-from src.core.config import Settings, get_settings
+from src.core.config import Settings, SettingsFactory
 from src.domain_models import (
     AlternativeAnalysis,
     CustomerJourney,
@@ -30,7 +30,7 @@ class RemasteredAgent(BaseAgent):
 
     def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings = app_settings or get_settings()
+        self.settings = app_settings or SettingsFactory().build()
 
     def generate_persona(self, state: GlobalState) -> dict[str, Any]:
         """Generate Persona based on the selected idea."""
@@ -204,7 +204,7 @@ class VirtualCustomerAgent(BaseAgent):
 
     def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings = app_settings or get_settings()
+        self.settings = app_settings or SettingsFactory().build()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """Review sitemap and story as a Virtual Customer."""
@@ -236,7 +236,7 @@ class HackerAgent(BaseAgent):
 
     def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings = app_settings or get_settings()
+        self.settings = app_settings or SettingsFactory().build()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         if not state.sitemap_and_story:
@@ -260,7 +260,7 @@ class HipsterAgent(BaseAgent):
 
     def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings = app_settings or get_settings()
+        self.settings = app_settings or SettingsFactory().build()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         if not state.mental_model or not state.sitemap_and_story:
@@ -287,7 +287,7 @@ class HustlerAgent(BaseAgent):
 
     def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings = app_settings or get_settings()
+        self.settings = app_settings or SettingsFactory().build()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         if not state.alternative_analysis or not state.value_proposition:
@@ -314,7 +314,7 @@ class OutputGenerationAgent(BaseAgent):
 
     def __init__(self, llm: ChatOpenAI, app_settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings = app_settings or get_settings()
+        self.settings = app_settings or SettingsFactory().build()
 
     def generate_agent_prompt_spec(self, state: GlobalState) -> dict[str, Any]:
         """Provides fallback generation behavior."""

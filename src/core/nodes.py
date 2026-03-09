@@ -20,15 +20,11 @@ logger = logging.getLogger(__name__)
 
 def make_ideator_node(ideator_agent: IAgent) -> Callable[[GlobalState], dict[str, Any]]:
     def _ideator_run_impl(state: GlobalState) -> dict[str, Any]:
+        """Wrapper for Ideator execution with error handling."""
         res = ideator_agent.run(state)
         return res if isinstance(res, dict) else {}
 
-    def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
-        """Wrapper for Ideator execution with error handling."""
-        res = NodeExecutor.execute(_ideator_run_impl, state, "Error in Ideator Agent")
-        return res if isinstance(res, dict) else {}
-
-    return safe_ideator_run
+    return lambda state: NodeExecutor.execute(_ideator_run_impl, state, "Error in Ideator Agent")
 
 
 def _verification_node_impl(state: GlobalState) -> dict[str, Any]:
@@ -61,11 +57,7 @@ def make_persona_node(agent: IRemasteredAgent) -> Callable[[GlobalState], dict[s
         res = agent.generate_persona(state)
         return res if isinstance(res, dict) else {}
 
-    def persona_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(_persona_node_impl, state, "Error in Persona Node")
-        return res if isinstance(res, dict) else {}
-
-    return persona_node
+    return lambda state: NodeExecutor.execute(_persona_node_impl, state, "Error in Persona Node")
 
 
 def make_alternative_analysis_node(
@@ -81,13 +73,9 @@ def make_alternative_analysis_node(
             )
         return updates if isinstance(updates, dict) else {}
 
-    def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(
-            _alternative_analysis_node_impl, state, "Error in Alternative Analysis Node"
-        )
-        return res if isinstance(res, dict) else {}
-
-    return alternative_analysis_node
+    return lambda state: NodeExecutor.execute(
+        _alternative_analysis_node_impl, state, "Error in Alternative Analysis Node"
+    )
 
 
 def make_vpc_node(agent: IRemasteredAgent) -> Callable[[GlobalState], dict[str, Any]]:
@@ -102,11 +90,7 @@ def make_vpc_node(agent: IRemasteredAgent) -> Callable[[GlobalState], dict[str, 
             ApprovalStampRenderer("VPC Canvas").start()
         return updates if isinstance(updates, dict) else {}
 
-    def vpc_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(_vpc_node_impl, state, "Error in VPC Node")
-        return res if isinstance(res, dict) else {}
-
-    return vpc_node
+    return lambda state: NodeExecutor.execute(_vpc_node_impl, state, "Error in VPC Node")
 
 
 def make_mental_model_journey_node(
@@ -125,13 +109,9 @@ def make_mental_model_journey_node(
             ApprovalStampRenderer("Mental Model & Journey").start()
         return updates if isinstance(updates, dict) else {}
 
-    def mental_model_journey_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(
-            _mental_model_journey_node_impl, state, "Error in Mental Model & Journey Node"
-        )
-        return res if isinstance(res, dict) else {}
-
-    return mental_model_journey_node
+    return lambda state: NodeExecutor.execute(
+        _mental_model_journey_node_impl, state, "Error in Mental Model & Journey Node"
+    )
 
 
 def make_sitemap_wireframe_node(agent: IRemasteredAgent) -> Callable[[GlobalState], dict[str, Any]]:
@@ -144,13 +124,9 @@ def make_sitemap_wireframe_node(agent: IRemasteredAgent) -> Callable[[GlobalStat
             ApprovalStampRenderer("Sitemap & Story").start()
         return updates if isinstance(updates, dict) else {}
 
-    def sitemap_wireframe_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(
-            _sitemap_wireframe_node_impl, state, "Error in Sitemap & Wireframe Node"
-        )
-        return res if isinstance(res, dict) else {}
-
-    return sitemap_wireframe_node
+    return lambda state: NodeExecutor.execute(
+        _sitemap_wireframe_node_impl, state, "Error in Sitemap & Wireframe Node"
+    )
 
 
 def make_spec_generation_node(
@@ -163,9 +139,9 @@ def make_spec_generation_node(
         if updates.get("agent_prompt_spec"):
             from pathlib import Path
 
-            from src.core.config import get_settings
+            from src.core.config import SettingsFactory
 
-            settings = get_settings()
+            settings = SettingsFactory().build()
             output_dir = Path(settings.canvas_output_dir)
             if not output_dir.is_absolute():
                 output_dir = Path.cwd() / output_dir
@@ -187,19 +163,15 @@ def make_spec_generation_node(
                 f"## State Machine (Mermaid)\n```mermaid\n{safe_mermaid}\n```\n"
             )
 
-            file_service = FileService()
+            file_service = FileService(settings=settings)
             file_service.save_text_async(content, target_path)
 
             ApprovalStampRenderer("Agent Prompt Spec").start()
         return updates if isinstance(updates, dict) else {}
 
-    def spec_generation_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(
-            _spec_generation_node_impl, state, "Error in Spec Generation Node"
-        )
-        return res if isinstance(res, dict) else {}
-
-    return spec_generation_node
+    return lambda state: NodeExecutor.execute(
+        _spec_generation_node_impl, state, "Error in Spec Generation Node"
+    )
 
 
 def make_experiment_planning_node(
@@ -210,12 +182,14 @@ def make_experiment_planning_node(
         logger.info("Generating Experiment Plan...")
         updates = agent.generate_experiment_plan(state)
         if updates.get("experiment_plan"):
-            PDFGenerator.generate_canvas_pdf(updates["experiment_plan"], "experiment_plan.pdf")
             from pathlib import Path
 
-            from src.core.config import get_settings
+            from src.core.config import SettingsFactory
 
-            settings = get_settings()
+            settings = SettingsFactory().build()
+            PDFGenerator(settings).generate_canvas_pdf(
+                updates["experiment_plan"], "experiment_plan.pdf"
+            )
             output_dir = Path(settings.canvas_output_dir)
             if not output_dir.is_absolute():
                 output_dir = Path.cwd() / output_dir
@@ -226,19 +200,15 @@ def make_experiment_planning_node(
 
             content = f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
 
-            file_service = FileService()
+            file_service = FileService(settings=settings)
             file_service.save_text_async(content, target_path)
 
             ApprovalStampRenderer("Experiment Plan").start()
         return updates if isinstance(updates, dict) else {}
 
-    def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(
-            _experiment_planning_node_impl, state, "Error in Experiment Planning Node"
-        )
-        return res if isinstance(res, dict) else {}
-
-    return experiment_planning_node
+    return lambda state: NodeExecutor.execute(
+        _experiment_planning_node_impl, state, "Error in Experiment Planning Node"
+    )
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -251,13 +221,9 @@ def make_virtual_customer_node(agent: IAgent) -> Callable[[GlobalState], dict[st
         res = agent.run(state)
         return res if isinstance(res, dict) else {}
 
-    def virtual_customer_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(
-            _virtual_customer_node_impl, state, "Error in Virtual Customer Node"
-        )
-        return res if isinstance(res, dict) else {}
-
-    return virtual_customer_node
+    return lambda state: NodeExecutor.execute(
+        _virtual_customer_node_impl, state, "Error in Virtual Customer Node"
+    )
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -286,11 +252,9 @@ def make_review_3h_node(
 
         return state_updates
 
-    def review_3h_node(state: GlobalState) -> dict[str, Any]:
-        res = NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
-        return res if isinstance(res, dict) else {}
-
-    return review_3h_node
+    return lambda state: NodeExecutor.execute(
+        _review_3h_node_impl, state, "Error in 3H Review Node"
+    )
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -303,9 +267,9 @@ def _validate_transcripts(state: GlobalState) -> None:
 
 
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
-    from src.core.config import get_settings
+    from src.core.config import SettingsFactory
 
-    settings = get_settings()
+    settings = SettingsFactory().build()
 
     rag = RAG(persist_dir=state.rag_index_path)
 
@@ -357,12 +321,9 @@ def make_transcript_ingestion_node() -> Callable[[GlobalState], dict[str, Any]]:
         _validate_transcripts(state)
         return _ingest_impl(state)
 
-    def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(
-            _transcript_ingestion_node_impl, state, "Error during transcript ingestion"
-        )
-
-    return transcript_ingestion_node
+    return lambda state: NodeExecutor.execute(
+        _transcript_ingestion_node_impl, state, "Error during transcript ingestion"
+    )
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -429,23 +390,20 @@ def make_nemawashi_analysis_node(
 
         return {"influence_network": updated_network}
 
-    def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(
-            _nemawashi_analysis_node_impl, state, "Error in Nemawashi Analysis"
-        )
-
-    return nemawashi_analysis_node
+    return lambda state: NodeExecutor.execute(
+        _nemawashi_analysis_node_impl, state, "Error in Nemawashi Analysis"
+    )
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
 
 def _create_cpo_agent(state: GlobalState) -> Any:
-    from src.core.config import get_settings
-    from src.core.llm import LLMFactory
+    from src.core.config import SettingsFactory
+    from src.core.llm import LLMFactory, LLMProvider
 
-    settings = get_settings()
-    llm = LLMFactory().get_llm()
+    settings = SettingsFactory().build()
+    llm = LLMFactory(LLMProvider(settings)).get_llm()
     factory = AgentFactory(llm=llm, settings=settings)
     return factory.get_persona_agent(Role.CPO, state)
 
@@ -479,10 +437,9 @@ def make_governance_node(agent: IAgent) -> Callable[[GlobalState], dict[str, Any
 
         return _transition_phase(updates, Phase.GOVERNANCE)
 
-    def governance_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(_governance_node_impl, state, "Error in Governance Check")
-
-    return governance_node
+    return lambda state: NodeExecutor.execute(
+        _governance_node_impl, state, "Error in Governance Check"
+    )
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.

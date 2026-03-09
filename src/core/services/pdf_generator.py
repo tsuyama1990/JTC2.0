@@ -5,7 +5,7 @@ from typing import Any
 from fpdf import FPDF
 from pydantic import BaseModel
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.core.renderers.data_renderer import DataRenderer
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class PDFGenerator:
         """
         Generates a PDF representation of a given Pydantic model.
         """
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         import re
 

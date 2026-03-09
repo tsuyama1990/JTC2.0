@@ -6,7 +6,7 @@ from pathlib import Path
 
 import bleach
 
-from src.core.config import Settings, get_settings
+from src.core.config import Settings, SettingsFactory
 
 
 def chunk_text(text: str, chunk_size: int) -> Generator[str, None, None]:
@@ -55,7 +55,7 @@ class AsyncRateLimiter:
         max_retries: int | None = None,
         timeout: float | None = None,
     ) -> None:
-        sys_settings = settings or get_settings()
+        sys_settings = settings or SettingsFactory().build()
         self._min_interval = min_interval
         self._max_retries = (
             max_retries

@@ -10,7 +10,7 @@ from pathlib import Path
 # Add src to path if running from root
 sys.path.append(".")
 
-from src.core.config import UIConfig, get_settings
+from src.core.config import SettingsFactory, UIConfig
 from src.core.graph import create_app
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
@@ -19,7 +19,7 @@ from src.domain_models.state import GlobalState, Phase
 from src.ui.renderer import SimulationRenderer
 
 # Configure logging
-settings = get_settings()
+settings = SettingsFactory().build()
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ def browse_and_select(
     Browse items from generator in chunks (pages) and allow selection.
     Strictly O(page_size) memory usage.
     """
-    ui_config = get_settings().ui
+    ui_config = SettingsFactory().build().ui
     if page_size is None:
         page_size = ui_config.page_size
 
@@ -198,7 +198,7 @@ def browse_and_select(
 
 def _process_execution(topic: str) -> Iterator[LeanCanvas]:  # noqa: PLR0915
     """Execute the ideation workflow."""
-    ui_config = get_settings().ui
+    ui_config = SettingsFactory().build().ui
     echo(ui_config.phase_start.format(phase=Phase.IDEATION))
     echo(ui_config.researching.format(topic=topic))
     echo(ui_config.wait)
@@ -208,7 +208,7 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:  # noqa: PLR0915
     from src.core.workflow_builder import node_registry
 
     llm = LLMFactory().get_llm()
-    factory = AgentFactory(llm=llm, settings=get_settings())
+    factory = AgentFactory(llm=llm, settings=SettingsFactory().build())
 
     import src.core.nodes
 
@@ -374,7 +374,7 @@ def main() -> None:
     parser.add_argument("--ingest", help="Path to transcript file to ingest", type=str)
     args = parser.parse_args()
 
-    ui_config = get_settings().ui
+    ui_config = SettingsFactory().build().ui
     echo("=== JTC 2.0 ===")
 
     if args.ingest:

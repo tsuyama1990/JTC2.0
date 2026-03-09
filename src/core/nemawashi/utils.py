@@ -21,6 +21,11 @@ class NemawashiUtils:
         try:
             if hasattr(matrix, "sum"):
                 # Sparse or numpy matrix
+                shape = getattr(matrix, "shape", (0, 0))
+                if shape[0] > 10000 or shape[1] > 10000:
+                    msg = f"Matrix dimensions {shape} exceed maximum allowed size of 10000x10000"
+                    raise ValueError(msg)
+
                 row_sums = matrix.sum(axis=1)
                 # Convert to 1D array
                 row_sums = row_sums.A1 if hasattr(row_sums, "A1") else np.array(row_sums).flatten()
@@ -30,6 +35,21 @@ class NemawashiUtils:
             else:
                 # List of lists
                 dense = cast(list[list[float]], matrix)
+                if len(dense) > 10000 or (len(dense) > 0 and len(dense[0]) > 10000):
+                    msg = "Matrix dimensions exceed maximum allowed size of 10000x10000"
+                    raise ValueError(msg)
+
+                # For very large lists, iterative row checking is safer than creating a giant numpy array
+                if len(dense) > 1000:
+                    for row in dense:
+                        if not all(0.0 - tolerance <= val <= 1.0 + tolerance for val in row):
+                            msg_bounds = "Influence matrix entries must be within bounds [0, 1]."
+                            raise ValidationError(msg_bounds)
+                        if not np.isclose(sum(row), 1.0, rtol=tolerance, atol=tolerance):
+                            msg_sum = "Influence matrix rows must precisely sum to 1.0"
+                            raise ValidationError(msg_sum)
+                    return  # Successfully validated large list line by line
+
                 row_sums = np.array([sum(row) for row in dense])
                 values = np.array(dense).flatten()
         except Exception as e:

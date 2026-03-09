@@ -5,30 +5,45 @@ class DataRenderer:
     """Renderer for converting data dictionaries into formatted strings."""
 
     @staticmethod
-    def render_to_strings(data: dict[str, Any]) -> list[str]:
-        """Convert a dictionary into a list of formatted strings."""
+    def render_to_strings(data: dict[str, Any], max_depth: int = 50) -> list[str]:
+        """Convert a dictionary into a list of formatted strings using an iterative approach."""
         result = []
+        # Stack items: (item, indent, key_for_dict_item)
+        stack: list[tuple[Any, int, str | None]] = [(data, 0, None)]
 
-        def add_list_to_strings(lst: list[Any], indent: int) -> None:
-            for item in lst:
-                if isinstance(item, dict):
-                    add_dict_to_strings(item, indent)
-                else:
-                    result.append(f"{'  ' * (indent - 1)}  - {item!s}")
+        while stack:
+            current_item, indent, current_key = stack.pop()
 
-        def add_dict_to_strings(d: dict[str, Any], indent: int = 0) -> None:
-            for key, value in d.items():
-                indent_str = "  " * indent
-                title_key = key.replace("_", " ").title()
+            if indent > max_depth:
+                msg = f"DataRenderer exceeded maximum recursion depth of {max_depth}"
+                raise ValueError(msg)
 
-                if isinstance(value, dict):
+            indent_str = "  " * indent
+
+            if isinstance(current_item, dict):
+                if current_key is not None:
+                    title_key = current_key.replace("_", " ").title()
                     result.append(f"{indent_str}{title_key}:")
-                    add_dict_to_strings(value, indent + 1)
-                elif isinstance(value, list):
-                    result.append(f"{indent_str}{title_key}:")
-                    add_list_to_strings(value, indent + 1)
-                else:
-                    result.append(f"{indent_str}{title_key}: {value!s}")
+                    indent += 1
 
-        add_dict_to_strings(data)
+                # To maintain original output order, process items in reverse
+                for k, v in reversed(list(current_item.items())):
+                    stack.append((v, indent, k))
+
+            elif isinstance(current_item, list):
+                if current_key is not None:
+                    title_key = current_key.replace("_", " ").title()
+                    result.append(f"{indent_str}{title_key}:")
+                    indent += 1
+
+                for v in reversed(current_item):
+                    # We pass None for key to indicate it's a list item
+                    stack.append((v, indent, None))
+            elif current_key is not None:
+                title_key = current_key.replace("_", " ").title()
+                result.append(f"{indent_str}{title_key}: {current_item!s}")
+            else:
+                # List item
+                result.append(f"{'  ' * (indent - 1)}  - {current_item!s}")
+
         return result

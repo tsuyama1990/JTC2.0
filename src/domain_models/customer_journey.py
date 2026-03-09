@@ -6,7 +6,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 
 
 class JourneyPhase(BaseModel):
@@ -41,7 +41,7 @@ class JourneyPhase(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+        settings = SettingsFactory().build()
         for field in ["phase_name", "touchpoint", "customer_action", "mental_tower_ref"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < settings.validation.min_content_length:
@@ -79,7 +79,7 @@ class CustomerJourney(BaseModel):
             msg = f"worst_pain_phase '{self.worst_pain_phase}' does not match any existing phase name."
             raise ValueError(msg)
 
-        settings = get_settings()
+        settings = SettingsFactory().build()
         if len(self.worst_pain_phase) < settings.validation.min_content_length:
             msg = f"worst_pain_phase must be at least {settings.validation.min_content_length} characters"
             raise ValueError(msg)

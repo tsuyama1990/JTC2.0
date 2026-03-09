@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic_core import core_schema
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.domain_models.lean_canvas import LeanCanvas
 
 
@@ -30,7 +30,7 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
         self._iterator = iterator
         self._consumed = False
         self._count = 0
-        self._max_items = get_settings().resiliency.iterator_safety_limit
+        self._max_items = SettingsFactory().build().resiliency.iterator_safety_limit
 
     def __iter__(self) -> Iterator[LeanCanvas]:
         return self

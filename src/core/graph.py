@@ -92,10 +92,5 @@ def create_app(
     Create and compile the LangGraph application.
     This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
-    try:
-        service = GraphBuilderService(registry)
-        return service.build_graph(builder)
-    except Exception as e:
-        logger.exception("Failed to build application graph")
-        msg = f"Workflow initialization failed: {e}"
-        raise RuntimeError(msg) from e
+    service = GraphBuilderService(registry)
+    return service.build_graph(builder)

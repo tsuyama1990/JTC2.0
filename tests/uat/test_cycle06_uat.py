@@ -49,9 +49,9 @@ class TestCycle06UAT:
         Scenario 1: Financial Viability Check
         Verify that the system calculates financials and flags unviable business models.
         """
-        from src.core.config import get_settings
+        from src.core.config import SettingsFactory
 
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         # Update settings instance correctly
         settings.governance.min_roi_threshold = 3.0
@@ -64,8 +64,8 @@ class TestCycle06UAT:
         mock_arpu = 20.0
         mock_churn = 0.05
 
-        # We need to mock get_settings to avoid test conflicts since we no longer cache the global
-        with patch("src.agents.governance.get_settings", return_value=settings):
+        # We need to mock SettingsFactory().build() to avoid test conflicts since we no longer cache the global
+        with patch("src.agents.governance.SettingsFactory().build()", return_value=settings):
             agent = GovernanceAgent()
 
             # Calculate expected derived values based on logic in src/core/metrics.py
@@ -117,9 +117,9 @@ class TestCycle06UAT:
         Scenario 2: Ringi-sho Generation
         Verify generation of the final approval document.
         """
-        from src.core.config import get_settings
+        from src.core.config import SettingsFactory
 
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         settings.governance.min_roi_threshold = 3.0
         settings.governance.default_cac = 500.0
@@ -131,7 +131,7 @@ class TestCycle06UAT:
         mock_arpu = 100.0
         mock_churn = 0.02
 
-        with patch("src.agents.governance.get_settings", return_value=settings):
+        with patch("src.agents.governance.SettingsFactory().build()", return_value=settings):
             agent = GovernanceAgent()
 
             # Expected
