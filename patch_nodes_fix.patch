@@ -1,0 +1,88 @@
+<<<<<<< SEARCH
+        import tempfile
+        import os
+
+        target_path = output_dir / "AgentPromptSpec.md"
+        fd, temp_path = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(
+                    f"# Agent Prompt Specification\n\n"
+                    f"```json\n{spec.model_dump_json(indent=2)}\n```\n\n"
+                    f"## State Machine (Mermaid)\n```mermaid\n{spec.mermaid_flowchart}\n```\n"
+                )
+            os.replace(temp_path, target_path)
+        except Exception as e:
+            logger.error(f"Failed to write AgentPromptSpec.md: {e}")
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+=======
+        import tempfile
+        import pathlib
+        import os
+
+        target_path = output_dir / "AgentPromptSpec.md"
+        fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
+        temp_path = pathlib.Path(temp_path_str)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(
+                    f"# Agent Prompt Specification\n\n"
+                    f"```json\n{spec.model_dump_json(indent=2)}\n```\n\n"
+                    f"## State Machine (Mermaid)\n```mermaid\n{spec.mermaid_flowchart}\n```\n"
+                )
+            temp_path.replace(target_path)
+        except Exception:
+            logger.exception("Failed to write AgentPromptSpec.md")
+            if temp_path.exists():
+                temp_path.unlink()
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        import tempfile
+        import os
+
+        target_path = output_dir / "ExperimentPlan.md"
+        fd, temp_path = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(
+                    f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
+                )
+            os.replace(temp_path, target_path)
+        except Exception as e:
+            logger.error(f"Failed to write ExperimentPlan.md: {e}")
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+=======
+        import tempfile
+        import os
+        import pathlib
+
+        target_path = output_dir / "ExperimentPlan.md"
+        fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
+        temp_path = pathlib.Path(temp_path_str)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(
+                    f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
+                )
+            temp_path.replace(target_path)
+        except Exception:
+            logger.exception("Failed to write ExperimentPlan.md")
+            if temp_path.exists():
+                temp_path.unlink()
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    except Exception as e:
+        logger.exception(f"Error during RAG ingestion: {e}")
+        # Return state unchanged, possibly with an error message later
+        # But prevent total crash
+        raise ValueError(f"RAG ingestion failed: {e}") from e
+=======
+    except Exception as e:
+        logger.exception("Error during RAG ingestion")
+        # Return state unchanged, possibly with an error message later
+        # But prevent total crash
+        msg = f"RAG ingestion failed: {e}"
+        raise ValueError(msg) from e
+>>>>>>> REPLACE

@@ -26,20 +26,21 @@ class BuilderAgent(BaseAgent):
         """Generate Agent Prompt Spec."""
         if not state.sitemap_and_story:
             logger.warning("Missing sitemap for Agent Prompt Spec generation.")
-            return {}
+            raise ValueError("Missing sitemap for Agent Prompt Spec generation.")
 
-        context_str = f"Core Story: {state.sitemap_and_story.core_story.model_dump()}\n"
+        context_str = f"Core Story: {state.sitemap_and_story.core_story.model_dump_json()}\n"
         if state.value_proposition:
-            context_str += f"Value Proposition: {state.value_proposition.model_dump()}\n"
+            context_str += f"Value Proposition: {state.value_proposition.model_dump_json()}\n"
         if state.mental_model:
-            context_str += f"Mental Model: {state.mental_model.model_dump()}\n"
+            context_str += f"Mental Model: {state.mental_model.model_dump_json()}\n"
         if state.customer_journey:
-            context_str += f"Customer Journey: {state.customer_journey.model_dump()}\n"
+            context_str += f"Customer Journey: {state.customer_journey.model_dump_json()}\n"
         if state.sitemap_and_story:
-            context_str += f"Sitemap: {state.sitemap_and_story.model_dump()}\n"
+            context_str += f"Sitemap: {state.sitemap_and_story.model_dump_json()}\n"
         if state.debate_history:
+            import json
             context_str += (
-                f"3H Review History: {[msg.model_dump() for msg in state.debate_history]}\n"
+                f"3H Review History: {json.dumps([msg.model_dump() for msg in state.debate_history])}\n"
             )
 
         prompt = ChatPromptTemplate.from_messages(

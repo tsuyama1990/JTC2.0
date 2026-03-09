@@ -1,0 +1,82 @@
+<<<<<<< SEARCH
+    def generate_persona(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Persona based on the selected idea."""
+        if not state.selected_idea:
+            logger.warning("No idea selected for Persona generation.")
+            return {}
+=======
+    def generate_persona(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Persona based on the selected idea."""
+        if not state.selected_idea:
+            logger.warning("No idea selected for Persona generation.")
+            raise ValueError("No idea selected for Persona generation.")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    def generate_alternative_analysis(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Alternative Analysis."""
+        if not state.target_persona or not state.selected_idea:
+            logger.warning("Missing persona or idea for Alternative Analysis.")
+            return {}
+=======
+    def generate_alternative_analysis(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Alternative Analysis."""
+        if not state.target_persona or not state.selected_idea:
+            logger.warning("Missing persona or idea for Alternative Analysis.")
+            raise ValueError("Missing persona or idea for Alternative Analysis.")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    def generate_vpc(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Value Proposition Canvas."""
+        if not state.target_persona or not state.selected_idea:
+            logger.warning("Missing persona or idea for VPC generation.")
+            return {}
+=======
+    def generate_vpc(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Value Proposition Canvas."""
+        if not state.target_persona or not state.selected_idea:
+            logger.warning("Missing persona or idea for VPC generation.")
+            raise ValueError("Missing persona or idea for VPC generation.")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    def generate_mental_model_and_journey(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Mental Model and Customer Journey."""
+        if not state.value_proposition or not state.alternative_analysis:
+            logger.warning(
+                "Missing VPC or Alternative Analysis for Mental Model/Journey generation."
+            )
+            return {}
+=======
+    def generate_mental_model_and_journey(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Mental Model and Customer Journey."""
+        if not state.value_proposition or not state.alternative_analysis:
+            logger.warning(
+                "Missing VPC or Alternative Analysis for Mental Model/Journey generation."
+            )
+            raise ValueError("Missing VPC or Alternative Analysis for Mental Model/Journey generation.")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    def generate_sitemap_and_wireframe(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Sitemap and Wireframe based on Customer Journey."""
+        if not state.customer_journey:
+            logger.warning("Missing Customer Journey for Sitemap generation.")
+            return {}
+=======
+    def generate_sitemap_and_wireframe(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Sitemap and Wireframe based on Customer Journey."""
+        if not state.customer_journey:
+            logger.warning("Missing Customer Journey for Sitemap generation.")
+            raise ValueError("Missing Customer Journey for Sitemap generation.")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    def generate_experiment_plan(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Experiment Plan."""
+        if not state.selected_idea:
+            logger.warning("Missing idea for Experiment Plan.")
+            return {}
+=======
+    def generate_experiment_plan(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Experiment Plan."""
+        if not state.selected_idea:
+            logger.warning("Missing idea for Experiment Plan.")
+            raise ValueError("Missing idea for Experiment Plan.")
+>>>>>>> REPLACE

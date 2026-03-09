@@ -150,12 +150,25 @@ def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
             output_dir = Path.cwd() / output_dir
         output_dir.mkdir(parents=True, exist_ok=True)
         spec = updates["agent_prompt_spec"]
-        with (output_dir / "AgentPromptSpec.md").open("w") as f:
-            f.write(
-                f"# Agent Prompt Specification\n\n"
-                f"```json\n{spec.model_dump_json(indent=2)}\n```\n\n"
-                f"## State Machine (Mermaid)\n```mermaid\n{spec.mermaid_flowchart}\n```\n"
-            )
+        import os
+        import pathlib
+        import tempfile
+
+        target_path = output_dir / "AgentPromptSpec.md"
+        fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
+        temp_path = pathlib.Path(temp_path_str)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(
+                    f"# Agent Prompt Specification\n\n"
+                    f"```json\n{spec.model_dump_json(indent=2)}\n```\n\n"
+                    f"## State Machine (Mermaid)\n```mermaid\n{spec.mermaid_flowchart}\n```\n"
+                )
+            temp_path.replace(target_path)
+        except Exception:
+            logger.exception("Failed to write AgentPromptSpec.md")
+            if temp_path.exists():
+                temp_path.unlink()
         ApprovalStampRenderer("Agent Prompt Spec").start()
     return updates
 
@@ -180,10 +193,23 @@ def _experiment_planning_node_impl(state: GlobalState) -> dict[str, Any]:
         if not output_dir.is_absolute():
             output_dir = Path.cwd() / output_dir
         output_dir.mkdir(parents=True, exist_ok=True)
-        with (output_dir / "ExperimentPlan.md").open("w") as f:
-            f.write(
-                f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
-            )
+        import os
+        import pathlib
+        import tempfile
+
+        target_path = output_dir / "ExperimentPlan.md"
+        fd, temp_path_str = tempfile.mkstemp(dir=output_dir, suffix=".tmp")
+        temp_path = pathlib.Path(temp_path_str)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(
+                    f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
+                )
+            temp_path.replace(target_path)
+        except Exception:
+            logger.exception("Failed to write ExperimentPlan.md")
+            if temp_path.exists():
+                temp_path.unlink()
         ApprovalStampRenderer("Experiment Plan").start()
     return updates
 
@@ -242,39 +268,45 @@ def _validate_transcripts(state: GlobalState) -> None:
 
 
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
+    from src.core.config import get_settings
+    settings = get_settings()
+
     rag = RAG(persist_dir=state.rag_index_path)
 
-    # Use configurable limits
-    from src.core.config import get_settings
-
-    settings = get_settings()
-    max_transcripts = getattr(settings.rag, "max_transcripts", 50)
+    max_transcripts = settings.rag.max_transcripts
     chunk_size = settings.rag.batch_size
 
     transcript_iter = iter(state.transcripts)
 
     processed_count = 0
-    while processed_count < max_transcripts:
-        from itertools import islice
+    try:
+        while processed_count < max_transcripts:
+            from itertools import islice
 
-        chunk = list(islice(transcript_iter, chunk_size))
-        if not chunk:
-            break
+            chunk = list(islice(transcript_iter, chunk_size))
+            if not chunk:
+                break
 
-        logger.info(
-            f"Ingesting batch {(processed_count // chunk_size) + 1}: {len(chunk)} transcripts"
-        )
-        for transcript in chunk:
-            rag.ingest_transcript(transcript)
+            logger.info(
+                f"Ingesting batch {(processed_count // chunk_size) + 1}: {len(chunk)} transcripts"
+            )
+            for transcript in chunk:
+                rag.ingest_transcript(transcript)
 
-        processed_count += len(chunk)
+            processed_count += len(chunk)
 
-    rag.persist_index()
+        rag.persist_index()
 
-    if next(transcript_iter, None) is not None:
-        logger.warning(
-            f"Exceeded MAX_TRANSCRIPTS ({max_transcripts}). Remaining transcripts ignored to prevent OOM."
-        )
+        if next(transcript_iter, None) is not None:
+            logger.warning(
+                f"Exceeded MAX_TRANSCRIPTS ({max_transcripts}). Remaining transcripts ignored to prevent OOM."
+            )
+    except Exception as e:
+        logger.exception("Error during RAG ingestion")
+        # Return state unchanged, possibly with an error message later
+        # But prevent total crash
+        msg = f"RAG ingestion failed: {e}"
+        raise ValueError(msg) from e
 
     return {}
 
