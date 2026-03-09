@@ -70,6 +70,10 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
         msg = "depth_limit must be positive"
         raise ValueError(msg)
 
+    if depth_limit is not None and depth_limit > 100:
+        msg = "depth_limit exceeds safety bounds"
+        raise ValueError(msg)
+
     total_size = 0
     file_count = 0
     max_files = get_settings().rag.max_files

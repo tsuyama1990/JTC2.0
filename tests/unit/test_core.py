@@ -26,6 +26,9 @@ def test_config_values() -> None:
 def test_get_llm_success(mock_validate: MagicMock, mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = SecretStr("test-key")
+    mock_settings.resiliency.max_keepalive_connections = 10
+    mock_settings.resiliency.max_connections = 50
+    mock_settings.resiliency.circuit_breaker_reset_timeout = 60.0
     mock_settings.llm_model = "gpt-4o"
 
     llm = get_llm()
@@ -39,6 +42,9 @@ def test_get_llm_success(mock_validate: MagicMock, mock_get_settings: MagicMock)
 def test_get_llm_override(mock_validate: MagicMock, mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = SecretStr("test-key")
+    mock_settings.resiliency.max_keepalive_connections = 10
+    mock_settings.resiliency.max_connections = 50
+    mock_settings.resiliency.circuit_breaker_reset_timeout = 60.0
 
     llm = get_llm(model="gpt-3.5-turbo")
     assert llm.model_name == "gpt-3.5-turbo"
@@ -52,6 +58,9 @@ def test_get_llm_missing_key(mock_validate: MagicMock, mock_get_settings: MagicM
 
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = None
+    mock_settings.resiliency.max_keepalive_connections = 10
+    mock_settings.resiliency.max_connections = 50
+    mock_settings.resiliency.circuit_breaker_reset_timeout = 60.0
     # Updated error message constant in Cycle 06
     with pytest.raises(ValueError, match="LLM configuration invalid"):
         get_llm()
