@@ -1,3 +1,4 @@
+import src.core.nodes
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,6 +34,10 @@ def mock_state() -> GlobalState:
 def test_create_app_structure() -> None:
     """Test that the main application graph is created correctly."""
     from src.core.workflow_builder import node_registry
+
+    # We must ensure all nodes are registered
+    import src.core.nodes  # noqa: F401
+
     app = create_app(registry=node_registry)
     assert isinstance(app, CompiledStateGraph)
     # detailed graph structure assertions are hard with compiled graph,
