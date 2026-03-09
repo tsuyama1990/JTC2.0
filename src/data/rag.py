@@ -186,39 +186,31 @@ class RAG:
 
     def _validate_path(self, path_str: str) -> str:
         """
-        Ensure persist directory is safe and absolute using atomic path validation.
+        Ensure persist directory is safe and absolute using standard path validation.
         """
         if not isinstance(path_str, str) or not path_str.strip():
             msg = "Path must be a non-empty string."
             raise ConfigurationError(msg)
 
         try:
-            cwd = Path.cwd().resolve(strict=True)
+            cwd = Path.cwd()
             allowed_rel_paths = self.settings.rag.allowed_paths
             allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
 
-            # Use strict=True to prevent TOCTOU and canonicalize path
-            try:
-                path = Path(path_str).resolve(strict=True)
-            except FileNotFoundError:
-                # If path doesn't exist, we resolve its parent to check traversal
-                path = Path(path_str).resolve(strict=False)
-                if not any(path.is_relative_to(parent) for parent in allowed_parents):
-                    logger.exception(ERR_PATH_TRAVERSAL)
-                    raise ConfigurationError(ERR_PATH_TRAVERSAL) from None
-                return str(path)
+            # Resolve path securely
+            path = Path(path_str).resolve()
 
-            if path.is_symlink():
-                msg = "Symlinks not allowed in persist_dir."
-                raise ConfigurationError(msg)
-            if not path.is_dir():
-                msg = f"Path must be a directory: {path_str}"
-                raise ConfigurationError(msg)
-
-            # Strict traversal check using canonical paths
             if not any(path.is_relative_to(parent) for parent in allowed_parents):
-                logger.error(ERR_PATH_TRAVERSAL)
+                logger.exception(ERR_PATH_TRAVERSAL)
                 raise ConfigurationError(ERR_PATH_TRAVERSAL)
+
+            if path.exists():
+                if path.is_symlink():
+                    msg = "Symlinks not allowed in persist_dir."
+                    raise ConfigurationError(msg)
+                if not path.is_dir():
+                    msg = f"Path must be a directory: {path_str}"
+                    raise ConfigurationError(msg)
 
             return str(path)
         except ConfigurationError:

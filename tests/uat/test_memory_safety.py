@@ -81,11 +81,11 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     ):
         settings.rag.max_index_size_mb = 1
 
-        # In the real code, _scan_dir_size gets called on init.
-        # But our custom refactored _scan_dir_size strictly validates is_relative_to().
-        # We need to mock _scan_dir_size to just return 2MB or mock the check entirely.
+        # In the real code, _scan_dir_size_cached gets called on init.
+        # But our custom refactored _scan_dir_size_cached strictly validates is_relative_to().
+        # We need to mock _scan_dir_size_cached to just return 2MB or mock the check entirely.
         with (
-            patch("src.data.rag._scan_dir_size", return_value=(2 * 1024 * 1024) + 1),
+            patch("src.data.rag._scan_dir_size_cached", return_value=(2 * 1024 * 1024) + 1),
             pytest.raises(MemoryError, match="Index size limit exceeded"),
         ):
             # Expect MemoryError directly
@@ -107,8 +107,8 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
     ):
         settings.rag.chunk_size = 10
 
-        # We need to mock _scan_dir_size strictly
-        with patch("src.data.rag._scan_dir_size", return_value=0):
+        # We need to mock _scan_dir_size_cached strictly
+        with patch("src.data.rag._scan_dir_size_cached", return_value=0):
             rag = RAG(persist_dir=temp_rag_dir)
             # Mock index to verify insertion calls
             rag.index = MagicMock()

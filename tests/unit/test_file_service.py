@@ -38,10 +38,10 @@ class TestFileService:
 
             # Shutdown executor to ensure sync execution finishes
             if hasattr(file_service.writer, "_executor"):
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
 
             # Assertions
             mock_validate.assert_called_with("test.md")
@@ -66,9 +66,9 @@ class TestFileService:
 
             file_service.save_text_async("content", "protected.md")
             if hasattr(file_service.writer, "_executor"):
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
 
             assert "Permission denied" in caplog.text or "Fatal error encountered" in caplog.text
 
@@ -93,7 +93,7 @@ class TestFileService:
             large_content = "A" * (1024 * 1024 * 10)  # 10 MB string
             file_service.save_text_async(large_content, "large.md")
             if hasattr(file_service.writer, "_executor"):
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
 
             mock_file.write.assert_called_with(large_content)
             mock_replace.assert_called_once()
@@ -114,6 +114,6 @@ class TestFileService:
 
             file_service.save_text_async("content", "file.md")
             if hasattr(file_service.writer, "_executor"):
-                getattr(file_service.writer, "_executor").shutdown(wait=True)
+                file_service.writer._executor.shutdown(wait=True)
 
-            assert "OS error" in caplog.text or "Error writing to file.md" in caplog.text
+            assert "Disk full" in caplog.text or "Error writing to file.md" in caplog.text

@@ -1,5 +1,3 @@
-import atexit
-import threading
 from typing import Any
 
 import httpx
@@ -9,24 +7,19 @@ from src.core.config import get_settings
 from src.core.constants import ERR_LLM_CONFIG_MISSING
 
 
-# Global thread-safe HTTP client pool manager
 class HTTPClientManager:
-    _instance = None
-    _lock = threading.Lock()
+    """
+    HTTP client manager handling connection pools.
+    Designed for lifecycle management via dependency injection, avoiding atexit global locks.
+    """
 
-    def __new__(cls) -> "HTTPClientManager":
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._init()
-        return cls._instance
-
-    def _init(self) -> None:
-        limits = httpx.Limits(max_keepalive_connections=10, max_connections=50)
-        timeout = httpx.Timeout(60.0, connect=10.0)
-        self.client = httpx.Client(limits=limits, timeout=timeout)
-        atexit.register(self.close)
+    def __init__(self, client: httpx.Client | None = None) -> None:
+        if client:
+            self.client = client
+        else:
+            limits = httpx.Limits(max_keepalive_connections=10, max_connections=50)
+            timeout = httpx.Timeout(60.0, connect=10.0)
+            self.client = httpx.Client(limits=limits, timeout=timeout)
 
     def get_client(self) -> httpx.Client:
         return self.client
@@ -61,7 +54,7 @@ class LLMFactory:
 
         target_model = model or self.settings.llm_model
 
-        # Use provided client or global pooled client to prevent connection leaking
+        # Use provided client directly
         client_to_use = self.http_client if self.http_client is not None else HTTPClientManager().get_client()
 
         return ChatOpenAI(
@@ -72,17 +65,25 @@ class LLMFactory:
         )
 
 
+_legacy_client_manager: HTTPClientManager | None = None
+
 def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -> ChatOpenAI:
     """
     Legacy helper function mapping to LLMFactory.create_llm().
     """
+    global _legacy_client_manager
+    if http_client is None:
+        if _legacy_client_manager is None:
+            _legacy_client_manager = HTTPClientManager()
+        http_client = _legacy_client_manager.get_client()
+
     factory = LLMFactory(http_client=http_client)
     return factory.create_llm(model)
 
 
 def clear_llm_cache() -> None:
     """Helper for testing to reset the HTTP client pool."""
-    manager = HTTPClientManager()
-    with manager._lock:
-        manager.close()
-        HTTPClientManager._instance = None
+    global _legacy_client_manager
+    if _legacy_client_manager:
+        _legacy_client_manager.close()
+        _legacy_client_manager = None

@@ -558,7 +558,7 @@ class SettingsFactory:
 
 
 def get_settings() -> Settings:
-    """Factory to get the configuration settings, using a singleton instance."""
+    """Legacy helper for migration. Do not use for new features."""
     global _settings_instance
     if _settings_instance is None:
         with _settings_lock:
@@ -567,9 +567,8 @@ def get_settings() -> Settings:
                 _settings_instance = SettingsFactory(validator=ConfigValidators()).build()
     return _settings_instance
 
-
 def clear_settings_cache() -> None:
-    """Clear the settings cache for tests."""
+    """Legacy helper for tests."""
     global _settings_instance
     with _settings_lock:
         _settings_instance = None
