@@ -79,7 +79,7 @@ class TestFileService:
             patch("os.replace") as mock_replace,
         ):
             mock_path = MagicMock()
-            mock_path.__str__.return_value = "large.md" # type: ignore[attr-defined]
+            mock_path.__str__.return_value = "large.md"  # type: ignore[attr-defined]
             mock_validate.return_value = mock_path
             mock_path.parent = MagicMock()
             mock_mkstemp.return_value = (1, "temp.md")

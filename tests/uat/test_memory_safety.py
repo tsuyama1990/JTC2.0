@@ -63,6 +63,7 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     Verify RAG prevents loading an index that exceeds the size limit.
     """
     from src.core.config import clear_settings_cache
+
     clear_settings_cache()
     settings = get_settings()
 
@@ -99,6 +100,7 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
     Verify that ingestion chunks large text.
     """
     from src.core.config import clear_settings_cache
+
     clear_settings_cache()
     settings = get_settings()
 

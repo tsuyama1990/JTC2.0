@@ -120,6 +120,7 @@ class Persona(BaseModel):
             raise ValueError(msg)
 
         return self
+
     empathy_map: EmpathyMap | None = None
 
     # New fields for fact-based validation

@@ -72,6 +72,7 @@ class Feature(BaseModel):
             raise ValueError(msg)
 
         return self
+
     priority: Priority = Field(..., description=DESC_FEATURE_PRIORITY)
 
 

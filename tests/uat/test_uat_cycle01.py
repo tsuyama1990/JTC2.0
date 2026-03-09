@@ -38,7 +38,7 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
     return _gen()
 
 
-def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas]) -> None: # noqa: PLR0915
+def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas]) -> None:  # noqa: PLR0915
     """
     Verify that the Ideation phase handles large/infinite iterators safely
     by consuming only what is needed (pagination).
@@ -63,7 +63,9 @@ def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas
         # Mock factory
         factory = MagicMock(spec=AgentFactory)
         factory.get_ideator_agent.return_value = mock_ideator_instance
-        node_registry.nodes["ideator"] = src.core.nodes.make_ideator_node(factory.get_ideator_agent())
+        node_registry.nodes["ideator"] = src.core.nodes.make_ideator_node(
+            factory.get_ideator_agent()
+        )
 
         # Provide a mock for persona as well to avoid undefined node error during build
         if "persona" not in node_registry.nodes:

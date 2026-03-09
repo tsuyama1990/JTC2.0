@@ -53,8 +53,18 @@ def test_persona_validation_error() -> None:
     assert any("occupation" in e["loc"] for e in errors)
 
     # After model_validator errors don't always have the exact field name in loc
-    assert any("goals" in str(msg) for msg in error_msgs) or any("goals" in e["loc"] for e in errors) or any("Value error" in str(msg) for msg in error_msgs) or any("at least" in str(msg) for msg in error_msgs)
-    assert any("bio" in str(msg) for msg in error_msgs) or any("bio" in e["loc"] for e in errors) or any("Value error" in str(msg) for msg in error_msgs) or any("at least" in str(msg) for msg in error_msgs)
+    assert (
+        any("goals" in str(msg) for msg in error_msgs)
+        or any("goals" in e["loc"] for e in errors)
+        or any("Value error" in str(msg) for msg in error_msgs)
+        or any("at least" in str(msg) for msg in error_msgs)
+    )
+    assert (
+        any("bio" in str(msg) for msg in error_msgs)
+        or any("bio" in e["loc"] for e in errors)
+        or any("Value error" in str(msg) for msg in error_msgs)
+        or any("at least" in str(msg) for msg in error_msgs)
+    )
 
 
 def test_mvp_creation() -> None:

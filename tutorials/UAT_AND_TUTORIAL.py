@@ -79,9 +79,10 @@ def _third(detect_mode: "Any", os: "Any") -> None:
         os.environ["TAVILY_API_KEY"] = "dummy" * 10
 
 
-
 @app.cell
-def _fourth(GlobalState: "Any", create_app: "Any", detect_mode: "Any", node_registry: "Any", os: "Any") -> "Any":
+def _fourth(
+    GlobalState: "Any", create_app: "Any", detect_mode: "Any", node_registry: "Any", os: "Any"
+) -> "Any":
     # Actually, the most robust way to test the entire graph end-to-end without LLM calls
     # is to mock the individual nodes that do LLM calls, OR mock the LLM structured output.
     # Let's mock the Agents' return values for `run` and specific generation methods.
@@ -104,6 +105,7 @@ def _fourth(GlobalState: "Any", create_app: "Any", detect_mode: "Any", node_regi
             ValueMap,
             ValuePropositionCanvas,
         )
+
         clear_settings_cache()
 
         if detect_mode() == "Mock Mode":
@@ -115,56 +117,230 @@ def _fourth(GlobalState: "Any", create_app: "Any", detect_mode: "Any", node_regi
 
             def mock_ideator_run(state: Any) -> Any:
                 from collections.abc import Iterator
+
                 def gen() -> Iterator[LeanCanvas]:
-                    yield LeanCanvas(id=1, title="AI Farming", problem="Bad yields", solution="AI", customer_segments="Farmers", unique_value_prop="UVP")
+                    yield LeanCanvas(
+                        id=1,
+                        title="AI Farming",
+                        problem="Bad yields",
+                        solution="AI",
+                        customer_segments="Farmers",
+                        unique_value_prop="UVP",
+                    )
+
                 return {"generated_ideas": LazyIdeaIterator(gen())}
 
             def mock_persona_run(state: Any) -> Any:
-                return {"target_persona": Persona(name="Farmer John", occupation="Farmer", demographics="Male, 50s", goals=["Increase yield"], frustrations=["Bugs"], bio="Old farmer", empathy_map=EmpathyMap(says=["Too many bugs"], thinks=["Need help"], does=["Sprays"], feels=["Tired"]), is_fact_based=False, interview_insights=[])}
+                return {
+                    "target_persona": Persona(
+                        name="Farmer John",
+                        occupation="Farmer",
+                        demographics="Male, 50s",
+                        goals=["Increase yield"],
+                        frustrations=["Bugs"],
+                        bio="Old farmer",
+                        empathy_map=EmpathyMap(
+                            says=["Too many bugs"],
+                            thinks=["Need help"],
+                            does=["Sprays"],
+                            feels=["Tired"],
+                        ),
+                        is_fact_based=False,
+                        interview_insights=[],
+                    )
+                }
 
             def mock_alternative_run(state: Any) -> Any:
-                return {"alternative_analysis": AlternativeAnalysis(current_alternatives=[AlternativeTool(name="Manual", financial_cost="Low", time_cost="High", ux_friction="High")], switching_cost="Medium", ten_x_value="10x Yield")}
+                return {
+                    "alternative_analysis": AlternativeAnalysis(
+                        current_alternatives=[
+                            AlternativeTool(
+                                name="Manual",
+                                financial_cost="Low",
+                                time_cost="High",
+                                ux_friction="High",
+                            )
+                        ],
+                        switching_cost="Medium",
+                        ten_x_value="10x Yield",
+                    )
+                }
 
             def mock_vpc_run(state: Any) -> Any:
-                return {"value_proposition": ValuePropositionCanvas(customer_profile=CustomerProfile(customer_jobs=["Farm"], pains=["Bugs"], gains=["Money"]), value_map=ValueMap(products_and_services=["App"], pain_relievers=["Kills bugs"], gain_creators=["Saves money"]), fit_evaluation="Perfect")}
+                return {
+                    "value_proposition": ValuePropositionCanvas(
+                        customer_profile=CustomerProfile(
+                            customer_jobs=["Farm"], pains=["Bugs"], gains=["Money"]
+                        ),
+                        value_map=ValueMap(
+                            products_and_services=["App"],
+                            pain_relievers=["Kills bugs"],
+                            gain_creators=["Saves money"],
+                        ),
+                        fit_evaluation="Perfect",
+                    )
+                }
 
             def mock_mental_run(state: Any) -> Any:
-                return {"mental_model": MentalModelDiagram(towers=[MentalTower(belief="Need efficiency", cognitive_tasks=["Check weather"])], feature_alignment="Aligns"), "customer_journey": CustomerJourney(phases=[JourneyPhase(phase_name="Start", touchpoint="App", customer_action="Opens", mental_tower_ref="Need efficiency", pain_points=["Slow"], emotion_score=0), JourneyPhase(phase_name="Middle", touchpoint="App", customer_action="Scans", mental_tower_ref="Need efficiency", pain_points=["Blurry"], emotion_score=-1), JourneyPhase(phase_name="End", touchpoint="App", customer_action="Results", mental_tower_ref="Need efficiency", pain_points=["None"], emotion_score=5)], worst_pain_phase="Middle")}
+                return {
+                    "mental_model": MentalModelDiagram(
+                        towers=[
+                            MentalTower(belief="Need efficiency", cognitive_tasks=["Check weather"])
+                        ],
+                        feature_alignment="Aligns",
+                    ),
+                    "customer_journey": CustomerJourney(
+                        phases=[
+                            JourneyPhase(
+                                phase_name="Start",
+                                touchpoint="App",
+                                customer_action="Opens",
+                                mental_tower_ref="Need efficiency",
+                                pain_points=["Slow"],
+                                emotion_score=0,
+                            ),
+                            JourneyPhase(
+                                phase_name="Middle",
+                                touchpoint="App",
+                                customer_action="Scans",
+                                mental_tower_ref="Need efficiency",
+                                pain_points=["Blurry"],
+                                emotion_score=-1,
+                            ),
+                            JourneyPhase(
+                                phase_name="End",
+                                touchpoint="App",
+                                customer_action="Results",
+                                mental_tower_ref="Need efficiency",
+                                pain_points=["None"],
+                                emotion_score=5,
+                            ),
+                        ],
+                        worst_pain_phase="Middle",
+                    ),
+                }
 
             def mock_sitemap_run(state: Any) -> Any:
-                return {"sitemap_and_story": SitemapAndStory(sitemap=[Route(path="/", name="Home", purpose="Welcome", is_protected=False)], core_story=UserStory(as_a="Farmer", i_want_to="Scan crop", so_that="I know health", acceptance_criteria=["Fast"], target_route="/"))}
+                return {
+                    "sitemap_and_story": SitemapAndStory(
+                        sitemap=[
+                            Route(path="/", name="Home", purpose="Welcome", is_protected=False)
+                        ],
+                        core_story=UserStory(
+                            as_a="Farmer",
+                            i_want_to="Scan crop",
+                            so_that="I know health",
+                            acceptance_criteria=["Fast"],
+                            target_route="/",
+                        ),
+                    )
+                }
 
             def mock_virtual_run(state: Any) -> Any:
-                return {"debate_history": [DialogueMessage(role=Role.NEW_EMPLOYEE, content="I like it.", timestamp=1.0)]}
+                return {
+                    "debate_history": [
+                        DialogueMessage(role=Role.NEW_EMPLOYEE, content="I like it.", timestamp=1.0)
+                    ]
+                }
 
             def mock_sim_run(state: Any) -> Any:
-                return {"debate_history": [DialogueMessage(role=Role.FINANCE, content="Too expensive.", timestamp=2.0)]}
+                return {
+                    "debate_history": [
+                        DialogueMessage(role=Role.FINANCE, content="Too expensive.", timestamp=2.0)
+                    ]
+                }
 
             def mock_3h_run(state: Any) -> Any:
-                return {"debate_history": [DialogueMessage(role=Role.CPO, content="Looks good.", timestamp=3.0)]}
+                return {
+                    "debate_history": [
+                        DialogueMessage(role=Role.CPO, content="Looks good.", timestamp=3.0)
+                    ]
+                }
 
             def mock_spec_run(state: Any) -> Any:
-                return {"agent_prompt_spec": AgentPromptSpec(sitemap="Sitemap", routing_and_constraints="Constraints", core_user_story=UserStory(as_a="User", i_want_to="Do", so_that="Goal", acceptance_criteria=["Crit"], target_route="/"), state_machine=StateMachine(success="Ok", loading="Wait", error="Bad", empty="None"), validation_rules="Rules", mermaid_flowchart="graph TD; A->B;")}
+                return {
+                    "agent_prompt_spec": AgentPromptSpec(
+                        sitemap="Sitemap",
+                        routing_and_constraints="Constraints",
+                        core_user_story=UserStory(
+                            as_a="User",
+                            i_want_to="Do",
+                            so_that="Goal",
+                            acceptance_criteria=["Crit"],
+                            target_route="/",
+                        ),
+                        state_machine=StateMachine(
+                            success="Ok", loading="Wait", error="Bad", empty="None"
+                        ),
+                        validation_rules="Rules",
+                        mermaid_flowchart="graph TD; A->B;",
+                    )
+                }
 
             def mock_exp_run(state: Any) -> Any:
-                return {"experiment_plan": ExperimentPlan(riskiest_assumption="Assump", experiment_type="Type", acquisition_channel="Ads", aarrr_metrics=[MetricTarget(metric_name="Acq", target_value="100", measurement_method="Logs")], pivot_condition="No users")}
+                return {
+                    "experiment_plan": ExperimentPlan(
+                        riskiest_assumption="Assump",
+                        experiment_type="Type",
+                        acquisition_channel="Ads",
+                        aarrr_metrics=[
+                            MetricTarget(
+                                metric_name="Acq", target_value="100", measurement_method="Logs"
+                            )
+                        ],
+                        pivot_condition="No users",
+                    )
+                }
 
             def mock_gov_run(state: Any) -> Any:
-                return {"ringi_sho": RingiSho(title="Title", executive_summary="Summary of at least 10 chars.", risks=["Risk"], financial_projection=Financials(cac=10.0, ltv=10000.0, roi=1000.0, payback_months=0.1)), "phase": "governance"}
+                return {
+                    "ringi_sho": RingiSho(
+                        title="Title",
+                        executive_summary="Summary of at least 10 chars.",
+                        risks=["Risk"],
+                        financial_projection=Financials(
+                            cac=10.0, ltv=10000.0, roi=1000.0, payback_months=0.1
+                        ),
+                    ),
+                    "phase": "governance",
+                }
 
-            with patch("src.agents.ideator.IdeatorAgent.run", side_effect=mock_ideator_run), \
-                 patch("src.agents.remastered.RemasteredAgent.generate_persona", side_effect=mock_persona_run), \
-                 patch("src.agents.remastered.RemasteredAgent.generate_alternative_analysis", side_effect=mock_alternative_run), \
-                 patch("src.agents.remastered.RemasteredAgent.generate_vpc", side_effect=mock_vpc_run), \
-                 patch("src.agents.remastered.RemasteredAgent.generate_mental_model_and_journey", side_effect=mock_mental_run), \
-                 patch("src.agents.remastered.RemasteredAgent.generate_sitemap_and_wireframe", side_effect=mock_sitemap_run), \
-                 patch("src.agents.remastered.VirtualCustomerAgent.run", side_effect=mock_virtual_run), \
-                 patch("src.core.nodes.safe_simulation_run", side_effect=mock_sim_run), \
-                 patch("src.core.nodes.make_review_3h_node", return_value=mock_3h_run), \
-                 patch("src.agents.remastered.OutputGenerationAgent.generate_agent_prompt_spec", side_effect=mock_spec_run), \
-                 patch("src.agents.remastered.OutputGenerationAgent.generate_experiment_plan", side_effect=mock_exp_run), \
-                 patch("src.agents.governance.GovernanceAgent.run", side_effect=mock_gov_run):
-
+            with (
+                patch("src.agents.ideator.IdeatorAgent.run", side_effect=mock_ideator_run),
+                patch(
+                    "src.agents.remastered.RemasteredAgent.generate_persona",
+                    side_effect=mock_persona_run,
+                ),
+                patch(
+                    "src.agents.remastered.RemasteredAgent.generate_alternative_analysis",
+                    side_effect=mock_alternative_run,
+                ),
+                patch(
+                    "src.agents.remastered.RemasteredAgent.generate_vpc", side_effect=mock_vpc_run
+                ),
+                patch(
+                    "src.agents.remastered.RemasteredAgent.generate_mental_model_and_journey",
+                    side_effect=mock_mental_run,
+                ),
+                patch(
+                    "src.agents.remastered.RemasteredAgent.generate_sitemap_and_wireframe",
+                    side_effect=mock_sitemap_run,
+                ),
+                patch(
+                    "src.agents.remastered.VirtualCustomerAgent.run", side_effect=mock_virtual_run
+                ),
+                patch("src.core.nodes.safe_simulation_run", side_effect=mock_sim_run),
+                patch("src.core.nodes.make_review_3h_node", return_value=mock_3h_run),
+                patch(
+                    "src.agents.remastered.OutputGenerationAgent.generate_agent_prompt_spec",
+                    side_effect=mock_spec_run,
+                ),
+                patch(
+                    "src.agents.remastered.OutputGenerationAgent.generate_experiment_plan",
+                    side_effect=mock_exp_run,
+                ),
+                patch("src.agents.governance.GovernanceAgent.run", side_effect=mock_gov_run),
+            ):
                 app = create_app(registry=node_registry)
                 state = GlobalState(topic="AI Farming")
 
@@ -196,7 +372,7 @@ def _fourth(GlobalState: "Any", create_app: "Any", detect_mode: "Any", node_regi
             pass
         return None
 
-    return run_scenario_01_happy_path,
+    return (run_scenario_01_happy_path,)
 
 
 @app.cell
@@ -205,7 +381,9 @@ def _fifth(mo: "Any", run_scenario_01_happy_path: "Any") -> None:
     _state = run_scenario_01_happy_path()
 
     if _state:
-        mo.md("✅ **UAT-001 Completed Successfully!** The state transitioned through all nodes and gates.")
+        mo.md(
+            "✅ **UAT-001 Completed Successfully!** The state transitioned through all nodes and gates."
+        )
     else:
         mo.md("⚠️ Did not run in Mock Mode, or failed.")
 
@@ -227,7 +405,7 @@ def _sixth(os: "Any", pathlib: "Any", mo: "Any") -> "Any":
             "mental_model_diagram.pdf",
             "customer_journey.pdf",
             "sitemap_and_story.pdf",
-            "experiment_plan.pdf"
+            "experiment_plan.pdf",
         ]
 
         missing = [f for f in required_files if not (outputs_dir / f).exists()]
@@ -244,7 +422,7 @@ def _sixth(os: "Any", pathlib: "Any", mo: "Any") -> "Any":
     if os.environ.get("OPENAI_API_KEY") == "dummy" * 10:
         res = check_outputs()
         mo.md(res)
-    return check_outputs,
+    return (check_outputs,)
 
 
 if __name__ == "__main__":

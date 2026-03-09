@@ -18,8 +18,6 @@ from src.ui.renderer import ApprovalStampRenderer
 logger = logging.getLogger(__name__)
 
 
-
-
 def make_ideator_node(ideator_agent: IAgent) -> Callable[[GlobalState], dict[str, Any]]:
     def _ideator_run_impl(state: GlobalState) -> dict[str, Any]:
         res = ideator_agent.run(state)
@@ -52,6 +50,7 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
     """Transition to Verification Phase."""
     return NodeExecutor.execute(_verification_node_impl, state, "Error in Verification Node")
 
+
 node_registry.register("verification")(verification_node)
 
 
@@ -65,10 +64,13 @@ def make_persona_node(agent: IRemasteredAgent) -> Callable[[GlobalState], dict[s
     def persona_node(state: GlobalState) -> dict[str, Any]:
         res = NodeExecutor.execute(_persona_node_impl, state, "Error in Persona Node")
         return res if isinstance(res, dict) else {}
+
     return persona_node
 
 
-def make_alternative_analysis_node(agent: IRemasteredAgent) -> Callable[[GlobalState], dict[str, Any]]:
+def make_alternative_analysis_node(
+    agent: IRemasteredAgent,
+) -> Callable[[GlobalState], dict[str, Any]]:
     def _alternative_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
         """Phase 2: Generate Alternative Analysis."""
         logger.info("Generating Alternative Analysis...")
@@ -84,6 +86,7 @@ def make_alternative_analysis_node(agent: IRemasteredAgent) -> Callable[[GlobalS
             _alternative_analysis_node_impl, state, "Error in Alternative Analysis Node"
         )
         return res if isinstance(res, dict) else {}
+
     return alternative_analysis_node
 
 
@@ -102,10 +105,13 @@ def make_vpc_node(agent: IRemasteredAgent) -> Callable[[GlobalState], dict[str, 
     def vpc_node(state: GlobalState) -> dict[str, Any]:
         res = NodeExecutor.execute(_vpc_node_impl, state, "Error in VPC Node")
         return res if isinstance(res, dict) else {}
+
     return vpc_node
 
 
-def make_mental_model_journey_node(agent: IRemasteredAgent) -> Callable[[GlobalState], dict[str, Any]]:
+def make_mental_model_journey_node(
+    agent: IRemasteredAgent,
+) -> Callable[[GlobalState], dict[str, Any]]:
     def _mental_model_journey_node_impl(state: GlobalState) -> dict[str, Any]:
         """Phase 3: Generate Mental Model & Customer Journey."""
         logger.info("Generating Mental Model and Customer Journey...")
@@ -124,6 +130,7 @@ def make_mental_model_journey_node(agent: IRemasteredAgent) -> Callable[[GlobalS
             _mental_model_journey_node_impl, state, "Error in Mental Model & Journey Node"
         )
         return res if isinstance(res, dict) else {}
+
     return mental_model_journey_node
 
 
@@ -142,10 +149,13 @@ def make_sitemap_wireframe_node(agent: IRemasteredAgent) -> Callable[[GlobalStat
             _sitemap_wireframe_node_impl, state, "Error in Sitemap & Wireframe Node"
         )
         return res if isinstance(res, dict) else {}
+
     return sitemap_wireframe_node
 
 
-def make_spec_generation_node(agent: IOutputGenerationAgent) -> Callable[[GlobalState], dict[str, Any]]:
+def make_spec_generation_node(
+    agent: IOutputGenerationAgent,
+) -> Callable[[GlobalState], dict[str, Any]]:
     def _spec_generation_node_impl(state: GlobalState) -> dict[str, Any]:
         """Phase 5: Generate Agent Prompt Spec."""
         logger.info("Generating Agent Prompt Spec...")
@@ -188,10 +198,13 @@ def make_spec_generation_node(agent: IOutputGenerationAgent) -> Callable[[Global
             _spec_generation_node_impl, state, "Error in Spec Generation Node"
         )
         return res if isinstance(res, dict) else {}
+
     return spec_generation_node
 
 
-def make_experiment_planning_node(agent: IOutputGenerationAgent) -> Callable[[GlobalState], dict[str, Any]]:
+def make_experiment_planning_node(
+    agent: IOutputGenerationAgent,
+) -> Callable[[GlobalState], dict[str, Any]]:
     def _experiment_planning_node_impl(state: GlobalState) -> dict[str, Any]:
         """Phase 6: Generate Experiment Plan."""
         logger.info("Generating Experiment Plan...")
@@ -224,7 +237,9 @@ def make_experiment_planning_node(agent: IOutputGenerationAgent) -> Callable[[Gl
             _experiment_planning_node_impl, state, "Error in Experiment Planning Node"
         )
         return res if isinstance(res, dict) else {}
+
     return experiment_planning_node
+
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
@@ -241,12 +256,16 @@ def make_virtual_customer_node(agent: IAgent) -> Callable[[GlobalState], dict[st
             _virtual_customer_node_impl, state, "Error in Virtual Customer Node"
         )
         return res if isinstance(res, dict) else {}
+
     return virtual_customer_node
+
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
 
-def make_review_3h_node(hacker_agent: IAgent, hipster_agent: IAgent, hustler_agent: IAgent) -> Callable[[GlobalState], dict[str, Any]]:
+def make_review_3h_node(
+    hacker_agent: IAgent, hipster_agent: IAgent, hustler_agent: IAgent
+) -> Callable[[GlobalState], dict[str, Any]]:
     def _review_3h_node_impl(state: GlobalState) -> dict[str, Any]:
         """Phase 4: 3H Review (Hacker, Hipster, Hustler)."""
         logger.info("Running 3H Review...")
@@ -270,7 +289,9 @@ def make_review_3h_node(hacker_agent: IAgent, hipster_agent: IAgent, hustler_age
     def review_3h_node(state: GlobalState) -> dict[str, Any]:
         res = NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
         return res if isinstance(res, dict) else {}
+
     return review_3h_node
+
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
@@ -283,6 +304,7 @@ def _validate_transcripts(state: GlobalState) -> None:
 
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     from src.core.config import get_settings
+
     settings = get_settings()
 
     rag = RAG(persist_dir=state.rag_index_path)
@@ -339,7 +361,9 @@ def make_transcript_ingestion_node() -> Callable[[GlobalState], dict[str, Any]]:
         return NodeExecutor.execute(
             _transcript_ingestion_node_impl, state, "Error during transcript ingestion"
         )
+
     return transcript_ingestion_node
+
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
@@ -375,7 +399,9 @@ def _identify_and_log_influencers(engine: NemawashiEngine, network: Any) -> None
     logger.info(f"Identified Key Influencers: {influencers}")
 
 
-def make_nemawashi_analysis_node(engine_factory: Callable[[], NemawashiEngine]) -> Callable[[GlobalState], dict[str, Any]]:
+def make_nemawashi_analysis_node(
+    engine_factory: Callable[[], NemawashiEngine],
+) -> Callable[[GlobalState], dict[str, Any]]:
     def _nemawashi_analysis_node_impl(state: GlobalState) -> dict[str, Any]:
         """
         Run Nemawashi (Consensus) analysis after the simulation.
@@ -404,8 +430,12 @@ def make_nemawashi_analysis_node(engine_factory: Callable[[], NemawashiEngine]) 
         return {"influence_network": updated_network}
 
     def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
-        return NodeExecutor.execute(_nemawashi_analysis_node_impl, state, "Error in Nemawashi Analysis")
+        return NodeExecutor.execute(
+            _nemawashi_analysis_node_impl, state, "Error in Nemawashi Analysis"
+        )
+
     return nemawashi_analysis_node
+
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
 
@@ -451,8 +481,8 @@ def make_governance_node(agent: IAgent) -> Callable[[GlobalState], dict[str, Any
 
     def governance_node(state: GlobalState) -> dict[str, Any]:
         return NodeExecutor.execute(_governance_node_impl, state, "Error in Governance Check")
+
     return governance_node
 
+
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
-
-

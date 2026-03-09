@@ -10,22 +10,24 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-
-
 class GraphBuilderService:
     """Builds the execution graph using the provided registry."""
 
     def __init__(self, registry: WorkflowRegistry[GlobalState]) -> None:
         self.registry = registry
 
-    def _register_nodes(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
+    def _register_nodes(
+        self, builder: WorkflowBuilder[GlobalState]
+    ) -> WorkflowBuilder[GlobalState]:
         """Register all nodes into the workflow builder using the registry."""
         current_builder = builder
         for name, func in self.registry.nodes.items():
             current_builder = current_builder.add_node(name, func)
         return current_builder
 
-    def _register_edges(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
+    def _register_edges(
+        self, builder: WorkflowBuilder[GlobalState]
+    ) -> WorkflowBuilder[GlobalState]:
         """Register all edges mapping the workflow."""
         current_builder = builder.set_entry_point("ideator")
 
@@ -57,13 +59,25 @@ class GraphBuilderService:
         current_builder = current_builder.add_edge("experiment_planning", "governance")
         return current_builder.add_edge("governance", END)
 
-    def _configure_interrupts(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
+    def _configure_interrupts(
+        self, builder: WorkflowBuilder[GlobalState]
+    ) -> WorkflowBuilder[GlobalState]:
         """Configure human-in-the-loop interruption points."""
-        interrupts = ["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]
+        interrupts = [
+            "ideator",
+            "vpc",
+            "sitemap_wireframe",
+            "virtual_customer",
+            "experiment_planning",
+        ]
         return builder.set_interrupts(interrupts)
 
-    def build_graph(self, builder: WorkflowBuilder[GlobalState] | None = None) -> CompiledStateGraph[Any, Any]:
-        current_builder = builder if builder is not None else WorkflowBuilder[GlobalState](GlobalState)
+    def build_graph(
+        self, builder: WorkflowBuilder[GlobalState] | None = None
+    ) -> CompiledStateGraph[Any, Any]:
+        current_builder = (
+            builder if builder is not None else WorkflowBuilder[GlobalState](GlobalState)
+        )
         current_builder = self._register_nodes(current_builder)
         current_builder = self._register_edges(current_builder)
         current_builder = self._configure_interrupts(current_builder)
@@ -82,5 +96,6 @@ def create_app(
         service = GraphBuilderService(registry)
         return service.build_graph(builder)
     except Exception as e:
-        logger.error(f"Failed to build application graph: {e}")
-        raise RuntimeError(f"Workflow initialization failed: {e}") from e
+        logger.exception("Failed to build application graph")
+        msg = f"Workflow initialization failed: {e}"
+        raise RuntimeError(msg) from e
