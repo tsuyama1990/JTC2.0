@@ -72,6 +72,7 @@ from src.core.constants import (
     MSG_WAIT,
     MSG_WAITING_FOR_DEBATE,
 )
+from src.core.interfaces import IConfigValidator
 from src.core.theme import (
     AGENT_POS_CPO,
     AGENT_POS_FINANCE,
@@ -485,20 +486,6 @@ class Settings(BaseSettings):
     )
     llm_model: str = Field(default="gpt-4o", description="LLM model name")
 
-    @field_validator("openai_api_key")
-    @classmethod
-    def validate_openai_key(cls, v: SecretStr) -> SecretStr:
-        from src.core.validators import ConfigValidators
-        ConfigValidators.validate_openai_key(v)
-        return v
-
-    @field_validator("tavily_api_key")
-    @classmethod
-    def validate_tavily_key(cls, v: SecretStr) -> SecretStr:
-        from src.core.validators import ConfigValidators
-        ConfigValidators.validate_tavily_key(v)
-        return v
-
     def clear_credentials(self) -> None:
         """Clear sensitive credentials from memory (e.g. for key rotation)."""
         self.openai_api_key = SecretStr("sk-cleared-credential-000000000000")
@@ -535,14 +522,6 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
-    def model_post_init(self, __context: object) -> None:
-        """Validate API keys on initialization."""
-        super().model_post_init(__context)
-        from src.core.validators import ConfigValidators
-
-        ConfigValidators.validate_openai_key(self.openai_api_key)
-        ConfigValidators.validate_tavily_key(self.tavily_api_key)
-
     def rotate_keys(self) -> None:
         """Placeholder for key rotation."""
 
@@ -560,13 +539,32 @@ _settings_lock = threading.Lock()
 _settings_instance: Settings | None = None
 
 
+
+
+class SettingsFactory:
+    """
+    Factory to build Settings using an injected validator service.
+    This allows fully decoupled testing and mock validations.
+    """
+    def __init__(self, validator: IConfigValidator | None = None) -> None:
+        self.validator = validator
+
+    def build(self) -> Settings:
+        settings = Settings()
+        if self.validator:
+            self.validator.validate_openai_key(settings.openai_api_key)
+            self.validator.validate_tavily_key(settings.tavily_api_key)
+        return settings
+
+
 def get_settings() -> Settings:
     """Factory to get the configuration settings, using a singleton instance."""
     global _settings_instance
     if _settings_instance is None:
         with _settings_lock:
             if _settings_instance is None:
-                _settings_instance = Settings()
+                from src.core.validators import ConfigValidators
+                _settings_instance = SettingsFactory(validator=ConfigValidators()).build()
     return _settings_instance
 
 

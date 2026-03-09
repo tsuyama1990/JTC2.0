@@ -50,6 +50,25 @@ class ApiKeyValidator:
 class ConfigValidators:
     """Encapsulates validation logic for configuration."""
 
+    def validate_openai_key(self, v: SecretStr | None) -> SecretStr | None:
+        """Validate OpenAI API Key format."""
+        if v is None:
+            return None
+        ApiKeyValidator.validate_openai(v.get_secret_value())
+        return v
+
+    def validate_tavily_key(self, v: SecretStr | None) -> SecretStr | None:
+        """Validate Tavily API Key format."""
+        if v is None:
+            return None
+        val = v.get_secret_value()
+        if val not in {
+            "dummy-tavily-key-long-enough-for-validation",
+            "sk-dummy-test-key-long-enough-for-validation"
+        }:
+            ApiKeyValidator.validate_tavily(val)
+        return v
+
     @staticmethod
     def validate_color(v: int) -> int:
         """Ensure color is within Pyxel palette (0-15)."""
@@ -76,25 +95,4 @@ class ConfigValidators:
         """Ensure FPS is valid."""
         if not (1 <= v <= 60):
             raise ValueError(ERR_INVALID_FPS)
-        return v
-
-    @staticmethod
-    def validate_openai_key(v: SecretStr | None) -> SecretStr | None:
-        """Validate OpenAI API Key format."""
-        if v is None:
-            return None
-        ApiKeyValidator.validate_openai(v.get_secret_value())
-        return v
-
-    @staticmethod
-    def validate_tavily_key(v: SecretStr | None) -> SecretStr | None:
-        """Validate Tavily API Key format."""
-        if v is None:
-            return None
-        val = v.get_secret_value()
-        if val not in {
-            "dummy-tavily-key-long-enough-for-validation",
-            "sk-dummy-test-key-long-enough-for-validation"
-        }:
-            ApiKeyValidator.validate_tavily(val)
         return v

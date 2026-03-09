@@ -4,53 +4,20 @@ from pathlib import Path
 
 from src.core.config import Settings, get_settings
 from src.core.exceptions import ConfigurationError
+from src.core.interfaces import IFileWriter
 from src.core.retry_handler import RetryHandler
 
 logger = logging.getLogger(__name__)
 
 
-class FileService:
-    """
-    Service for handling file operations securely and efficiently.
-    Uses injected ThreadPoolExecutor for non-blocking I/O in async contexts.
-    """
-
-    def __init__(self, executor: ThreadPoolExecutor | None = None, settings: Settings | None = None) -> None:
+class ThreadedFileWriter(IFileWriter):
+    def __init__(self, executor: ThreadPoolExecutor | None = None) -> None:
         self._executor = executor or ThreadPoolExecutor(max_workers=5)
-        self.settings = settings or get_settings()
-
-    def _validate_path(self, path: str | Path) -> Path:
-        """
-        Validate path to prevent traversal strictly using absolute paths and containment.
-        """
-        try:
-            cwd = Path.cwd().resolve(strict=True)
-            # Use strict=False to handle paths that don't exist yet
-            p = Path(path).resolve(strict=False)
-
-            # Verify the resolved path is within the allowed boundary
-            if not p.is_relative_to(cwd):
-                msg = f"Path traversal detected: {p}"
-                raise ConfigurationError(msg)
-        except ConfigurationError:
-            raise
-        except Exception as e:
-            msg = f"Invalid path format: {e}"
-            raise ConfigurationError(msg) from e
-        else:
-            return p
 
     def save_text_async(self, content: str, path: str | Path) -> None:
-        """
-        Save text to a file asynchronously using a thread pool.
-        This prevents blocking the main event loop during file I/O.
-
-        Args:
-            content: The string content to write.
-            path: The destination file path.
-        """
         try:
-            valid_path = self._validate_path(path)
+            # We assume path is already validated when hitting the writer
+            valid_path = path if isinstance(path, Path) else Path(path)
             self._executor.submit(self._save_text_sync, content, valid_path)
         except Exception:
             logger.exception("Failed to schedule file save")
@@ -85,3 +52,47 @@ class FileService:
 
         handler = RetryHandler()
         handler.execute_with_retry(_write_action, error_msg=f"Error writing to {path}")
+
+
+class FileService:
+    """
+    Service for handling file operations securely and efficiently.
+    Uses injected IFileWriter for non-blocking I/O in async contexts.
+    """
+
+    def __init__(self, writer: IFileWriter | None = None, settings: Settings | None = None) -> None:
+        self.writer = writer or ThreadedFileWriter()
+        self.settings = settings or get_settings()
+
+    def _validate_path(self, path: str | Path) -> Path:
+        """
+        Validate path to prevent traversal strictly using absolute paths and containment.
+        """
+        try:
+            cwd = Path.cwd().resolve(strict=True)
+            # Use strict=False to handle paths that don't exist yet
+            p = Path(path).resolve(strict=False)
+
+            # Verify the resolved path is within the allowed boundary
+            if not p.is_relative_to(cwd):
+                msg = f"Path traversal detected: {p}"
+                raise ConfigurationError(msg)
+        except ConfigurationError:
+            raise
+        except Exception as e:
+            msg = f"Invalid path format: {e}"
+            raise ConfigurationError(msg) from e
+        else:
+            return p
+
+    def save_text_async(self, content: str, path: str | Path) -> None:
+        """
+        Save text to a file asynchronously using the injected writer.
+        This prevents blocking the main event loop during file I/O.
+
+        Args:
+            content: The string content to write.
+            path: The destination file path.
+        """
+        valid_path = self._validate_path(path)
+        self.writer.save_text_async(content, valid_path)

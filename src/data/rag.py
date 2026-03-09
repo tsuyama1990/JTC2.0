@@ -24,95 +24,107 @@ from src.core.constants import (
     ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
+from src.core.interfaces import IFileRepository
 from src.core.utils import AsyncRateLimiter, strip_html_tags
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
 
 
-def _get_directory_mtime(path: str) -> float:
-    """Get the latest modification time in the directory."""
-    try:
-        base_path = Path(path)
-        if not base_path.exists():
+class FileRepository(IFileRepository):
+    def get_directory_mtime(self, path: str) -> float:
+        """Get the latest modification time in the directory."""
+        try:
+            base_path = Path(path)
+            if not base_path.exists():
+                return 0.0
+            max_mtime = base_path.stat().st_mtime
+            import contextlib
+            for root, _dirs, files in os.walk(str(base_path), followlinks=False):
+                for name in files:
+                    file_path = Path(root) / name
+                    if not file_path.is_symlink():
+                        with contextlib.suppress(OSError):
+                            max_mtime = max(max_mtime, file_path.stat(follow_symlinks=False).st_mtime)
+        except OSError:
             return 0.0
-        max_mtime = base_path.stat().st_mtime
-        import contextlib
-        for root, _dirs, files in os.walk(str(base_path), followlinks=False):
+        else:
+            return max_mtime
+
+    def scan_directory_size(self, path: str, depth_limit: int | None = None) -> int:
+        """Calculate directory size using os.walk."""
+        if depth_limit is None:
+            depth_limit = get_settings().rag.scan_depth_limit
+
+        if depth_limit is not None and depth_limit <= 0:
+            msg = "depth_limit must be positive"
+            raise ValueError(msg)
+
+        total_size = 0
+        file_count = 0
+        max_files = get_settings().rag.max_files
+
+        from src.core.utils import validate_safe_path
+
+        try:
+            base_path = validate_safe_path(path, get_settings().rag.allowed_paths)
+        except ConfigurationError as e:
+            if str(e) == ERR_PATH_TRAVERSAL or "Path traversal detected" in str(e):
+                logger.exception(ERR_PATH_TRAVERSAL)
+                raise ConfigurationError(ERR_PATH_TRAVERSAL) from e
+            raise
+        except Exception as e:
+            logger.warning(f"Failed to resolve path: {path}")
+            msg = f"Invalid path: {e}"
+            raise ConfigurationError(msg) from e
+
+        base_depth = str(base_path).count(os.sep)
+
+        for root, dirs, files in os.walk(str(base_path), followlinks=False):
+            current_depth = root.count(os.sep) - base_depth
+            if current_depth > depth_limit:
+                del dirs[:]
+                continue
+
             for name in files:
                 file_path = Path(root) / name
-                if not file_path.is_symlink():
-                    with contextlib.suppress(OSError):
-                        max_mtime = max(max_mtime, file_path.stat(follow_symlinks=False).st_mtime)
-    except OSError:
-        return 0.0
-    else:
-        return max_mtime
+                if file_path.is_symlink():
+                    continue
+                try:
+                    stat_res = file_path.stat(follow_symlinks=False)
+                    total_size += stat_res.st_size
+                    file_count += 1
+                except OSError as e:
+                    logger.warning(f"Error stating file {file_path}: {e}")
+                    continue
+
+                if file_count > max_files:
+                    logger.warning(f"Scan file limit ({max_files}) reached. Returning partial size.")
+                    return total_size
+
+        return total_size
+
+    def is_directory_empty(self, path: str) -> bool:
+        try:
+            return not any(True for _ in os.scandir(path))
+        except OSError:
+            return True
+
+    def ensure_directory(self, path: str) -> None:
+        try:
+            Path(path).mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            msg = f"Failed to access or create persist directory at {path}: {e}"
+            raise ConfigurationError(msg) from e
+
+    def file_exists(self, path: str) -> bool:
+        return Path(path).exists()
+
 
 @lru_cache(maxsize=1)
 def _scan_dir_size_cached(path: str, depth_limit: int | None = None, mtime: float = 0.0) -> int:
-    """
-    Cached version of directory size calculation.
-    Invalidated automatically when the directory's maximum modification time changes.
-    """
-    return _scan_dir_size(path, depth_limit)
-
-
-def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
-    """
-    Calculate directory size using os.walk with explicit symlink ignoring and secure path validation.
-    """
-    if depth_limit is None:
-        depth_limit = get_settings().rag.scan_depth_limit
-
-    if depth_limit is not None and depth_limit <= 0:
-        msg = "depth_limit must be positive"
-        raise ValueError(msg)
-
-    total_size = 0
-    file_count = 0
-    max_files = get_settings().rag.max_files
-
-    from src.core.utils import validate_safe_path
-
-    try:
-        # Atomic resolution and whitelist check
-        base_path = validate_safe_path(path, get_settings().rag.allowed_paths)
-    except ConfigurationError as e:
-        if str(e) == ERR_PATH_TRAVERSAL or "Path traversal detected" in str(e):
-            logger.exception(ERR_PATH_TRAVERSAL)
-            raise ConfigurationError(ERR_PATH_TRAVERSAL) from e
-        raise
-    except Exception as e:
-        logger.warning(f"Failed to resolve path: {path}")
-        msg = f"Invalid path: {e}"
-        raise ConfigurationError(msg) from e
-
-    base_depth = str(base_path).count(os.sep)
-
-    for root, dirs, files in os.walk(str(base_path), followlinks=False):
-        current_depth = root.count(os.sep) - base_depth
-        if current_depth > depth_limit:
-            del dirs[:]
-            continue
-
-        for name in files:
-            file_path = Path(root) / name
-            if file_path.is_symlink():
-                continue
-            try:
-                stat_res = file_path.stat(follow_symlinks=False)
-                total_size += stat_res.st_size
-                file_count += 1
-            except OSError as e:
-                logger.warning(f"Error stating file {file_path}: {e}")
-                continue
-
-            if file_count > max_files:
-                logger.warning(f"Scan file limit ({max_files}) reached. Returning partial size.")
-                return total_size
-
-    return total_size
+    # Use global singleton internally to satisfy lru_cache constraints while still being testable at RAG instance
+    return FileRepository().scan_directory_size(path, depth_limit)
 
 
 class IngestionRequest(BaseModel):
@@ -140,18 +152,16 @@ class RAG:
     Retrieval-Augmented Generation (RAG) engine using LlamaIndex.
     """
 
-    def __init__(self, persist_dir: str | None = None) -> None:
+    def __init__(self, persist_dir: str | None = None, repository: IFileRepository | None = None) -> None:
         self.settings = get_settings()
+        self.repository = repository or FileRepository()
+
         # Security: Validate persist_dir path
         raw_path = persist_dir or self.settings.rag.persist_dir
         self.persist_dir = self._validate_path(raw_path)
 
         # Ensure the directory exists or can be created
-        try:
-            Path(self.persist_dir).mkdir(parents=True, exist_ok=True)
-        except OSError as e:
-            msg = f"Failed to access or create persist directory at {self.persist_dir}: {e}"
-            raise ConfigurationError(msg) from e
+        self.repository.ensure_directory(self.persist_dir)
 
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(
@@ -164,12 +174,11 @@ class RAG:
 
         # Incremental Size Tracking
         self._current_index_size = 0
-        if Path(self.persist_dir).exists():
-            # Use cached scan
+        if self.repository.file_exists(self.persist_dir):
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
                 depth_limit=self.settings.rag.scan_depth_limit,
-                mtime=_get_directory_mtime(self.persist_dir),
+                mtime=self.repository.get_directory_mtime(self.persist_dir),
             )
 
         self.index: VectorStoreIndex | None = None
@@ -228,21 +237,17 @@ class RAG:
         LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
-        if Path(self.persist_dir).exists():
+        if self.repository.file_exists(self.persist_dir):
             self._load_existing_index()
 
     def _load_existing_index(self) -> None:
         """Load the index from storage if it exists and is valid."""
         self._check_index_size_limit()
 
-        try:
-            if not any(True for _ in os.scandir(self.persist_dir)):
-                logger.info(
-                    f"Persist directory {self.persist_dir} exists but is empty. Initializing new index."
-                )
-                self.index = None
-                return
-        except OSError:
+        if self.repository.is_directory_empty(self.persist_dir):
+            logger.info(
+                f"Persist directory {self.persist_dir} exists but is empty. Initializing new index."
+            )
             self.index = None
             return
 
@@ -368,7 +373,7 @@ class RAG:
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
                 self.settings.rag.scan_depth_limit,
-                mtime=_get_directory_mtime(self.persist_dir),
+                mtime=self.repository.get_directory_mtime(self.persist_dir),
             )
 
     def query(self, question: str) -> str:

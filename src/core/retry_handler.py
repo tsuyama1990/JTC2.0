@@ -20,7 +20,7 @@ class RetryStrategy(BaseModel):
 
 
 class RetryHandler:
-    """Handles configurable retry logic for operations."""
+    """Handles configurable retry logic for synchronous operations."""
 
     def __init__(self, strategy: RetryStrategy | None = None) -> None:
         self.strategy = strategy or RetryStrategy()
@@ -58,6 +58,13 @@ class RetryHandler:
                 logger.exception(f"Unexpected error during {error_msg}")
                 break
         return None
+
+
+class AsyncRetryHandler:
+    """Handles configurable retry logic for asynchronous operations."""
+
+    def __init__(self, strategy: RetryStrategy | None = None) -> None:
+        self.strategy = strategy or RetryStrategy()
 
     async def execute_with_retry_async(
         self,
