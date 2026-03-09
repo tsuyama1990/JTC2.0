@@ -36,15 +36,20 @@ def test_persona_creation() -> None:
 
 def test_persona_validation_error() -> None:
     """Test validation limits for Persona."""
-    with pytest.raises(ValueError, match="bio must be at least"):
+    with pytest.raises(ValidationError) as exc:
         Persona(
-            name="Valid Name",
-            occupation="Valid Occupation",
-            demographics="Valid Demographics",
-            goals=["Goal 1", "Goal 2", "Goal 3"],
-            frustrations=["Frustration 1", "Frustration 2", "Frustration 3"],
+            name="J",  # Too short
+            occupation="D",
+            demographics="M",
+            goals=[],  # Empty
+            frustrations=[],
             bio="Sh",  # Too short
         )
+    errors = exc.value.errors()
+    assert any(e["loc"] == ("name",) for e in errors)
+    assert any(e["loc"] == ("occupation",) for e in errors)
+    assert any(e["loc"] == ("goals",) for e in errors)
+    assert any(e["loc"] == ("bio",) for e in errors)
 
 
 def test_mvp_creation() -> None:

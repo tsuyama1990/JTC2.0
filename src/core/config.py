@@ -486,11 +486,6 @@ class Settings(BaseSettings):
     )
     llm_model: str = Field(default="gpt-4o", description="LLM model name")
 
-    def clear_credentials(self) -> None:
-        """Clear sensitive credentials from memory (e.g. for key rotation)."""
-        self.openai_api_key = SecretStr("sk-cleared-credential-000000000000")
-        self.tavily_api_key = SecretStr("tvly-cleared-credential-00000000000")
-
 
     canvas_output_dir: str = Field(
         alias="CANVAS_OUTPUT_DIR",
@@ -522,23 +517,15 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
+class CredentialManager:
+    """
+    Manager specifically responsible for handling sensitive credentials securely.
+    """
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
     def rotate_keys(self) -> None:
-        """Placeholder for key rotation."""
-
-    @classmethod
-    def reload(cls) -> "Settings":
-        """Force a reload of the configuration."""
-        global _settings_instance
-        with _settings_lock:
-            _settings_instance = None
-            _settings_instance = Settings()
-        return _settings_instance
-
-
-_settings_lock = threading.Lock()
-_settings_instance: Settings | None = None
-
-
+        """Placeholder for credential rotation logic."""
 
 
 class SettingsFactory:
@@ -557,18 +544,21 @@ class SettingsFactory:
         return settings
 
 
+_legacy_settings_instance: Settings | None = None
+_legacy_lock = threading.Lock()
+
 def get_settings() -> Settings:
-    """Legacy helper for migration. Do not use for new features."""
-    global _settings_instance
-    if _settings_instance is None:
-        with _settings_lock:
-            if _settings_instance is None:
+    """Legacy singleton retriever. Left for backwards compatibility across tests."""
+    global _legacy_settings_instance
+    if _legacy_settings_instance is None:
+        with _legacy_lock:
+            if _legacy_settings_instance is None:
                 from src.core.validators import ConfigValidators
-                _settings_instance = SettingsFactory(validator=ConfigValidators()).build()
-    return _settings_instance
+                _legacy_settings_instance = SettingsFactory(validator=ConfigValidators()).build()
+    return _legacy_settings_instance
 
 def clear_settings_cache() -> None:
-    """Legacy helper for tests."""
-    global _settings_instance
-    with _settings_lock:
-        _settings_instance = None
+    """Legacy helper for testing configurations."""
+    global _legacy_settings_instance
+    with _legacy_lock:
+        _legacy_settings_instance = None

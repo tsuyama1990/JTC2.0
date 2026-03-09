@@ -65,25 +65,3 @@ class LLMFactory:
         )
 
 
-_legacy_client_manager: HTTPClientManager | None = None
-
-def get_llm(model: str | None = None, http_client: httpx.Client | None = None) -> ChatOpenAI:
-    """
-    Legacy helper function mapping to LLMFactory.create_llm().
-    """
-    global _legacy_client_manager
-    if http_client is None:
-        if _legacy_client_manager is None:
-            _legacy_client_manager = HTTPClientManager()
-        http_client = _legacy_client_manager.get_client()
-
-    factory = LLMFactory(http_client=http_client)
-    return factory.create_llm(model)
-
-
-def clear_llm_cache() -> None:
-    """Helper for testing to reset the HTTP client pool."""
-    global _legacy_client_manager
-    if _legacy_client_manager:
-        _legacy_client_manager.close()
-        _legacy_client_manager = None

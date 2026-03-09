@@ -187,20 +187,20 @@ class RAG:
     def _validate_path(self, path_str: str) -> str:
         """
         Ensure persist directory is safe and absolute using standard path validation.
+        Enforces that the directory is strictly contained within the project's root folder.
         """
         if not isinstance(path_str, str) or not path_str.strip():
             msg = "Path must be a non-empty string."
             raise ConfigurationError(msg)
 
         try:
-            cwd = Path.cwd()
-            allowed_rel_paths = self.settings.rag.allowed_paths
-            allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
+            cwd = Path.cwd().resolve()
 
             # Resolve path securely
             path = Path(path_str).resolve()
 
-            if not any(path.is_relative_to(parent) for parent in allowed_parents):
+            # Strict boundary check against the current working directory
+            if not path.is_relative_to(cwd):
                 logger.exception(ERR_PATH_TRAVERSAL)
                 raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
