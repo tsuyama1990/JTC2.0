@@ -2,6 +2,7 @@ import asyncio
 import threading
 import time
 from collections.abc import Generator
+from pathlib import Path
 
 import bleach
 
@@ -109,3 +110,44 @@ class AsyncRateLimiter:
 
         # Sleep outside the lock so other threads don't block
         time.sleep(wait_time)
+
+
+def validate_safe_path(
+    path: str | Path, allowed_paths: list[str] | list[Path] | None = None
+) -> Path:
+    """
+    Validate path to prevent traversal using absolute paths and containment.
+    """
+    from src.core.exceptions import ConfigurationError
+
+    try:
+        cwd = Path.cwd().resolve(strict=True)
+        # Use strict=False to handle paths that don't exist yet
+        p = Path(path).resolve(strict=False)
+
+        # If allowed_paths is None, default to cwd
+        if allowed_paths is None:
+            allowed_parents = [cwd]
+        else:
+            # We want to check against the parents given in allowed_paths, relative to cwd
+            allowed_parents = [
+                (cwd / Path(allowed_path)).resolve(strict=False) for allowed_path in allowed_paths
+            ]
+
+        # Verify the resolved path is within the allowed boundary
+        if not any(p.is_relative_to(parent) for parent in allowed_parents):
+            msg = f"Path traversal detected: {p}"
+            # Don't import logger here to avoid circular imports or just use ValueError/ConfigurationError
+            raise ConfigurationError(msg)
+
+        # Additional check for symlinks if we want to be strict, but resolve handles most
+        if p.exists() and p.is_symlink():
+            msg = f"Symlinks not allowed in paths: {p}"
+            raise ConfigurationError(msg)
+    except ConfigurationError:
+        raise
+    except Exception as e:
+        msg = f"Invalid path format: {e}"
+        raise ConfigurationError(msg) from e
+    else:
+        return p

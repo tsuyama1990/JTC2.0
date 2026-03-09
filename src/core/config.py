@@ -356,7 +356,7 @@ class GovernanceConfig(BaseSettings):
 
 
 class RAGConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="forbid")
+    model_config = SettingsConfigDict(extra="ignore")
     persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
     chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
     max_document_length: int = Field(
@@ -395,7 +395,7 @@ class RAGConfig(BaseSettings):
 
 
 class SearchConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="forbid")
+    model_config = SettingsConfigDict(extra="ignore")
     max_results: int = Field(default=5, description="Max search results")
     depth: str = Field(default="advanced", description="Search depth (basic/advanced)")
     query_template: str = Field(
@@ -405,7 +405,7 @@ class SearchConfig(BaseSettings):
 
 
 class ResiliencyConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="forbid")
+    model_config = SettingsConfigDict(extra="ignore")
     circuit_breaker_fail_max: int = Field(
         default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold"
     )
@@ -424,7 +424,7 @@ class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(
-        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="forbid"
+        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="ignore"
     )
 
     openai_api_key: SecretStr = Field(
@@ -451,10 +451,6 @@ class Settings(BaseSettings):
         if not key_pattern.match(val):
             msg = "OpenAI API Key format is invalid."
             raise ValueError(msg)
-
-        from src.core.validators import ApiKeyValidator
-
-        ApiKeyValidator._verify_openai_key(val)
         return v
 
     @field_validator("tavily_api_key")
@@ -474,10 +470,6 @@ class Settings(BaseSettings):
         if not key_pattern.match(val):
             msg = "Tavily API Key format is invalid."
             raise ValueError(msg)
-
-        from src.core.validators import ApiKeyValidator
-
-        ApiKeyValidator._verify_tavily_key(val)
         return v
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")

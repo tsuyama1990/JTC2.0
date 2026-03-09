@@ -1,7 +1,6 @@
 import logging
 import os
 import time
-from collections import deque
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
@@ -43,15 +42,7 @@ def _scan_dir_size_cached(path: str, depth_limit: int | None = None, ttl_hash: i
 
 def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
     """
-    Calculate directory size using an iterative approach with explicit stack management,
-    configurable depth limits, and symlink loop detection.
-
-    Args:
-        path: Path to scan.
-        depth_limit: Maximum recursion depth.
-
-    Returns:
-        Total size in bytes.
+    Calculate directory size using os.walk with explicit symlink ignoring and secure path validation.
     """
     if depth_limit is None:
         depth_limit = get_settings().rag.scan_depth_limit
@@ -64,71 +55,44 @@ def _scan_dir_size(path: str, depth_limit: int | None = None) -> int:
     file_count = 0
     max_files = get_settings().rag.max_files
 
-    # Path validation before scanning
-    try:
-        base_path = Path(path).resolve(strict=True)
-        cwd = Path.cwd().resolve(strict=True)
-        allowed_rel_paths = get_settings().rag.allowed_paths
-        allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
+    from src.core.utils import validate_safe_path
 
-        is_safe = any(base_path.is_relative_to(parent) for parent in allowed_parents)
-        if not is_safe:
-            logger.error(ERR_PATH_TRAVERSAL)
-            raise ConfigurationError(ERR_PATH_TRAVERSAL)
-    except OSError as e:
+    try:
+        # Atomic resolution and whitelist check
+        base_path = validate_safe_path(path, get_settings().rag.allowed_paths)
+    except ConfigurationError as e:
+        if str(e) == ERR_PATH_TRAVERSAL or "Path traversal detected" in str(e):
+            logger.exception(ERR_PATH_TRAVERSAL)
+            raise ConfigurationError(ERR_PATH_TRAVERSAL) from e
+        raise
+    except Exception as e:
         logger.warning(f"Failed to resolve path: {path}")
         msg = f"Invalid path: {e}"
         raise ConfigurationError(msg) from e
 
-    # Stack stores tuples of (current_path, current_depth)
-    stack = deque([(str(base_path), 0)])
-    visited_realpaths = set()
+    base_depth = str(base_path).count(os.sep)
 
-    while stack:
-        current_path, current_depth = stack.pop()
-
+    for root, dirs, files in os.walk(str(base_path), followlinks=False):
+        current_depth = root.count(os.sep) - base_depth
         if current_depth > depth_limit:
+            del dirs[:]
             continue
 
-        try:
-            real_path = os.path.realpath(current_path)
-            if real_path in visited_realpaths:
+        for name in files:
+            file_path = Path(root) / name
+            if file_path.is_symlink():
                 continue
-            visited_realpaths.add(real_path)
+            try:
+                stat_res = file_path.stat(follow_symlinks=False)
+                total_size += stat_res.st_size
+                file_count += 1
+            except OSError as e:
+                logger.warning(f"Error stating file {file_path}: {e}")
+                continue
 
-            with os.scandir(current_path) as it:
-                for entry in it:
-                    try:
-                        if entry.is_symlink():
-                            continue  # explicitly skip symlinks to prevent loops
-
-                        if entry.is_file(follow_symlinks=False):
-                            try:
-                                stat_res = entry.stat(follow_symlinks=False)
-                                total_size += stat_res.st_size
-                                file_count += 1
-                            except OSError as e:
-                                logger.warning(f"Error stating file {entry.path}: {e}")
-                                continue
-
-                            if file_count > max_files:
-                                logger.warning(
-                                    f"Scan file limit ({max_files}) reached. Returning partial size."
-                                )
-                                return total_size
-                        elif entry.is_dir(follow_symlinks=False):
-                            stack.append((entry.path, current_depth + 1))
-                    except PermissionError:
-                        logger.warning(f"Permission denied accessing entry: {entry.name}")
-                    except OSError as e:
-                        logger.warning(f"OS error accessing entry: {entry.name}, {e}")
-                    except Exception as e:
-                        logger.warning(f"Unexpected error accessing entry: {entry.name}, {e}")
-
-        except OSError as e:
-            logger.warning(f"OS error scanning index directory {current_path}: {e}")
-        except Exception as e:
-            logger.warning(f"Unexpected error scanning directory {current_path}: {e}")
+            if file_count > max_files:
+                logger.warning(f"Scan file limit ({max_files}) reached. Returning partial size.")
+                return total_size
 
     return total_size
 

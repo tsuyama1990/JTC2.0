@@ -42,59 +42,6 @@ class ApiKeyValidator:
             msg = "Tavily API Key is missing or empty."
             raise ValueError(msg)
 
-    @staticmethod
-    def _verify_openai_key(api_key: str) -> None:
-        """Verify the OpenAI API Key by making a lightweight request."""
-        import urllib.request
-        from urllib.error import HTTPError, URLError
-
-        req = urllib.request.Request(
-            "https://api.openai.com/v1/models",
-            headers={"Authorization": f"Bearer {api_key}"},
-            method="GET",
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=5) as response:  # noqa: S310
-                if response.status != 200:
-                    msg = "OpenAI API Key is invalid or unauthorized."
-                    raise ValueError(msg)
-        except HTTPError as e:
-            if e.code == 401:
-                msg = "OpenAI API Key is invalid."
-                raise ValueError(msg) from e
-            # Other HTTP errors (like 429 quota exceeded) might indicate the key is structurally valid but restricted
-        except URLError:
-            # Network issues, can't reliably validate, let it pass to fail at runtime
-            pass
-
-    @staticmethod
-    def _verify_tavily_key(api_key: str) -> None:
-        """Verify the Tavily API Key by making a lightweight request."""
-        import json
-        import urllib.request
-        from urllib.error import HTTPError, URLError
-
-        data = json.dumps({"query": "test"}).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.tavily.com/search",
-            data=data,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            method="POST",
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=5) as response:  # noqa: S310
-                if response.status != 200:
-                    msg = "Tavily API Key is invalid or unauthorized."
-                    raise ValueError(msg)
-        except HTTPError as e:
-            if e.code in {401, 403}:
-                msg = "Tavily API Key is invalid."
-                raise ValueError(msg) from e
-        except URLError:
-            pass
-
 
 class ConfigValidators:
     """Encapsulates validation logic for configuration."""

@@ -40,7 +40,7 @@ class WorkflowBuilder:
         return self
 
     def _validate_no_cycles(self) -> None:
-        """Validates the graph to ensure no cyclic dependencies exist using Tarjan's strongly connected components algorithm."""
+        """Validates the graph to ensure no cyclic dependencies exist using DFS back-edge detection."""
         adj_list: dict[str, list[str]] = {node: [] for node in self.nodes}
         adj_list["__end__"] = []
 
@@ -67,42 +67,27 @@ class WorkflowBuilder:
 
             adj_list[start].append(end)
 
-        index = 0
-        indices: dict[str, int] = {}
-        lowlinks: dict[str, int] = {}
-        on_stack: set[str] = set()
-        stack: list[str] = []
+        visited = set()
+        path = set()
 
-        def strongconnect(v: str) -> None:
-            nonlocal index
-            indices[v] = index
-            lowlinks[v] = index
-            index += 1
-            stack.append(v)
-            on_stack.add(v)
+        def dfs(node: str) -> bool:
+            visited.add(node)
+            path.add(node)
 
-            for w in adj_list.get(v, []):
-                if w not in indices:
-                    strongconnect(w)
-                    lowlinks[v] = min(lowlinks[v], lowlinks[w])
-                elif w in on_stack:
-                    lowlinks[v] = min(lowlinks[v], indices[w])
+            for neighbor in adj_list.get(node, []):
+                if neighbor not in visited:
+                    if dfs(neighbor):
+                        return True
+                elif neighbor in path:
+                    return True
 
-            if lowlinks[v] == indices[v]:
-                component = []
-                while True:
-                    w = stack.pop()
-                    on_stack.remove(w)
-                    component.append(w)
-                    if w == v:
-                        break
-                if len(component) > 1:
-                    msg = "Cyclic dependency detected in graph structure."
-                    raise ValueError(msg)
+            path.remove(node)
+            return False
 
-        for node in list(adj_list.keys()):
-            if node not in indices:
-                strongconnect(node)
+        for node in adj_list:
+            if node not in visited and dfs(node):
+                msg = "Cyclic dependency detected in graph structure."
+                raise ValueError(msg)
 
     def build(self) -> CompiledStateGraph[Any, Any]:
         """Constructs and compiles the graph with validations."""
