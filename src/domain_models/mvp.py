@@ -176,9 +176,13 @@ class MVP(BaseModel):
     @classmethod
     def validate_v0_url(cls, v: AnyHttpUrl | None) -> AnyHttpUrl | None:
         """Ensure the URL belongs to the allowed v0.dev domain."""
-        if v is not None and v.host not in ("v0.dev", "api.v0.dev"):
-            msg = f"Invalid URL domain: {v.host}. Only v0.dev is allowed."
-            raise ValueError(msg)
+        if v is not None:
+            if v.scheme not in ("http", "https"):
+                msg = f"Invalid URL scheme: {v.scheme}. Only http/https are allowed."
+                raise ValueError(msg)
+            if v.host not in ("v0.dev", "api.v0.dev"):
+                msg = f"Invalid URL domain: {v.host}. Only v0.dev is allowed."
+                raise ValueError(msg)
         return v
     deployment_status: DeploymentStatus = Field(
         default=DeploymentStatus.PENDING,
@@ -210,7 +214,8 @@ class MVPSpec(BaseModel):
     v0_prompt: str | None = Field(
         default=None,
         description="The prompt used to generate the UI via v0.dev",
-        max_length=5000,
+        min_length=1,
+        max_length=1000,
     )
     components: list[str] = Field(
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],

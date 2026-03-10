@@ -31,6 +31,10 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
 
     steps = settings.simulation.turn_sequence
 
+    if not isinstance(steps, list) or not all(isinstance(step, dict) for step in steps):
+        msg = "Invalid simulation configuration. turn_sequence must be a list of dicts."
+        raise ValueError(msg)
+
     workflow = StateGraph(GlobalState)
     previous_node = None
 

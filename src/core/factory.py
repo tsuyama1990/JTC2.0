@@ -51,10 +51,17 @@ class AgentFactory:
             import tempfile
 
             # Allow base dir to be current working directory or a specific temp dir.
-            base_dir = Path.cwd().resolve()
-            tmp_dir = Path(tempfile.gettempdir()).resolve()
-            if not resolved_path.is_relative_to(base_dir) and not resolved_path.is_relative_to(tmp_dir):
-                msg = f"Invalid RAG path: {resolved_path}. Must be relative to {base_dir}"
+            base_dir = Path.cwd().resolve(strict=True)
+            tmp_dir = Path(tempfile.gettempdir()).resolve(strict=True)
+
+            try:
+                resolved_path = Path(raw_path).resolve(strict=True)
+            except FileNotFoundError:
+                # If directory doesn't exist, validate the parent directory that does exist
+                resolved_path = Path(raw_path).parent.resolve(strict=True)
+
+            if not any(resolved_path.is_relative_to(base) for base in [base_dir, tmp_dir]):
+                msg = f"Invalid RAG path: {resolved_path}. Must be relative to allowed base directories."
                 raise ValueError(msg)
 
             return CPOAgent(llm, app_settings=settings, rag_path=str(resolved_path))

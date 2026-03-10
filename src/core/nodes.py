@@ -37,7 +37,11 @@ def safe_node(
 @safe_node("Error in Ideator Agent")
 def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for Ideator execution with error handling."""
-    ideator = AgentFactory.get_ideator_agent()
+    try:
+        ideator = AgentFactory.get_ideator_agent()
+    except Exception:
+        logger.exception("Failed to initialize Ideator agent")
+        return {"error": "Ideator initialization failed"}
     return ideator.run(state)
 
 
@@ -107,11 +111,20 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     Wrapper for Simulation execution with error handling.
     Runs the full turn-based simulation (Finance vs Sales vs New Employee).
     """
+    import concurrent.futures
+
     logger.info("Starting Simulation Round (Turn-based Battle)")
 
     simulation_app = create_simulation_graph()
 
-    final_state = simulation_app.invoke(state)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(simulation_app.invoke, state)
+        try:
+            final_state = future.result(timeout=30)
+        except concurrent.futures.TimeoutError:
+            logger.exception("Simulation timed out")
+            return {"error": "Simulation timeout"}
+
     if isinstance(final_state, dict):
         return {"debate_history": final_state.get("debate_history", [])}
     if hasattr(final_state, "debate_history"):

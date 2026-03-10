@@ -152,18 +152,18 @@ class Persona(BaseModel):
         default_factory=list,
         description="Key insights derived from customer interviews.",
         min_length=0,
-        max_length=50,  # Added max length limit
+        max_length=50,
     )
 
     @field_validator("interview_insights")
     @classmethod
     def validate_insights_content(cls, v: list[str]) -> list[str]:
         """Validate and sanitize content of interview insights."""
-        import re
+        import bleach
 
         sanitized_insights = []
         for raw_insight in v:
-            insight_clean = raw_insight.strip()
+            insight_clean = str(raw_insight).strip()
             if len(insight_clean) < 5:
                 msg = f"Insight '{insight_clean}' is too short."
                 raise ValueError(msg)
@@ -171,8 +171,8 @@ class Persona(BaseModel):
                 msg = "Insight is too long."
                 raise ValueError(msg)
 
-            # Basic sanitization to prevent script injection
-            insight_clean = re.sub(r"<script.*?>.*?</script>", "", insight_clean, flags=re.IGNORECASE | re.DOTALL)
+            # Comprehensive sanitization to prevent script/XSS injection
+            insight_clean = bleach.clean(insight_clean, tags=[], attributes={}, strip=True)
             sanitized_insights.append(insight_clean)
 
         return sanitized_insights
