@@ -12,26 +12,26 @@ def test_config_loading_success() -> None:
     with patch.dict(
         os.environ,
         {
-            "OPENAI_API_KEY": "sk-12345678901234567890",
-            "TAVILY_API_KEY": "tvly-12345678901234567890",
-            "V0_API_KEY": "v0-12345678901234567890",
+            "OPENAI_API_KEY": "sk-" + "a" * 48,
+            "TAVILY_API_KEY": "tvly-" + "b" * 24,
+            "V0_API_KEY": "v0-" + "c" * 24,
         },
     ):
         clear_settings_cache()
         settings = get_settings()
         assert settings.openai_api_key is not None
-        assert settings.openai_api_key.get_secret_value() == "sk-12345678901234567890"
+        assert settings.openai_api_key.get_secret_value() == "sk-" + "a" * 48
         assert settings.tavily_api_key is not None
-        assert settings.tavily_api_key.get_secret_value() == "tvly-12345678901234567890"
+        assert settings.tavily_api_key.get_secret_value() == "tvly-" + "b" * 24
         assert settings.v0_api_key is not None
-        assert settings.v0_api_key.get_secret_value() == "v0-12345678901234567890"
+        assert settings.v0_api_key.get_secret_value() == "v0-" + "c" * 24
 
 
 def test_config_missing_openai_key() -> None:
     """Test validation error when OpenAI key is missing."""
     with patch.dict(os.environ, {}, clear=True):
         # We need to set TAVILY_API_KEY to isolate the OPENAI_API_KEY check
-        os.environ["TAVILY_API_KEY"] = "tvly-12345678901234567890"
+        os.environ["TAVILY_API_KEY"] = "tvly-" + "b" * 24
         clear_settings_cache()
 
         # Validation happens on init
@@ -42,7 +42,7 @@ def test_config_missing_openai_key() -> None:
 def test_config_missing_tavily_key() -> None:
     """Test validation error when Tavily key is missing."""
     with patch.dict(os.environ, {}, clear=True):
-        os.environ["OPENAI_API_KEY"] = "sk-12345678901234567890"
+        os.environ["OPENAI_API_KEY"] = "sk-" + "a" * 48
         clear_settings_cache()
 
         with pytest.raises(ValueError, match=".*"):
@@ -54,8 +54,8 @@ def test_config_caching() -> None:
     with patch.dict(
         os.environ,
         {
-            "OPENAI_API_KEY": "sk-12345678901234567890",
-            "TAVILY_API_KEY": "tvly-12345678901234567890",
+            "OPENAI_API_KEY": "sk-" + "a" * 48,
+            "TAVILY_API_KEY": "tvly-" + "b" * 24,
         },
     ):
         clear_settings_cache()
@@ -69,8 +69,8 @@ def test_invalid_log_level() -> None:
     with patch.dict(
         os.environ,
         {
-            "OPENAI_API_KEY": "sk-12345678901234567890",
-            "TAVILY_API_KEY": "tvly-12345678901234567890",
+            "OPENAI_API_KEY": "sk-" + "a" * 48,
+            "TAVILY_API_KEY": "tvly-" + "b" * 24,
             "LOG_LEVEL": "INVALID",
         },
     ):

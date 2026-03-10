@@ -6,9 +6,9 @@ import pytest
 # Centralized dummy keys to avoid hardcoding in multiple files
 # Usage: @patch.dict(os.environ, DUMMY_ENV_VARS)
 DUMMY_ENV_VARS = {
-    "OPENAI_API_KEY": "sk-dummy-test-key-long-enough-for-validation",
-    "TAVILY_API_KEY": "tvly-dummy-test-key-long-enough-for-validation",
-    "V0_API_KEY": "v0-dummy-test-key-long-enough-for-validation",
+    "OPENAI_API_KEY": "sk-dummytestkeylongenoughforvalidation012345",
+    "TAVILY_API_KEY": "tvly-dummytestkeylongenoughforvalidation",
+    "V0_API_KEY": "v0-dummytestkeylongenoughforvalidation",
 }
 
 # Apply dummy env vars immediately for module-level imports during collection

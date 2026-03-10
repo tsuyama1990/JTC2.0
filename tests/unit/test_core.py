@@ -13,12 +13,12 @@ def test_config_values() -> None:
 
     # Use environment variable naming for Pydantic BaseSettings init
     s = Settings(
-        OPENAI_API_KEY=SecretStr("sk-12345678901234567890"),
-        TAVILY_API_KEY=SecretStr("tvly-12345678901234567890"),
+        OPENAI_API_KEY=SecretStr("sk-" + "a" * 48),
+        TAVILY_API_KEY=SecretStr("tvly-" + "b" * 24),
     )
     assert s.llm_model == "gpt-4o"
     assert s.search_max_results == 5
-    assert s.openai_api_key == SecretStr("sk-12345678901234567890")
+    assert s.openai_api_key == SecretStr("sk-" + "a" * 48)
 
 
 @patch("src.core.llm.get_settings")

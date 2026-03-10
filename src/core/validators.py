@@ -1,3 +1,5 @@
+import re
+
 from pydantic import SecretStr
 
 from src.core.constants import (
@@ -41,42 +43,43 @@ class ConfigValidators:
 
     @staticmethod
     def validate_openai_key(v: SecretStr | None) -> SecretStr | None:
-        """Validate OpenAI API Key format."""
+        """Validate OpenAI API Key format with a comprehensive regex pattern."""
         if v is None:
             return None
         secret = v.get_secret_value()
-        if not secret.startswith("sk-"):
-            msg = "OpenAI API Key must start with 'sk-'."
-            raise ValueError(msg)
-        if len(secret) < 20:
-            msg = "OpenAI API Key is too short."
+
+        # OpenAI keys are typically 'sk-' followed by 48+ alphanumeric characters
+        # Sometimes 'sk-proj-' etc. The exact length varies, but generally > 32 chars.
+        pattern = re.compile(r"^sk-[a-zA-Z0-9_\-]{32,}$")
+        if not pattern.match(secret):
+            msg = r"OpenAI API Key format is invalid. Must match pattern '^sk-[a-zA-Z0-9_\-]{32,}$'."
             raise ValueError(msg)
         return v
 
     @staticmethod
     def validate_tavily_key(v: SecretStr | None) -> SecretStr | None:
-        """Validate Tavily API Key format."""
+        """Validate Tavily API Key format with a comprehensive regex pattern."""
         if v is None:
             return None
         secret = v.get_secret_value()
-        if not secret.startswith("tvly-"):
-            msg = "Tavily API Key must start with 'tvly-'."
-            raise ValueError(msg)
-        if len(secret) < 20:
-            msg = "Tavily API Key is too short."
+
+        # Tavily keys typically start with tvly- and are followed by alphanumeric string.
+        pattern = re.compile(r"^tvly-[a-zA-Z0-9]{20,}$")
+        if not pattern.match(secret):
+            msg = "Tavily API Key format is invalid. Must match pattern '^tvly-[a-zA-Z0-9]{20,}$'."
             raise ValueError(msg)
         return v
 
     @staticmethod
     def validate_v0_key(v: SecretStr | None) -> SecretStr | None:
-        """Validate V0.dev API Key format."""
+        """Validate V0.dev API Key format with a comprehensive regex pattern."""
         if v is None:
             return None
         secret = v.get_secret_value()
-        if not secret.startswith("v0-"):
-            msg = "V0 API Key must start with 'v0-'."
-            raise ValueError(msg)
-        if len(secret) < 20:
-            msg = "V0 API Key is too short."
+
+        # V0 keys typically start with v0- or similar prefix based on context.
+        pattern = re.compile(r"^v0-[a-zA-Z0-9_\-]{20,}$")
+        if not pattern.match(secret):
+            msg = r"V0 API Key format is invalid. Must match pattern '^v0-[a-zA-Z0-9_\-]{20,}$'."
             raise ValueError(msg)
         return v

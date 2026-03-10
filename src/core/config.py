@@ -353,11 +353,11 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(
-        alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
+    openai_api_key: SecretStr = Field(
+        ..., alias="OPENAI_API_KEY", description="OpenAI API Key"
     )
-    tavily_api_key: SecretStr | None = Field(
-        alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key"
+    tavily_api_key: SecretStr = Field(
+        ..., alias="TAVILY_API_KEY", description="Tavily Search API Key"
     )
     v0_api_key: SecretStr | None = Field(
         alias="V0_API_KEY", default=None, description="V0.dev API Key"
@@ -469,36 +469,44 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
-    def model_post_init(self, __context: object) -> None:
-        """Validate API keys on initialization."""
-        super().model_post_init(__context)
-        self.validate_api_keys()
+    @field_validator("openai_api_key")
+    @classmethod
+    def validate_openai(cls, v: SecretStr) -> SecretStr:
+        ConfigValidators.validate_openai_key(v)
+        return v
 
-    def validate_api_keys(self) -> Self:
-        """Validate API keys are present and have correct format."""
-        if not self.openai_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-        ConfigValidators.validate_openai_key(self.openai_api_key)
+    @field_validator("tavily_api_key")
+    @classmethod
+    def validate_tavily(cls, v: SecretStr) -> SecretStr:
+        ConfigValidators.validate_tavily_key(v)
+        return v
 
-        if not self.tavily_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
-        ConfigValidators.validate_tavily_key(self.tavily_api_key)
-
-        if self.v0_api_key:
-            ConfigValidators.validate_v0_key(self.v0_api_key)
-
-        return self
-
-    def rotate_keys(self) -> None:
-        """Placeholder for key rotation."""
+    @field_validator("v0_api_key")
+    @classmethod
+    def validate_v0(cls, v: SecretStr | None) -> SecretStr | None:
+        if v is not None:
+            ConfigValidators.validate_v0_key(v)
+        return v
 
 
-@lru_cache
+import threading
+
+_settings_instance: Settings | None = None
+_settings_lock = threading.Lock()
+
+
 def get_settings() -> Settings:
-    """Load and cache settings."""
-    return Settings()
+    """Load and cache settings using a thread-safe singleton pattern."""
+    global _settings_instance
+    if _settings_instance is None:
+        with _settings_lock:
+            if _settings_instance is None:
+                _settings_instance = Settings()
+    return _settings_instance
 
 
 def clear_settings_cache() -> None:
     """Clear the cached settings instance for testing purposes."""
-    get_settings.cache_clear()
+    global _settings_instance
+    with _settings_lock:
+        _settings_instance = None
