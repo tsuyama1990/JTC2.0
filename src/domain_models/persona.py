@@ -6,6 +6,7 @@ and their empathy map (Says, Thinks, Does, Feels), critical for
 Customer-Problem Fit.
 """
 
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
