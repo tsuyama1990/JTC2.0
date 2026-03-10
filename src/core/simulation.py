@@ -6,6 +6,7 @@ The sequence is loaded from configuration to allow flexibility.
 """
 
 import logging
+from typing import Any
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -18,7 +19,6 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-from typing import Any
 def create_simulation_graph() -> CompiledStateGraph[Any, Any, Any]:
     """
     Create the simulation sub-graph based on configured turn sequence.
@@ -36,7 +36,7 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any, Any]:
         msg = "Invalid simulation configuration. turn_sequence must be a list of dicts."
         raise ValueError(msg)
 
-    workflow = StateGraph(GlobalState)
+    workflow: StateGraph[GlobalState, Any, Any] = StateGraph(GlobalState)
     previous_node = None
 
     for step in steps:

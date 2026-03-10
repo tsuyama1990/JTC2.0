@@ -6,7 +6,6 @@ the success of the startup idea, including AARRR (Pirate Metrics) and
 detailed simulation scores (Planning, Communication, etc.).
 """
 
-
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, field_validator
 
 from src.core.config import get_settings

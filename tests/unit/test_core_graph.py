@@ -57,6 +57,7 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
 
     assert result == {}
     from pathlib import Path
+
     mock_rag_cls.assert_called_with(persist_dir=str(Path(mock_state.rag_index_path).resolve()))
     mock_rag.ingest_transcript.assert_called_once_with(t1)
     mock_rag.persist_index.assert_called_once()

@@ -64,6 +64,7 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 @safe_node("Error during transcript ingestion")
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     from src.core.validators import ConfigValidators
+
     rag_path = ConfigValidators.validate_rag_path(state.rag_index_path)
 
     rag = RAG(persist_dir=rag_path)
