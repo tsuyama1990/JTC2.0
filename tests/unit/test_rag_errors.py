@@ -4,16 +4,20 @@ from unittest.mock import MagicMock, patch
 import pybreaker
 import pytest
 
-from src.core.constants import ERR_CIRCUIT_OPEN, ERR_RAG_INDEX_SIZE, ERR_RAG_TEXT_TOO_LARGE
+from src.core.constants import (
+    ERR_CIRCUIT_OPEN,
+    ERR_RAG_INDEX_SIZE,
+    ERR_RAG_TEXT_TOO_LARGE,
+)
 from src.core.exceptions import NetworkError, ValidationError
-from src.data.rag import RAG
+from src.data.rag import LlamaIndexRAG
 from tests.conftest import DUMMY_ENV_VARS
 
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_rag_circuit_breaker() -> None:
     """Test that the circuit breaker opens and raises NetworkError."""
-    rag = RAG(persist_dir="./tests/temp_rag_cb")
+    rag = LlamaIndexRAG(persist_dir="./tests/temp_rag_cb")
 
     # Mock the internal implementation to raise pybreaker.CircuitBreakerError
     # We must patch the breaker instance itself or the call method
@@ -28,7 +32,7 @@ def test_rag_circuit_breaker() -> None:
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_rag_memory_limit() -> None:
     """Test that MemoryError is raised when index size exceeds limit."""
-    rag = RAG(persist_dir="./tests/temp_rag_mem")
+    rag = LlamaIndexRAG(persist_dir="./tests/temp_rag_mem")
 
     # Mock settings to have a small limit
     rag.settings.rag_max_index_size_mb = 1  # 1 MB
@@ -53,8 +57,8 @@ def test_rag_memory_limit() -> None:
 
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_rag_input_validation() -> None:
-    """Test input validation for RAG methods."""
-    rag = RAG(persist_dir="./tests/temp_rag_val")
+    """Test input validation for LlamaIndexRAG methods."""
+    rag = LlamaIndexRAG(persist_dir="./tests/temp_rag_val")
 
     # Text too large
     large_text = "a" * (rag.settings.rag_max_document_length + 1)

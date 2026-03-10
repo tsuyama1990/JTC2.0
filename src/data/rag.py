@@ -22,6 +22,7 @@ from src.core.constants import (
     ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
+from src.core.interfaces import RAGInterface
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
@@ -108,7 +109,7 @@ class IngestionRequest(BaseModel):
         return v
 
 
-class RAG:
+class LlamaIndexRAG(RAGInterface):
     """
     Retrieval-Augmented Generation (RAG) engine using LlamaIndex.
     """

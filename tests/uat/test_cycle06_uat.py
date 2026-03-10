@@ -61,13 +61,15 @@ class TestCycle06UAT:
             mock_search.safe_search.return_value = "Search result"
 
             with (
-                patch("src.agents.governance.get_llm") as mock_llm_factory,
+                patch("src.core.factory.get_llm") as mock_llm_factory,
                 patch("src.agents.governance.GovernanceAgent._save_to_file"),
             ):
                 mock_llm = mock_llm_factory.return_value
 
                 # Mock 2 LLM calls with streaming
                 chunk_fin = MagicMock()
+                agent.llm = mock_llm
+                agent.llm = mock_llm
                 chunk_fin.content = (
                     f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
                 )
@@ -76,7 +78,7 @@ class TestCycle06UAT:
                 chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea.", "risks": ["High churn"]}'
 
                 # stream returns iterator
-                mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
+                agent.llm.stream.side_effect = [[chunk_fin], [chunk_ringi]]  # type: ignore[attr-defined]
 
                 # Run agent
                 result = agent.run(initial_state)
@@ -115,12 +117,14 @@ class TestCycle06UAT:
             mock_search.safe_search.return_value = "Search result"
 
             with (
-                patch("src.agents.governance.get_llm") as mock_llm_factory,
+                patch("src.core.factory.get_llm") as mock_llm_factory,
                 patch("src.agents.governance.GovernanceAgent._save_to_file"),
             ):
                 mock_llm = mock_llm_factory.return_value
 
                 chunk_fin = MagicMock()
+                agent.llm = mock_llm
+                agent.llm = mock_llm
                 chunk_fin.content = (
                     f'{{"cac": {mock_cac}, "arpu": {mock_arpu}, "churn_rate": {mock_churn}}}'
                 )
@@ -130,7 +134,7 @@ class TestCycle06UAT:
                     '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
                 )
 
-                mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
+                agent.llm.stream.side_effect = [[chunk_fin], [chunk_ringi]]  # type: ignore[attr-defined]
 
                 result = agent.run(initial_state)
 

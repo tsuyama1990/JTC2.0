@@ -11,7 +11,7 @@ from llama_index.core.llms import MockLLM
 
 from src.agents.cpo import CPOAgent
 from src.core.config import get_settings
-from src.data.rag import RAG
+from src.data.rag import LlamaIndexRAG
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
 from src.domain_models.transcript import Transcript
@@ -70,7 +70,7 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
         patch("src.data.rag.OpenAI", return_value=MockLLM()),
         patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
     ):
-        rag = RAG(persist_dir=temp_vector_store)
+        rag = LlamaIndexRAG(persist_dir=temp_vector_store)
         transcript = Transcript(
             source="Test Interview",
             content="Customer says: I hate waiting in line.",
@@ -85,7 +85,7 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
         assert any(Path(temp_vector_store).iterdir())
 
         # Reload and query
-        rag_loaded = RAG(persist_dir=temp_vector_store)
+        rag_loaded = LlamaIndexRAG(persist_dir=temp_vector_store)
         assert rag_loaded.index is not None
 
 
@@ -102,7 +102,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
         patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
     ):
         # Initialize RAG with temp path
-        rag = RAG(persist_dir=temp_vector_store)
+        rag = LlamaIndexRAG(persist_dir=temp_vector_store)
 
         # 1. Ingest
         text = "Customers prefer subscription models."
@@ -117,7 +117,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
         assert any(Path(temp_vector_store).iterdir())
 
         # 3. Reload (simulate new instance)
-        rag_loaded = RAG(persist_dir=temp_vector_store)
+        rag_loaded = LlamaIndexRAG(persist_dir=temp_vector_store)
         assert rag_loaded.index is not None
 
         # 4. Query - We trust the index is built.
@@ -142,7 +142,7 @@ def test_cpo_agent_behavior() -> None:
 
     # Init agent with valid path to pass strict validation
     # This path is relative to CWD and starts with 'tests'
-    agent = CPOAgent(llm, rag_path="tests/mock_cpo_rag")
+    agent = CPOAgent(llm=llm, rag=MagicMock())
 
     # Mock internal RAG
     agent.rag = MagicMock()

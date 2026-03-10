@@ -6,7 +6,7 @@ from typing import Any
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
 from src.core.simulation import create_simulation_graph
-from src.data.rag import RAG
+from src.data.rag import LlamaIndexRAG
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
@@ -64,9 +64,10 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 @safe_node("Error during transcript ingestion")
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     from src.core.validators import ConfigValidators
+
     rag_path = ConfigValidators.validate_rag_path(state.rag_index_path)
 
-    rag = RAG(persist_dir=rag_path)
+    rag = LlamaIndexRAG(persist_dir=rag_path)
 
     # Process transcripts in chunks to manage memory
     chunk_size = 10
@@ -88,10 +89,10 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
 @safe_node("Error in Transcript Ingestion Node")
 def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
     """
-    Ingest customer transcripts into the RAG system.
+    Ingest customer transcripts into the LlamaIndexRAG system.
     Runs after Gate 2 (User Input of Transcript).
     """
-    logger.info("Ingesting transcripts into RAG...")
+    logger.info("Ingesting transcripts into LlamaIndexRAG...")
     if not state.transcripts:
         logger.warning("No transcripts found in state to ingest.")
         return {}

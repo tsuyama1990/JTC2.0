@@ -2,12 +2,11 @@ import logging
 from collections.abc import Iterator
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
+from src.core.interfaces import LLMClient
 from src.core.utils import chunk_text
 from src.domain_models.mvp import MVPSpec
 from src.domain_models.state import GlobalState
@@ -31,7 +30,7 @@ class BuilderAgent(BaseAgent):
     and generates a UI using v0.dev.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: LLMClient) -> None:
         self.llm = llm
         self.settings = get_settings()
 
@@ -62,18 +61,17 @@ class BuilderAgent(BaseAgent):
             if not chunk.strip():
                 continue
 
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    (
-                        "system",
-                        "You are a product manager. Extract distinct features from the solution description.",
-                    ),
-                    ("user", f"Solution Description: {chunk}\n\nList the features:"),
-                ]
-            )
-            chain = prompt | self.llm.with_structured_output(FeatureList)
+            prompt = [
+                (
+                    "system",
+                    "You are a product manager. Extract distinct features from the solution description.",
+                ),
+                ("user", f"Solution Description: {chunk}\n\nList the features:"),
+            ]
+
+            chain = self.llm.with_structured_output(FeatureList)
             try:
-                result = chain.invoke({})
+                result = chain.invoke(prompt)
                 if isinstance(result, FeatureList):
                     # Yield unique features immediately
                     for feature in result.features:
@@ -88,21 +86,19 @@ class BuilderAgent(BaseAgent):
         """
         Create a detailed MVP Spec for the selected feature.
         """
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are an expert UI/UX designer. Create a detailed MVP specification for v0.dev generation.",
-                ),
-                (
-                    "user",
-                    f"App Name: {app_name}\nCore Feature: {feature}\nContext: {idea_context}\n\nGenerate MVPSpec:",
-                ),
-            ]
-        )
-        chain = prompt | self.llm.with_structured_output(MVPSpec)
+        prompt = [
+            (
+                "system",
+                "You are an expert UI/UX designer. Create a detailed MVP specification for v0.dev generation.",
+            ),
+            (
+                "user",
+                f"App Name: {app_name}\nCore Feature: {feature}\nContext: {idea_context}\n\nGenerate MVPSpec:",
+            ),
+        ]
+        chain = self.llm.with_structured_output(MVPSpec)
         try:
-            result = chain.invoke({})
+            result = chain.invoke(prompt)
             if isinstance(result, MVPSpec):
                 return result
             # Fallback
