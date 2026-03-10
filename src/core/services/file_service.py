@@ -2,7 +2,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.core.config import Settings, get_settings
+from src.core.config import Settings
 from src.core.exceptions import ConfigurationError
 from src.core.interfaces import IFileWriter
 from src.core.retry_handler import RetryHandler
@@ -77,8 +77,14 @@ class FileService:
     """
 
     def __init__(self, writer: IFileWriter | None = None, settings: Settings | None = None) -> None:
-        self.writer = writer or ThreadedFileWriter()
-        self.settings = settings or get_settings()
+        if not writer:
+            msg = 'Writer must be provided'
+            raise ValueError(msg)
+        self.writer = writer
+        if not settings:
+            msg = 'Settings must be provided'
+            raise ValueError(msg)
+        self.settings = settings
 
     def _validate_path(self, path: str | Path) -> Path:
         """

@@ -15,7 +15,6 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.config import get_settings
 from src.core.constants import (
     ERR_CIRCUIT_OPEN,
     ERR_PATH_TRAVERSAL,
@@ -55,7 +54,7 @@ class FileRepository(IFileRepository):
     def scan_directory_size(self, path: str, depth_limit: int | None = None) -> int:
         """Calculate directory size using os.walk."""
         if depth_limit is None:
-            depth_limit = get_settings().rag.scan_depth_limit
+            depth_limit = 10
 
         if depth_limit is not None and depth_limit <= 0:
             msg = "depth_limit must be positive"
@@ -63,12 +62,12 @@ class FileRepository(IFileRepository):
 
         total_size = 0
         file_count = 0
-        max_files = get_settings().rag.max_files
+        max_files = 1000
 
         from src.core.utils import validate_safe_path
 
         try:
-            base_path = validate_safe_path(path, get_settings().rag.allowed_paths)
+            base_path = validate_safe_path(path, ['data', 'vector_store', 'tests'])
         except ConfigurationError as e:
             if str(e) == ERR_PATH_TRAVERSAL or "Path traversal detected" in str(e):
                 logger.exception(ERR_PATH_TRAVERSAL)
@@ -162,7 +161,9 @@ class RAG:
         llm: Any | None = None,
         embed_model: Any | None = None
     ) -> None:
-        self.settings = get_settings()
+        if not hasattr(self, 'settings') or not self.settings:
+            msg = 'Settings must be provided'
+            raise ValueError(msg)
         self.repository = repository or FileRepository()
         self.llm = llm
         self.embed_model = embed_model

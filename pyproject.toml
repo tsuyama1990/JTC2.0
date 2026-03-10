@@ -135,3 +135,4 @@ plugins = ["pydantic.mypy"]
 
 [tool.uv]
 cache-dir = ".uv_cache"
+project-environment = ".venv"

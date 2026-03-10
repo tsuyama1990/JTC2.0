@@ -6,8 +6,6 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
-
 
 class CustomerProfile(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -27,11 +25,11 @@ class CustomerProfile(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+
         for field in ["customer_jobs", "pains", "gains"]:
             val = getattr(self, field)
-            if isinstance(val, list) and len(val) < settings.validation.min_list_length:
-                msg = f"{field} must contain at least {settings.validation.min_list_length} items"
+            if isinstance(val, list) and len(val) < 1:
+                msg = f"{field} must contain at least {1} items"
                 raise ValueError(msg)
         return self
 
@@ -54,11 +52,11 @@ class ValueMap(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+
         for field in ["products_and_services", "pain_relievers", "gain_creators"]:
             val = getattr(self, field)
-            if isinstance(val, list) and len(val) < settings.validation.min_list_length:
-                msg = f"{field} must contain at least {settings.validation.min_list_length} items"
+            if isinstance(val, list) and len(val) < 1:
+                msg = f"{field} must contain at least {1} items"
                 raise ValueError(msg)
         return self
 
@@ -75,8 +73,8 @@ class ValuePropositionCanvas(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        if len(self.fit_evaluation) < settings.validation.min_content_length:
-            msg = f"fit_evaluation must be at least {settings.validation.min_content_length} characters"
+
+        if len(self.fit_evaluation) < 10:
+            msg = f"fit_evaluation must be at least {10} characters"
             raise ValueError(msg)
         return self

@@ -5,7 +5,7 @@ from typing import Any
 from fpdf import FPDF
 from pydantic import BaseModel
 
-from src.core.config import get_settings
+from src.core.config import Settings
 from src.core.renderers.data_renderer import DataRenderer
 
 logger = logging.getLogger(__name__)
@@ -21,11 +21,11 @@ class PDFGenerator:
             pdf.multi_cell(w=190, h=10, text=line)
 
     @staticmethod
-    def generate_canvas_pdf(model: BaseModel, filename: str) -> str | None:
+    def generate_canvas_pdf(model: BaseModel, filename: str, settings: 'Settings') -> str | None:
         """
         Generates a PDF representation of a given Pydantic model.
         """
-        settings = get_settings()
+
 
         import re
 

@@ -6,8 +6,6 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
-
 
 class Route(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -33,9 +31,9 @@ class Route(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        if len(self.purpose) < settings.validation.min_content_length:
-            msg = f"purpose must be at least {settings.validation.min_content_length} characters"
+
+        if len(self.purpose) < 10:
+            msg = f"purpose must be at least {10} characters"
             raise ValueError(msg)
         return self
 
@@ -67,17 +65,17 @@ class UserStory(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+
         for field in ["as_a", "i_want_to", "so_that"]:
             val = getattr(self, field)
-            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
+            if isinstance(val, str) and len(val) < 10:
                 msg = (
-                    f"{field} must be at least {settings.validation.min_content_length} characters"
+                    f"{field} must be at least {10} characters"
                 )
                 raise ValueError(msg)
 
-        if len(self.acceptance_criteria) < settings.validation.min_list_length:
-            msg = f"acceptance_criteria must contain at least {settings.validation.min_list_length} items"
+        if len(self.acceptance_criteria) < 1:
+            msg = f"acceptance_criteria must contain at least {1} items"
             raise ValueError(msg)
 
         return self
@@ -97,8 +95,8 @@ class SitemapAndStory(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        if len(self.sitemap) < settings.validation.min_list_length:
-            msg = f"sitemap must contain at least {settings.validation.min_list_length} items"
+
+        if len(self.sitemap) < 1:
+            msg = f"sitemap must contain at least {1} items"
             raise ValueError(msg)
         return self
