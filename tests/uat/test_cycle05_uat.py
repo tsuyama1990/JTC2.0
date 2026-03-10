@@ -18,10 +18,10 @@ class TestCycle05UAT:
 
         # Setup prerequisite: Sitemap and Story
         story = UserStory(
-            as_a="User",
-            i_want_to="Action something big enough",
-            so_that="I can achieve my goal.",
-            acceptance_criteria=["Criterion 1", "Criterion 2"],
+            as_a="Regular Platform User",
+            i_want_to="Action something big enough and specific",
+            so_that="I can achieve my goal easily without friction",
+            acceptance_criteria=["Criterion 1 is met properly", "Criterion 2 is met properly"],
             target_route="/dashboard",
         )
         route = Route(

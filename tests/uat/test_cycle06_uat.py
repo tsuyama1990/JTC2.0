@@ -66,7 +66,7 @@ class TestCycle06UAT:
 
         # We need to mock get_settings to avoid test conflicts since we no longer cache the global
         with patch("src.agents.governance.get_settings", return_value=settings):
-            agent = GovernanceAgent()
+            agent = GovernanceAgent(file_service=MagicMock())
 
             # Calculate expected derived values based on logic in src/core/metrics.py
             expected_ltv = mock_arpu / mock_churn  # 400.0
@@ -132,7 +132,7 @@ class TestCycle06UAT:
         mock_churn = 0.02
 
         with patch("src.agents.governance.get_settings", return_value=settings):
-            agent = GovernanceAgent()
+            agent = GovernanceAgent(file_service=MagicMock())
 
             # Expected
             expected_ltv = mock_arpu / mock_churn  # 5000.0

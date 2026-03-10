@@ -42,8 +42,7 @@ class TestGovernanceMemorySafety:
 
         # Avoid global patches, configure test-specific settings locally to the agent
         test_settings = Settings(
-            OPENAI_API_KEY="sk-12345678901234567890",
-            TAVILY_API_KEY="tvly-12345678901234567890"
+            OPENAI_API_KEY="sk-12345678901234567890", TAVILY_API_KEY="tvly-12345678901234567890"
         )
         test_settings.governance.max_llm_response_size = 10
         agent.settings = test_settings  # type: ignore[attr-defined]

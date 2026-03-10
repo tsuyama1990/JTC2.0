@@ -86,13 +86,18 @@ def test_global_state_phase_enum() -> None:
     """Test GlobalState uses Phase enum."""
     # Note: VERIFICATION phase requires a target_persona
     persona = Persona(
-        name="Test",
-        occupation="Tester",
+        name="Test User Name",
+        occupation="Software Tester",
         demographics="30, Testland, Test City, 12345",
-        goals=["Test"],
-        frustrations=["Bugs"],
-        bio="A tester.",
-        empathy_map=EmpathyMap(says=["Hi"], thinks=["Hmm"], does=["Test"], feels=["Good"]),
+        goals=["Test everything thoroughly"],
+        frustrations=["Too many unknown bugs"],
+        bio="A software tester who loves testing.",
+        empathy_map=EmpathyMap(
+            says=["Hi, I need help with tests"],
+            thinks=["Hmm, this is a tricky bug to find"],
+            does=["Test the application features"],
+            feels=["Good when tests finally pass green"],
+        ),
     )
     state = GlobalState(phase=Phase.VERIFICATION, target_persona=persona)
     assert state.phase == "verification"

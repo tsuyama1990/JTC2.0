@@ -33,9 +33,7 @@ class AlternativeTool(BaseModel):
         for field in ["name", "financial_cost", "time_cost", "ux_friction"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < 10:
-                msg = (
-                    f"{field} must be at least {10} characters"
-                )
+                msg = f"{field} must be at least {10} characters"
                 raise ValueError(msg)
         return self
 
@@ -59,9 +57,7 @@ class AlternativeAnalysis(BaseModel):
         for field in ["switching_cost", "ten_x_value"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < 10:
-                msg = (
-                    f"{field} must be at least {10} characters"
-                )
+                msg = f"{field} must be at least {10} characters"
                 raise ValueError(msg)
 
         if len(self.current_alternatives) < 1:

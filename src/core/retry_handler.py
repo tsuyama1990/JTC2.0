@@ -18,11 +18,17 @@ class RetryStrategy(BaseModel):
 
 
 class RetryHandlerConfig:
-    def __init__(self, logger: logging.Logger | None = None, random_func: Callable[[int], int] | None = None) -> None:
+    def __init__(
+        self,
+        logger: logging.Logger | None = None,
+        random_func: "Callable[[int], int] | None" = None,
+    ) -> None:
         self.logger = logger or logging.getLogger(__name__)
         if random_func is None:
             import secrets
-            self.random_func = secrets.randbelow
+            import typing
+
+            self.random_func = typing.cast("Callable[[int], int]", secrets.randbelow)
         else:
             self.random_func = random_func
 
@@ -30,7 +36,9 @@ class RetryHandlerConfig:
 class RetryHandler:
     """Handles configurable retry logic for synchronous operations."""
 
-    def __init__(self, strategy: RetryStrategy | None = None, config: RetryHandlerConfig | None = None) -> None:
+    def __init__(
+        self, strategy: RetryStrategy | None = None, config: RetryHandlerConfig | None = None
+    ) -> None:
         self.strategy = strategy or RetryStrategy()
         self.config = config or RetryHandlerConfig()
 
@@ -59,7 +67,9 @@ class RetryHandler:
                     jitter = jitter_pct * base_delay
                     time.sleep(base_delay + jitter)
                     continue
-                self.config.logger.exception(f"{error_msg} after {self.strategy.max_attempts} attempts")
+                self.config.logger.exception(
+                    f"{error_msg} after {self.strategy.max_attempts} attempts"
+                )
             except Exception:
                 self.config.logger.exception(f"Unexpected error during {error_msg}")
                 break
@@ -69,7 +79,9 @@ class RetryHandler:
 class AsyncRetryHandler:
     """Handles configurable retry logic for asynchronous operations."""
 
-    def __init__(self, strategy: RetryStrategy | None = None, config: RetryHandlerConfig | None = None) -> None:
+    def __init__(
+        self, strategy: RetryStrategy | None = None, config: RetryHandlerConfig | None = None
+    ) -> None:
         self.strategy = strategy or RetryStrategy()
         self.config = config or RetryHandlerConfig()
 
@@ -98,7 +110,9 @@ class AsyncRetryHandler:
                     jitter = jitter_pct * base_delay
                     await asyncio.sleep(base_delay + jitter)
                     continue
-                self.config.logger.exception(f"{error_msg} after {self.strategy.max_attempts} attempts")
+                self.config.logger.exception(
+                    f"{error_msg} after {self.strategy.max_attempts} attempts"
+                )
             except Exception:
                 self.config.logger.exception(f"Unexpected error during {error_msg}")
                 break

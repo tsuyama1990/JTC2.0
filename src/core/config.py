@@ -1,3 +1,4 @@
+import functools
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -243,6 +244,7 @@ class SimulationConfig(BaseSettings):
             msg = "Dimensions must be between 100 and 800"
             raise ValueError(msg)
         return v
+
     fps: int = Field(default=DEFAULT_FPS, description="Frames per second")
     title: str = Field(default=MSG_SIM_TITLE, description="Window title")
     bg_color: int = Field(default=COLOR_BG, description="Background color")
@@ -403,6 +405,7 @@ class RAGConfig(BaseSettings):
     @classmethod
     def validate_persist_dir(cls, v: str) -> str:
         import pathlib
+
         path = pathlib.Path(v).resolve()
         cwd = pathlib.Path.cwd().resolve()
 
@@ -417,6 +420,7 @@ class RAGConfig(BaseSettings):
                 msg = "persist_dir cannot be root directory"
                 raise ValueError(msg) from err
         return str(path)
+
     max_query_length: int = Field(
         default=DEFAULT_RAG_MAX_QUERY_LENGTH,
         description="Max query length",
@@ -485,7 +489,6 @@ class Settings(BaseSettings):
     )
     llm_model: str = Field(default="gpt-4o", description="LLM model name")
 
-
     canvas_output_dir: str = Field(
         alias="CANVAS_OUTPUT_DIR",
         default="outputs/canvas",
@@ -516,10 +519,12 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
+
 class CredentialManager:
     """
     Manager specifically responsible for handling sensitive credentials securely.
     """
+
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
@@ -532,14 +537,27 @@ class SettingsFactory:
     Factory to build Settings using an injected validator service.
     This allows fully decoupled testing and mock validations.
     """
+
     def __init__(self, validator: IConfigValidator | None = None) -> None:
         self.validator = validator
 
     def build(self) -> Settings:
+        if hasattr(self, "_cached_settings"):
+            return self._cached_settings  # type: ignore
         settings = Settings()
         if self.validator:
             self.validator.validate_openai_key(settings.openai_api_key)
             self.validator.validate_tavily_key(settings.tavily_api_key)
+        self._cached_settings = settings
         return settings
 
 
+@functools.lru_cache
+def get_settings() -> Settings:
+    """Get the cached settings instance."""
+    return SettingsFactory().build()
+
+
+def clear_settings_cache() -> None:
+    """Clear the cached settings instance."""
+    get_settings.cache_clear()

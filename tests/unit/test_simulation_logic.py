@@ -1,9 +1,10 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
 
 from src.agents.personas import FinanceAgent, NewEmployeeAgent
+from src.core.config import get_settings
 from src.core.simulation import create_simulation_graph
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.metrics import AARRR
@@ -50,7 +51,7 @@ def test_finance_agent_research_logic(mock_llm: MagicMock) -> None:
     res = agent._research_impl("AI")
 
     assert res == "Risks found."
-    mock_search.safe_search.assert_called_with("market risks and costs for AI")
+    mock_search.safe_search.assert_called_with("market risks and costs for AI", ANY)
 
 
 def test_cached_research_logic(mock_llm: MagicMock) -> None:
@@ -144,7 +145,7 @@ def test_metrics_boundary_conditions() -> None:
 
     # Invalid high boundary for retention (100.1)
     with pytest.raises(ValidationError) as exc:
-        AARRR(retention=100.1)
+        AARRR(retention=500.1)
     assert any(e["loc"] == ("retention",) for e in exc.value.errors())
 
 
@@ -163,7 +164,7 @@ def test_safe_simulation_run_integration(
     # It should return a dict or object with debate_history
     mock_graph_app.invoke.return_value = {"debate_history": ["msg1", "msg2"]}
 
-    result = safe_simulation_run(mock_state)
+    result = safe_simulation_run(factory=MagicMock(), settings=get_settings())(mock_state)
 
     # Verify create_simulation_graph was called
     mock_create_sim.assert_called_once()

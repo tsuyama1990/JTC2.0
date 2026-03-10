@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -79,7 +79,7 @@ def test_ideator_agent_flow(
         assert result["generated_ideas"] == expected_ideas
 
         # Verify research was called
-        mock_search_tool.safe_search.assert_called_with("Q: Test")
+        mock_search_tool.safe_search.assert_called_with("Q: Test", ANY)
 
         # Verify generation was called with prompt (checking prompt content implicitly via _generate_prompt logic)
         # We can check that _generate_ideas was called.
@@ -105,4 +105,4 @@ def test_ideator_agent_research_logic(
     res = agent._research("AI")
 
     assert res == "Results"
-    mock_search.safe_search.assert_called_with("Search AI")
+    mock_search.safe_search.assert_called_with("Search AI", mock_settings)

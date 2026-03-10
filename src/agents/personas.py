@@ -139,7 +139,7 @@ class FinanceAgent(PersonaAgent):
     def _research_impl(self, topic: str) -> str:
         """Perform market research on risks."""
         query = f"market risks and costs for {topic}"
-        return self.search_tool.safe_search(query)
+        return self.search_tool.safe_search(query, self.settings)
 
 
 class SalesAgent(PersonaAgent):

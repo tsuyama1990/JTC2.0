@@ -21,11 +21,10 @@ class PDFGenerator:
             pdf.multi_cell(w=190, h=10, text=line)
 
     @staticmethod
-    def generate_canvas_pdf(model: BaseModel, filename: str, settings: 'Settings') -> str | None:
+    def generate_canvas_pdf(model: BaseModel, filename: str, settings: "Settings") -> str | None:
         """
         Generates a PDF representation of a given Pydantic model.
         """
-
 
         import re
 

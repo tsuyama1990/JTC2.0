@@ -196,7 +196,7 @@ def browse_and_select(
     return None
 
 
-def _process_execution(topic: str) -> Iterator[LeanCanvas]: # noqa: PLR0915
+def _process_execution(topic: str) -> Iterator[LeanCanvas]:  # noqa: PLR0915
     """Execute the ideation workflow."""
     ui_config = get_settings().ui
     echo(ui_config.phase_start.format(phase=Phase.IDEATION))
@@ -214,35 +214,62 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]: # noqa: PLR0915
 
     # Register node if not already in registry
     if "ideator" not in node_registry.nodes:
-        node_registry.nodes["ideator"] = src.core.nodes.make_ideator_node(factory.get_ideator_agent())
+        node_registry.nodes["ideator"] = src.core.nodes.make_ideator_node(
+            factory.get_ideator_agent(), settings=settings
+        )
     if "persona" not in node_registry.nodes:
-        node_registry.nodes["persona"] = src.core.nodes.make_persona_node(factory.get_remastered_agent())
+        node_registry.nodes["persona"] = src.core.nodes.make_persona_node(
+            factory.get_remastered_agent(), settings=settings
+        )
     if "alternative_analysis" not in node_registry.nodes:
-        node_registry.nodes["alternative_analysis"] = src.core.nodes.make_alternative_analysis_node(factory.get_remastered_agent())
+        node_registry.nodes["alternative_analysis"] = src.core.nodes.make_alternative_analysis_node(
+            factory.get_remastered_agent(), settings=settings
+        )
     if "vpc" not in node_registry.nodes:
-        node_registry.nodes["vpc"] = src.core.nodes.make_vpc_node(factory.get_remastered_agent())
+        node_registry.nodes["vpc"] = src.core.nodes.make_vpc_node(
+            factory.get_remastered_agent(), settings=settings
+        )
     if "mental_model_journey" not in node_registry.nodes:
-        node_registry.nodes["mental_model_journey"] = src.core.nodes.make_mental_model_journey_node(factory.get_remastered_agent())
+        node_registry.nodes["mental_model_journey"] = src.core.nodes.make_mental_model_journey_node(
+            factory.get_remastered_agent(), settings=settings
+        )
     if "sitemap_wireframe" not in node_registry.nodes:
-        node_registry.nodes["sitemap_wireframe"] = src.core.nodes.make_sitemap_wireframe_node(factory.get_remastered_agent())
+        node_registry.nodes["sitemap_wireframe"] = src.core.nodes.make_sitemap_wireframe_node(
+            factory.get_remastered_agent(), settings=settings
+        )
     if "virtual_customer" not in node_registry.nodes:
-        node_registry.nodes["virtual_customer"] = src.core.nodes.make_virtual_customer_node(factory.get_virtual_customer_agent())
+        node_registry.nodes["virtual_customer"] = src.core.nodes.make_virtual_customer_node(
+            factory.get_virtual_customer_agent(), settings=settings
+        )
     if "review_3h" not in node_registry.nodes:
         node_registry.nodes["review_3h"] = src.core.nodes.make_review_3h_node(
-            factory.get_hacker_agent(), factory.get_hipster_agent(), factory.get_hustler_agent()
+            factory.get_hacker_agent(),
+            factory.get_hipster_agent(),
+            factory.get_hustler_agent(),
+            settings=settings,
         )
     if "spec_generation" not in node_registry.nodes:
-        node_registry.nodes["spec_generation"] = src.core.nodes.make_spec_generation_node(factory.get_output_generation_agent())
+        node_registry.nodes["spec_generation"] = src.core.nodes.make_spec_generation_node(
+            factory.get_output_generation_agent(), settings=settings
+        )
     if "experiment_planning" not in node_registry.nodes:
-        node_registry.nodes["experiment_planning"] = src.core.nodes.make_experiment_planning_node(factory.get_output_generation_agent())
+        node_registry.nodes["experiment_planning"] = src.core.nodes.make_experiment_planning_node(
+            factory.get_output_generation_agent(), settings=settings
+        )
     if "governance" not in node_registry.nodes:
-        node_registry.nodes["governance"] = src.core.nodes.make_governance_node(factory.get_governance_agent())
+        node_registry.nodes["governance"] = src.core.nodes.make_governance_node(
+            factory.get_governance_agent(), settings=settings
+        )
     if "transcript_ingestion" not in node_registry.nodes:
-        node_registry.nodes["transcript_ingestion"] = src.core.nodes.make_transcript_ingestion_node()
+        node_registry.nodes["transcript_ingestion"] = src.core.nodes.make_transcript_ingestion_node(
+            settings=settings
+        )
     if "simulation_round" not in node_registry.nodes:
-        node_registry.nodes["simulation_round"] = src.core.nodes.safe_simulation_run
+        node_registry.nodes["simulation_round"] = src.core.nodes.safe_simulation_run(
+            settings, factory
+        )
 
-    app = create_app(registry=node_registry)
+    app = create_app(registry=node_registry, settings=settings)
     initial_state = GlobalState(topic=topic)
     final_state = app.invoke(initial_state)
 
@@ -338,7 +365,7 @@ def ingest_transcript(filepath: str) -> None:
         with path.open(encoding="utf-8") as f:
             content = f.read()
 
-        rag = RAG()
+        rag = RAG(settings=settings)
         rag.ingest_text(content, source=str(path))
         rag.persist_index()
         echo(f"Successfully ingested {filepath} into vector store.")

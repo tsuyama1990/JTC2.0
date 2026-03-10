@@ -10,6 +10,7 @@ from src.core.config import AgentConfig, SimulationConfig, get_settings
 def test_config_loading_success() -> None:
     """Test successful configuration loading."""
     from src.core.config import clear_settings_cache
+
     with patch.dict(
         os.environ,
         {
@@ -79,6 +80,7 @@ def test_config_caching() -> None:
 def test_invalid_log_level() -> None:
     """Test loading with invalid log level (although Pydantic might coerce it)."""
     from src.core.config import clear_settings_cache
+
     with patch.dict(
         os.environ,
         {

@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.config import get_settings
 from src.core.services.file_service import FileService
 
 
@@ -10,7 +11,9 @@ class TestFileService:
 
     @pytest.fixture
     def file_service(self) -> FileService:
-        return FileService()
+        from src.core.services.file_service import ThreadedFileWriter
+
+        return FileService(writer=ThreadedFileWriter(), settings=get_settings())
 
     @patch("src.core.services.file_service.FileService._validate_path")
     def test_save_text_async_success(
@@ -79,7 +82,7 @@ class TestFileService:
             patch("os.replace") as mock_replace,
         ):
             mock_path = MagicMock()
-            mock_path.__str__.return_value = "large.md" # type: ignore[attr-defined]
+            mock_path.__str__.return_value = "large.md"  # type: ignore[attr-defined]
             mock_validate.return_value = mock_path
             mock_path.parent = MagicMock()
             mock_mkstemp.return_value = (1, "temp.md")

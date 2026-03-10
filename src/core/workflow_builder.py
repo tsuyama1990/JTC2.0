@@ -11,18 +11,25 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+
 class WorkflowRegistry(Generic[T]):
     """Registry for declarative workflow nodes."""
+
     def __init__(self) -> None:
         self.nodes: dict[str, Callable[[T], dict[str, Any]]] = {}
 
-    def register(self, name: str) -> Callable[[Callable[[T], dict[str, Any]]], Callable[[T], dict[str, Any]]]:
+    def register(
+        self, name: str
+    ) -> Callable[[Callable[[T], dict[str, Any]]], Callable[[T], dict[str, Any]]]:
         def decorator(func: Callable[[T], dict[str, Any]]) -> Callable[[T], dict[str, Any]]:
             self.nodes[name] = func
             return func
+
         return decorator
 
+
 node_registry: WorkflowRegistry[GlobalState] = WorkflowRegistry()
+
 
 class WorkflowBuilder(Generic[T]):
     """Builds the StateGraph workflow, decoupling structure from implementation.
