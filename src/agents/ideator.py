@@ -1,13 +1,12 @@
 from collections.abc import Iterator
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from src.agents.base import BaseAgent, SearchTool
 from src.core.config import Settings, get_settings
 from src.core.constants import ERR_UNIQUE_ID_VIOLATION
+from src.core.interfaces import LLMClient
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
@@ -46,7 +45,7 @@ class IdeatorAgent(BaseAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMClient,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -54,7 +53,7 @@ class IdeatorAgent(BaseAgent):
         Initialize the Ideator Agent.
 
         Args:
-            llm: A configured ChatOpenAI instance.
+            llm: A configured LLMClient instance.
             search_tool: Optional search tool instance (Dependency Injection).
             app_settings: Optional settings override (Dependency Injection).
         """
@@ -71,7 +70,7 @@ class IdeatorAgent(BaseAgent):
         query = self.settings.search_query_template.format(topic=topic)
         return self.search_tool.safe_search(query)
 
-    def _generate_prompt(self, topic: str, research_data: str) -> ChatPromptTemplate:
+    def _generate_prompt(self, topic: str, research_data: str) -> list[tuple[str, str]]:
         """Create the prompt for idea generation."""
         system_prompt = (
             "You are a visionary startup ideator. Your goal is to generate 10 DISTINCT, "
@@ -80,23 +79,21 @@ class IdeatorAgent(BaseAgent):
             "You MUST generate exactly 10 ideas.\n"
             "Assign IDs from 0 to 9 sequentially."
         )
-        return ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                ("user", f"Topic: {topic}\n\nResearch Summary:\n{research_data}"),
-            ]
-        )
+        return [
+            ("system", system_prompt),
+            ("user", f"Topic: {topic}\n\nResearch Summary:\n{research_data}"),
+        ]
 
-    def _generate_ideas(self, prompt: ChatPromptTemplate) -> Iterator[LeanCanvas]:
+    def _generate_ideas(self, prompt: list[tuple[str, str]]) -> Iterator[LeanCanvas]:
         """
         Invoke LLM to generate ideas and yield them as an iterator.
 
         Note: Currently waits for full LLM response then yields items.
         Future optimization: Use streaming parsing if supported.
         """
-        chain = prompt | self.llm.with_structured_output(LeanCanvasList)
+        chain = self.llm.with_structured_output(LeanCanvasList)
         try:
-            result = chain.invoke({})
+            result = chain.invoke(prompt)
         except Exception:
             return
 

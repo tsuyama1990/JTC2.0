@@ -84,8 +84,8 @@ class GlobalState(BaseModel):
     @classmethod
     def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
         """Ensure transcripts are unique by source and sanitized."""
+
         import bleach  # type: ignore[import-untyped]
-        import re
 
         sources = []
         sanitized_transcripts = []

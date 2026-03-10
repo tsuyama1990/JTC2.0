@@ -62,8 +62,8 @@ class TestGovernanceAgent:
 
         # Check `src/core/llm.py` later. For now, let's assume it runs.
 
-        with patch("src.agents.governance.get_llm") as mock_llm_factory:
-            mock_llm = mock_llm_factory.return_value
+        with patch("src.agents.governance.get_llm") as _:
+            agent.llm = MagicMock()
 
             # Mock LLM responses (called twice: financials, then ringi-sho)
             # Use stream instead of invoke because the agent uses stream for memory safety
@@ -76,7 +76,7 @@ class TestGovernanceAgent:
             )
 
             # stream returns an iterator. We simulate it with a list.
-            mock_llm.stream.side_effect = [[mock_chunk_fin], [mock_chunk_ringi]]
+            agent.llm.stream.side_effect = [[mock_chunk_fin], [mock_chunk_ringi]]
 
             result = agent.run(mock_state)
 

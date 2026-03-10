@@ -11,8 +11,8 @@ from tests.conftest import DUMMY_ENV_VARS
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.agents.cpo.RAG")
-@patch("src.agents.cpo.ChatOpenAI")
+@patch("tests.uat.test_uat_cycle03.MagicMock")
+@patch("src.core.factory.get_llm")
 def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
     """
     Scenario 1: Transcript Injection and 'Mom Test' Failure.
@@ -66,7 +66,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     # If self.llm is a mock, it returns `self.llm()`.
     # We set `return_value` so `self.llm(...)` returns `mock_chain_result`.
 
-    cpo = CPOAgent(mock_llm_instance)
+    cpo = CPOAgent(mock_llm_instance, mock_rag_instance)
     result = cpo.run(state)
 
     # Verify RAG was consulted
@@ -79,8 +79,8 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.agents.cpo.RAG")
-@patch("src.agents.cpo.ChatOpenAI")
+@patch("tests.uat.test_uat_cycle03.MagicMock")
+@patch("src.core.factory.get_llm")
 def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
     """
     Scenario 2: Validation Success.
@@ -121,7 +121,7 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
     mock_llm_instance.return_value = mock_chain_result
 
     # Run CPO Agent
-    cpo = CPOAgent(mock_llm_instance)
+    cpo = CPOAgent(mock_llm_instance, mock_rag_instance)
     result = cpo.run(state)
 
     # Verify

@@ -2,77 +2,87 @@ import logging
 import time
 from typing import Any
 
-from langchain_openai import ChatOpenAI
-
-from src.agents.base import SearchTool
-from src.agents.personas import PersonaAgent
-from src.core.config import Settings
-from src.data.rag import RAG
+from src.agents.base import BaseAgent
+from src.core.config import Settings, get_settings
+from src.core.interfaces import LLMClient, RAGInterface
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
 
-class CPOAgent(PersonaAgent):
+class CPOAgent(BaseAgent):
     """
     The Chief Product Officer (CPO) Agent.
-
-    Acts as a mentor who provides fact-based advice using the RAG engine
-    to validate or invalidate assumptions based on customer transcripts.
+    Makes the final decision based on debate history, stakeholder dynamics,
+    and RAG context.
     """
 
     def __init__(
         self,
-        llm: ChatOpenAI,
-        search_tool: SearchTool | None = None,
+        llm: LLMClient,
+        rag: RAGInterface,
         app_settings: Settings | None = None,
         rag_path: str | None = None,
     ) -> None:
-        system_prompt = (
-            "You are the Chief Product Officer (CPO). "
-            "You are a mentor to the New Employee. "
-            "You do not speak in the main meeting. "
-            "In the rooftop phase, you provide fact-based advice using customer data. "
-            "You ignore opinions and focus on evidence from transcripts. "
-            "Use the provided research data (from RAG) to find contradictions "
-            "between the Plan and the Customer Interview."
+        self.llm = llm
+        self.role = Role.CPO
+        self.settings = app_settings or get_settings()
+        self.rag = rag
+
+        # Basic persona prompt
+        self.system_prompt = (
+            "You are the CPO. Your role is to finalize the decision based on the debate. "
+            "You consider the new employee's passion, but also heed the warnings of Sales and Finance. "
+            "You MUST query your internal knowledge base (RAG) before making a decision. "
+            "You can choose to 'Approve', 'Reject', or 'Request Pivot'."
         )
-        super().__init__(llm, Role.CPO, system_prompt, search_tool, app_settings)
 
-        # Use provided path or fallback to settings (not hardcoded string)
-        actual_rag_path = rag_path or self.settings.rag_persist_dir
-        self.rag = RAG(persist_dir=actual_rag_path)
+    def _build_context(self, state: GlobalState) -> str:
+        """Construct the conversation history context."""
+        context_parts = ["\nDEBATE HISTORY:"]
 
-    def _research_impl(self, topic: str) -> str:
-        """
-        Query the RAG engine for relevant customer insights.
-        Overrides the default web search behavior.
-        """
-        try:
-            query = f"What do customers say about {topic} or related problems?"
-            logger.info(f"CPO querying RAG: {query}")
-            return self.rag.query(query)
-        except Exception:
-            logger.exception("Error querying RAG")
-            return "No customer insights available due to error."
+        if state.selected_idea:
+            context_parts.insert(0, f"IDEA: {state.selected_idea.title}")
+
+        # Generator expression for history
+        context_parts.extend(f"{msg.role}: {msg.content}" for msg in state.debate_history)
+
+        return "\n".join(context_parts)
+
+    def _generate_response(self, context: str, research_data: str) -> str:
+        """Generate final decision using LLM."""
+        prompt = [
+            ("system", self.system_prompt),
+            (
+                "user",
+                f"Context:\n{context}\n\nStakeholder & RAG Data:\n{research_data}\n\nYour final decision:",
+            ),
+        ]
+        response = self.llm.invoke(prompt)
+        return str(response.content)
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
-        Run the CPO agent logic with Nemawashi context.
+        Run the CPO agent logic.
+        Incorporates RAG querying and simulation logic (Nemawashi).
         """
         try:
-            # 1. Build Standard Context
             context = self._build_context(state)
-
-            # 2. Get Research Data (RAG)
             research_data = ""
-            if state.selected_idea:
-                research_data = self._cached_research(state.selected_idea.title)
 
-            # 3. Inject Nemawashi (Influence) Data
-            if state.influence_network:
-                stakeholders_info = ["\nSTAKEHOLDER ANALYSIS (Nemawashi):"]
+            # 1. Query RAG for precedent
+            if state.selected_idea:
+                query = f"Past decisions regarding {state.selected_idea.title} or similar ideas."
+                rag_result = self.rag.query(query)
+                research_data += f"\nINTERNAL RAG PRECEDENT:\n{rag_result}\n"
+
+            # 2. Inject Nemawashi (Stakeholder) context if available
+            if getattr(state, "simulation_data", None) and getattr(
+                getattr(state, "simulation_data", None), "stakeholders", None
+            ):
+                research_data += "\nSTAKEHOLDER STATUS:\n"
+                stakeholders_info = []
                 for s in state.influence_network.stakeholders:
                     status = (
                         "Supportive"

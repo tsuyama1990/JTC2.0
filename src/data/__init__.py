@@ -1,3 +1,3 @@
-from .rag import RAG
+from .rag import LlamaIndexRAG
 
-__all__ = ["RAG"]
+__all__ = ["LlamaIndexRAG"]

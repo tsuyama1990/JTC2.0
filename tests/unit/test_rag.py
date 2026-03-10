@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 try:
-    from src.data.rag import RAG
+    from src.data.rag import LlamaIndexRAG
 except ImportError:
-    RAG = None  # type: ignore
+    RAG = None
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ def test_rag_initialization(
     # Path.resolve() works even if file doesn't exist on Python 3.10+ usually, but strict=True?
     # RAG code uses Path(path_str).resolve() (default strict=False).
 
-    rag = RAG()
+    rag = LlamaIndexRAG()
     assert rag.index is None
     # Path is resolved to absolute
     from pathlib import Path
@@ -74,7 +74,7 @@ def test_rag_ingest_text(mock_settings: MagicMock, mock_llama_index: dict[str, M
     # Ensure rag_batch_size is a real int
     mock_settings.return_value.rag_batch_size = 100
 
-    rag = RAG()
+    rag = LlamaIndexRAG()
     text = "Customer says: I hate this."
     rag.ingest_text(text, source="interview.txt")
 
@@ -87,7 +87,7 @@ def test_rag_persist_index(
     mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test explicit persist."""
-    rag = RAG()
+    rag = LlamaIndexRAG()
     # Mock index existence
     rag.index = MagicMock()
 
@@ -100,7 +100,7 @@ def test_rag_persist_index(
 
 def test_rag_query(mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]) -> None:
     """Test querying the index."""
-    rag = RAG()
+    rag = LlamaIndexRAG()
     # Mock the index and query engine
     mock_query_engine = MagicMock()
     mock_response = MagicMock()
@@ -121,7 +121,7 @@ def test_rag_query_validation(
     mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test query input validation."""
-    rag = RAG()
+    rag = LlamaIndexRAG()
 
     with pytest.raises(TypeError, match="Query must be a string"):
         rag.query(123)  # type: ignore

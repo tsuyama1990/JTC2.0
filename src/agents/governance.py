@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
+from src.core.interfaces import LLMClient
 from src.core.llm import get_llm
 from src.core.metrics import calculate_ltv, calculate_payback_period, calculate_roi
 from src.core.services.file_service import FileService
@@ -24,8 +25,11 @@ class GovernanceAgent(BaseAgent):
     Agent responsible for Governance and Ringi-sho generation.
     """
 
-    def __init__(self, file_service: FileService | None = None) -> None:
+    def __init__(
+        self, file_service: FileService | None = None, llm: LLMClient | None = None
+    ) -> None:
         self.file_service = file_service or FileService()
+        self.llm = llm or get_llm()
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
@@ -166,14 +170,12 @@ class GovernanceAgent(BaseAgent):
             ValidationError: If schema validation fails.
         """
         settings = get_settings()
-        llm = get_llm()
 
         content = ""
         max_bytes = settings.governance.max_llm_response_size
 
         # Memory Safety: Stream and check incremental size
-        # Note: llm.stream() returns an iterator of chunks (AIMessageChunk)
-        for chunk in llm.stream(prompt):
+        for chunk in self.llm.stream(prompt):
             chunk_content = str(chunk.content)
             content += chunk_content
             if len(content.encode("utf-8")) > max_bytes:

@@ -26,7 +26,7 @@ class TestGovernanceMemorySafety:
         self, mock_llm_factory: MagicMock, agent: GovernanceAgent
     ) -> None:
         """Verify that _safe_llm_call raises ValueError for oversized responses."""
-        mock_llm = mock_llm_factory.return_value
+        agent.llm = MagicMock()
 
         # Mock streaming response
         # Create chunks that sum up to > limit
@@ -41,7 +41,7 @@ class TestGovernanceMemorySafety:
         # Patch the settings object instance directly
         with patch.object(settings.governance, "max_llm_response_size", 10):
             # mock_llm is the Client instance. We mock the stream method.
-            mock_llm.stream.return_value = iter([chunk1, chunk2])
+            agent.llm.stream.return_value = iter([chunk1, chunk2])
 
             with pytest.raises(ValueError, match=ERR_LLM_RESPONSE_TOO_LARGE):
                 agent._safe_llm_call("prompt", DummyModel)

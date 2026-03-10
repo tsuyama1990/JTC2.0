@@ -1,3 +1,4 @@
+
 """
 UAT for Memory Safety and Scalability (Cycle 3 Check).
 """
@@ -11,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.core.config import get_settings
-from src.data.rag import RAG
+from src.data.rag import LlamaIndexRAG
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
 from tests.conftest import DUMMY_ENV_VARS
@@ -19,7 +20,7 @@ from tests.conftest import DUMMY_ENV_VARS
 
 @pytest.fixture
 def temp_rag_dir(tmp_path: Path) -> str:
-    """Provide a temporary directory for RAG index."""
+    """Provide a temporary directory for LlamaIndexRAG index."""
     d = tmp_path / "rag_test"
     d.mkdir()
     return str(d)
@@ -60,7 +61,7 @@ def test_lazy_iterator_safety_limit() -> None:
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     """
-    Verify RAG prevents loading an index that exceeds the size limit.
+    Verify LlamaIndexRAG prevents loading an index that exceeds the size limit.
     """
     get_settings.cache_clear()
 
@@ -74,13 +75,16 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     # which is outside project root, so _validate_path would fail before size check.
     # We allow the path for this test.
     with (
-        patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
+        patch(
+            "src.data.rag.LlamaIndexRAG._validate_path",
+            side_effect=lambda x: str(Path(x).resolve()),
+        ),
         patch.object(get_settings(), "rag_max_index_size_mb", 1),
         # Updated error message constant in Cycle 06
         pytest.raises(MemoryError, match="Index size limit exceeded"),
     ):
         # Expect MemoryError directly
-        RAG(persist_dir=temp_rag_dir)
+        LlamaIndexRAG(persist_dir=temp_rag_dir)
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
@@ -92,10 +96,13 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
 
     # Patch _validate_path
     with (
-        patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
+        patch(
+            "src.data.rag.LlamaIndexRAG._validate_path",
+            side_effect=lambda x: str(Path(x).resolve()),
+        ),
         patch.object(get_settings(), "rag_chunk_size", 10),
     ):
-        rag = RAG(persist_dir=temp_rag_dir)
+        rag = LlamaIndexRAG(persist_dir=temp_rag_dir)
         # Mock index to verify insertion calls
         rag.index = MagicMock()
 
