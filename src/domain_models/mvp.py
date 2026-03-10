@@ -23,6 +23,7 @@ from src.core.constants import (
 # Pre-compiled regex pattern at module level
 # Allow alphanumeric only, length 1-50
 # Deny special chars often used in injection: < > ; & ' "
+# Use parameterized queries for database operations to prevent SQL injection.
 COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9]{1,50}$")
 
 
@@ -170,6 +171,15 @@ class MVP(BaseModel):
         default=None,
         description="URL of the deployed MVP on v0.dev",
     )
+
+    @field_validator("v0_url")
+    @classmethod
+    def validate_v0_url(cls, v: AnyHttpUrl | None) -> AnyHttpUrl | None:
+        """Ensure the URL belongs to the allowed v0.dev domain."""
+        if v is not None and v.host not in ("v0.dev", "api.v0.dev"):
+            msg = f"Invalid URL domain: {v.host}. Only v0.dev is allowed."
+            raise ValueError(msg)
+        return v
     deployment_status: DeploymentStatus = Field(
         default=DeploymentStatus.PENDING,
         description="Status of the MVP deployment (e.g., pending, deployed, failed)",
@@ -200,7 +210,7 @@ class MVPSpec(BaseModel):
     v0_prompt: str | None = Field(
         default=None,
         description="The prompt used to generate the UI via v0.dev",
-        max_length=10000,
+        max_length=5000,
     )
     components: list[str] = Field(
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
@@ -224,8 +234,12 @@ class MVPSpec(BaseModel):
     @field_validator("v0_prompt")
     @classmethod
     def validate_v0_prompt(cls, v: str | None) -> str | None:
-        """Ensure v0_prompt is non-empty if provided."""
-        if v is not None and not v.strip():
-            msg = "v0_prompt must be a non-empty string if provided."
-            raise ValueError(msg)
+        """Ensure v0_prompt is non-empty if provided and sanitize it."""
+        if v is not None:
+            v = v.strip()
+            if not v:
+                msg = "v0_prompt must be a non-empty string if provided."
+                raise ValueError(msg)
+            # Basic sanitization to remove script tags
+            v = re.sub(r"<script.*?>.*?</script>", "", v, flags=re.IGNORECASE | re.DOTALL)
         return v

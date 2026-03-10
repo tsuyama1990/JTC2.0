@@ -6,9 +6,8 @@ the success of the startup idea, including AARRR (Pirate Metrics) and
 detailed simulation scores (Planning, Communication, etc.).
 """
 
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import DESC_METRICS_AARRR, DESC_METRICS_CUSTOM
@@ -102,11 +101,15 @@ class Metrics(BaseModel):
         default_factory=DetailedMetrics, description="Detailed simulation metrics"
     )
     financials: Financials = Field(default_factory=Financials, description="Financial projections")
-    custom_metrics: dict[str, float] = Field(default_factory=dict, description=DESC_METRICS_CUSTOM)
+    custom_metrics: dict[str, StrictFloat | StrictInt] = Field(
+        default_factory=dict, description=DESC_METRICS_CUSTOM
+    )
 
     @field_validator("custom_metrics")
     @classmethod
-    def validate_custom_metrics(cls, v: dict[str, Any]) -> dict[str, float]:
+    def validate_custom_metrics(
+        cls, v: dict[str, StrictFloat | StrictInt]
+    ) -> dict[str, StrictFloat | StrictInt]:
         """Validate custom metrics keys, values, and limit."""
         settings = get_settings()
 
@@ -117,15 +120,11 @@ class Metrics(BaseModel):
             raise ValueError(msg)
 
         import re
+
         for key, value in v.items():
             if not key.isidentifier() or not re.match(r"^[a-zA-Z0-9_]+$", key):
                 msg = settings.errors.invalid_metric_key.format(key=key)
                 raise ValueError(msg)
-
-            # Explicit type check for values (mypy won't catch runtime dict values if Any)
-            if not isinstance(value, (int, float)):
-                msg = f"Metric value for {key} must be numeric."
-                raise TypeError(msg)
 
             # Value range validation
             if value < settings.validation.min_metric_value:

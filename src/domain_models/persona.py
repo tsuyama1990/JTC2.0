@@ -158,9 +158,21 @@ class Persona(BaseModel):
     @field_validator("interview_insights")
     @classmethod
     def validate_insights_content(cls, v: list[str]) -> list[str]:
-        """Validate content of interview insights."""
-        for insight in v:
-            if len(insight.strip()) < 5:
-                msg = f"Insight '{insight}' is too short."
+        """Validate and sanitize content of interview insights."""
+        import re
+
+        sanitized_insights = []
+        for raw_insight in v:
+            insight_clean = raw_insight.strip()
+            if len(insight_clean) < 5:
+                msg = f"Insight '{insight_clean}' is too short."
                 raise ValueError(msg)
-        return v
+            if len(insight_clean) > 500:
+                msg = "Insight is too long."
+                raise ValueError(msg)
+
+            # Basic sanitization to prevent script injection
+            insight_clean = re.sub(r"<script.*?>.*?</script>", "", insight_clean, flags=re.IGNORECASE | re.DOTALL)
+            sanitized_insights.append(insight_clean)
+
+        return sanitized_insights

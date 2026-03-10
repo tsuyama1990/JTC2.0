@@ -83,15 +83,33 @@ class GlobalState(BaseModel):
     @field_validator("transcripts")
     @classmethod
     def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
-        """Ensure transcripts are unique by source."""
-        # Simple list validation logic, keeping it here for field proximity or move to validator?
-        # The audit asked to "Extract complex validation logic".
-        # This is relatively simple, but let's be strict.
-        sources = [t.source for t in v]
-        if len(sources) != len(set(sources)):
-            msg = "Duplicate transcript sources found."
-            raise ValueError(msg)
-        return v
+        """Ensure transcripts are unique by source and sanitized."""
+        import re
+
+        sources = []
+        sanitized_transcripts = []
+        for t in v:
+            if t.source in sources:
+                msg = "Duplicate transcript sources found."
+                raise ValueError(msg)
+            sources.append(t.source)
+
+            # Content validation and sanitization
+            content = t.content.strip()
+            if not content:
+                msg = f"Transcript '{t.source}' content cannot be empty."
+                raise ValueError(msg)
+
+            # Limit transcript size
+            if len(content) > 50000:
+                msg = f"Transcript '{t.source}' exceeds maximum length of 50000 characters."
+                raise ValueError(msg)
+
+            # Basic sanitization
+            t.content = re.sub(r"<script.*?>.*?</script>", "", content, flags=re.IGNORECASE | re.DOTALL)
+            sanitized_transcripts.append(t)
+
+        return sanitized_transcripts
 
     @field_validator("agent_states")
     @classmethod

@@ -39,7 +39,11 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
         role_str = step["role"]
         desc = step["description"]
 
-        # Ensure role is a valid Role enum member
+        # Ensure role is a valid Role enum member using strict whitelist
+        if role_str not in {r.value for r in Role}:
+            logger.error(f"Role '{role_str}' is not in allowed roles whitelist. Skipping.")
+            continue
+
         try:
             role = Role(role_str)
         except ValueError:

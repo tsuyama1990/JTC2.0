@@ -59,7 +59,17 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
 @safe_node("Error during transcript ingestion")
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
-    rag = RAG(persist_dir=str(state.rag_index_path))
+    import tempfile
+    from pathlib import Path
+
+    resolved_path = Path(state.rag_index_path).resolve()
+    base_dir = Path.cwd().resolve()
+    tmp_dir = Path(tempfile.gettempdir()).resolve()
+    if not resolved_path.is_relative_to(base_dir) and not resolved_path.is_relative_to(tmp_dir):
+        msg = f"Invalid RAG path: {resolved_path}. Must be relative to {base_dir}"
+        raise ValueError(msg)
+
+    rag = RAG(persist_dir=str(resolved_path))
 
     # Process transcripts in chunks to manage memory
     chunk_size = 10

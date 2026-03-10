@@ -46,8 +46,18 @@ class AgentFactory:
             llm = get_llm()
             settings = get_settings()
             raw_path = state.rag_index_path if state else settings.rag_persist_dir
-            rag_path = str(Path(raw_path).resolve().absolute())
-            return CPOAgent(llm, app_settings=settings, rag_path=rag_path)
+            resolved_path = Path(raw_path).resolve()
+
+            import tempfile
+
+            # Allow base dir to be current working directory or a specific temp dir.
+            base_dir = Path.cwd().resolve()
+            tmp_dir = Path(tempfile.gettempdir()).resolve()
+            if not resolved_path.is_relative_to(base_dir) and not resolved_path.is_relative_to(tmp_dir):
+                msg = f"Invalid RAG path: {resolved_path}. Must be relative to {base_dir}"
+                raise ValueError(msg)
+
+            return CPOAgent(llm, app_settings=settings, rag_path=str(resolved_path))
 
         return AgentFactory._create_persona_agent(role)
 
