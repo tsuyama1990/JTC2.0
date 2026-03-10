@@ -59,7 +59,7 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
 @safe_node("Error during transcript ingestion")
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
-    rag = RAG(persist_dir=state.rag_index_path)
+    rag = RAG(persist_dir=str(state.rag_index_path))
 
     # Process transcripts in chunks to manage memory
     chunk_size = 10

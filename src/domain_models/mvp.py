@@ -8,7 +8,7 @@ and success criteria, following the 'Lean Startup' methodology.
 import re
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -21,9 +21,9 @@ from src.core.constants import (
 )
 
 # Pre-compiled regex pattern at module level
-# Allow alphanumeric, spaces, hyphens, underscores.
+# Allow alphanumeric, hyphens, underscores.
 # Deny special chars often used in injection: < > ; & ' "
-COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_]+$")
+COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 class AlternativeTool(BaseModel):
@@ -165,8 +165,8 @@ class MVP(BaseModel):
     )
 
     # New fields for v0.dev integration
-    # Changed to HttpUrl for validation
-    v0_url: HttpUrl | None = Field(
+    # Changed to AnyHttpUrl for validation of http/https
+    v0_url: AnyHttpUrl | None = Field(
         default=None,
         description="URL of the deployed MVP on v0.dev",
     )
@@ -200,6 +200,7 @@ class MVPSpec(BaseModel):
     v0_prompt: str | None = Field(
         default=None,
         description="The prompt used to generate the UI via v0.dev",
+        max_length=10000,
     )
     components: list[str] = Field(
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],

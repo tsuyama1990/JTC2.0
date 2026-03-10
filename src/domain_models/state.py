@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -60,8 +61,8 @@ class GlobalState(BaseModel):
     transcripts: list[Transcript] = Field(
         default_factory=list, description="Raw transcripts from PLAUD or interviews"
     )
-    rag_index_path: str = Field(
-        default_factory=lambda: get_settings().rag_persist_dir,
+    rag_index_path: Path = Field(
+        default_factory=lambda: Path(get_settings().rag_persist_dir),
         description="Path to the local vector store",
     )
 

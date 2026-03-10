@@ -14,7 +14,7 @@ class TestMVPSpec:
             core_feature="User Authentication System",
             ui_style="Minimalist",
             v0_prompt="Create a login screen.",
-            components=["Login Form", "Sign Up Button"],
+            components=["LoginForm", "SignUpButton"],
         )
         assert spec.app_name == "Test App"
         assert spec.core_feature == "User Authentication System"

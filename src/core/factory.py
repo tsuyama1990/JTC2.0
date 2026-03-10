@@ -43,7 +43,7 @@ class AgentFactory:
         if role == Role.CPO:
             llm = get_llm()
             settings = get_settings()
-            rag_path = state.rag_index_path if state else settings.rag_persist_dir
+            rag_path = str(state.rag_index_path) if state else settings.rag_persist_dir
             return CPOAgent(llm, app_settings=settings, rag_path=rag_path)
 
         return AgentFactory._get_cached_persona(role)
