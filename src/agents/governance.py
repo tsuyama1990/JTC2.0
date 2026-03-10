@@ -40,9 +40,9 @@ class GovernanceAgent(BaseAgent):
         # 1. Context & Search
         industry = self._get_industry_context(state)
         logger.info(f"Searching benchmarks for: {industry}")
-        search = TavilySearch()
+        search = TavilySearch(settings=settings)
         query = settings.governance.search_query_template.format(industry=industry)
-        search_result = search.safe_search(query)
+        search_result = search.safe_search(query, settings)
 
         # Limit search result size to prevent Context Window overflow
         # Explicit truncation as per audit requirement
@@ -198,6 +198,7 @@ class GovernanceAgent(BaseAgent):
         text = text.strip()
 
         import re
+
         # Try extracting JSON cleanly using non-greedy matching while avoiding catastrophic backtracking.
         # Fallback to the whole string if no code block exists.
         match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
@@ -213,7 +214,9 @@ class GovernanceAgent(BaseAgent):
             # Pydantic core handles dictionary validation, but let's strictly load first
             parsed = json.loads(text)
         except json.JSONDecodeError as e:
-            logger.exception(f"Failed to parse JSON. Error at line {e.lineno}. Snippet: {text[:50]}")
+            logger.exception(
+                f"Failed to parse JSON. Error at line {e.lineno}. Snippet: {text[:50]}"
+            )
             msg = "Response does not contain a valid JSON object."
             raise ValueError(msg) from e
         else:

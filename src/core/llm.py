@@ -30,12 +30,11 @@ class HTTPClientManager:
             self.client.close()
 
 
-
-
 class LLMProvider(IOpenAIProvider):
     """
     Concrete implementation providing parameterized access to ChatOpenAI instances.
     """
+
     def __init__(self, settings: Any = None, http_client: httpx.Client | None = None) -> None:
         self.settings = settings or get_settings()
         self.http_client = http_client
@@ -50,7 +49,9 @@ class LLMProvider(IOpenAIProvider):
         ApiKeyValidator.validate_openai(val1)
 
         target_model = model or self.settings.llm_model
-        client_to_use = self.http_client if self.http_client is not None else HTTPClientManager().get_client()
+        client_to_use = (
+            self.http_client if self.http_client is not None else HTTPClientManager().get_client()
+        )
 
         return ChatOpenAI(
             model=target_model,
@@ -59,15 +60,16 @@ class LLMProvider(IOpenAIProvider):
             http_client=client_to_use,
         )
 
+
 class LLMFactory:
     """
     Factory class for creating LLM instances.
     Accepts an abstract IOpenAIProvider to completely decouple ChatOpenAI bindings for mocks.
     """
+
     def __init__(self, provider: IOpenAIProvider | None = None) -> None:
         self.provider = provider or LLMProvider()
 
     def get_llm(self, model: str | None = None) -> ChatOpenAI:
         """Retrieve the LLM instance from the underlying provider."""
         return self.provider.get_llm(model)
-

@@ -108,14 +108,13 @@ class Metrics(BaseModel):
     def validate_custom_metrics(cls, v: dict[str, Any]) -> dict[str, float]:
         """Validate custom metrics keys, values, and limit."""
 
-
         if len(v) > 10:
-            msg = f'Cannot exceed {10} custom metrics'
+            msg = f"Cannot exceed {10} custom metrics"
             raise ValueError(msg)
 
         for key, value in v.items():
             if not key.isidentifier():
-                msg = f'Invalid metric key format: {key}'
+                msg = f"Invalid metric key format: {key}"
                 raise ValueError(msg)
 
             # Explicit type check for values (mypy won't catch runtime dict values if Any)

@@ -69,8 +69,8 @@ def test_mental_model_valid() -> None:
 
 def test_alternative_analysis_valid() -> None:
     tool = AlternativeTool(
-        name="Excel",
-        financial_cost="$10/month",
+        name="Excel Program",
+        financial_cost="$10/month cost",
         time_cost="2 hours per week",
         ux_friction="Manual data entry is prone to error",
     )
@@ -84,54 +84,54 @@ def test_alternative_analysis_valid() -> None:
 
 def test_customer_journey_valid() -> None:
     phase1 = JourneyPhase(
-        phase_name="Awareness",
-        touchpoint="Google Search",
+        phase_name="Awareness phase",
+        touchpoint="Google Search Page",
         customer_action="Searches for solution",
         mental_tower_ref="I don't want to waste time",
         pain_points=["Hard to find good tools"],
         emotion_score=-1,
     )
     phase2 = JourneyPhase(
-        phase_name="Consideration",
-        touchpoint="Website",
+        phase_name="Consideration phase",
+        touchpoint="Company Website",
         customer_action="Reads features",
         mental_tower_ref="I want it to be easy to use",
         pain_points=["Too much text"],
         emotion_score=0,
     )
     phase3 = JourneyPhase(
-        phase_name="Using",
-        touchpoint="App",
+        phase_name="Using the app",
+        touchpoint="Mobile Application",
         customer_action="Creates first schedule",
         mental_tower_ref="I want results fast",
         pain_points=["Onboarding is too long"],
         emotion_score=-3,
     )
 
-    journey = CustomerJourney(phases=[phase1, phase2, phase3], worst_pain_phase="Using")
-    assert journey.worst_pain_phase == "Using"
+    journey = CustomerJourney(phases=[phase1, phase2, phase3], worst_pain_phase="Using the app")
+    assert journey.worst_pain_phase == "Using the app"
 
 
 def test_customer_journey_invalid_worst_pain_phase() -> None:
     phase1 = JourneyPhase(
-        phase_name="Awareness",
-        touchpoint="Google Search",
+        phase_name="Awareness phase",
+        touchpoint="Google Search Page",
         customer_action="Searches for solution",
         mental_tower_ref="I don't want to waste time",
         pain_points=["Hard to find good tools"],
         emotion_score=-1,
     )
     phase2 = JourneyPhase(
-        phase_name="Consideration",
-        touchpoint="Website",
+        phase_name="Consideration phase",
+        touchpoint="Company Website",
         customer_action="Reads features",
         mental_tower_ref="I want it to be easy to use",
         pain_points=["Too much text"],
         emotion_score=0,
     )
     phase3 = JourneyPhase(
-        phase_name="Using",
-        touchpoint="App",
+        phase_name="Using the app",
+        touchpoint="Mobile Application",
         customer_action="Creates first schedule",
         mental_tower_ref="I want results fast",
         pain_points=["Onboarding is too long"],
@@ -147,11 +147,11 @@ def test_customer_journey_invalid_worst_pain_phase() -> None:
 
 def test_customer_journey_invalid_short() -> None:
     phase1 = JourneyPhase(
-        phase_name="Awareness",
-        touchpoint="Google",
-        customer_action="Search",
-        mental_tower_ref="Time",
-        pain_points=["Hard"],
+        phase_name="Awareness phase",
+        touchpoint="Google Search Page",
+        customer_action="Searches the web",
+        mental_tower_ref="Time constraints",
+        pain_points=["Hard to use tools"],
         emotion_score=0,
     )
     with pytest.raises(ValidationError):
@@ -162,12 +162,14 @@ def test_customer_journey_invalid_short() -> None:
 
 
 def test_sitemap_and_story_valid() -> None:
-    route = Route(path="/dashboard", name="Dashboard", purpose="Shows main info", is_protected=True)
+    route = Route(
+        path="/dashboard", name="Dashboard View", purpose="Shows main info", is_protected=True
+    )
     story = UserStory(
-        as_a="Manager",
-        i_want_to="See all schedules",
-        so_that="I can assign tasks",
-        acceptance_criteria=["Must load under 2s"],
+        as_a="Manager User",
+        i_want_to="See all schedules for team",
+        so_that="I can assign tasks to people",
+        acceptance_criteria=["Must load under 2s and show all tasks"],
         target_route="/dashboard",
     )
     sitemap = SitemapAndStory(sitemap=[route], core_story=story)
@@ -176,35 +178,40 @@ def test_sitemap_and_story_valid() -> None:
 
 def test_experiment_plan_valid() -> None:
     metric = MetricTarget(
-        metric_name="Day 7 Retention", target_value="> 40%", measurement_method="Mixpanel"
+        metric_name="Day 7 Retention",
+        target_value="Greater than 40%",
+        measurement_method="Mixpanel Analytics",
     )
     plan = ExperimentPlan(
-        riskiest_assumption="Users will pay for this",
-        experiment_type="Landing Page",
-        acquisition_channel="Facebook Ads",
+        riskiest_assumption="Users will pay for this service",
+        experiment_type="Landing Page Validation",
+        acquisition_channel="Facebook Ads Campaign",
         aarrr_metrics=[metric],
-        pivot_condition="< 5% conversion rate",
+        pivot_condition="Less than 5% conversion rate",
     )
     assert len(plan.aarrr_metrics) == 1
 
 
 def test_agent_prompt_spec_valid() -> None:
     story = UserStory(
-        as_a="Manager",
-        i_want_to="See all schedules",
-        so_that="I can assign tasks",
-        acceptance_criteria=["Must load under 2s"],
+        as_a="Manager User",
+        i_want_to="See all schedules for team",
+        so_that="I can assign tasks to team",
+        acceptance_criteria=["Must load under 2s smoothly"],
         target_route="/dashboard",
     )
     state = StateMachine(
-        success="Grid layout", loading="Skeleton", error="Error banner", empty="Empty state graphic"
+        success="Grid layout view",
+        loading="Skeleton loading",
+        error="Error banner message",
+        empty="Empty state graphic info",
     )
     spec = AgentPromptSpec(
-        sitemap="Home -> Dashboard",
-        routing_and_constraints="Next.js App Router",
+        sitemap="Home -> Dashboard pages map",
+        routing_and_constraints="Next.js App Router rules set",
         core_user_story=story,
         state_machine=state,
-        validation_rules="Zod schema X",
-        mermaid_flowchart="graph TD; A-->B;",
+        validation_rules="Zod schema X required checks",
+        mermaid_flowchart="graph TD; A-->B; flowchart",
     )
-    assert spec.mermaid_flowchart == "graph TD; A-->B;"
+    assert spec.mermaid_flowchart == "graph TD; A-->B; flowchart"

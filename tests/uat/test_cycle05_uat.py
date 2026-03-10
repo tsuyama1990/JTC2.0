@@ -18,7 +18,7 @@ class TestCycle05UAT:
 
         # Setup prerequisite: Sitemap and Story
         story = UserStory(
-            as_a="User",
+            as_a="User Persona Name",
             i_want_to="Action something big enough",
             so_that="I can achieve my goal.",
             acceptance_criteria=["Criterion 1", "Criterion 2"],

@@ -69,9 +69,7 @@ class UserStory(BaseModel):
         for field in ["as_a", "i_want_to", "so_that"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < 10:
-                msg = (
-                    f"{field} must be at least {10} characters"
-                )
+                msg = f"{field} must be at least {10} characters"
                 raise ValueError(msg)
 
         if len(self.acceptance_criteria) < 1:

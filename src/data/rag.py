@@ -15,6 +15,7 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.core.config import Settings, get_settings
 from src.core.constants import (
     ERR_CIRCUIT_OPEN,
     ERR_PATH_TRAVERSAL,
@@ -40,12 +41,15 @@ class FileRepository(IFileRepository):
                 return 0.0
             max_mtime = base_path.stat().st_mtime
             import contextlib
+
             for root, _dirs, files in os.walk(str(base_path), followlinks=False):
                 for name in files:
                     file_path = Path(root) / name
                     if not file_path.is_symlink():
                         with contextlib.suppress(OSError):
-                            max_mtime = max(max_mtime, file_path.stat(follow_symlinks=False).st_mtime)
+                            max_mtime = max(
+                                max_mtime, file_path.stat(follow_symlinks=False).st_mtime
+                            )
         except OSError:
             return 0.0
         else:
@@ -67,7 +71,7 @@ class FileRepository(IFileRepository):
         from src.core.utils import validate_safe_path
 
         try:
-            base_path = validate_safe_path(path, ['data', 'vector_store', 'tests'])
+            base_path = validate_safe_path(path, ["data", "vector_store", "tests"])
         except ConfigurationError as e:
             if str(e) == ERR_PATH_TRAVERSAL or "Path traversal detected" in str(e):
                 logger.exception(ERR_PATH_TRAVERSAL)
@@ -99,7 +103,9 @@ class FileRepository(IFileRepository):
                     continue
 
                 if file_count > max_files:
-                    logger.warning(f"Scan file limit ({max_files}) reached. Returning partial size.")
+                    logger.warning(
+                        f"Scan file limit ({max_files}) reached. Returning partial size."
+                    )
                     return total_size
 
         return total_size
@@ -147,8 +153,6 @@ class IngestionRequest(BaseModel):
         return v
 
 
-
-
 class RAG:
     """
     Retrieval-Augmented Generation (RAG) engine using LlamaIndex.
@@ -159,10 +163,12 @@ class RAG:
         persist_dir: str | None = None,
         repository: IFileRepository | None = None,
         llm: Any | None = None,
-        embed_model: Any | None = None
+        embed_model: Any | None = None,
+        settings: Settings | None = None,
     ) -> None:
-        if not hasattr(self, 'settings') or not self.settings:
-            msg = 'Settings must be provided'
+        self.settings = settings or get_settings()
+        if not self.settings:
+            msg = "Settings must be provided"
             raise ValueError(msg)
         self.repository = repository or FileRepository()
         self.llm = llm
@@ -238,6 +244,7 @@ class RAG:
 
             # NOTE: We allow the global system temp directory via `is_relative_to` if the environment requires it (like pytest tmpdir).
             import tempfile
+
             allowed_roots = [cwd, Path(tempfile.gettempdir()).resolve(strict=True)]
 
             if not any(path.is_relative_to(root) for root in allowed_roots):

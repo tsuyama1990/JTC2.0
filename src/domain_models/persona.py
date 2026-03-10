@@ -95,7 +95,6 @@ class Persona(BaseModel):
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
 
-
         # List field validation
         min_list_len = 1
         max_list_len = 10
@@ -119,6 +118,7 @@ class Persona(BaseModel):
             raise ValueError(msg)
 
         return self
+
     empathy_map: EmpathyMap | None = None
 
     # New fields for fact-based validation
