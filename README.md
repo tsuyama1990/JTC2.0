@@ -6,13 +6,13 @@
 
 **The JTC 2.0 (Remastered Edition)** is a paradigm-shifting multi-agent platform designed to ruthlessly validate new business ideas within the context of Traditional Japanese Companies (JTC). Evolving beyond a simple chatbot or single UI generator, the Remastered Edition acts as an autonomous requirements engineering pipeline. It employs strict "Chain of Thought" reasoning and rigorously typed Pydantic models to eliminate AI hallucinations, transforming raw concepts into comprehensive, universally compatible Markdown specifications (`AgentPromptSpec.md`) and precise Go-To-Market strategies (`EXPERIMENT_PLAN.md`).
 
-## ✨ Key Features
+## ✨ Currently Verified Capabilities
 
--   **Zero-Hallucination Pipeline**: Enforces a mathematically sound progression from Customer Problem Fit (CPF) to Problem Solution Fit (PSF). LLMs are strictly confined to generating predefined Pydantic schemas (e.g., Value Proposition Canvas, Mental Model Diagrams) with `extra="forbid"`, completely eliminating logic leaps.
--   **Universal Output Generation**: Generates an `MVP_PROMPT_SPEC.md` ready to be instantly ingested by any modern AI coding assistant (Cursor, Windsurf, Google Antigravity), avoiding vendor lock-in.
--   **"De-identified" Retro UI & Gamification**: Employs a 16-color Pyxel interface to emotionally detach the user from harsh AI critiques. Features an animated "Approval Stamp" (Hanko) and PDF generation during Human-in-the-Loop (HITL) feedback gates.
--   **Multi-Agent Validation (The 3H Review)**: Subjects your validated wireframes to a grueling critique by Hacker (Tech), Hipster (UX), and Hustler (Business) agents to ensure absolute viability before any code is written.
--   **Real-World Grounding (Secure RAG)**: Validates assumptions against actual customer interview transcripts via an integrated LlamaIndex vector store.
+The system currently supports the core Ideation and foundational architecture phase:
+-   **Autonomous Market Research**: Utilizes the Tavily Search API to scan macro-environments and pull real-world emerging business trends.
+-   **Structured Ideation Engine**: Generates 10 distinct, validated "Good Crazy" business ideas modeled as strict `LeanCanvas` objects.
+-   **Human-In-The-Loop Selection**: Pauses the generative pipeline to allow users to select their preferred "Plan A" idea before proceeding.
+-   **Strict Schema Validation**: Completely eliminates AI hallucinations during idea generation by strictly enforcing Pydantic `extra="forbid"` models for all logic.
 
 ## 🏗 Architecture Overview
 
@@ -128,21 +128,21 @@ graph TD
 
 ## 🚀 Usage
 
-**Quick Start via Marimo Tutorials:**
+**Command Line Interactive Execution:**
 
-The easiest way to understand the system is to run the interactive Marimo notebook, which provides a visual, step-by-step walkthrough of the pipeline.
+You can start the main idea validation process using the simple command-line interface.
 
 ```bash
-uv run marimo edit tutorials/UAT_AND_TUTORIAL.py
+uv run main.py
 ```
 
-**Command Line Execution (Legacy/Headless):**
-
-You can also run the underlying simulation engine directly from the command line by providing a target topic.
+You can optionally provide a target topic immediately:
 
 ```bash
 uv run main.py "AI for Agriculture"
 ```
+
+The system will research the topic, output 10 distinct Lean Canvas drafts, and prompt you to pick your selected Plan A.
 
 ## 🔄 Development Workflow
 

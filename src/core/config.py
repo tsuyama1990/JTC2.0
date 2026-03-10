@@ -483,3 +483,8 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Load and cache settings."""
     return Settings()
+
+
+def clear_settings_cache() -> None:
+    """Clear the cached settings instance for testing purposes."""
+    get_settings.cache_clear()

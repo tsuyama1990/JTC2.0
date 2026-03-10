@@ -20,3 +20,10 @@ __pycache__/
 venv/
 env/
 .DS_Store
+
+# Output & Testing artifacts
+.coverage
+RINGI_SHO.md
+outputs/
+MagicMock/
+dev_documents/test_execution_log.txt
