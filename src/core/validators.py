@@ -66,3 +66,17 @@ class ConfigValidators:
             msg = "Tavily API Key is too short."
             raise ValueError(msg)
         return v
+
+    @staticmethod
+    def validate_v0_key(v: SecretStr | None) -> SecretStr | None:
+        """Validate V0.dev API Key format."""
+        if v is None:
+            return None
+        secret = v.get_secret_value()
+        if not secret.startswith("v0-"):
+            msg = "V0 API Key must start with 'v0-'."
+            raise ValueError(msg)
+        if len(secret) < 20:
+            msg = "V0 API Key is too short."
+            raise ValueError(msg)
+        return v

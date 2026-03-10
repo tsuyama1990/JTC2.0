@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from typing import Self
 
@@ -329,11 +330,15 @@ class GovernanceConfig(BaseSettings):
         description="Max bytes for LLM JSON response",
     )
     output_path: str = Field(
-        alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output"
+        alias="RINGI_SHO_PATH",
+        default_factory=lambda: os.getenv("RINGI_SHO_PATH", "RINGI_SHO.md"),
+        description="Path for Ringi-sho output",
     )
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
-        default="average CAC churn ARPU LTV for {industry} startups benchmarks",
+        default_factory=lambda: os.getenv(
+            "GOV_SEARCH_QUERY_TEMPLATE", "average CAC churn ARPU LTV for {industry} startups benchmarks"
+        ),
         description="Template for financial search",
     )
     max_search_result_size: int = Field(
@@ -359,7 +364,7 @@ class Settings(BaseSettings):
     )
     v0_api_url: str = Field(
         alias="V0_API_URL",
-        default="https://api.v0.dev/chat/completions",
+        default_factory=lambda: os.getenv("V0_API_URL", "https://api.v0.dev/chat/completions"),
         description="V0.dev API URL",
     )
 
@@ -387,7 +392,7 @@ class Settings(BaseSettings):
         description="Max index size in MB",
     )
     rag_allowed_paths: list[str] = Field(
-        default_factory=lambda: ["data", "vector_store", "tests"],
+        default_factory=lambda: os.getenv("RAG_ALLOWED_PATHS", "data,vector_store,tests").split(","),
         description="Allowed directories for RAG",
     )
     rag_rate_limit_interval: float = Field(
@@ -440,11 +445,17 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}",
+        default_factory=lambda: os.getenv(
+            "SEARCH_QUERY_TEMPLATE", "emerging business trends and painful problems in {topic}"
+        ),
         description="Template for search queries",
     )
 
-    log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
+    log_level: str = Field(
+        alias="LOG_LEVEL",
+        default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"),
+        description="Logging level",
+    )
     ui_page_size: int = Field(
         alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI"
     )
@@ -472,6 +483,9 @@ class Settings(BaseSettings):
         if not self.tavily_api_key:
             raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
         ConfigValidators.validate_tavily_key(self.tavily_api_key)
+
+        if self.v0_api_key:
+            ConfigValidators.validate_v0_key(self.v0_api_key)
 
         return self
 
