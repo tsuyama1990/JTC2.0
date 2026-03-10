@@ -35,9 +35,7 @@ class StateMachine(BaseModel):
         for field in ["success", "loading", "error", "empty"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < 10:
-                msg = (
-                    f"{field} must be at least {10} characters"
-                )
+                msg = f"{field} must be at least {10} characters"
                 raise ValueError(msg)
         return self
 
@@ -81,8 +79,6 @@ class AgentPromptSpec(BaseModel):
         ]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < 10:
-                msg = (
-                    f"{field} must be at least {10} characters"
-                )
+                msg = f"{field} must be at least {10} characters"
                 raise ValueError(msg)
         return self

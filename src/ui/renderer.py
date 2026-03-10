@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from collections.abc import Callable
+from typing import Any
 
 import pyxel
 
@@ -18,11 +19,12 @@ class ApprovalStampRenderer:
     Displays an 'Approval Stamp' (赤いハンコ) animation in Pyxel.
     """
 
-    def __init__(self, title: str = "Approval Stamp") -> None:
+    def __init__(self, title: str = "Approval Stamp", settings: Any = None) -> None:
         self.headless = os.getenv("HEADLESS_MODE", "false").lower() == "true"
         self.title = title
         self.frame_count = 0
         self.max_frames = 60  # Play animation for ~2 seconds at 30 FPS
+        self.settings = settings
 
     def start(self) -> None:
         if self.headless:

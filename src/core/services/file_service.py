@@ -41,6 +41,7 @@ class ThreadedFileWriter(IFileWriter):
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     try:
                         import fcntl
+
                         # Implement file locking to prevent concurrent writes from stomping each other
                         fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                         locked = True
@@ -54,6 +55,7 @@ class ThreadedFileWriter(IFileWriter):
                     finally:
                         if locked:
                             import fcntl
+
                             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
                 # Atomic replace (POSIX/Windows safe starting Python 3.3)
@@ -77,14 +79,10 @@ class FileService:
     """
 
     def __init__(self, writer: IFileWriter | None = None, settings: Settings | None = None) -> None:
-        if not writer:
-            msg = 'Writer must be provided'
-            raise ValueError(msg)
-        self.writer = writer
-        if not settings:
-            msg = 'Settings must be provided'
-            raise ValueError(msg)
-        self.settings = settings
+        from src.core.config import get_settings
+
+        self.writer = writer or ThreadedFileWriter()
+        self.settings = settings or get_settings()
 
     def _validate_path(self, path: str | Path) -> Path:
         """

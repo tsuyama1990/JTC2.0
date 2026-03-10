@@ -19,12 +19,14 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
+def create_simulation_graph(
+    settings: Any = None, factory: Any = None
+) -> CompiledStateGraph[Any, Any]:
     """
     Create the simulation sub-graph based on configured turn sequence.
     Dynamically builds nodes and edges from Settings.
     """
-    settings = get_settings()
+    settings = settings or get_settings()
 
     # Load sequence from settings.
     # Settings.simulation.turn_sequence is a list of dicts.
@@ -72,12 +74,11 @@ def create_simulation_graph() -> CompiledStateGraph[Any, Any]:
         def _execute_step(
             state: GlobalState, bound_role: Role, bound_desc: str
         ) -> dict[str, object]:
-            from src.core.config import get_settings
             from src.core.llm import LLMFactory
 
             logger.info(bound_desc)
-            factory = AgentFactory(llm=LLMFactory().get_llm(), settings=get_settings())
-            res = factory.get_persona_agent(bound_role).run(state)
+            _factory = factory or AgentFactory(llm=LLMFactory().get_llm(), settings=settings)
+            res = _factory.get_persona_agent(bound_role).run(state)
             return res if isinstance(res, dict) else {}
 
         # We must bind defaults securely using partial to prevent late binding loop closures

@@ -50,7 +50,7 @@ def test_finance_agent_research_logic(mock_llm: MagicMock) -> None:
     res = agent._research_impl("AI")
 
     assert res == "Risks found."
-    mock_search.safe_search.assert_called_with("market risks and costs for AI")
+    mock_search.safe_search.assert_called_with("market risks and costs for AI", agent.settings)
 
 
 def test_cached_research_logic(mock_llm: MagicMock) -> None:
@@ -153,7 +153,7 @@ def test_safe_simulation_run_integration(
     mock_create_sim: MagicMock, mock_state: GlobalState
 ) -> None:
     """Test that safe_simulation_run invokes the subgraph correctly."""
-    from src.core.nodes import safe_simulation_run
+    from src.core.nodes import make_safe_simulation_run_node
 
     # Mock the compiled graph returned by create_simulation_graph
     mock_graph_app = MagicMock()
@@ -162,6 +162,11 @@ def test_safe_simulation_run_integration(
     # Mock the result of invoking the subgraph
     # It should return a dict or object with debate_history
     mock_graph_app.invoke.return_value = {"debate_history": ["msg1", "msg2"]}
+    from src.core.config import Settings
+
+    mock_settings = MagicMock(spec=Settings)
+    mock_factory = MagicMock()
+    safe_simulation_run = make_safe_simulation_run_node(mock_settings, mock_factory)
 
     result = safe_simulation_run(mock_state)
 

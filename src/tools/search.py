@@ -21,14 +21,13 @@ logger = logging.getLogger(__name__)
 class TavilySearch:
     """Wrapper for Tavily Search API with retry logic."""
 
-    def __init__(self, api_key: str | None = None, settings: 'Settings | None' = None) -> None:
+    def __init__(self, api_key: str | None = None, settings: "Settings | None" = None) -> None:
         """
         Initialize Tavily Search client.
 
         Args:
             api_key: Optional API key override.
         """
-
 
         # Prioritize explicit key, then config
         if api_key:
@@ -51,7 +50,7 @@ class TavilySearch:
     def search(
         self,
         query: str,
-        settings: 'Settings',
+        settings: "Settings",
         max_results: int | None = None,
         search_depth: Literal["basic", "advanced"] | None = None,
     ) -> str:
@@ -84,10 +83,10 @@ class TavilySearch:
             for result in results
         )
 
-    def safe_search(self, query: str, settings: 'Settings') -> str:
+    def safe_search(self, query: str, settings: "Settings") -> str:
         """Execute a search safely, catching exceptions."""
         try:
-            return self.search(query)
+            return self.search(query, settings)
         except (MissingAPIKeyError, InvalidAPIKeyError, ValueError):
             logger.exception("Tavily search failed: Invalid Configuration/Auth")
             return ERR_SEARCH_FAILED

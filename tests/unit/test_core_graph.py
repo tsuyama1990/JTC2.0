@@ -64,7 +64,15 @@ def test_create_app_structure() -> None:
     if "governance" not in node_registry.nodes:
         node_registry.register("governance")(lambda state: {"messages": []})
 
-    app = create_app(registry=node_registry)
+    from src.core.config import Settings
+
+    mock_settings = MagicMock(spec=Settings)
+    mock_settings.rag = MagicMock()
+    mock_settings.rag.max_transcripts = 50
+    mock_settings.rag.batch_size = 10
+    mock_settings.rag.scan_depth_limit = 10
+
+    app = create_app(registry=node_registry, settings=mock_settings)
     assert isinstance(app, CompiledStateGraph)
     # detailed graph structure assertions are hard with compiled graph,
     # but we can check if it compiles without error.
@@ -81,13 +89,24 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     )
     mock_state.transcripts = [t1]
 
-    transcript_ingestion_node = make_transcript_ingestion_node()
+    from src.core.config import Settings
+
+    mock_settings = MagicMock(spec=Settings)
+    mock_settings.rag = MagicMock()
+    mock_settings.rag.max_transcripts = 50
+    mock_settings.rag.batch_size = 10
+    mock_settings.rag.scan_depth_limit = 10
+
+    transcript_ingestion_node = make_transcript_ingestion_node(mock_settings)
     result = transcript_ingestion_node(mock_state)
 
     assert result == {}
-    mock_rag_cls.assert_called_with(persist_dir=mock_state.rag_index_path)
-    mock_rag.ingest_transcript.assert_called_once_with(t1)
-    mock_rag.persist_index.assert_called_once()
+    # RAG was patched, its mock should be returned. RAG.__init__ args check:
+    mock_rag_cls.assert_called_with(settings=mock_settings, persist_dir=mock_state.rag_index_path)
+    # The mock instance returned by mock_rag_cls should be checked
+    mock_rag_instance = mock_rag_cls.return_value
+    mock_rag_cls.return_value.ingest_transcript.assert_called_once_with(t1)
+    mock_rag_instance.persist_index.assert_called_once()
 
 
 @patch("src.core.nodes.NemawashiEngine")
@@ -105,7 +124,15 @@ def test_nemawashi_analysis_node(mock_engine_cls: MagicMock, mock_state: GlobalS
     mock_engine.calculate_consensus.return_value = [0.5, 0.5]
     mock_engine.identify_influencers.return_value = ["A"]
 
-    nemawashi_analysis_node = make_nemawashi_analysis_node(mock_engine_cls)
+    from src.core.config import Settings
+
+    mock_settings = MagicMock(spec=Settings)
+    mock_settings.rag = MagicMock()
+    mock_settings.rag.max_transcripts = 50
+    mock_settings.rag.batch_size = 10
+    mock_settings.rag.scan_depth_limit = 10
+
+    nemawashi_analysis_node = make_nemawashi_analysis_node(mock_engine_cls, mock_settings)
     result = nemawashi_analysis_node(mock_state)
 
     assert "influence_network" in result

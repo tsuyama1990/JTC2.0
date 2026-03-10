@@ -34,14 +34,21 @@ def test_global_state_updates_with_remastered_models() -> None:
         gain_creators=["Blocks out deep work time automatically"],
     )
     canvas = ValuePropositionCanvas(
-        customer_profile=profile, value_map=vmap, fit_evaluation="Good fit"
+        customer_profile=profile,
+        value_map=vmap,
+        fit_evaluation="The AI scheduler perfectly fits the requirements",
     )
 
     tool = AlternativeTool(
-        name="Excel", financial_cost="$10", time_cost="2 hours", ux_friction="Manual"
+        name="Excel Program",
+        financial_cost="10 dollars",
+        time_cost="2 hours time",
+        ux_friction="Manual work",
     )
     analysis = AlternativeAnalysis(
-        current_alternatives=[tool], switching_cost="High", ten_x_value="Automated"
+        current_alternatives=[tool],
+        switching_cost="High switching cost",
+        ten_x_value="Automated work",
     )
 
     state.value_proposition = canvas
@@ -55,37 +62,37 @@ def test_global_state_updates_with_remastered_models() -> None:
     diagram = MentalModelDiagram(towers=[tower], feature_alignment="Feature X aligns")
 
     phase1 = JourneyPhase(
-        phase_name="Awareness",
-        touchpoint="Google Search",
-        customer_action="Searches",
-        mental_tower_ref="Time",
-        pain_points=["Hard"],
+        phase_name="Awareness phase",
+        touchpoint="Google Search Page",
+        customer_action="Searches the web",
+        mental_tower_ref="Time requirement",
+        pain_points=["Hard to find"],
         emotion_score=-1,
     )
     phase2 = JourneyPhase(
-        phase_name="Consideration",
-        touchpoint="Website",
-        customer_action="Reads",
-        mental_tower_ref="Time",
-        pain_points=["Hard"],
+        phase_name="Consideration phase",
+        touchpoint="Company Website",
+        customer_action="Reads the page",
+        mental_tower_ref="Time requirement",
+        pain_points=["Hard to find"],
         emotion_score=0,
     )
     phase3 = JourneyPhase(
-        phase_name="Using",
-        touchpoint="App",
-        customer_action="Creates",
-        mental_tower_ref="Time",
-        pain_points=["Hard"],
+        phase_name="Using the app",
+        touchpoint="Mobile Application",
+        customer_action="Creates an account",
+        mental_tower_ref="Time requirement",
+        pain_points=["Hard to find"],
         emotion_score=1,
     )
-    journey = CustomerJourney(phases=[phase1, phase2, phase3], worst_pain_phase="Using")
+    journey = CustomerJourney(phases=[phase1, phase2, phase3], worst_pain_phase="Using the app")
 
-    route = Route(path="/", name="Home", purpose="Landing", is_protected=False)
+    route = Route(path="/", name="Home Page", purpose="Landing on home", is_protected=False)
     story = UserStory(
-        as_a="User",
-        i_want_to="Login",
-        so_that="Use app",
-        acceptance_criteria=["Login button"],
+        as_a="End User Profile",
+        i_want_to="Login to the app",
+        so_that="Use app successfully",
+        acceptance_criteria=["Login button works"],
         target_route="/",
     )
     sitemap = SitemapAndStory(sitemap=[route], core_story=story)
@@ -100,24 +107,31 @@ def test_global_state_updates_with_remastered_models() -> None:
 
     # Phase 5 & 6
     metric = MetricTarget(
-        metric_name="Retention", target_value="> 40%", measurement_method="Mixpanel"
+        metric_name="Retention Metrics",
+        target_value="Greater than 40%",
+        measurement_method="Mixpanel Analytics",
     )
     plan = ExperimentPlan(
-        riskiest_assumption="Will they pay?",
-        experiment_type="Landing Page",
-        acquisition_channel="Ads",
+        riskiest_assumption="Will they pay for this?",
+        experiment_type="Landing Page Validation",
+        acquisition_channel="Facebook Ads",
         aarrr_metrics=[metric],
-        pivot_condition="No signups",
+        pivot_condition="No signups happen",
     )
 
-    state_machine = StateMachine(success="Grid", loading="Skeleton", error="Error", empty="Empty")
+    state_machine = StateMachine(
+        success="Grid view layout",
+        loading="Skeleton layout",
+        error="Error message",
+        empty="Empty state graphic",
+    )
     spec = AgentPromptSpec(
-        sitemap="Home",
-        routing_and_constraints="Next.js",
+        sitemap="Home page route",
+        routing_and_constraints="Next.js router rules",
         core_user_story=story,
         state_machine=state_machine,
-        validation_rules="Zod",
-        mermaid_flowchart="graph TD",
+        validation_rules="Zod validation rules",
+        mermaid_flowchart="graph TD Mermaid Chart",
     )
 
     state.experiment_plan = plan

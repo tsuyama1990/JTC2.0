@@ -40,9 +40,8 @@ class BuilderAgent(BaseAgent):
             context_str += f"Sitemap: {state.sitemap_and_story.model_dump_json()}\n"
         if state.debate_history:
             import json
-            context_str += (
-                f"3H Review History: {json.dumps([msg.model_dump() for msg in state.debate_history])}\n"
-            )
+
+            context_str += f"3H Review History: {json.dumps([msg.model_dump() for msg in state.debate_history])}\n"
 
         prompt = ChatPromptTemplate.from_messages(
             [

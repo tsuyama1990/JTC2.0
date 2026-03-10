@@ -13,7 +13,7 @@ class SearchTool(Protocol):
         """Execute a search query."""
         ...
 
-    def safe_search(self, query: str) -> str:
+    def safe_search(self, query: str, settings: Any = None) -> str:
         """Execute a search query safely."""
         ...
 

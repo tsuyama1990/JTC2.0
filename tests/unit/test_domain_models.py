@@ -91,7 +91,7 @@ def test_global_state_phase_enum() -> None:
         demographics="30, Testland, Test City, 12345",
         goals=["Test"],
         frustrations=["Bugs"],
-        bio="A tester.",
+        bio="A long enough bio for the tester.",
         empathy_map=EmpathyMap(says=["Hi"], thinks=["Hmm"], does=["Test"], feels=["Good"]),
     )
     state = GlobalState(phase=Phase.VERIFICATION, target_persona=persona)

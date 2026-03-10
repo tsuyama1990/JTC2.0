@@ -29,9 +29,7 @@ class MetricTarget(BaseModel):
         for field in ["metric_name", "target_value", "measurement_method"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < 10:
-                msg = (
-                    f"{field} must be at least {10} characters"
-                )
+                msg = f"{field} must be at least {10} characters"
                 raise ValueError(msg)
         return self
 
@@ -71,9 +69,7 @@ class ExperimentPlan(BaseModel):
         ]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < 10:
-                msg = (
-                    f"{field} must be at least {10} characters"
-                )
+                msg = f"{field} must be at least {10} characters"
                 raise ValueError(msg)
 
         if len(self.aarrr_metrics) < 1:

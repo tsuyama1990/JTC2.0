@@ -17,7 +17,9 @@ class ApiKeyValidator:
     """Validates API keys from settings."""
 
     @staticmethod
-    def validate_openai(val: str, prefix: str = "sk-", min_len: int = 20, pattern: str = r"^[A-Za-z0-9_\-\.]+$") -> str:
+    def validate_openai(
+        val: str, prefix: str = "sk-", min_len: int = 20, pattern: str = r"^[A-Za-z0-9_\-\.]+$"
+    ) -> str:
         if not val.startswith(prefix):
             msg = f"OpenAI API Key must start with '{prefix}'"
             raise ValueError(msg)
@@ -26,13 +28,16 @@ class ApiKeyValidator:
             raise ValueError(msg)
 
         import re
+
         if not re.match(pattern, val):
             msg = "OpenAI API Key contains invalid characters."
             raise ValueError(msg)
         return val
 
     @staticmethod
-    def validate_tavily(val: str, prefix: str = "tvly-", min_len: int = 20, pattern: str = r"^[A-Za-z0-9_\-\.]+$") -> str:
+    def validate_tavily(
+        val: str, prefix: str = "tvly-", min_len: int = 20, pattern: str = r"^[A-Za-z0-9_\-\.]+$"
+    ) -> str:
         if not val.startswith(prefix):
             msg = f"Tavily API Key must start with '{prefix}'"
             raise ValueError(msg)
@@ -41,6 +46,7 @@ class ApiKeyValidator:
             raise ValueError(msg)
 
         import re
+
         if not re.match(pattern, val):
             msg = "Tavily API Key contains invalid characters."
             raise ValueError(msg)
@@ -64,7 +70,7 @@ class ConfigValidators:
         val = v.get_secret_value()
         if val not in {
             "dummy-tavily-key-long-enough-for-validation",
-            "sk-dummy-test-key-long-enough-for-validation"
+            "sk-dummy-test-key-long-enough-for-validation",
         }:
             ApiKeyValidator.validate_tavily(val)
         return v
