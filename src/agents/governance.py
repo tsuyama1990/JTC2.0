@@ -24,8 +24,8 @@ class GovernanceAgent(BaseAgent):
     Agent responsible for Governance and Ringi-sho generation.
     """
 
-    def __init__(self, file_service: FileService | None = None) -> None:
-        self.file_service = file_service or FileService()
+    def __init__(self, file_service: FileService) -> None:
+        self.file_service = file_service
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """

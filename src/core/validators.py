@@ -13,44 +13,47 @@ if TYPE_CHECKING:
     pass
 
 
+class ErrorMessageFormatter:
+    """Formats validation error messages."""
+
+    @staticmethod
+    def format_prefix_error(key_name: str, prefix: str) -> str:
+        return f"{key_name} API Key must start with '{prefix}'"
+
+    @staticmethod
+    def format_length_error(key_name: str, min_len: int) -> str:
+        return f"{key_name} API Key must be at least {min_len} characters long."
+
+    @staticmethod
+    def format_pattern_error(key_name: str) -> str:
+        return f"{key_name} API Key contains invalid characters."
+
 class ApiKeyValidator:
-    """Validates API keys from settings."""
+    """Validates API keys from settings using injected logic."""
 
     @staticmethod
-    def validate_openai(
-        val: str, prefix: str = "sk-", min_len: int = 20, pattern: str = r"^[A-Za-z0-9_\-\.]+$"
+    def validate_key(
+        val: str, key_name: str, prefix: str, min_len: int, pattern: str = r"^[A-Za-z0-9_\-\.]+$", formatter: type[ErrorMessageFormatter] = ErrorMessageFormatter
     ) -> str:
         if not val.startswith(prefix):
-            msg = f"OpenAI API Key must start with '{prefix}'"
-            raise ValueError(msg)
+            raise ValueError(formatter.format_prefix_error(key_name, prefix))
+
         if len(val) < min_len:
-            msg = f"OpenAI API Key must be at least {min_len} characters long."
-            raise ValueError(msg)
+            raise ValueError(formatter.format_length_error(key_name, min_len))
 
         import re
-
         if not re.match(pattern, val):
-            msg = "OpenAI API Key contains invalid characters."
-            raise ValueError(msg)
+            raise ValueError(formatter.format_pattern_error(key_name))
+
         return val
 
     @staticmethod
-    def validate_tavily(
-        val: str, prefix: str = "tvly-", min_len: int = 20, pattern: str = r"^[A-Za-z0-9_\-\.]+$"
-    ) -> str:
-        if not val.startswith(prefix):
-            msg = f"Tavily API Key must start with '{prefix}'"
-            raise ValueError(msg)
-        if len(val) < min_len:
-            msg = f"Tavily API Key must be at least {min_len} characters long."
-            raise ValueError(msg)
+    def validate_openai(val: str) -> str:
+        return ApiKeyValidator.validate_key(val, "OpenAI", "sk-", 20)
 
-        import re
-
-        if not re.match(pattern, val):
-            msg = "Tavily API Key contains invalid characters."
-            raise ValueError(msg)
-        return val
+    @staticmethod
+    def validate_tavily(val: str) -> str:
+        return ApiKeyValidator.validate_key(val, "Tavily", "tvly-", 20)
 
 
 class ConfigValidators:

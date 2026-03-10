@@ -64,9 +64,13 @@ class TestCycle06UAT:
         mock_arpu = 20.0
         mock_churn = 0.05
 
-        # We need to mock SettingsFactory().build() to avoid test conflicts since we no longer cache the global
-        with patch("src.agents.governance.SettingsFactory().build()", return_value=settings):
-            agent = GovernanceAgent()
+        # We need to mock SettingsFactory to avoid test conflicts since we no longer cache the global
+        with patch("src.agents.governance.SettingsFactory", return_value=MagicMock(build=MagicMock(return_value=settings))):
+            from src.core.services.file_service import FileService, ThreadedFileWriter
+            agent = GovernanceAgent(file_service=FileService(settings=settings, writer=ThreadedFileWriter()))
+        with patch("src.agents.governance.SettingsFactory", return_value=MagicMock(build=MagicMock(return_value=settings))):
+            from src.core.services.file_service import FileService, ThreadedFileWriter
+            agent = GovernanceAgent(file_service=FileService(settings=settings, writer=ThreadedFileWriter()))
 
             # Calculate expected derived values based on logic in src/core/metrics.py
             expected_ltv = mock_arpu / mock_churn  # 400.0
@@ -131,8 +135,9 @@ class TestCycle06UAT:
         mock_arpu = 100.0
         mock_churn = 0.02
 
-        with patch("src.agents.governance.SettingsFactory().build()", return_value=settings):
-            agent = GovernanceAgent()
+        from src.core.services.file_service import FileService
+        with patch("src.agents.governance.SettingsFactory.build", return_value=settings):
+            agent = GovernanceAgent(file_service=FileService(settings=settings, writer=None))
 
             # Expected
             expected_ltv = mock_arpu / mock_churn  # 5000.0

@@ -18,74 +18,100 @@ from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
 
 
+from collections.abc import Callable
+from typing import Any
+
 class AgentFactory:
-    """Factory for creating agents with dependencies injected."""
+    """Factory for creating agents using a dynamic registry to satisfy the Open/Closed Principle."""
 
     def __init__(self, llm: ChatOpenAI, settings: Settings) -> None:
         self.llm = llm
         self.settings = settings
+        self._registry: dict[str, Callable[..., Any]] = {}
+        self._register_defaults()
 
+    def register(self, name: str, creator: Callable[..., Any]) -> None:
+        """Register a new agent creator function."""
+        self._registry[name] = creator
+
+    def get(self, name: str, **kwargs: Any) -> Any:
+        """Instantiate an agent by name."""
+        if name not in self._registry:
+            msg = f"Unknown agent requested in AgentFactory: {name}"
+            raise ValueError(msg)
+        return self._registry[name](**kwargs)
+
+    def _register_defaults(self) -> None:
+        """Register the default agent set."""
+        from src.core.services.file_service import FileService, ThreadedFileWriter
+
+        self.register("ideator", lambda: IdeatorAgent(self.llm))
+        self.register("builder", lambda: BuilderAgent(self.llm))
+
+        def _create_governance() -> GovernanceAgent:
+            # Requires explicit IFileWriter and Settings per our previous refactor
+            return GovernanceAgent(file_service=FileService(settings=self.settings, writer=ThreadedFileWriter()))
+        self.register("governance", _create_governance)
+
+        self.register("remastered", lambda: RemasteredAgent(self.llm))
+        self.register("output_generation", lambda: OutputGenerationAgent(self.llm))
+        self.register("virtual_customer", lambda: VirtualCustomerAgent(self.llm))
+        self.register("hacker", lambda: HackerAgent(self.llm))
+        self.register("hipster", lambda: HipsterAgent(self.llm))
+        self.register("hustler", lambda: HustlerAgent(self.llm))
+
+        def _create_cpo(state: GlobalState | None = None) -> CPOAgent:
+            rag_path = state.rag_index_path if state else self.settings.rag.persist_dir
+            return CPOAgent(self.llm, app_settings=self.settings, rag_path=rag_path)
+
+        self.register("cpo", _create_cpo)
+        self.register("new_employee", lambda: NewEmployeeAgent(self.llm, app_settings=self.settings))
+        self.register("finance", lambda: FinanceAgent(self.llm, app_settings=self.settings))
+        self.register("sales", lambda: SalesAgent(self.llm, app_settings=self.settings))
+
+    # Backward compatibility wrappers wrapping the dynamic registry
     def get_ideator_agent(self) -> IdeatorAgent:
-        return IdeatorAgent(self.llm)
+        return self.get("ideator")
 
     def get_builder_agent(self) -> BuilderAgent:
-        return BuilderAgent(self.llm)
+        return self.get("builder")
 
     def get_governance_agent(self) -> GovernanceAgent:
-        """Create a new Governance Agent."""
-        return GovernanceAgent()
+        return self.get("governance")
 
     def get_remastered_agent(self) -> RemasteredAgent:
-        """Create a Remastered workflow agent."""
-        return RemasteredAgent(self.llm)
+        return self.get("remastered")
 
     def get_output_generation_agent(self) -> OutputGenerationAgent:
-        """Create an Output Generation workflow agent."""
-        return OutputGenerationAgent(self.llm)
+        return self.get("output_generation")
 
     def get_virtual_customer_agent(self) -> VirtualCustomerAgent:
-        """Create a Virtual Customer Agent."""
-        return VirtualCustomerAgent(self.llm)
+        return self.get("virtual_customer")
 
     def get_hacker_agent(self) -> HackerAgent:
-        """Create a Hacker Agent."""
-        return HackerAgent(self.llm)
+        return self.get("hacker")
 
     def get_hipster_agent(self) -> HipsterAgent:
-        """Create a Hipster Agent."""
-        return HipsterAgent(self.llm)
+        return self.get("hipster")
 
     def get_hustler_agent(self) -> HustlerAgent:
-        """Create a Hustler Agent."""
-        return HustlerAgent(self.llm)
+        return self.get("hustler")
 
     def get_cpo_agent(self, state: GlobalState | None = None) -> CPOAgent:
-        """Create a CPO Agent."""
-        rag_path = state.rag_index_path if state else self.settings.rag.persist_dir
-        return CPOAgent(self.llm, app_settings=self.settings, rag_path=rag_path)
+        return self.get("cpo", state=state)
 
     def get_new_employee_agent(self) -> NewEmployeeAgent:
-        """Create a New Employee Agent."""
-        return NewEmployeeAgent(self.llm, app_settings=self.settings)
+        return self.get("new_employee")
 
     def get_finance_agent(self) -> FinanceAgent:
-        """Create a Finance Agent."""
-        return FinanceAgent(self.llm, app_settings=self.settings)
+        return self.get("finance")
 
     def get_sales_agent(self) -> SalesAgent:
-        """Create a Sales Agent."""
-        return SalesAgent(self.llm, app_settings=self.settings)
+        return self.get("sales")
 
     def get_persona_agent(
         self, role: Role, state: GlobalState | None = None
     ) -> CPOAgent | NewEmployeeAgent | FinanceAgent | SalesAgent:
-        """
-        Get a persona agent instance. Maps role to specific factory method.
-
-        Args:
-            role: The role to create.
-            state: GlobalState, required for CPOAgent to get rag_index_path.
-        """
         match role:
             case Role.CPO:
                 return self.get_cpo_agent(state)

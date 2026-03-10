@@ -1,7 +1,7 @@
 import logging
 from typing import cast
 
-from src.core.config import NemawashiConfig, SettingsFactory
+from src.core.config import NemawashiConfig
 from src.core.exceptions import ValidationError
 from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
 
@@ -13,8 +13,8 @@ class NomikaiSimulator:
     Simulates 'Nomikai' events (informal gatherings) to influence opinion dynamics.
     """
 
-    def __init__(self, settings: NemawashiConfig | None = None) -> None:
-        self.settings = settings or SettingsFactory().build().nemawashi
+    def __init__(self, settings: NemawashiConfig) -> None:
+        self.settings = settings
 
     def run_nomikai(self, network: InfluenceNetwork, target_name: str) -> InfluenceNetwork:
         """

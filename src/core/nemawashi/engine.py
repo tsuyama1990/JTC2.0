@@ -1,4 +1,4 @@
-from src.core.config import NemawashiConfig, SettingsFactory
+from src.core.config import NemawashiConfig
 from src.core.nemawashi.analytics import InfluenceAnalyzer
 from src.core.nemawashi.consensus import ConsensusEngine
 from src.core.nemawashi.nomikai import NomikaiSimulator
@@ -13,15 +13,15 @@ class NemawashiEngine:
 
     def __init__(
         self,
-        consensus: ConsensusEngine | None = None,
-        analytics: InfluenceAnalyzer | None = None,
-        simulator: NomikaiSimulator | None = None,
-        settings: NemawashiConfig | None = None,
+        consensus: ConsensusEngine,
+        analytics: InfluenceAnalyzer,
+        simulator: NomikaiSimulator,
+        settings: NemawashiConfig,
     ) -> None:
-        self.settings = settings or SettingsFactory().build().nemawashi
-        self.consensus = consensus or ConsensusEngine(self.settings)
-        self.analytics = analytics or InfluenceAnalyzer()
-        self.simulator = simulator or NomikaiSimulator(self.settings)
+        self.settings = settings
+        self.consensus = consensus
+        self.analytics = analytics
+        self.simulator = simulator
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """Run the DeGroot model to calculate final opinion distribution."""

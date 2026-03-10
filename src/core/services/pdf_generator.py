@@ -15,17 +15,20 @@ class PDFGenerator:
     """Service to generate PDF versions of canvases."""
 
     @staticmethod
-    def _write_content_to_pdf(pdf: FPDF, data: dict[str, Any]) -> None:
-        lines = DataRenderer.render_to_strings(data)
+    def _write_content_to_pdf(pdf: FPDF, data: dict[str, Any], settings: Any) -> None:
+        from src.core.renderers.data_renderer import DataRenderer
+        renderer = DataRenderer()
+        lines = renderer.render_to_strings(data=data)
         for line in lines:
             pdf.multi_cell(w=190, h=10, text=line)
 
     @staticmethod
-    def generate_canvas_pdf(model: BaseModel, filename: str) -> str | None:
+    def generate_canvas_pdf(model: BaseModel, filename: str, settings: Any = None) -> str | None:
         """
         Generates a PDF representation of a given Pydantic model.
         """
-        settings = SettingsFactory().build()
+        if settings is None:
+            settings = SettingsFactory().build()
 
         import re
 
@@ -55,10 +58,10 @@ class PDFGenerator:
         try:
             pdf = FPDF()
             pdf.add_page()
-            pdf.set_font("Helvetica", size=12)
+            pdf.set_font(settings.pdf_font, size=settings.pdf_font_size)
 
             # Title
-            pdf.set_font("Helvetica", style="B", size=16)
+            pdf.set_font(settings.pdf_font, style="B", size=settings.pdf_font_size + 4)
             pdf.cell(
                 w=200,
                 h=10,
@@ -70,9 +73,9 @@ class PDFGenerator:
             pdf.ln(10)
 
             # Content mapping
-            pdf.set_font("Helvetica", size=12)
+            pdf.set_font(settings.pdf_font, size=settings.pdf_font_size)
 
-            PDFGenerator._write_content_to_pdf(pdf, model.model_dump())
+            PDFGenerator._write_content_to_pdf(pdf, model.model_dump(), settings=settings)
 
             pdf.output(str(file_path))
             logger.info(f"Generated PDF for {model.__class__.__name__} at {file_path}")

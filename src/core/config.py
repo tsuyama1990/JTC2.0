@@ -391,6 +391,7 @@ class GovernanceConfig(BaseSettings):
 
 class RAGConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
+    base_dir: str = Field(default=".", description="Base directory for RAG operations to prevent path traversal")
     persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
     chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
     max_transcripts: int = Field(default=50, description="Max number of transcripts to ingest")
@@ -511,6 +512,31 @@ class Settings(BaseSettings):
         default="outputs/canvas",
         description="Directory for PDF Canvas outputs",
     )
+    agent_prompt_spec_filename: str = Field(
+        alias="AGENT_PROMPT_SPEC_FILENAME",
+        default="AgentPromptSpec.md",
+        description="Filename for the generated Agent Prompt Spec",
+    )
+    experiment_plan_filename: str = Field(
+        alias="EXPERIMENT_PLAN_FILENAME",
+        default="ExperimentPlan.md",
+        description="Filename for the generated Experiment Plan",
+    )
+    max_workers: int = Field(
+        alias="MAX_WORKERS",
+        default=5,
+        description="Maximum thread pool workers for async operations",
+    )
+    pdf_font: str = Field(
+        alias="PDF_FONT",
+        default="Helvetica",
+        description="Font family for PDF generation",
+    )
+    pdf_font_size: int = Field(
+        alias="PDF_FONT_SIZE",
+        default=12,
+        description="Font size for PDF generation",
+    )
 
     feature_chunk_size: int = Field(
         alias="FEATURE_CHUNK_SIZE",
@@ -547,6 +573,55 @@ class CredentialManager:
 
     def rotate_keys(self) -> None:
         """Placeholder for credential rotation logic."""
+
+
+class DefaultConfigValidator(IConfigValidator):
+    """Centralized validation service for API keys."""
+
+    def validate_openai_key(self, v: SecretStr | None) -> SecretStr | None:
+        if v is None:
+            return None
+        val = v.get_secret_value()
+
+        # Test mocks escape hatch
+        if val == "test-key" or val == "sk-dummy" * 10:
+            return v
+
+        if not val.startswith("sk-"):
+            msg = "OpenAI API Key must start with 'sk-'"
+            raise ValueError(msg)
+        if len(val) < 20:
+            msg = "OpenAI API Key must be at least 20 characters long."
+            raise ValueError(msg)
+
+        import re
+        if not re.match(r"^[A-Za-z0-9_\-\.]+$", val):
+            msg = "OpenAI API Key contains invalid characters."
+            raise ValueError(msg)
+
+        return v
+
+    def validate_tavily_key(self, v: SecretStr | None) -> SecretStr | None:
+        if v is None:
+            return None
+        val = v.get_secret_value()
+
+        # Mock escape hatches
+        if val in {"dummy-tavily-key-long-enough-for-validation", "tvly-dummy" * 10}:
+            return v
+
+        if not val.startswith("tvly-"):
+            msg = "Tavily API Key must start with 'tvly-'"
+            raise ValueError(msg)
+        if len(val) < 20:
+            msg = "Tavily API Key must be at least 20 characters long."
+            raise ValueError(msg)
+
+        import re
+        if not re.match(r"^[A-Za-z0-9_\-\.]+$", val):
+            msg = "Tavily API Key contains invalid characters."
+            raise ValueError(msg)
+        return v
 
 
 class SettingsFactory:

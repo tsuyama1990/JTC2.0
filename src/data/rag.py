@@ -209,39 +209,14 @@ class RAG:
             raise ConfigurationError(msg)
 
         try:
-            # Simplify path validation to use a single base directory check against CWD
-            # to provide straightforward containment without edge-case complex whitelists
-            cwd = Path.cwd().resolve(strict=True)
+            base_dir = Path(self.settings.rag.base_dir).resolve(strict=True)
+            target_path = Path(path_str).resolve(strict=True)
 
-            target_path = Path(path_str)
-
-            # Explicit symlink check first before attempting resolution
-            if target_path.exists():
-                if target_path.is_symlink():
-                    msg = "Symlinks not allowed in persist_dir."
-                    raise ConfigurationError(msg)
-
-                # Resolve strictly to prevent symlink bypasses
-                path = target_path.resolve(strict=True)
-
-                if not path.is_dir():
-                    msg = f"Path must be a directory: {path_str}"
-                    raise ConfigurationError(msg)
-            else:
-                # If the target doesn't exist, ensure its parent directory is valid and not a symlink
-                if target_path.parent.exists() and target_path.parent.is_symlink():
-                    msg = "Symlinks not allowed in parent path."
-                    raise ConfigurationError(msg)
-
-                parent = target_path.parent.resolve(strict=True)
-                path = parent / target_path.name
-
-            # Explicit containment check against CWD
-            if not path.is_relative_to(cwd):
+            if not target_path.is_relative_to(base_dir):
                 logger.exception(ERR_PATH_TRAVERSAL)
                 raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
-            return str(path)
+            return str(target_path)
         except ConfigurationError:
             raise
         except Exception as e:

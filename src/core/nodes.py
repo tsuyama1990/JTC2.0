@@ -142,15 +142,11 @@ def make_spec_generation_node(
             from src.core.config import SettingsFactory
 
             settings = SettingsFactory().build()
-            output_dir = Path(settings.canvas_output_dir)
-            if not output_dir.is_absolute():
-                output_dir = Path.cwd() / output_dir
-            output_dir.mkdir(parents=True, exist_ok=True)
 
             from src.core.services.file_service import FileService
+            from src.core.utils import ThreadPoolWriter
             from src.core.utils import strip_html_tags
 
-            target_path = output_dir / "AgentPromptSpec.md"
             spec = updates["agent_prompt_spec"]
 
             # Safe string formatting with sanitization for mermaid block
@@ -163,8 +159,8 @@ def make_spec_generation_node(
                 f"## State Machine (Mermaid)\n```mermaid\n{safe_mermaid}\n```\n"
             )
 
-            file_service = FileService(settings=settings)
-            file_service.save_text_async(content, target_path)
+            file_service = FileService(settings=settings, writer=ThreadPoolWriter(max_workers=settings.max_workers))
+            file_service.save_agent_prompt_spec(content)
 
             ApprovalStampRenderer("Agent Prompt Spec").start()
         return updates if isinstance(updates, dict) else {}
@@ -187,7 +183,7 @@ def make_experiment_planning_node(
             from src.core.config import SettingsFactory
 
             settings = SettingsFactory().build()
-            PDFGenerator(settings).generate_canvas_pdf(
+            PDFGenerator.generate_canvas_pdf(
                 updates["experiment_plan"], "experiment_plan.pdf"
             )
             output_dir = Path(settings.canvas_output_dir)
@@ -195,20 +191,19 @@ def make_experiment_planning_node(
                 output_dir = Path.cwd() / output_dir
             output_dir.mkdir(parents=True, exist_ok=True)
             from src.core.services.file_service import FileService
+            from src.core.utils import ThreadPoolWriter
 
-            target_path = output_dir / "ExperimentPlan.md"
+            target_path = output_dir / settings.experiment_plan_filename
 
             content = f"# Experiment Plan\n\n```json\n{updates['experiment_plan'].model_dump_json(indent=2)}\n```\n"
 
-            file_service = FileService(settings=settings)
+            file_service = FileService(settings=settings, writer=ThreadPoolWriter(max_workers=settings.max_workers))
             file_service.save_text_async(content, target_path)
 
             ApprovalStampRenderer("Experiment Plan").start()
         return updates if isinstance(updates, dict) else {}
 
-    return lambda state: NodeExecutor.execute(
-        _experiment_planning_node_impl, state, "Error in Experiment Planning Node"
-    )
+    return experiment_planning_node_impl
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -252,9 +247,7 @@ def make_review_3h_node(
 
         return state_updates
 
-    return lambda state: NodeExecutor.execute(
-        _review_3h_node_impl, state, "Error in 3H Review Node"
-    )
+    return lambda state: NodeExecutor.execute(_review_3h_node_impl, state, "Error in 3H Review Node")
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
@@ -437,9 +430,7 @@ def make_governance_node(agent: IAgent) -> Callable[[GlobalState], dict[str, Any
 
         return _transition_phase(updates, Phase.GOVERNANCE)
 
-    return lambda state: NodeExecutor.execute(
-        _governance_node_impl, state, "Error in Governance Check"
-    )
+    return lambda state: NodeExecutor.execute(_governance_node_impl, state, "Error in Governance Check")
 
 
 # We don't register globally here anymore; DI is handled in `GraphBuilderService`.
