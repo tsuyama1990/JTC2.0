@@ -190,3 +190,172 @@ def test_agent_states_validation() -> None:
     invalid_states = {Role.SALES: AgentState(role=Role.FINANCE, degroot_profile=profile)}
     with pytest.raises(ValidationError, match="Key Sales Manager does not match"):
         GlobalState(agent_states=invalid_states)
+
+
+def test_value_proposition_canvas() -> None:
+    from src.domain_models.persona import CustomerProfile, ValueMap, ValuePropositionCanvas
+
+    profile = CustomerProfile(
+        customer_jobs=["Do work"], pains=["Too much work"], gains=["More free time"]
+    )
+    vmap = ValueMap(
+        products_and_services=["App"],
+        pain_relievers=["Automates work"],
+        gain_creators=["Saves time"],
+    )
+    canvas = ValuePropositionCanvas(
+        customer_profile=profile, value_map=vmap, fit_evaluation="Perfect fit"
+    )
+    assert canvas.fit_evaluation == "Perfect fit"
+    with pytest.raises(ValidationError):
+        ValuePropositionCanvas.model_validate(
+            {
+                "customer_profile": profile.model_dump(),
+                "value_map": vmap.model_dump(),
+                "fit_evaluation": "Perfect fit",
+                "extra_field": "bad",
+            }
+        )
+
+
+def test_mental_model_diagram() -> None:
+    from src.domain_models.persona import MentalModelDiagram, MentalTower
+
+    tower = MentalTower(belief="Time is money", cognitive_tasks=["Calculate ROI"])
+    diagram = MentalModelDiagram(towers=[tower], feature_alignment="Aligned")
+    assert len(diagram.towers) == 1
+    with pytest.raises(ValidationError):
+        MentalModelDiagram.model_validate(
+            {"towers": [tower.model_dump()], "feature_alignment": "Aligned", "extra": "bad"}
+        )
+
+
+def test_alternative_analysis() -> None:
+    from src.domain_models.mvp import AlternativeAnalysis, AlternativeTool
+
+    tool = AlternativeTool(name="Excel", financial_cost="$10", time_cost="High", ux_friction="High")
+    analysis = AlternativeAnalysis(
+        current_alternatives=[tool], switching_cost="Low", ten_x_value="10x faster"
+    )
+    assert analysis.ten_x_value == "10x faster"
+    with pytest.raises(ValidationError):
+        AlternativeAnalysis.model_validate(
+            {
+                "current_alternatives": [tool.model_dump()],
+                "switching_cost": "Low",
+                "ten_x_value": "10x faster",
+                "extra": "bad",
+            }
+        )
+
+
+def test_customer_journey() -> None:
+    from src.domain_models.mvp import CustomerJourney, JourneyPhase
+
+    phase = JourneyPhase(
+        phase_name="Discovery",
+        touchpoint="Ad",
+        customer_action="Click",
+        mental_tower_ref="Curiosity",
+        pain_points=["Confusing ad"],
+        emotion_score=0,
+    )
+    journey = CustomerJourney(phases=[phase, phase, phase], worst_pain_phase="Discovery")
+    assert len(journey.phases) == 3
+
+    with pytest.raises(ValidationError):
+        # min_length is 3
+        CustomerJourney(phases=[phase, phase], worst_pain_phase="Discovery")
+
+    with pytest.raises(ValidationError):
+        CustomerJourney.model_validate(
+            {
+                "phases": [phase.model_dump(), phase.model_dump(), phase.model_dump()],
+                "worst_pain_phase": "Discovery",
+                "extra": "bad",
+            }
+        )
+
+
+def test_sitemap_and_story() -> None:
+    from src.domain_models.mvp import Route, SitemapAndStory, UserStory
+
+    route = Route(path="/", name="Home", purpose="Landing", is_protected=False)
+    story = UserStory(
+        as_a="User",
+        i_want_to="Login",
+        so_that="I can work",
+        acceptance_criteria=["Works"],
+        target_route="/",
+    )
+    sitemap = SitemapAndStory(sitemap=[route], core_story=story)
+    assert sitemap.sitemap[0].name == "Home"
+    with pytest.raises(ValidationError):
+        SitemapAndStory.model_validate(
+            {
+                "sitemap": [route.model_dump()],
+                "core_story": story.model_dump(),
+                "extra": "bad",
+            }
+        )
+
+
+def test_experiment_plan() -> None:
+    from src.domain_models.metrics import ExperimentPlan, MetricTarget
+
+    target = MetricTarget(
+        metric_name="Retention", target_value="10%", measurement_method="Mixpanel"
+    )
+    plan = ExperimentPlan(
+        riskiest_assumption="Users will pay",
+        experiment_type="LP",
+        acquisition_channel="Ads",
+        aarrr_metrics=[target],
+        pivot_condition="No signups",
+    )
+    assert len(plan.aarrr_metrics) == 1
+    with pytest.raises(ValidationError):
+        ExperimentPlan.model_validate(
+            {
+                "riskiest_assumption": "Users will pay",
+                "experiment_type": "LP",
+                "acquisition_channel": "Ads",
+                "aarrr_metrics": [target.model_dump()],
+                "pivot_condition": "No signups",
+                "extra": "bad",
+            }
+        )
+
+
+def test_agent_prompt_spec() -> None:
+    from src.domain_models.mvp import AgentPromptSpec, StateMachine, UserStory
+
+    machine = StateMachine(success="Done", loading="Wait", error="Fail", empty="Empty")
+    story = UserStory(
+        as_a="User",
+        i_want_to="Login",
+        so_that="I can work",
+        acceptance_criteria=["Works"],
+        target_route="/",
+    )
+    spec = AgentPromptSpec(
+        sitemap="sitemap string",
+        routing_and_constraints="constraints",
+        core_user_story=story,
+        state_machine=machine,
+        validation_rules="rules",
+        mermaid_flowchart="graph TD",
+    )
+    assert spec.mermaid_flowchart == "graph TD"
+    with pytest.raises(ValidationError):
+        AgentPromptSpec.model_validate(
+            {
+                "sitemap": "sitemap string",
+                "routing_and_constraints": "constraints",
+                "core_user_story": story.model_dump(),
+                "state_machine": machine.model_dump(),
+                "validation_rules": "rules",
+                "mermaid_flowchart": "graph TD",
+                "extra": "bad",
+            }
+        )

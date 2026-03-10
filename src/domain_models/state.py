@@ -11,9 +11,16 @@ from src.domain_models.validators import StateValidator
 __all__ = ["GlobalState", "Phase"]
 
 from .lean_canvas import LeanCanvas
-from .metrics import Metrics, RingiSho
-from .mvp import MVP, MVPSpec
-from .persona import Persona
+from .metrics import ExperimentPlan, Metrics, RingiSho
+from .mvp import (
+    MVP,
+    AgentPromptSpec,
+    AlternativeAnalysis,
+    CustomerJourney,
+    MVPSpec,
+    SitemapAndStory,
+)
+from .persona import MentalModelDiagram, Persona, ValuePropositionCanvas
 from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage
 from .transcript import Transcript
@@ -63,6 +70,14 @@ class GlobalState(BaseModel):
     )
     influence_network: InfluenceNetwork | None = None
     ringi_sho: RingiSho | None = None
+
+    value_proposition_canvas: ValuePropositionCanvas | None = None
+    mental_model_diagram: MentalModelDiagram | None = None
+    alternative_analysis: AlternativeAnalysis | None = None
+    customer_journey: CustomerJourney | None = None
+    sitemap_and_story: SitemapAndStory | None = None
+    experiment_plan: ExperimentPlan | None = None
+    agent_prompt_spec: AgentPromptSpec | None = None
 
     @field_validator("transcripts")
     @classmethod

@@ -26,6 +26,78 @@ from src.core.constants import (
 COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_]+$")
 
 
+class AlternativeTool(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="Name of alternative (e.g., Excel, SaaS)")
+    financial_cost: str = Field(..., description="Financial cost")
+    time_cost: str = Field(..., description="Time cost")
+    ux_friction: str = Field(..., description="Maximum stress/friction felt by user")
+
+
+class AlternativeAnalysis(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    current_alternatives: list[AlternativeTool]
+    switching_cost: str = Field(..., description="Cost/effort required to switch")
+    ten_x_value: str = Field(..., description="10x value overcoming switching costs (UVP)")
+
+
+class JourneyPhase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    phase_name: str = Field(..., description="Phase name (e.g., Awareness, Consideration)")
+    touchpoint: str = Field(..., description="Contact point with system/environment")
+    customer_action: str = Field(..., description="Specific action taken")
+    mental_tower_ref: str = Field(..., description="Belief underlying this action")
+    pain_points: list[str] = Field(..., description="Pain felt in this phase")
+    emotion_score: int = Field(..., ge=-5, le=5, description="Emotional fluctuation (-5 to 5)")
+
+
+class CustomerJourney(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    phases: list[JourneyPhase] = Field(..., min_length=3, max_length=7)
+    worst_pain_phase: str = Field(..., description="Phase with deepest pain to solve")
+
+
+class Route(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    path: str = Field(..., description="URL path (e.g., /, /login)")
+    name: str = Field(..., description="Page name")
+    purpose: str = Field(..., description="Purpose of page")
+    is_protected: bool = Field(..., description="Requires auth?")
+
+
+class UserStory(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    as_a: str = Field(..., description="Persona")
+    i_want_to: str = Field(..., description="Action")
+    so_that: str = Field(..., description="Goal/Value")
+    acceptance_criteria: list[str] = Field(..., description="Acceptance criteria")
+    target_route: str = Field(..., description="Main URL path for this action")
+
+
+class SitemapAndStory(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sitemap: list[Route] = Field(..., description="Overall routing structure")
+    core_story: UserStory = Field(..., description="Most critical story to validate as MVP")
+
+
+class StateMachine(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    success: str = Field(..., description="Complete layout for normal data")
+    loading: str = Field(..., description="Waiting UI using Skeleton")
+    error: str = Field(..., description="Fallback UI and Retry button")
+    empty: str = Field(..., description="Empty state with CTA")
+
+
+class AgentPromptSpec(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sitemap: str = Field(..., description="Routing and information architecture")
+    routing_and_constraints: str = Field(..., description="SSR/Client bounds, UI library limits")
+    core_user_story: UserStory
+    state_machine: StateMachine
+    validation_rules: str = Field(..., description="Zod schema or edge cases")
+    mermaid_flowchart: str = Field(..., description="State/Data flow diagram in Mermaid")
+
+
 class MVPType(StrEnum):
     LANDING_PAGE = "landing_page"
     CONCIERGE = "concierge"

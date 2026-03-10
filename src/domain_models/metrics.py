@@ -134,6 +134,22 @@ class Metrics(BaseModel):
         return v
 
 
+class MetricTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    metric_name: str = Field(..., description="Metric name (e.g., Day 7 Retention)")
+    target_value: str = Field(..., description="Target value for PMF")
+    measurement_method: str = Field(..., description="How to measure")
+
+
+class ExperimentPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    riskiest_assumption: str = Field(..., description="Riskiest assumption being tested")
+    experiment_type: str = Field(..., description="MVP Type (e.g., LP, Wizard of Oz)")
+    acquisition_channel: str = Field(..., description="Where to get first 100 users")
+    aarrr_metrics: list[MetricTarget] = Field(..., description="AARRR tracking metrics")
+    pivot_condition: str = Field(..., description="Conditions for immediate pivot")
+
+
 class RingiSho(BaseModel):
     """
     Formal approval document (Ringi-sho).

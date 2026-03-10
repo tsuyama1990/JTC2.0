@@ -56,6 +56,45 @@ class EmpathyMap(BaseModel):
     )
 
 
+class CustomerProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    customer_jobs: list[str] = Field(..., description="Customer jobs and tasks")
+    pains: list[str] = Field(..., description="Risks or negative emotions hindering jobs")
+    gains: list[str] = Field(..., description="Benefits expected from the jobs")
+
+
+class ValueMap(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    products_and_services: list[str] = Field(..., description="List of main products/services")
+    pain_relievers: list[str] = Field(..., description="How it specifically removes customer pain")
+    gain_creators: list[str] = Field(..., description="How it specifically creates customer gain")
+
+
+class ValuePropositionCanvas(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    customer_profile: CustomerProfile
+    value_map: ValueMap
+    fit_evaluation: str = Field(
+        ..., description="Validation of logical fit between relievers/pain and creators/gain"
+    )
+
+
+class MentalTower(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    belief: str = Field(
+        ..., description="User's underlying beliefs (e.g., 'I don't want to waste time')"
+    )
+    cognitive_tasks: list[str] = Field(
+        ..., description="Tasks/judgements made based on that belief"
+    )
+
+
+class MentalModelDiagram(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    towers: list[MentalTower] = Field(..., description="Towers constituting user's thought space")
+    feature_alignment: str = Field(..., description="Mapping of how features support the towers")
+
+
 class Persona(BaseModel):
     """
     Represents the Target Customer Persona.
