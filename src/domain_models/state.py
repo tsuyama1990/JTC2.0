@@ -105,7 +105,7 @@ class GlobalState(BaseModel):
 
     @field_validator("generated_ideas", mode="before")
     @classmethod
-    def wrap_iterator(cls, v: object) -> object:
+    def wrap_iterator(cls, v: object) -> LazyIdeaIterator | None:
         """
         Auto-wrap Iterator[LeanCanvas] into LazyIdeaIterator if needed.
         Strictly enforces that the input is a valid Iterator.
@@ -120,7 +120,7 @@ class GlobalState(BaseModel):
             return LazyIdeaIterator(v)
 
         # Reject invalid types explicitly
-        msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
+        msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v).__name__}"
         raise TypeError(msg)
 
     @model_validator(mode="after")

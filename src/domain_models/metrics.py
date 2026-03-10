@@ -116,8 +116,9 @@ class Metrics(BaseModel):
             )
             raise ValueError(msg)
 
+        import re
         for key, value in v.items():
-            if not key.isidentifier():
+            if not key.isidentifier() or not re.match(r"^[a-zA-Z0-9_]+$", key):
                 msg = settings.errors.invalid_metric_key.format(key=key)
                 raise ValueError(msg)
 

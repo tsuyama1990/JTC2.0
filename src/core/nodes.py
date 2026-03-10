@@ -146,7 +146,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    return cpo.run(state)  # type: ignore
+    return cpo.run(state)
 
 
 @safe_node("Error in Solution Proposal")

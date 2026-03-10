@@ -21,9 +21,9 @@ from src.core.constants import (
 )
 
 # Pre-compiled regex pattern at module level
-# Allow alphanumeric, hyphens, underscores.
+# Allow alphanumeric only, length 1-50
 # Deny special chars often used in injection: < > ; & ' "
-COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9]{1,50}$")
 
 
 class AlternativeTool(BaseModel):

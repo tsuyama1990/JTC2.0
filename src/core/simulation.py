@@ -55,7 +55,7 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
         ) -> dict[str, object]:
             logger.info(_desc)
             # Add type ignore for Any return from run
-            return AgentFactory.get_persona_agent(_role).run(state)  # type: ignore[no-any-return]
+            return AgentFactory.get_persona_agent(_role).run(state)
 
         # Name the function for debugging
         step_runner.__name__ = f"run_{node_name}"
