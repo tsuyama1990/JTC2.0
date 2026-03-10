@@ -26,14 +26,12 @@ class StateValidator:
         """
         from src.domain_models.enums import Phase
 
-
-
         if state.phase == Phase.VERIFICATION and state.target_persona is None:
-            msg = 'Target Persona must be established'
+            msg = "Target Persona must be established"
             raise ValueError(msg)
 
         if state.phase == Phase.SOLUTION and state.mvp_definition is None:
-            msg = 'MVP Definition is required'
+            msg = "MVP Definition is required"
             raise ValueError(msg)
 
         return state

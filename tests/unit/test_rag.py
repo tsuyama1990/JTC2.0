@@ -10,28 +10,24 @@ except ImportError:
 
 
 @pytest.fixture
-def mock_settings() -> Generator[MagicMock, None, None]:
-    with patch("src.data.rag.get_settings") as mock:
-        mock.return_value.openai_api_key.get_secret_value.return_value = "sk-test"
-        mock.return_value.llm_model = "gpt-4o"
-        # Mock rag_persist_dir - must be a valid subdir relative to CWD, e.g. tests/
-        mock.return_value.rag.persist_dir = "tests/mock_vector_store"
-        # Errors
-        mock.return_value.errors.config_missing_openai = "Missing API Key"
-        # New Config fields
-        mock.return_value.rag.chunk_size = 4000
-        mock.return_value.rag.max_query_length = 500
-        mock.return_value.rag.max_index_size_mb = 500
-        mock.return_value.rag.max_document_length = 10000
-        mock.return_value.resiliency.circuit_breaker_fail_max = 5
-        mock.return_value.resiliency.circuit_breaker_reset_timeout = 60
-        mock.return_value.rag.allowed_paths = ["data", "vector_store", "tests"]
-        mock.return_value.rag.rate_limit_interval = 0.1
-        mock.return_value.rag.scan_depth_limit = 10
-        mock.return_value.rag.max_files = 1000
-        # Ensure batch size is int
-        mock.return_value.rag.batch_size = 100
-        yield mock
+def mock_settings() -> MagicMock:
+    mock_instance = MagicMock()
+    mock_instance.openai_api_key.get_secret_value.return_value = "sk-test"
+    mock_instance.llm_model = "gpt-4o"
+    mock_instance.rag.persist_dir = "tests/mock_vector_store"
+    mock_instance.errors.config_missing_openai = "Missing API Key"
+    mock_instance.rag.chunk_size = 4000
+    mock_instance.rag.max_query_length = 500
+    mock_instance.rag.max_index_size_mb = 500
+    mock_instance.rag.max_document_length = 10000
+    mock_instance.resiliency.circuit_breaker_fail_max = 5
+    mock_instance.resiliency.circuit_breaker_reset_timeout = 60
+    mock_instance.rag.allowed_paths = ["data", "vector_store", "tests"]
+    mock_instance.rag.rate_limit_interval = 0.1
+    mock_instance.rag.scan_depth_limit = 10
+    mock_instance.rag.max_files = 1000
+    mock_instance.rag.batch_size = 100
+    return mock_instance
 
 
 @pytest.fixture
@@ -55,7 +51,7 @@ def test_rag_initialization(
     """Test RAG initialization."""
     mock_settings.return_value.rag.max_index_size_mb = 100
     mock_llama_index["load"].side_effect = Exception("No index")
-    rag = RAG(persist_dir="tests")
+    rag = RAG(settings=mock_settings, persist_dir="tests")
     assert rag.index is None
 
 
@@ -68,7 +64,7 @@ def test_rag_ingest_text(
     mock_settings.return_value.rag.max_index_size_mb = 100
     mock_llama_index["load"].side_effect = Exception("No index")
 
-    rag = RAG(persist_dir="tests")
+    rag = RAG(settings=mock_settings, persist_dir="tests")
     text = "Customer says: I hate this."
     rag.ingest_text(text, source="interview.txt")
 
@@ -81,7 +77,7 @@ def test_rag_persist_index(
     mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test explicit persist."""
-    rag = RAG(persist_dir="tests")
+    rag = RAG(settings=mock_settings, persist_dir="tests")
     # Mock index existence
     rag.index = MagicMock()
 
@@ -94,7 +90,7 @@ def test_rag_query(
     mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test querying the index."""
-    rag = RAG(persist_dir="tests")
+    rag = RAG(settings=mock_settings, persist_dir="tests")
     # Mock the index and query engine
     mock_query_engine = MagicMock()
     mock_response = MagicMock()
@@ -116,7 +112,7 @@ def test_rag_query_validation(
     mock_validate: MagicMock, mock_settings: MagicMock, mock_llama_index: dict[str, MagicMock]
 ) -> None:
     """Test query input validation."""
-    rag = RAG(persist_dir="tests")
+    rag = RAG(settings=mock_settings, persist_dir="tests")
 
     with pytest.raises(TypeError, match="Query must be a string"):
         rag.query(123)  # type: ignore

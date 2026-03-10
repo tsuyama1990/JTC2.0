@@ -42,7 +42,7 @@ class GovernanceAgent(BaseAgent):
         logger.info(f"Searching benchmarks for: {industry}")
         search = TavilySearch()
         query = settings.governance.search_query_template.format(industry=industry)
-        search_result = search.safe_search(query)
+        search_result = search.safe_search(query, get_settings())
 
         # Limit search result size to prevent Context Window overflow
         # Explicit truncation as per audit requirement
@@ -150,7 +150,7 @@ class GovernanceAgent(BaseAgent):
             logger.exception("Ringi-Sho generation failed. Using fallback.")
             return RingiSho(
                 title=f"Proposal for {idea_title}",
-                executive_summary="Auto-generated summary failed.",
+                executive_summary="Auto-generated summary failed due to LLM parsing or connection error.",
                 financial_projection=financials,
                 risks=["Generation Error"],
                 approval_status=status,
@@ -198,6 +198,7 @@ class GovernanceAgent(BaseAgent):
         text = text.strip()
 
         import re
+
         # Try extracting JSON cleanly using non-greedy matching while avoiding catastrophic backtracking.
         # Fallback to the whole string if no code block exists.
         match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
@@ -213,7 +214,9 @@ class GovernanceAgent(BaseAgent):
             # Pydantic core handles dictionary validation, but let's strictly load first
             parsed = json.loads(text)
         except json.JSONDecodeError as e:
-            logger.exception(f"Failed to parse JSON. Error at line {e.lineno}. Snippet: {text[:50]}")
+            logger.exception(
+                f"Failed to parse JSON. Error at line {e.lineno}. Snippet: {text[:50]}"
+            )
             msg = "Response does not contain a valid JSON object."
             raise ValueError(msg) from e
         else:

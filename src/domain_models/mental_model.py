@@ -26,9 +26,7 @@ class MentalTower(BaseModel):
             raise ValueError(msg)
 
         if len(self.cognitive_tasks) < 1:
-            msg = (
-                f"cognitive_tasks must contain at least {1} items"
-            )
+            msg = f"cognitive_tasks must contain at least {1} items"
             raise ValueError(msg)
 
         return self

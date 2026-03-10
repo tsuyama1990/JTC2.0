@@ -71,9 +71,7 @@ class TestGovernanceAgent:
             mock_chunk_fin.content = '{"cac": 500.0, "arpu": 100.0, "churn_rate": 0.05}'
 
             mock_chunk_ringi = MagicMock()
-            mock_chunk_ringi.content = (
-                '{"title": "AI Tool", "executive_summary": "Great tool.", "risks": ["Risk 1"]}'
-            )
+            mock_chunk_ringi.content = '{"title": "AI Tool", "executive_summary": "This is a great tool that will save us a lot of time and money, generating significant ROI.", "risks": ["Risk 1"]}'
 
             # stream returns an iterator. We simulate it with a list.
             mock_llm.stream.side_effect = [[mock_chunk_fin], [mock_chunk_ringi]]

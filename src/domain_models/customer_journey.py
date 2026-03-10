@@ -43,9 +43,7 @@ class JourneyPhase(BaseModel):
         for field in ["phase_name", "touchpoint", "customer_action", "mental_tower_ref"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < 10:
-                msg = (
-                    f"{field} must be at least {10} characters"
-                )
+                msg = f"{field} must be at least {10} characters"
                 raise ValueError(msg)
 
         if len(self.pain_points) < 1:

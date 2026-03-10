@@ -69,7 +69,7 @@ class IdeatorAgent(BaseAgent):
     def _research(self, topic: str) -> str:
         """Perform market research using the search tool."""
         query = self.settings.search.query_template.format(topic=topic)
-        return self.search_tool.safe_search(query)
+        return self.search_tool.safe_search(query, self.settings)
 
     def _generate_prompt(self, topic: str, research_data: str) -> ChatPromptTemplate:
         """Create the prompt for idea generation."""

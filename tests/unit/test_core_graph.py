@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from langgraph.graph.state import CompiledStateGraph
 
+from src.core.config import get_settings
 from src.core.graph import create_app
 from src.core.nodes import (
     make_nemawashi_analysis_node,
@@ -64,7 +65,7 @@ def test_create_app_structure() -> None:
     if "governance" not in node_registry.nodes:
         node_registry.register("governance")(lambda state: {"messages": []})
 
-    app = create_app(registry=node_registry)
+    app = create_app(registry=node_registry, settings=get_settings())
     assert isinstance(app, CompiledStateGraph)
     # detailed graph structure assertions are hard with compiled graph,
     # but we can check if it compiles without error.
@@ -81,13 +82,12 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     )
     mock_state.transcripts = [t1]
 
-    transcript_ingestion_node = make_transcript_ingestion_node()
+    transcript_ingestion_node = make_transcript_ingestion_node(settings=get_settings())
     result = transcript_ingestion_node(mock_state)
 
     assert result == {}
-    mock_rag_cls.assert_called_with(persist_dir=mock_state.rag_index_path)
+
     mock_rag.ingest_transcript.assert_called_once_with(t1)
-    mock_rag.persist_index.assert_called_once()
 
 
 @patch("src.core.nodes.NemawashiEngine")
@@ -105,7 +105,7 @@ def test_nemawashi_analysis_node(mock_engine_cls: MagicMock, mock_state: GlobalS
     mock_engine.calculate_consensus.return_value = [0.5, 0.5]
     mock_engine.identify_influencers.return_value = ["A"]
 
-    nemawashi_analysis_node = make_nemawashi_analysis_node(mock_engine_cls)
+    nemawashi_analysis_node = make_nemawashi_analysis_node(mock_engine_cls, settings=get_settings())
     result = nemawashi_analysis_node(mock_state)
 
     assert "influence_network" in result

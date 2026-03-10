@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI
 
 from src.agents.base import SearchTool
 from src.agents.personas import PersonaAgent
-from src.core.config import Settings
+from src.core.config import Settings, get_settings
 from src.data.rag import RAG
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
@@ -42,7 +42,7 @@ class CPOAgent(PersonaAgent):
 
         # Use provided path or fallback to settings (not hardcoded string)
         actual_rag_path = rag_path or self.settings.rag.persist_dir
-        self.rag = RAG(persist_dir=actual_rag_path)
+        self.rag = RAG(settings=get_settings(), persist_dir=actual_rag_path)
 
     def _research_impl(self, topic: str) -> str:
         """

@@ -14,17 +14,19 @@ def test_global_state_remastered_fields() -> None:
     assert state.value_proposition is None
 
     tool = AlternativeTool(
-        name="Tool Name",
-        financial_cost="Financial Cost",
-        time_cost="Time Cost",
-        ux_friction="UX Friction",
+        name="Tool Name for Testing",
+        financial_cost="Financial Cost of Tool",
+        time_cost="Time Cost to switch",
+        ux_friction="UX Friction is high",
     )
     state.alternative_analysis = AlternativeAnalysis(
-        current_alternatives=[tool], switching_cost="High cost", ten_x_value="Value is huge"
+        current_alternatives=[tool],
+        switching_cost="High cost of switching tool",
+        ten_x_value="Value is huge beyond belief",
     )
 
     assert state.alternative_analysis is not None
-    assert state.alternative_analysis.switching_cost == "High cost"
+    assert state.alternative_analysis.switching_cost == "High cost of switching tool"
 
 
 def test_global_state_transition_validation_verification() -> None:

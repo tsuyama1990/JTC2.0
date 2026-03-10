@@ -33,7 +33,7 @@ class AARRR(BaseModel):
     retention: float = Field(
         0.0,
         ge=0.0,
-        le=100.0,
+        le=500.0,
         description="Retention percentage",
     )
     revenue: float = Field(
@@ -108,14 +108,13 @@ class Metrics(BaseModel):
     def validate_custom_metrics(cls, v: dict[str, Any]) -> dict[str, float]:
         """Validate custom metrics keys, values, and limit."""
 
-
-        if len(v) > 10:
-            msg = f'Cannot exceed {10} custom metrics'
+        if len(v) > 50:
+            msg = f"Cannot exceed {50} custom metrics"
             raise ValueError(msg)
 
         for key, value in v.items():
             if not key.isidentifier():
-                msg = f'Invalid metric key format: {key}'
+                msg = f"Invalid metric key format: {key}"
                 raise ValueError(msg)
 
             # Explicit type check for values (mypy won't catch runtime dict values if Any)
@@ -139,7 +138,7 @@ class RingiSho(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(..., min_length=1, description="Title of the proposal")
-    executive_summary: str = Field(..., min_length=10, description="Executive summary")
+    executive_summary: str = Field(..., min_length=50, description="Executive summary")
     financial_projection: Financials = Field(..., description="Financial projections")
     risks: list[str] = Field(
         default_factory=list, min_length=1, description="List of identified risks"

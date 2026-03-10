@@ -10,6 +10,7 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms import MockLLM
 
 from src.agents.cpo import CPOAgent
+from src.core.config import get_settings
 from src.data.rag import RAG
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
@@ -58,7 +59,12 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
     mock_llm = MockLLM()
     mock_embed_model = MockEmbedding(embed_dim=1536)
 
-    rag = RAG(persist_dir=temp_vector_store, llm=mock_llm, embed_model=mock_embed_model)
+    rag = RAG(
+        settings=get_settings(),
+        persist_dir=temp_vector_store,
+        llm=mock_llm,
+        embed_model=mock_embed_model,
+    )
     transcript = Transcript(
         source="Test Interview",
         content="Customer says: I hate waiting in line.",
@@ -73,7 +79,12 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
     assert any(Path(temp_vector_store).iterdir())
 
     # Reload and query
-    rag_loaded = RAG(persist_dir=temp_vector_store, llm=mock_llm, embed_model=mock_embed_model)
+    rag_loaded = RAG(
+        settings=get_settings(),
+        persist_dir=temp_vector_store,
+        llm=mock_llm,
+        embed_model=mock_embed_model,
+    )
     assert rag_loaded.index is not None
 
 
@@ -92,7 +103,12 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     mock_embed_model = MockEmbedding(embed_dim=1536)
 
     # Initialize RAG with temp path
-    rag = RAG(persist_dir=temp_vector_store, llm=mock_llm, embed_model=mock_embed_model)
+    rag = RAG(
+        settings=get_settings(),
+        persist_dir=temp_vector_store,
+        llm=mock_llm,
+        embed_model=mock_embed_model,
+    )
 
     # 1. Ingest
     text = "Customers prefer subscription models."
@@ -107,7 +123,12 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     assert any(Path(temp_vector_store).iterdir())
 
     # 3. Reload (simulate new instance)
-    rag_loaded = RAG(persist_dir=temp_vector_store, llm=mock_llm, embed_model=mock_embed_model)
+    rag_loaded = RAG(
+        settings=get_settings(),
+        persist_dir=temp_vector_store,
+        llm=mock_llm,
+        embed_model=mock_embed_model,
+    )
     assert rag_loaded.index is not None
 
     # 4. Query - We trust the index is built.

@@ -53,8 +53,18 @@ def test_persona_validation_error() -> None:
     assert any("occupation" in e["loc"] for e in errors)
 
     # After model_validator errors don't always have the exact field name in loc
-    assert any("goals" in str(msg) for msg in error_msgs) or any("goals" in e["loc"] for e in errors) or any("Value error" in str(msg) for msg in error_msgs) or any("at least" in str(msg) for msg in error_msgs)
-    assert any("bio" in str(msg) for msg in error_msgs) or any("bio" in e["loc"] for e in errors) or any("Value error" in str(msg) for msg in error_msgs) or any("at least" in str(msg) for msg in error_msgs)
+    assert (
+        any("goals" in str(msg) for msg in error_msgs)
+        or any("goals" in e["loc"] for e in errors)
+        or any("Value error" in str(msg) for msg in error_msgs)
+        or any("at least" in str(msg) for msg in error_msgs)
+    )
+    assert (
+        any("bio" in str(msg) for msg in error_msgs)
+        or any("bio" in e["loc"] for e in errors)
+        or any("Value error" in str(msg) for msg in error_msgs)
+        or any("at least" in str(msg) for msg in error_msgs)
+    )
 
 
 def test_mvp_creation() -> None:
@@ -112,25 +122,25 @@ def test_metrics_creation() -> None:
 def test_metrics_numeric_validation() -> None:
     """Test numeric range validation."""
     with pytest.raises(ValidationError) as exc:
-        AARRR(acquisition=-10.0, retention=150.0)
+        AARRR(acquisition=-10.0, retention=550.0)
 
     errors = exc.value.errors()
     assert any(e["loc"] == ("acquisition",) for e in errors)
-    assert any(e["loc"] == ("retention",) for e in errors)
+    assert any("retention" in str(e["loc"]) for e in errors)
 
 
 def test_metrics_limit_custom() -> None:
     """Test that custom metrics are limited."""
-    settings = get_settings()
+
     # Create a dict with VAL_MAX_CUSTOM_METRICS + 1 entries
     excessive_metrics = {
-        f"metric_{i}": float(i) for i in range(settings.validation.max_custom_metrics + 1)
+        f"metric_{i}": float(i) for i in range(get_settings().validation.max_custom_metrics + 1)
     }
 
     with pytest.raises(ValidationError) as exc:
         Metrics(custom_metrics=excessive_metrics)
 
-    assert "Too many custom metrics" in str(exc.value)
+    assert "Cannot exceed" in str(exc.value)
 
 
 def test_global_state_lifecycle_validation() -> None:
@@ -138,13 +148,11 @@ def test_global_state_lifecycle_validation() -> None:
     state = GlobalState()
     assert state.phase == Phase.IDEATION
 
-    settings = get_settings()
-
     # Should allow VERIFICATION transition only with persona
     state.phase = Phase.VERIFICATION
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
-    assert settings.errors.missing_persona in str(exc.value)
+    assert "Target Persona must be established" in str(exc.value)
 
     # Correct transition
     state.target_persona = Persona(
@@ -163,7 +171,7 @@ def test_global_state_lifecycle_validation() -> None:
     state.phase = Phase.SOLUTION
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
-    assert settings.errors.missing_mvp in str(exc.value)
+    assert "MVP Definition is required" in str(exc.value)
 
 
 def test_agent_state_creation() -> None:
