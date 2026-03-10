@@ -11,7 +11,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
+
 from src.core.constants import (
     DESC_FEATURE_DESC,
     DESC_FEATURE_NAME,
@@ -62,8 +62,7 @@ class Feature(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        min_content_len = settings.validation.min_content_length
+        min_content_len = 10
         if len(self.description) < min_content_len:
             msg = f"description must be at least {min_content_len} characters"
             raise ValueError(msg)
@@ -103,13 +102,12 @@ class MVP(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        min_len = settings.validation.min_list_length
+        min_len = 1
         if len(self.core_features) < min_len:
             msg = f"core_features must have at least {min_len} items"
             raise ValueError(msg)
 
-        min_content_len = settings.validation.min_content_length
+        min_content_len = 10
         if len(self.success_criteria) < min_content_len:
             msg = f"success_criteria must be at least {min_content_len} characters"
             raise ValueError(msg)

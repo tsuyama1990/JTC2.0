@@ -5,17 +5,17 @@ from main import browse_and_select
 from src.domain_models.lean_canvas import LeanCanvas
 
 
-@patch("main.get_settings")
+@patch("main.Settings")
 @patch("main.input")
 @patch("main.echo")
 def test_browse_and_select_lazy(
-    mock_echo: MagicMock, mock_input: MagicMock, mock_get_settings: MagicMock
+    mock_echo: MagicMock, mock_input: MagicMock, mock_settings_cls: MagicMock
 ) -> None:
     """
     Test that browse_and_select consumes the iterator lazily
     and respects page size.
     """
-    mock_ui = mock_get_settings.return_value.ui
+    mock_ui = mock_settings_cls.return_value.ui
     mock_ui.page_size = 2
     mock_ui.select_prompt = "Select:"
 

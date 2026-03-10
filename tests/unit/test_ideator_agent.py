@@ -1,3 +1,4 @@
+from src.core.config import Settings
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,15 +13,15 @@ def mock_llm() -> MagicMock:
     return MagicMock()
 
 
-@patch("src.agents.ideator.get_settings")
+@patch("src.agents.ideator.Settings")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_run_success(
     mock_tavily: MagicMock,
-    mock_get_settings: MagicMock,
+    mock_Settings: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     # Setup settings
-    mock_settings = mock_get_settings.return_value
+    mock_settings = mock_Settings.return_value
     mock_settings.search.query_template = "Trends in {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "tv-key"
 
@@ -36,17 +37,17 @@ def test_ideator_agent_run_success(
     mock_llm.with_structured_output.return_value = mock_chain
 
 
-@patch("src.agents.ideator.get_settings")
+@patch("src.agents.ideator.Settings")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_flow(
     mock_tavily: MagicMock,
-    mock_get_settings: MagicMock,
+    mock_Settings: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     # This test focuses on the `run` method orchestration
 
     # 1. Setup Dependencies
-    mock_settings = mock_get_settings.return_value
+    mock_settings = mock_Settings.return_value
     mock_settings.search.query_template = "Q: {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "key"
 
@@ -86,15 +87,15 @@ def test_ideator_agent_flow(
         mock_gen_ideas.assert_called_once()
 
 
-@patch("src.agents.ideator.get_settings")
+@patch("src.agents.ideator.Settings")
 @patch("src.agents.ideator.TavilySearch")
 def test_ideator_agent_research_logic(
     mock_tavily: MagicMock,
-    mock_get_settings: MagicMock,
+    mock_Settings: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     # Test `_research` specifically
-    mock_settings = mock_get_settings.return_value
+    mock_settings = mock_Settings.return_value
     mock_settings.search.query_template = "Search {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "key"
 

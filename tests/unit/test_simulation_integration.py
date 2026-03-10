@@ -1,3 +1,4 @@
+from src.core.config import Settings
 """
 Integration tests for the Simulation Logic (Turn-based Battle).
 """

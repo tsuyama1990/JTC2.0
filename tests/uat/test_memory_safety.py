@@ -1,3 +1,4 @@
+from src.core.config import Settings
 """
 UAT for Memory Safety and Scalability (Cycle 3 Check).
 """
@@ -10,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.config import get_settings
+
 from src.data.rag import RAG
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
@@ -62,9 +63,9 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     """
     Verify RAG prevents loading an index that exceeds the size limit.
     """
-    from src.core.config import clear_settings_cache
-    clear_settings_cache()
-    settings = get_settings()
+
+
+    settings = Settings()
 
     # Create a dummy large file
     p = Path(temp_rag_dir) / "large_index_file.bin"
@@ -78,7 +79,7 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
 
     with (
         patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
-        patch("src.data.rag.get_settings", return_value=settings),
+        patch("src.data.rag.Settings", return_value=settings),
     ):
         settings.rag.max_index_size_mb = 1
 
@@ -98,14 +99,14 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
     """
     Verify that ingestion chunks large text.
     """
-    from src.core.config import clear_settings_cache
-    clear_settings_cache()
-    settings = get_settings()
+
+
+    settings = Settings()
 
     # Patch _validate_path
     with (
         patch("src.data.rag.RAG._validate_path", side_effect=lambda x: str(Path(x).resolve())),
-        patch("src.data.rag.get_settings", return_value=settings),
+        patch("src.data.rag.Settings", return_value=settings),
     ):
         settings.rag.chunk_size = 10
 

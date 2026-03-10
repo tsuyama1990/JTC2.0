@@ -6,7 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent
-from src.core.config import Settings, get_settings
+from src.core.config import Settings
 from src.domain_models import (
     AlternativeAnalysis,
     CustomerJourney,

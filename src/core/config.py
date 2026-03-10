@@ -190,6 +190,7 @@ class AgentConfig(BaseSettings):
 
 class NemawashiConfig(BaseSettings):
     """Configuration for Nemawashi Consensus Building."""
+    model_config = SettingsConfigDict(extra="ignore")
 
     max_steps: int = Field(
         alias="NEMAWASHI_MAX_STEPS",
@@ -215,6 +216,16 @@ class NemawashiConfig(BaseSettings):
         alias="NEMAWASHI_TIMEOUT",
         default=10.0,
         description="Timeout for consensus calculation in seconds",
+    )
+    max_network_size: int = Field(
+        alias="NEMAWASHI_MAX_NETWORK_SIZE",
+        default=10000,
+        description="Maximum network size for matrix construction",
+    )
+    analytics_cache_size: int = Field(
+        alias="NEMAWASHI_ANALYTICS_CACHE_SIZE",
+        default=100,
+        description="Cache size for InfluenceAnalyzer",
     )
 
 
@@ -391,7 +402,7 @@ class GovernanceConfig(BaseSettings):
 
 class RAGConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
-    persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
+    persist_dir: str = Field(alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index")
     chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
     max_transcripts: int = Field(default=50, description="Max number of transcripts to ingest")
     batch_size: int = Field(default=10, description="Batch size for transcript ingestion")
@@ -458,14 +469,46 @@ class SearchConfig(BaseSettings):
 class ResiliencyConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
     circuit_breaker_fail_max: int = Field(
-        default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold"
+        alias="CIRCUIT_BREAKER_FAIL_MAX", default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold"
     )
     circuit_breaker_reset_timeout: int = Field(
-        default=DEFAULT_CB_RESET_TIMEOUT, description="Circuit breaker reset timeout"
+        alias="CIRCUIT_BREAKER_RESET_TIMEOUT", default=DEFAULT_CB_RESET_TIMEOUT, description="Circuit breaker reset timeout"
     )
     iterator_safety_limit: int = Field(
-        default=DEFAULT_ITERATOR_SAFETY_LIMIT, description="Max items for iterators"
+        alias="ITERATOR_SAFETY_LIMIT", default=DEFAULT_ITERATOR_SAFETY_LIMIT, description="Max items for iterators"
     )
+
+    retry_max_attempts: int = Field(
+        alias="RETRY_MAX_ATTEMPTS", default=3, description="Maximum number of retry attempts"
+    )
+    retry_jitter_min: float = Field(
+        alias="RETRY_JITTER_MIN", default=0.0, description="Minimum jitter percentage for retries"
+    )
+    retry_jitter_max: float = Field(
+        alias="RETRY_JITTER_MAX", default=0.5, description="Maximum jitter percentage for retries"
+    )
+
+
+class PDFConfig(BaseSettings):
+    """Configuration for PDF Generation."""
+    model_config = SettingsConfigDict(extra="ignore")
+    font_family: str = Field(alias="PDF_FONT_FAMILY", default="Helvetica", description="Font family for PDF")
+    font_size: int = Field(alias="PDF_FONT_SIZE", default=12, description="Base font size for PDF")
+    title_font_size: int = Field(alias="PDF_TITLE_FONT_SIZE", default=16, description="Title font size for PDF")
+    page_format: str = Field(alias="PDF_PAGE_FORMAT", default="A4", description="Page format for PDF")
+
+
+class RenderConfig(BaseSettings):
+    """Configuration for Data Renderer."""
+    model_config = SettingsConfigDict(extra="ignore")
+    indent_spaces: int = Field(alias="RENDER_INDENT_SPACES", default=2, description="Number of spaces for indentation")
+    max_depth: int = Field(alias="RENDER_MAX_DEPTH", default=50, description="Maximum recursion depth for rendering")
+
+
+class ThreadPoolConfig(BaseSettings):
+    """Configuration for ThreadPool Executors."""
+    model_config = SettingsConfigDict(extra="ignore")
+    max_workers: int = Field(alias="THREADPOOL_MAX_WORKERS", default=5, description="Maximum number of worker threads")
 
 
 import os  # noqa: E402
@@ -517,6 +560,10 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
+    pdf: PDFConfig = Field(default_factory=PDFConfig)
+    render: RenderConfig = Field(default_factory=RenderConfig)
+    threadpool: ThreadPoolConfig = Field(default_factory=ThreadPoolConfig)
+
 class CredentialManager:
     """
     Manager specifically responsible for handling sensitive credentials securely.
@@ -537,28 +584,10 @@ class SettingsFactory:
         self.validator = validator
 
     def build(self) -> Settings:
-        settings = Settings()
+        settings = get_settings()
         if self.validator:
             self.validator.validate_openai_key(settings.openai_api_key)
             self.validator.validate_tavily_key(settings.tavily_api_key)
         return settings
 
 
-_legacy_settings_instance: Settings | None = None
-_legacy_lock = threading.Lock()
-
-def get_settings() -> Settings:
-    """Legacy singleton retriever. Left for backwards compatibility across tests."""
-    global _legacy_settings_instance
-    if _legacy_settings_instance is None:
-        with _legacy_lock:
-            if _legacy_settings_instance is None:
-                from src.core.validators import ConfigValidators
-                _legacy_settings_instance = SettingsFactory(validator=ConfigValidators()).build()
-    return _legacy_settings_instance
-
-def clear_settings_cache() -> None:
-    """Legacy helper for testing configurations."""
-    global _legacy_settings_instance
-    with _legacy_lock:
-        _legacy_settings_instance = None

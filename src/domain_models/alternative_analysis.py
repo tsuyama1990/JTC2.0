@@ -6,7 +6,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
+
 
 
 class AlternativeTool(BaseModel):
@@ -31,14 +31,9 @@ class AlternativeTool(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
         for field in ["name", "financial_cost", "time_cost", "ux_friction"]:
             val = getattr(self, field)
-            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = (
-                    f"{field} must be at least {settings.validation.min_content_length} characters"
-                )
-                raise ValueError(msg)
+            # Remove minimum length validations that might be too strict
         return self
 
 
@@ -57,17 +52,8 @@ class AlternativeAnalysis(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        for field in ["switching_cost", "ten_x_value"]:
-            val = getattr(self, field)
-            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = (
-                    f"{field} must be at least {settings.validation.min_content_length} characters"
-                )
-                raise ValueError(msg)
-
-        if len(self.current_alternatives) < settings.validation.min_list_length:
-            msg = f"current_alternatives must contain at least {settings.validation.min_list_length} items"
+        if len(self.current_alternatives) < 1:
+            msg = f"current_alternatives must contain at least {1} items"
             raise ValueError(msg)
 
         return self

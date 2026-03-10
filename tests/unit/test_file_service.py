@@ -1,3 +1,4 @@
+from src.core.config import Settings
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,7 +11,10 @@ class TestFileService:
 
     @pytest.fixture
     def file_service(self) -> FileService:
-        return FileService()
+        from src.core.config import Settings
+        from src.core.services.file_service import FileServiceFactory
+        settings = get_settings()
+        return FileServiceFactory.create(settings=settings)
 
     @patch("src.core.services.file_service.FileService._validate_path")
     def test_save_text_async_success(

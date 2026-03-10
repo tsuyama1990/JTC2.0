@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from src.agents.base import BaseAgent, SearchTool
-from src.core.config import Settings, get_settings
+from src.core.config import Settings
 from src.core.constants import ERR_UNIQUE_ID_VIOLATION
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState

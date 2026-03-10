@@ -1,3 +1,4 @@
+from src.core.config import Settings
 import asyncio
 import threading
 import time
@@ -6,7 +7,7 @@ from pathlib import Path
 
 import bleach
 
-from src.core.config import Settings, get_settings
+from src.core.config import Settings
 
 
 def chunk_text(text: str, chunk_size: int) -> Generator[str, None, None]:

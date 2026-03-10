@@ -1,3 +1,5 @@
+from src.core.config import Settings
+from src.core.config import Settings
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -32,39 +34,13 @@ def mock_state() -> GlobalState:
 
 def test_create_app_structure() -> None:
     """Test that the main application graph is created correctly."""
-    from src.core.workflow_builder import node_registry
+    from src.core.config import Settings
+    from src.core.factory import AgentFactory
 
-    # We must ensure all nodes are registered
-    if "ideator" not in node_registry.nodes:
-        node_registry.register("ideator")(lambda state: {"messages": []})
-    if "verification" not in node_registry.nodes:
-        node_registry.register("verification")(lambda state: {"messages": []})
-    if "persona" not in node_registry.nodes:
-        node_registry.register("persona")(lambda state: {"messages": []})
-    if "alternative_analysis" not in node_registry.nodes:
-        node_registry.register("alternative_analysis")(lambda state: {"messages": []})
-    if "vpc" not in node_registry.nodes:
-        node_registry.register("vpc")(lambda state: {"messages": []})
-    if "transcript_ingestion" not in node_registry.nodes:
-        node_registry.register("transcript_ingestion")(lambda state: {"messages": []})
-    if "mental_model_journey" not in node_registry.nodes:
-        node_registry.register("mental_model_journey")(lambda state: {"messages": []})
-    if "sitemap_wireframe" not in node_registry.nodes:
-        node_registry.register("sitemap_wireframe")(lambda state: {"messages": []})
-    if "virtual_customer" not in node_registry.nodes:
-        node_registry.register("virtual_customer")(lambda state: {"messages": []})
-    if "simulation_round" not in node_registry.nodes:
-        node_registry.register("simulation_round")(lambda state: {"messages": []})
-    if "review_3h" not in node_registry.nodes:
-        node_registry.register("review_3h")(lambda state: {"messages": []})
-    if "spec_generation" not in node_registry.nodes:
-        node_registry.register("spec_generation")(lambda state: {"messages": []})
-    if "experiment_planning" not in node_registry.nodes:
-        node_registry.register("experiment_planning")(lambda state: {"messages": []})
-    if "governance" not in node_registry.nodes:
-        node_registry.register("governance")(lambda state: {"messages": []})
+    settings = Settings()
+    agent_factory = MagicMock(spec=AgentFactory)
+    app = create_app(settings=settings, agent_factory=agent_factory)
 
-    app = create_app(registry=node_registry)
     assert isinstance(app, CompiledStateGraph)
     # detailed graph structure assertions are hard with compiled graph,
     # but we can check if it compiles without error.
@@ -81,7 +57,9 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     )
     mock_state.transcripts = [t1]
 
-    transcript_ingestion_node = make_transcript_ingestion_node()
+    from src.core.config import Settings
+    settings = Settings()
+    transcript_ingestion_node = make_transcript_ingestion_node(settings=settings)
     result = transcript_ingestion_node(mock_state)
 
     assert result == {}

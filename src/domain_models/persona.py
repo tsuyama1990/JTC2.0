@@ -10,7 +10,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.core.config import get_settings
+
 from src.core.constants import (
     DESC_EMPATHY_DOES,
     DESC_EMPATHY_FEELS,
@@ -39,9 +39,8 @@ class EmpathyMap(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        min_len = settings.validation.min_list_length
-        max_len = settings.validation.max_list_length
+        min_len = 1
+        max_len = 20
         for field in ["says", "thinks", "does", "feels"]:
             val = getattr(self, field)
             if len(val) < min_len:
@@ -95,11 +94,10 @@ class Persona(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
 
         # List field validation
-        min_list_len = settings.validation.min_list_length
-        max_list_len = settings.validation.max_list_length
+        min_list_len = 1
+        max_list_len = 20
         for field in ["goals", "frustrations"]:
             val = getattr(self, field)
             if len(val) < min_list_len:
@@ -110,8 +108,8 @@ class Persona(BaseModel):
                 raise ValueError(msg)
 
         # Content validation
-        min_content_len = settings.validation.min_content_length
-        max_content_len = settings.validation.max_content_length
+        min_content_len = 10
+        max_content_len = 2000
         if len(self.bio) < min_content_len:
             msg = f"bio must be at least {min_content_len} characters"
             raise ValueError(msg)

@@ -1,6 +1,6 @@
 import logging
 
-from src.core.config import NemawashiConfig, get_settings
+from src.core.config import NemawashiConfig
 from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import InfluenceNetwork
 
@@ -12,14 +12,14 @@ class ConsensusEngine:
     Handles the core mathematical consensus building (French-DeGroot Model).
     """
 
-    def __init__(self, settings: NemawashiConfig | None = None) -> None:
+    def __init__(self, settings: NemawashiConfig) -> None:
         """
         Initialize the Consensus Engine.
 
         Args:
-            settings: Configuration settings for Nemawashi. If None, loads from global settings.
+            settings: Configuration settings for Nemawashi.
         """
-        self.settings = settings or get_settings().nemawashi
+        self.settings = settings
         self._cache: dict[str, list[float]] = {}
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:

@@ -1,8 +1,9 @@
+from src.core.config import Settings
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.core.config import Settings, get_settings
+from src.core.config import Settings
 from src.core.exceptions import ConfigurationError
 from src.core.interfaces import IFileWriter
 from src.core.retry_handler import RetryHandler
@@ -11,8 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class ThreadedFileWriter(IFileWriter):
-    def __init__(self, executor: ThreadPoolExecutor | None = None) -> None:
-        self._executor = executor or ThreadPoolExecutor(max_workers=5)
+    def __init__(self, settings: Settings, executor: ThreadPoolExecutor | None = None) -> None:
+        self.settings = settings
+        self._executor = executor or ThreadPoolExecutor(max_workers=self.settings.threadpool.max_workers)
 
     def save_text_async(self, content: str, path: str | Path) -> None:
         try:
@@ -70,15 +72,23 @@ class ThreadedFileWriter(IFileWriter):
         handler.execute_with_retry(_write_action, error_msg=f"Error writing to {path}")
 
 
+class FileServiceFactory:
+    """Factory to create FileService with its dependencies correctly."""
+    @staticmethod
+    def create(settings: Settings, writer: IFileWriter | None = None) -> "FileService":
+        resolved_writer = writer or ThreadedFileWriter(settings=settings)
+        return FileService(settings=settings, writer=resolved_writer)
+
+
 class FileService:
     """
     Service for handling file operations securely and efficiently.
     Uses injected IFileWriter for non-blocking I/O in async contexts.
     """
 
-    def __init__(self, writer: IFileWriter | None = None, settings: Settings | None = None) -> None:
-        self.writer = writer or ThreadedFileWriter()
-        self.settings = settings or get_settings()
+    def __init__(self, settings: Settings, writer: IFileWriter) -> None:
+        self.settings = settings
+        self.writer = writer
 
     def _validate_path(self, path: str | Path) -> Path:
         """
@@ -112,3 +122,32 @@ class FileService:
         """
         valid_path = self._validate_path(path)
         self.writer.save_text_async(content, valid_path)
+
+    def save_canvas_output_async(self, content: str, filename: str) -> None:
+        """
+        Saves output file inside the configurable canvas outputs directory.
+
+        Args:
+            content: The content to save.
+            filename: The target filename.
+        """
+        import re
+
+        # Sanitize filename
+        safe_filename = re.sub(r"[^a-zA-Z0-9_\-\.]", "", filename)
+        if not safe_filename:
+            logger.error("Invalid filename provided for save_canvas_output_async.")
+            return
+
+        output_dir = Path(self.settings.canvas_output_dir).resolve()
+        if not output_dir.is_absolute():
+            output_dir = (Path.cwd() / output_dir).resolve()
+
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            logger.exception("Failed to create outputs directory.")
+            return
+
+        target_path = output_dir / safe_filename
+        self.save_text_async(content, target_path)
