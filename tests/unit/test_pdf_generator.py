@@ -1,3 +1,4 @@
+from src.core.config import Settings
 from pathlib import Path
 from unittest.mock import patch
 

@@ -15,7 +15,7 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.config import get_settings
+
 from src.core.constants import (
     ERR_CIRCUIT_OPEN,
     ERR_PATH_TRAVERSAL,

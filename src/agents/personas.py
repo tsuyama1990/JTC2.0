@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent, SearchTool
 from src.agents.mixins import RateLimitMixin
-from src.core.config import Settings, get_settings
+from src.core.config import Settings
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch

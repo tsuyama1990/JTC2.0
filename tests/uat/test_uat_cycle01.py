@@ -1,3 +1,4 @@
+from src.core.config import Settings
 import itertools
 import os
 from collections.abc import Iterator
@@ -43,9 +44,9 @@ def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas
     Verify that the Ideation phase handles large/infinite iterators safely
     by consuming only what is needed (pagination).
     """
-    from src.core.config import clear_settings_cache
 
-    clear_settings_cache()
+
+
     os.environ.update(DUMMY_ENV_VARS)
 
     mock_ideator_instance = MagicMock()
@@ -120,9 +121,9 @@ def test_gate_transitions_data_integrity() -> None:
     Verify that state transitions through gates maintain data integrity
     and validation rules hold.
     """
-    from src.core.config import clear_settings_cache
 
-    clear_settings_cache()
+
+
     os.environ.update(DUMMY_ENV_VARS)
 
     # Setup initial state simulating post-Ideation (Gate 1 passed)

@@ -1,3 +1,4 @@
+from src.core.config import Settings
 import os
 from unittest.mock import MagicMock, patch
 
@@ -36,9 +37,9 @@ class TestCycle05UAT:
         Scenario 1: AgentPromptSpec Generation Integration
         Verify that BuilderAgent properly generates AgentPromptSpec.
         """
-        from src.core.config import clear_settings_cache
 
-        clear_settings_cache()
+
+
 
         mock_llm = MagicMock()
         mock_chain = MagicMock()

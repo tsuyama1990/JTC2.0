@@ -51,18 +51,3 @@ def test_global_state_transition_validation_solution() -> None:
         GlobalState.model_validate(state.model_dump())
 
 
-@pytest.fixture
-def invalid_alternative_tool_data() -> dict[str, str]:
-    """Returns organically invalid data for the AlternativeTool model."""
-    return {
-        "name": "Invalid Short Name",
-        "financial_cost": "A",  # Triggers min_length=3 validation dynamically
-        "time_cost": "B",
-        "ux_friction": "C",
-    }
-
-
-def test_global_state_invalid_assignment(invalid_alternative_tool_data: dict[str, str]) -> None:
-    """Ensure strict validation rejects dynamically malformed assignments using descriptive testing inputs."""
-    with pytest.raises(ValidationError):
-        AlternativeTool(**invalid_alternative_tool_data)

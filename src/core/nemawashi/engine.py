@@ -1,4 +1,4 @@
-from src.core.config import NemawashiConfig, get_settings
+from src.core.config import NemawashiConfig
 from src.core.nemawashi.analytics import InfluenceAnalyzer
 from src.core.nemawashi.consensus import ConsensusEngine
 from src.core.nemawashi.nomikai import NomikaiSimulator

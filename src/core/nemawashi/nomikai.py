@@ -1,7 +1,7 @@
 import logging
 from typing import cast
 
-from src.core.config import NemawashiConfig, get_settings
+from src.core.config import NemawashiConfig
 from src.core.exceptions import ValidationError
 from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
 

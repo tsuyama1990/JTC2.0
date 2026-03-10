@@ -584,28 +584,10 @@ class SettingsFactory:
         self.validator = validator
 
     def build(self) -> Settings:
-        settings = Settings()
+        settings = get_settings()
         if self.validator:
             self.validator.validate_openai_key(settings.openai_api_key)
             self.validator.validate_tavily_key(settings.tavily_api_key)
         return settings
 
 
-_legacy_settings_instance: Settings | None = None
-_legacy_lock = threading.Lock()
-
-def get_settings() -> Settings:
-    """Legacy singleton retriever. Left for backwards compatibility across tests."""
-    global _legacy_settings_instance
-    if _legacy_settings_instance is None:
-        with _legacy_lock:
-            if _legacy_settings_instance is None:
-                from src.core.validators import ConfigValidators
-                _legacy_settings_instance = SettingsFactory(validator=ConfigValidators()).build()
-    return _legacy_settings_instance
-
-def clear_settings_cache() -> None:
-    """Legacy helper for testing configurations."""
-    global _legacy_settings_instance
-    with _legacy_lock:
-        _legacy_settings_instance = None

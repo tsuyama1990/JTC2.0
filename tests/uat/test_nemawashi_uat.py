@@ -1,3 +1,4 @@
+from src.core.config import Settings
 import pytest
 
 from src.core.nemawashi import NemawashiEngine
@@ -21,12 +22,12 @@ def test_identify_key_influencer_uat() -> None:
     net = InfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
     state = GlobalState(influence_network=net)
 
-    from src.core.config import get_settings
+
     from src.core.nemawashi.analytics import InfluenceAnalyzer
     from src.core.nemawashi.consensus import ConsensusEngine
     from src.core.nemawashi.nomikai import NomikaiSimulator
 
-    settings = get_settings().nemawashi
+    settings = Settings().nemawashi
     consensus = ConsensusEngine(settings)
     analytics = InfluenceAnalyzer(settings.analytics_cache_size)
     simulator = NomikaiSimulator(settings)
@@ -52,12 +53,12 @@ def test_nomikai_effect_uat() -> None:
 
     net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
 
-    from src.core.config import get_settings
+
     from src.core.nemawashi.analytics import InfluenceAnalyzer
     from src.core.nemawashi.consensus import ConsensusEngine
     from src.core.nemawashi.nomikai import NomikaiSimulator
 
-    settings = get_settings().nemawashi
+    settings = Settings().nemawashi
     consensus = ConsensusEngine(settings)
     analytics = InfluenceAnalyzer(settings.analytics_cache_size)
     simulator = NomikaiSimulator(settings)

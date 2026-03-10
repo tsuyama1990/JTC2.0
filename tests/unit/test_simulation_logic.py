@@ -1,3 +1,4 @@
+from src.core.config import Settings
 from unittest.mock import MagicMock, patch
 
 import pytest

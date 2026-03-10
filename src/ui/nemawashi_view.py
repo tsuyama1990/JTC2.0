@@ -3,7 +3,7 @@ from typing import cast
 
 import pyxel
 
-from src.core.config import get_settings
+
 from src.core.constants import MSG_NEMAWASHI_TITLE
 from src.core.theme import (
     COLOR_EDGE_STRONG,

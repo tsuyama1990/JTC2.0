@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent
-from src.core.config import get_settings
+
 from src.domain_models.agent_prompt import AgentPromptSpec
 from src.domain_models.state import GlobalState
 

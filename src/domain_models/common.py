@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic_core import core_schema
 
-from src.core.config import get_settings
+
 from src.domain_models.lean_canvas import LeanCanvas
 
 
@@ -19,18 +19,19 @@ class LazyIdeaIterator(Iterator[LeanCanvas]):
     It expects a generator or iterator as input.
     """
 
-    def __init__(self, iterator: Iterator[LeanCanvas]) -> None:
+    def __init__(self, iterator: Iterator[LeanCanvas], max_items: int = 100) -> None:
         """
         Initialize the lazy iterator.
 
         Args:
             iterator: An iterator (preferably a generator) yielding LeanCanvas objects.
                       The iterator should NOT be pre-materialized list if possible.
+            max_items: Maximum number of items this iterator will yield.
         """
         self._iterator = iterator
         self._consumed = False
         self._count = 0
-        self._max_items = get_settings().resiliency.iterator_safety_limit
+        self._max_items = max_items
 
     def __iter__(self) -> Iterator[LeanCanvas]:
         return self

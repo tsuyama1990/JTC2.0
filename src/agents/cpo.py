@@ -1,3 +1,4 @@
+from src.core.config import Settings
 import logging
 import time
 from typing import Any

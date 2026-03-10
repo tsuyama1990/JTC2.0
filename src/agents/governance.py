@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel
 
 from src.agents.base import BaseAgent
-from src.core.config import get_settings
+
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
 from src.core.llm import LLMFactory
 from src.core.metrics import calculate_ltv, calculate_payback_period, calculate_roi
@@ -33,7 +33,7 @@ class GovernanceAgent(BaseAgent):
         """
         logger.info("Governance Agent: Starting analysis...")
         # Get settings locally or from dependency injection, to fix tests we can fetch explicitly here
-        from src.core.config import get_settings
+
 
         settings = get_settings()
 

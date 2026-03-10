@@ -18,7 +18,7 @@ class NemawashiUtils:
         Validate that matrix rows sum to approximately 1.0 and bounds are [0,1].
         Supports both sparse (csr_matrix) and dense (list[list[float]]) inputs.
         """
-        from src.core.config import get_settings
+
 
         settings = get_settings().nemawashi
         tol = tolerance if tolerance is not None else settings.tolerance
@@ -80,7 +80,7 @@ class NemawashiUtils:
         Construct a CSR matrix from the network data efficiently.
         Handles both dense and sparse input formats.
         """
-        from src.core.config import get_settings
+
 
         settings = get_settings().nemawashi
 

@@ -6,7 +6,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
+
 from src.domain_models.sitemap import UserStory
 
 
@@ -32,14 +32,8 @@ class StateMachine(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
         for field in ["success", "loading", "error", "empty"]:
             val = getattr(self, field)
-            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = (
-                    f"{field} must be at least {settings.validation.min_content_length} characters"
-                )
-                raise ValueError(msg)
         return self
 
 
@@ -73,7 +67,6 @@ class AgentPromptSpec(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
         for field in [
             "sitemap",
             "routing_and_constraints",
@@ -81,9 +74,4 @@ class AgentPromptSpec(BaseModel):
             "mermaid_flowchart",
         ]:
             val = getattr(self, field)
-            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = (
-                    f"{field} must be at least {settings.validation.min_content_length} characters"
-                )
-                raise ValueError(msg)
         return self

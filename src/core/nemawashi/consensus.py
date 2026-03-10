@@ -1,6 +1,6 @@
 import logging
 
-from src.core.config import NemawashiConfig, get_settings
+from src.core.config import NemawashiConfig
 from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import InfluenceNetwork
 

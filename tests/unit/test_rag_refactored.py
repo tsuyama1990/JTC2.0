@@ -1,3 +1,4 @@
+from src.core.config import Settings
 import pytest
 
 from src.core.exceptions import ConfigurationError

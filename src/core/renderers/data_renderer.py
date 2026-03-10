@@ -1,6 +1,6 @@
 from typing import Any
 
-from src.core.config import get_settings
+
 
 
 class DataRenderer:

@@ -11,7 +11,7 @@ except ImportError:
 
 @pytest.fixture
 def mock_settings() -> Generator[MagicMock, None, None]:
-    with patch("src.data.rag.get_settings") as mock:
+    with patch("src.data.rag.Settings") as mock:
         mock.return_value.openai_api_key.get_secret_value.return_value = "sk-test"
         mock.return_value.llm_model = "gpt-4o"
         # Mock rag_persist_dir - must be a valid subdir relative to CWD, e.g. tests/

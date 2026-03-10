@@ -6,7 +6,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
+
 
 
 class MetricTarget(BaseModel):
@@ -27,14 +27,8 @@ class MetricTarget(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
         for field in ["metric_name", "target_value", "measurement_method"]:
             val = getattr(self, field)
-            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = (
-                    f"{field} must be at least {settings.validation.min_content_length} characters"
-                )
-                raise ValueError(msg)
         return self
 
 
@@ -64,7 +58,6 @@ class ExperimentPlan(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
         for field in [
             "riskiest_assumption",
             "experiment_type",
@@ -72,14 +65,9 @@ class ExperimentPlan(BaseModel):
             "pivot_condition",
         ]:
             val = getattr(self, field)
-            if isinstance(val, str) and len(val) < settings.validation.min_content_length:
-                msg = (
-                    f"{field} must be at least {settings.validation.min_content_length} characters"
-                )
-                raise ValueError(msg)
 
-        if len(self.aarrr_metrics) < settings.validation.min_list_length:
-            msg = f"aarrr_metrics must contain at least {settings.validation.min_list_length} items"
+        if len(self.aarrr_metrics) < 1:
+            msg = f"aarrr_metrics must contain at least {1} items"
             raise ValueError(msg)
 
         return self

@@ -1,3 +1,4 @@
+from src.core.config import Settings
 from langchain_openai import ChatOpenAI
 
 from src.agents.builder import BuilderAgent
