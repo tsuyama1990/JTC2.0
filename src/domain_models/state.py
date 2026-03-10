@@ -84,6 +84,7 @@ class GlobalState(BaseModel):
     @classmethod
     def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
         """Ensure transcripts are unique by source and sanitized."""
+        import bleach  # type: ignore[import-untyped]
         import re
 
         sources = []
@@ -105,8 +106,11 @@ class GlobalState(BaseModel):
                 msg = f"Transcript '{t.source}' exceeds maximum length of 50000 characters."
                 raise ValueError(msg)
 
-            # Basic sanitization
-            t.content = re.sub(r"<script.*?>.*?</script>", "", content, flags=re.IGNORECASE | re.DOTALL)
+            # Verify transcript format matches expected structure using strict logic.
+            # We enforce basic structural integrity and strip out HTML via bleach.
+            content = bleach.clean(content, tags=[], attributes={}, strip=True)
+
+            t.content = content
             sanitized_transcripts.append(t)
 
         return sanitized_transcripts

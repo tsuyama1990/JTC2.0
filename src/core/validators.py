@@ -66,3 +66,25 @@ class ConfigValidators:
             msg = "Tavily API Key is too short."
             raise ValueError(msg)
         return v
+
+    @staticmethod
+    def validate_rag_path(raw_path: str | object) -> str:
+        """Validate RAG persist directory path securely."""
+        from pathlib import Path
+        import tempfile
+
+        # Allow base dir to be current working directory or a specific temp dir.
+        base_dir = Path.cwd().resolve(strict=True)
+        tmp_dir = Path(tempfile.gettempdir()).resolve(strict=True)
+
+        try:
+            resolved_path = Path(str(raw_path)).resolve(strict=True)
+        except FileNotFoundError:
+            # If directory doesn't exist, validate the parent directory that does exist
+            resolved_path = Path(str(raw_path)).parent.resolve(strict=True)
+
+        if not any(resolved_path.is_relative_to(base) for base in [base_dir, tmp_dir]):
+            msg = f"Invalid RAG path: {resolved_path}. Must be relative to allowed base directories."
+            raise ValueError(msg)
+
+        return str(Path(str(raw_path)).resolve())

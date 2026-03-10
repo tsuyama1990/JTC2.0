@@ -46,25 +46,11 @@ class AgentFactory:
             llm = get_llm()
             settings = get_settings()
             raw_path = state.rag_index_path if state else settings.rag_persist_dir
-            resolved_path = Path(raw_path).resolve()
 
-            import tempfile
+            from src.core.validators import ConfigValidators
+            rag_path = ConfigValidators.validate_rag_path(raw_path)
 
-            # Allow base dir to be current working directory or a specific temp dir.
-            base_dir = Path.cwd().resolve(strict=True)
-            tmp_dir = Path(tempfile.gettempdir()).resolve(strict=True)
-
-            try:
-                resolved_path = Path(raw_path).resolve(strict=True)
-            except FileNotFoundError:
-                # If directory doesn't exist, validate the parent directory that does exist
-                resolved_path = Path(raw_path).parent.resolve(strict=True)
-
-            if not any(resolved_path.is_relative_to(base) for base in [base_dir, tmp_dir]):
-                msg = f"Invalid RAG path: {resolved_path}. Must be relative to allowed base directories."
-                raise ValueError(msg)
-
-            return CPOAgent(llm, app_settings=settings, rag_path=str(resolved_path))
+            return CPOAgent(llm, app_settings=settings, rag_path=rag_path)
 
         return AgentFactory._create_persona_agent(role)
 

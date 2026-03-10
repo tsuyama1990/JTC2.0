@@ -183,6 +183,11 @@ class MVP(BaseModel):
             if v.host not in ("v0.dev", "api.v0.dev"):
                 msg = f"Invalid URL domain: {v.host}. Only v0.dev is allowed."
                 raise ValueError(msg)
+
+            path_str = str(v.path) if v.path else ""
+            if ".." in path_str or "//" in path_str:
+                msg = "Invalid URL path: Path traversal detected."
+                raise ValueError(msg)
         return v
     deployment_status: DeploymentStatus = Field(
         default=DeploymentStatus.PENDING,
@@ -231,8 +236,11 @@ class MVPSpec(BaseModel):
             if len(comp) > 50:
                 msg = f"Component name too long: {comp}"
                 raise ValueError(msg)
+            if not comp.isascii():
+                msg = f"Component name must be ASCII: {comp}"
+                raise ValueError(msg)
             if not COMPONENT_PATTERN.match(comp):
-                msg = f"Invalid component name: {comp}. Must be alphanumeric/safe chars only."
+                msg = f"Invalid component name: {comp}. Must be alphanumeric only."
                 raise ValueError(msg)
         return v
 
@@ -245,6 +253,9 @@ class MVPSpec(BaseModel):
             if not v:
                 msg = "v0_prompt must be a non-empty string if provided."
                 raise ValueError(msg)
-            # Basic sanitization to remove script tags
-            v = re.sub(r"<script.*?>.*?</script>", "", v, flags=re.IGNORECASE | re.DOTALL)
+            import bleach  # type: ignore[import-untyped]
+            sanitized = bleach.clean(v, tags=[], attributes={}, strip=True)
+            if sanitized != v:
+                msg = "v0_prompt must not contain HTML or script tags."
+                raise ValueError(msg)
         return v

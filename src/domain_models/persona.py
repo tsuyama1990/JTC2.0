@@ -159,7 +159,8 @@ class Persona(BaseModel):
     @classmethod
     def validate_insights_content(cls, v: list[str]) -> list[str]:
         """Validate and sanitize content of interview insights."""
-        import bleach
+        import re
+        import bleach  # type: ignore[import-untyped]
 
         sanitized_insights = []
         for raw_insight in v:
@@ -169,6 +170,12 @@ class Persona(BaseModel):
                 raise ValueError(msg)
             if len(insight_clean) > 500:
                 msg = "Insight is too long."
+                raise ValueError(msg)
+
+            # Strict character whitelisting to prevent SQL/Command injection attacks
+            # Allow letters, numbers, spaces, common punctuation. Deny SQL/bash special chars like ; ' " %
+            if not re.match(r"^[a-zA-Z0-9\s.,!?\-]+$", insight_clean):
+                msg = f"Insight contains invalid characters: '{insight_clean}'"
                 raise ValueError(msg)
 
             # Comprehensive sanitization to prevent script/XSS injection

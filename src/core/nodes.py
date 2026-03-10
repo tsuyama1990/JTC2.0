@@ -63,17 +63,10 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
 @safe_node("Error during transcript ingestion")
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
-    import tempfile
-    from pathlib import Path
+    from src.core.validators import ConfigValidators
+    rag_path = ConfigValidators.validate_rag_path(state.rag_index_path)
 
-    resolved_path = Path(state.rag_index_path).resolve()
-    base_dir = Path.cwd().resolve()
-    tmp_dir = Path(tempfile.gettempdir()).resolve()
-    if not resolved_path.is_relative_to(base_dir) and not resolved_path.is_relative_to(tmp_dir):
-        msg = f"Invalid RAG path: {resolved_path}. Must be relative to {base_dir}"
-        raise ValueError(msg)
-
-    rag = RAG(persist_dir=str(resolved_path))
+    rag = RAG(persist_dir=rag_path)
 
     # Process transcripts in chunks to manage memory
     chunk_size = 10
@@ -92,6 +85,7 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     return {}
 
 
+@safe_node("Error in Transcript Ingestion Node")
 def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
     """
     Ingest customer transcripts into the RAG system.
@@ -180,6 +174,7 @@ def _solution_proposal_impl(state: GlobalState) -> dict[str, Any]:
     return updates
 
 
+@safe_node("Error in Solution Proposal Node")
 def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
     """
     Transition to Solution Phase and Propose Features.

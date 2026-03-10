@@ -130,6 +130,10 @@ class Metrics(BaseModel):
             if value < settings.validation.min_metric_value:
                 msg = f"Metric value for {key} must be >= {settings.validation.min_metric_value}."
                 raise ValueError(msg)
+            # Upper bound for basic business rules
+            if value > 1000000:
+                msg = f"Metric value for {key} exceeds maximum allowed threshold."
+                raise ValueError(msg)
 
         return v
 
