@@ -1,4 +1,4 @@
-from typing import Any
+from pathlib import Path
 
 from src.agents.builder import BuilderAgent
 from src.agents.cpo import CPOAgent
@@ -30,7 +30,9 @@ class AgentFactory:
         return GovernanceAgent()
 
     @staticmethod
-    def get_persona_agent(role: Role, state: GlobalState | None = None) -> Any:
+    def get_persona_agent(
+        role: Role, state: GlobalState | None = None
+    ) -> CPOAgent | NewEmployeeAgent | FinanceAgent | SalesAgent:
         """
         Get a persona agent instance.
 
@@ -43,16 +45,19 @@ class AgentFactory:
         if role == Role.CPO:
             llm = get_llm()
             settings = get_settings()
-            rag_path = state.rag_index_path if state else settings.rag_persist_dir
+            raw_path = state.rag_index_path if state else settings.rag_persist_dir
+
+            from src.core.validators import ConfigValidators
+            rag_path = ConfigValidators.validate_rag_path(raw_path)
+
             return CPOAgent(llm, app_settings=settings, rag_path=rag_path)
 
-        return AgentFactory._get_cached_persona(role)
+        return AgentFactory._create_persona_agent(role)
 
     @staticmethod
-    def _get_cached_persona(role: Role) -> Any:
+    def _create_persona_agent(role: Role) -> NewEmployeeAgent | FinanceAgent | SalesAgent:
         """
         Factory for stateless persona agents.
-        No caching to ensure fresh configuration usage (e.g. LLM model changes).
         """
         llm = get_llm()
         settings = get_settings()

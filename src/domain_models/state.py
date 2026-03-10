@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -11,9 +12,16 @@ from src.domain_models.validators import StateValidator
 __all__ = ["GlobalState", "Phase"]
 
 from .lean_canvas import LeanCanvas
-from .metrics import Metrics, RingiSho
-from .mvp import MVP, MVPSpec
-from .persona import Persona
+from .metrics import ExperimentPlan, Metrics, RingiSho
+from .mvp import (
+    MVP,
+    AgentPromptSpec,
+    AlternativeAnalysis,
+    CustomerJourney,
+    MVPSpec,
+    SitemapAndStory,
+)
+from .persona import MentalModelDiagram, Persona, ValuePropositionCanvas
 from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage
 from .transcript import Transcript
@@ -53,8 +61,8 @@ class GlobalState(BaseModel):
     transcripts: list[Transcript] = Field(
         default_factory=list, description="Raw transcripts from PLAUD or interviews"
     )
-    rag_index_path: str = Field(
-        default_factory=lambda: get_settings().rag_persist_dir,
+    rag_index_path: Path = Field(
+        default_factory=lambda: Path(get_settings().rag_persist_dir),
         description="Path to the local vector store",
     )
 
@@ -64,18 +72,48 @@ class GlobalState(BaseModel):
     influence_network: InfluenceNetwork | None = None
     ringi_sho: RingiSho | None = None
 
+    value_proposition_canvas: ValuePropositionCanvas | None = None
+    mental_model_diagram: MentalModelDiagram | None = None
+    alternative_analysis: AlternativeAnalysis | None = None
+    customer_journey: CustomerJourney | None = None
+    sitemap_and_story: SitemapAndStory | None = None
+    experiment_plan: ExperimentPlan | None = None
+    agent_prompt_spec: AgentPromptSpec | None = None
+
     @field_validator("transcripts")
     @classmethod
     def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
-        """Ensure transcripts are unique by source."""
-        # Simple list validation logic, keeping it here for field proximity or move to validator?
-        # The audit asked to "Extract complex validation logic".
-        # This is relatively simple, but let's be strict.
-        sources = [t.source for t in v]
-        if len(sources) != len(set(sources)):
-            msg = "Duplicate transcript sources found."
-            raise ValueError(msg)
-        return v
+        """Ensure transcripts are unique by source and sanitized."""
+        import bleach  # type: ignore[import-untyped]
+        import re
+
+        sources = []
+        sanitized_transcripts = []
+        for t in v:
+            if t.source in sources:
+                msg = "Duplicate transcript sources found."
+                raise ValueError(msg)
+            sources.append(t.source)
+
+            # Content validation and sanitization
+            content = t.content.strip()
+            if not content:
+                msg = f"Transcript '{t.source}' content cannot be empty."
+                raise ValueError(msg)
+
+            # Limit transcript size
+            if len(content) > 50000:
+                msg = f"Transcript '{t.source}' exceeds maximum length of 50000 characters."
+                raise ValueError(msg)
+
+            # Verify transcript format matches expected structure using strict logic.
+            # We enforce basic structural integrity and strip out HTML via bleach.
+            content = bleach.clean(content, tags=[], attributes={}, strip=True)
+
+            t.content = content
+            sanitized_transcripts.append(t)
+
+        return sanitized_transcripts
 
     @field_validator("agent_states")
     @classmethod
@@ -89,7 +127,7 @@ class GlobalState(BaseModel):
 
     @field_validator("generated_ideas", mode="before")
     @classmethod
-    def wrap_iterator(cls, v: object) -> object:
+    def wrap_iterator(cls, v: object) -> LazyIdeaIterator | None:
         """
         Auto-wrap Iterator[LeanCanvas] into LazyIdeaIterator if needed.
         Strictly enforces that the input is a valid Iterator.
@@ -104,7 +142,7 @@ class GlobalState(BaseModel):
             return LazyIdeaIterator(v)
 
         # Reject invalid types explicitly
-        msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
+        msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v).__name__}"
         raise TypeError(msg)
 
     @model_validator(mode="after")

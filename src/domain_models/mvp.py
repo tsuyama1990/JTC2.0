@@ -8,7 +8,7 @@ and success criteria, following the 'Lean Startup' methodology.
 import re
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -21,9 +21,82 @@ from src.core.constants import (
 )
 
 # Pre-compiled regex pattern at module level
-# Allow alphanumeric, spaces, hyphens, underscores.
+# Allow alphanumeric only, length 1-50
 # Deny special chars often used in injection: < > ; & ' "
-COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_]+$")
+# Use parameterized queries for database operations to prevent SQL injection.
+COMPONENT_PATTERN = re.compile(r"^[a-zA-Z0-9]{1,50}$")
+
+
+class AlternativeTool(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="Name of alternative (e.g., Excel, SaaS)")
+    financial_cost: str = Field(..., description="Financial cost")
+    time_cost: str = Field(..., description="Time cost")
+    ux_friction: str = Field(..., description="Maximum stress/friction felt by user")
+
+
+class AlternativeAnalysis(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    current_alternatives: list[AlternativeTool]
+    switching_cost: str = Field(..., description="Cost/effort required to switch")
+    ten_x_value: str = Field(..., description="10x value overcoming switching costs (UVP)")
+
+
+class JourneyPhase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    phase_name: str = Field(..., description="Phase name (e.g., Awareness, Consideration)")
+    touchpoint: str = Field(..., description="Contact point with system/environment")
+    customer_action: str = Field(..., description="Specific action taken")
+    mental_tower_ref: str = Field(..., description="Belief underlying this action")
+    pain_points: list[str] = Field(..., description="Pain felt in this phase")
+    emotion_score: int = Field(..., ge=-5, le=5, description="Emotional fluctuation (-5 to 5)")
+
+
+class CustomerJourney(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    phases: list[JourneyPhase] = Field(..., min_length=3, max_length=7)
+    worst_pain_phase: str = Field(..., description="Phase with deepest pain to solve")
+
+
+class Route(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    path: str = Field(..., description="URL path (e.g., /, /login)")
+    name: str = Field(..., description="Page name")
+    purpose: str = Field(..., description="Purpose of page")
+    is_protected: bool = Field(..., description="Requires auth?")
+
+
+class UserStory(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    as_a: str = Field(..., description="Persona")
+    i_want_to: str = Field(..., description="Action")
+    so_that: str = Field(..., description="Goal/Value")
+    acceptance_criteria: list[str] = Field(..., description="Acceptance criteria")
+    target_route: str = Field(..., description="Main URL path for this action")
+
+
+class SitemapAndStory(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sitemap: list[Route] = Field(..., description="Overall routing structure")
+    core_story: UserStory = Field(..., description="Most critical story to validate as MVP")
+
+
+class StateMachine(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    success: str = Field(..., description="Complete layout for normal data")
+    loading: str = Field(..., description="Waiting UI using Skeleton")
+    error: str = Field(..., description="Fallback UI and Retry button")
+    empty: str = Field(..., description="Empty state with CTA")
+
+
+class AgentPromptSpec(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sitemap: str = Field(..., description="Routing and information architecture")
+    routing_and_constraints: str = Field(..., description="SSR/Client bounds, UI library limits")
+    core_user_story: UserStory
+    state_machine: StateMachine
+    validation_rules: str = Field(..., description="Zod schema or edge cases")
+    mermaid_flowchart: str = Field(..., description="State/Data flow diagram in Mermaid")
 
 
 class MVPType(StrEnum):
@@ -93,11 +166,29 @@ class MVP(BaseModel):
     )
 
     # New fields for v0.dev integration
-    # Changed to HttpUrl for validation
-    v0_url: HttpUrl | None = Field(
+    # Changed to AnyHttpUrl for validation of http/https
+    v0_url: AnyHttpUrl | None = Field(
         default=None,
         description="URL of the deployed MVP on v0.dev",
     )
+
+    @field_validator("v0_url")
+    @classmethod
+    def validate_v0_url(cls, v: AnyHttpUrl | None) -> AnyHttpUrl | None:
+        """Ensure the URL belongs to the allowed v0.dev domain."""
+        if v is not None:
+            if v.scheme not in ("http", "https"):
+                msg = f"Invalid URL scheme: {v.scheme}. Only http/https are allowed."
+                raise ValueError(msg)
+            if v.host not in ("v0.dev", "api.v0.dev"):
+                msg = f"Invalid URL domain: {v.host}. Only v0.dev is allowed."
+                raise ValueError(msg)
+
+            path_str = str(v.path) if v.path else ""
+            if ".." in path_str or "//" in path_str:
+                msg = "Invalid URL path: Path traversal detected."
+                raise ValueError(msg)
+        return v
     deployment_status: DeploymentStatus = Field(
         default=DeploymentStatus.PENDING,
         description="Status of the MVP deployment (e.g., pending, deployed, failed)",
@@ -128,6 +219,8 @@ class MVPSpec(BaseModel):
     v0_prompt: str | None = Field(
         default=None,
         description="The prompt used to generate the UI via v0.dev",
+        min_length=1,
+        max_length=1000,
     )
     components: list[str] = Field(
         default_factory=lambda: ["Hero Section", "Feature Demo", "Call to Action"],
@@ -143,16 +236,26 @@ class MVPSpec(BaseModel):
             if len(comp) > 50:
                 msg = f"Component name too long: {comp}"
                 raise ValueError(msg)
+            if not comp.isascii():
+                msg = f"Component name must be ASCII: {comp}"
+                raise ValueError(msg)
             if not COMPONENT_PATTERN.match(comp):
-                msg = f"Invalid component name: {comp}. Must be alphanumeric/safe chars only."
+                msg = f"Invalid component name: {comp}. Must be alphanumeric only."
                 raise ValueError(msg)
         return v
 
     @field_validator("v0_prompt")
     @classmethod
     def validate_v0_prompt(cls, v: str | None) -> str | None:
-        """Ensure v0_prompt is non-empty if provided."""
-        if v is not None and not v.strip():
-            msg = "v0_prompt must be a non-empty string if provided."
-            raise ValueError(msg)
+        """Ensure v0_prompt is non-empty if provided and sanitize it."""
+        if v is not None:
+            v = v.strip()
+            if not v:
+                msg = "v0_prompt must be a non-empty string if provided."
+                raise ValueError(msg)
+            import bleach  # type: ignore[import-untyped]
+            sanitized = bleach.clean(v, tags=[], attributes={}, strip=True)
+            if sanitized != v:
+                msg = "v0_prompt must not contain HTML or script tags."
+                raise ValueError(msg)
         return v

@@ -18,7 +18,8 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
+from typing import Any
+def create_simulation_graph() -> CompiledStateGraph[Any, Any, Any]:
     """
     Create the simulation sub-graph based on configured turn sequence.
     Dynamically builds nodes and edges from Settings.
@@ -31,6 +32,10 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
 
     steps = settings.simulation.turn_sequence
 
+    if not isinstance(steps, list) or not all(isinstance(step, dict) for step in steps):
+        msg = "Invalid simulation configuration. turn_sequence must be a list of dicts."
+        raise ValueError(msg)
+
     workflow = StateGraph(GlobalState)
     previous_node = None
 
@@ -39,7 +44,11 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
         role_str = step["role"]
         desc = step["description"]
 
-        # Ensure role is a valid Role enum member
+        # Ensure role is a valid Role enum member using strict whitelist
+        if role_str not in {r.value for r in Role}:
+            logger.error(f"Role '{role_str}' is not in allowed roles whitelist. Skipping.")
+            continue
+
         try:
             role = Role(role_str)
         except ValueError:
@@ -55,7 +64,7 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
         ) -> dict[str, object]:
             logger.info(_desc)
             # Add type ignore for Any return from run
-            return AgentFactory.get_persona_agent(_role).run(state)  # type: ignore[no-any-return]
+            return AgentFactory.get_persona_agent(_role).run(state)
 
         # Name the function for debugging
         step_runner.__name__ = f"run_{node_name}"

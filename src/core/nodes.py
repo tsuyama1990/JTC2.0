@@ -37,7 +37,11 @@ def safe_node(
 @safe_node("Error in Ideator Agent")
 def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for Ideator execution with error handling."""
-    ideator = AgentFactory.get_ideator_agent()
+    try:
+        ideator = AgentFactory.get_ideator_agent()
+    except Exception:
+        logger.exception("Failed to initialize Ideator agent")
+        return {"error": "Ideator initialization failed"}
     return ideator.run(state)
 
 
@@ -59,7 +63,10 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
 @safe_node("Error during transcript ingestion")
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
-    rag = RAG(persist_dir=state.rag_index_path)
+    from src.core.validators import ConfigValidators
+    rag_path = ConfigValidators.validate_rag_path(state.rag_index_path)
+
+    rag = RAG(persist_dir=rag_path)
 
     # Process transcripts in chunks to manage memory
     chunk_size = 10
@@ -78,6 +85,7 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     return {}
 
 
+@safe_node("Error in Transcript Ingestion Node")
 def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
     """
     Ingest customer transcripts into the RAG system.
@@ -97,11 +105,20 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     Wrapper for Simulation execution with error handling.
     Runs the full turn-based simulation (Finance vs Sales vs New Employee).
     """
+    import concurrent.futures
+
     logger.info("Starting Simulation Round (Turn-based Battle)")
 
     simulation_app = create_simulation_graph()
 
-    final_state = simulation_app.invoke(state)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(simulation_app.invoke, state)
+        try:
+            final_state = future.result(timeout=30)
+        except concurrent.futures.TimeoutError:
+            logger.exception("Simulation timed out")
+            return {"error": "Simulation timeout"}
+
     if isinstance(final_state, dict):
         return {"debate_history": final_state.get("debate_history", [])}
     if hasattr(final_state, "debate_history"):
@@ -146,7 +163,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    return cpo.run(state)  # type: ignore
+    return cpo.run(state)
 
 
 @safe_node("Error in Solution Proposal")
@@ -157,6 +174,7 @@ def _solution_proposal_impl(state: GlobalState) -> dict[str, Any]:
     return updates
 
 
+@safe_node("Error in Solution Proposal Node")
 def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
     """
     Transition to Solution Phase and Propose Features.

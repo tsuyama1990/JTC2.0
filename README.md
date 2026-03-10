@@ -8,7 +8,7 @@ The JTC 2.0 Remastered Edition is a paradigm-shifting multi-agent platform desig
 
 ## Key Features
 
--   **Zero Hallucination Generation**: Employs Pydantic with `extra="forbid"` to force a deterministic, step-by-step reasoning process, ensuring every feature is firmly rooted in customer pain points.
+-   **Zero Hallucination Generation**: Employs Pydantic with `extra="forbid"` to force a deterministic, step-by-step reasoning process, ensuring every feature is firmly rooted in customer pain points. Supports rich data models like `ValuePropositionCanvas`, `CustomerJourney`, and `ExperimentPlan`.
 -   **Multi-Agent Orchestration**: Utilizes LangGraph to simulate intensive internal approvals ("The JTC Board"), virtual market testing, and rigorous multi-faceted product reviews (Hacker, Hipster, Hustler).
 -   **Human-in-the-Loop (HITL) Governance**: Pauses the AI workflow at critical junctions, generating beautiful PDF artifacts and allowing users to inject human insights and course corrections.
 -   **Universal MVP Prompt Output**: Outputs a comprehensive `AgentPromptSpec.md` and `ExperimentPlan.md` ready to be ingested by modern AI coding tools like Cursor, Windsurf, or Google Antigravity.

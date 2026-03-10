@@ -6,9 +6,8 @@ the success of the startup idea, including AARRR (Pirate Metrics) and
 detailed simulation scores (Planning, Communication, etc.).
 """
 
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import DESC_METRICS_AARRR, DESC_METRICS_CUSTOM
@@ -102,11 +101,15 @@ class Metrics(BaseModel):
         default_factory=DetailedMetrics, description="Detailed simulation metrics"
     )
     financials: Financials = Field(default_factory=Financials, description="Financial projections")
-    custom_metrics: dict[str, float] = Field(default_factory=dict, description=DESC_METRICS_CUSTOM)
+    custom_metrics: dict[str, StrictFloat | StrictInt] = Field(
+        default_factory=dict, description=DESC_METRICS_CUSTOM
+    )
 
     @field_validator("custom_metrics")
     @classmethod
-    def validate_custom_metrics(cls, v: dict[str, Any]) -> dict[str, float]:
+    def validate_custom_metrics(
+        cls, v: dict[str, StrictFloat | StrictInt]
+    ) -> dict[str, StrictFloat | StrictInt]:
         """Validate custom metrics keys, values, and limit."""
         settings = get_settings()
 
@@ -116,22 +119,39 @@ class Metrics(BaseModel):
             )
             raise ValueError(msg)
 
+        import re
+
         for key, value in v.items():
-            if not key.isidentifier():
+            if not key.isidentifier() or not re.match(r"^[a-zA-Z0-9_]+$", key):
                 msg = settings.errors.invalid_metric_key.format(key=key)
                 raise ValueError(msg)
-
-            # Explicit type check for values (mypy won't catch runtime dict values if Any)
-            if not isinstance(value, (int, float)):
-                msg = f"Metric value for {key} must be numeric."
-                raise TypeError(msg)
 
             # Value range validation
             if value < settings.validation.min_metric_value:
                 msg = f"Metric value for {key} must be >= {settings.validation.min_metric_value}."
                 raise ValueError(msg)
+            # Upper bound for basic business rules
+            if value > 1000000:
+                msg = f"Metric value for {key} exceeds maximum allowed threshold."
+                raise ValueError(msg)
 
         return v
+
+
+class MetricTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    metric_name: str = Field(..., description="Metric name (e.g., Day 7 Retention)")
+    target_value: str = Field(..., description="Target value for PMF")
+    measurement_method: str = Field(..., description="How to measure")
+
+
+class ExperimentPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    riskiest_assumption: str = Field(..., description="Riskiest assumption being tested")
+    experiment_type: str = Field(..., description="MVP Type (e.g., LP, Wizard of Oz)")
+    acquisition_channel: str = Field(..., description="Where to get first 100 users")
+    aarrr_metrics: list[MetricTarget] = Field(..., description="AARRR tracking metrics")
+    pivot_condition: str = Field(..., description="Conditions for immediate pivot")
 
 
 class RingiSho(BaseModel):
