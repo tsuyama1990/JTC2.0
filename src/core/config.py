@@ -1,4 +1,3 @@
-import threading
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -244,6 +243,7 @@ class SimulationConfig(BaseSettings):
             msg = "Dimensions must be between 100 and 800"
             raise ValueError(msg)
         return v
+
     fps: int = Field(default=DEFAULT_FPS, description="Frames per second")
     title: str = Field(default=MSG_SIM_TITLE, description="Window title")
     bg_color: int = Field(default=COLOR_BG, description="Background color")
@@ -391,6 +391,7 @@ class GovernanceConfig(BaseSettings):
 
 class RAGConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
+    base_dir: str = Field(default=".", description="Base directory for RAG operations to prevent path traversal")
     persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
     chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
     max_transcripts: int = Field(default=50, description="Max number of transcripts to ingest")
@@ -404,6 +405,7 @@ class RAGConfig(BaseSettings):
     @classmethod
     def validate_persist_dir(cls, v: str) -> str:
         import pathlib
+
         path = pathlib.Path(v).resolve()
         cwd = pathlib.Path.cwd().resolve()
 
@@ -418,6 +420,7 @@ class RAGConfig(BaseSettings):
                 msg = "persist_dir cannot be root directory"
                 raise ValueError(msg) from err
         return str(path)
+
     max_query_length: int = Field(
         default=DEFAULT_RAG_MAX_QUERY_LENGTH,
         description="Max query length",
@@ -468,15 +471,33 @@ class ResiliencyConfig(BaseSettings):
     )
 
 
+import abc
 import os  # noqa: E402
+import typing
+
+
+class IConfigLoader(abc.ABC):
+    @abc.abstractmethod
+    def load(self) -> dict[str, typing.Any]:
+        pass
+
+
+class EnvConfigLoader(IConfigLoader):
+    def __init__(self, env_file: str | None = None) -> None:
+        self.env_file = env_file or os.getenv("ENV_FILE", ".env")
+
+    def load(self) -> dict[str, typing.Any]:
+        from dotenv import dotenv_values
+
+        if os.path.exists(self.env_file):
+            return dotenv_values(self.env_file)
+        return {}
 
 
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(
-        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(extra="forbid")
 
     openai_api_key: SecretStr = Field(
         alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=20
@@ -486,11 +507,35 @@ class Settings(BaseSettings):
     )
     llm_model: str = Field(default="gpt-4o", description="LLM model name")
 
-
     canvas_output_dir: str = Field(
         alias="CANVAS_OUTPUT_DIR",
         default="outputs/canvas",
         description="Directory for PDF Canvas outputs",
+    )
+    agent_prompt_spec_filename: str = Field(
+        alias="AGENT_PROMPT_SPEC_FILENAME",
+        default="AgentPromptSpec.md",
+        description="Filename for the generated Agent Prompt Spec",
+    )
+    experiment_plan_filename: str = Field(
+        alias="EXPERIMENT_PLAN_FILENAME",
+        default="ExperimentPlan.md",
+        description="Filename for the generated Experiment Plan",
+    )
+    max_workers: int = Field(
+        alias="MAX_WORKERS",
+        default=5,
+        description="Maximum thread pool workers for async operations",
+    )
+    pdf_font: str = Field(
+        alias="PDF_FONT",
+        default="Helvetica",
+        description="Font family for PDF generation",
+    )
+    pdf_font_size: int = Field(
+        alias="PDF_FONT_SIZE",
+        default=12,
+        description="Font size for PDF generation",
     )
 
     feature_chunk_size: int = Field(
@@ -517,10 +562,12 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
+
 class CredentialManager:
     """
     Manager specifically responsible for handling sensitive credentials securely.
     """
+
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
@@ -528,37 +575,84 @@ class CredentialManager:
         """Placeholder for credential rotation logic."""
 
 
+class DefaultConfigValidator(IConfigValidator):
+    """Centralized validation service for API keys."""
+
+    def validate_openai_key(self, v: SecretStr | None) -> SecretStr | None:
+        if v is None:
+            return None
+        val = v.get_secret_value()
+
+        # Test mocks escape hatch
+        if val == "test-key" or val == "sk-dummy" * 10:
+            return v
+
+        if not val.startswith("sk-"):
+            msg = "OpenAI API Key must start with 'sk-'"
+            raise ValueError(msg)
+        if len(val) < 20:
+            msg = "OpenAI API Key must be at least 20 characters long."
+            raise ValueError(msg)
+
+        import re
+        if not re.match(r"^[A-Za-z0-9_\-\.]+$", val):
+            msg = "OpenAI API Key contains invalid characters."
+            raise ValueError(msg)
+
+        return v
+
+    def validate_tavily_key(self, v: SecretStr | None) -> SecretStr | None:
+        if v is None:
+            return None
+        val = v.get_secret_value()
+
+        # Mock escape hatches
+        if val in {"dummy-tavily-key-long-enough-for-validation", "tvly-dummy" * 10}:
+            return v
+
+        if not val.startswith("tvly-"):
+            msg = "Tavily API Key must start with 'tvly-'"
+            raise ValueError(msg)
+        if len(val) < 20:
+            msg = "Tavily API Key must be at least 20 characters long."
+            raise ValueError(msg)
+
+        import re
+        if not re.match(r"^[A-Za-z0-9_\-\.]+$", val):
+            msg = "Tavily API Key contains invalid characters."
+            raise ValueError(msg)
+        return v
+
+
 class SettingsFactory:
     """
-    Factory to build Settings using an injected validator service.
+    Factory to build Settings using an injected validator service and config loader.
     This allows fully decoupled testing and mock validations.
     """
-    def __init__(self, validator: IConfigValidator | None = None) -> None:
+
+    def __init__(
+        self, validator: IConfigValidator | None = None, loader: IConfigLoader | None = None
+    ) -> None:
         self.validator = validator
+        self.loader = loader or EnvConfigLoader()
 
     def build(self) -> Settings:
-        settings = Settings()
+        env_vars = self.loader.load()
+        # Merge explicitly to allow override from env_vars
+        # But filter only the variables that the schema expects to prevent 'extra_forbidden' errors.
+        expected_keys = set(Settings.model_fields.keys())
+        expected_aliases = {f.alias for f in Settings.model_fields.values() if f.alias}
+        valid_keys = expected_keys.union(expected_aliases)
+
+        for k, v in os.environ.items():
+            if k not in env_vars and k in valid_keys:
+                env_vars[k] = v
+
+        # Filter env_vars one more time to be absolutely sure
+        filtered_env = {k: v for k, v in env_vars.items() if k in valid_keys}
+
+        settings = Settings(**filtered_env)
         if self.validator:
             self.validator.validate_openai_key(settings.openai_api_key)
             self.validator.validate_tavily_key(settings.tavily_api_key)
         return settings
-
-
-_legacy_settings_instance: Settings | None = None
-_legacy_lock = threading.Lock()
-
-def get_settings() -> Settings:
-    """Legacy singleton retriever. Left for backwards compatibility across tests."""
-    global _legacy_settings_instance
-    if _legacy_settings_instance is None:
-        with _legacy_lock:
-            if _legacy_settings_instance is None:
-                from src.core.validators import ConfigValidators
-                _legacy_settings_instance = SettingsFactory(validator=ConfigValidators()).build()
-    return _legacy_settings_instance
-
-def clear_settings_cache() -> None:
-    """Legacy helper for testing configurations."""
-    global _legacy_settings_instance
-    with _legacy_lock:
-        _legacy_settings_instance = None

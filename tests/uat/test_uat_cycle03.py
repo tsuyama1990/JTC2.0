@@ -17,9 +17,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     Scenario 1: Transcript Injection and 'Mom Test' Failure.
     Verify that injecting negative customer feedback causes the CPO to suggest a pivot.
     """
-    from src.core.config import clear_settings_cache
 
-    clear_settings_cache()
     try:
         from src.agents.cpo import CPOAgent
     except ImportError:
@@ -87,9 +85,7 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
     Scenario 2: Validation Success.
     Verify that positive feedback reinforces the plan.
     """
-    from src.core.config import clear_settings_cache
 
-    clear_settings_cache()
     try:
         from src.agents.cpo import CPOAgent
     except ImportError:

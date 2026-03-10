@@ -38,14 +38,12 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
     return _gen()
 
 
-def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas]) -> None: # noqa: PLR0915
+def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas]) -> None:  # noqa: PLR0915
     """
     Verify that the Ideation phase handles large/infinite iterators safely
     by consuming only what is needed (pagination).
     """
-    from src.core.config import clear_settings_cache
 
-    clear_settings_cache()
     os.environ.update(DUMMY_ENV_VARS)
 
     mock_ideator_instance = MagicMock()
@@ -63,7 +61,9 @@ def test_ideation_scalability(limited_lean_canvas_generator: Iterator[LeanCanvas
         # Mock factory
         factory = MagicMock(spec=AgentFactory)
         factory.get_ideator_agent.return_value = mock_ideator_instance
-        node_registry.nodes["ideator"] = src.core.nodes.make_ideator_node(factory.get_ideator_agent())
+        node_registry.nodes["ideator"] = src.core.nodes.make_ideator_node(
+            factory.get_ideator_agent()
+        )
 
         # Provide a mock for persona as well to avoid undefined node error during build
         if "persona" not in node_registry.nodes:
@@ -120,9 +120,7 @@ def test_gate_transitions_data_integrity() -> None:
     Verify that state transitions through gates maintain data integrity
     and validation rules hold.
     """
-    from src.core.config import clear_settings_cache
 
-    clear_settings_cache()
     os.environ.update(DUMMY_ENV_VARS)
 
     # Setup initial state simulating post-Ideation (Gate 1 passed)

@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.core.constants import DESC_METRICS_AARRR, DESC_METRICS_CUSTOM
 
 
@@ -23,28 +23,28 @@ class AARRR(BaseModel):
 
     acquisition: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
+        ge=SettingsFactory().build().validation.min_metric_value,
         description="Acquisition metric",
     )
     activation: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
+        ge=SettingsFactory().build().validation.min_metric_value,
         description="Activation metric",
     )
     retention: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
-        le=get_settings().validation.max_percentage_value,
+        ge=SettingsFactory().build().validation.min_metric_value,
+        le=SettingsFactory().build().validation.max_percentage_value,
         description="Retention percentage",
     )
     revenue: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
+        ge=SettingsFactory().build().validation.min_metric_value,
         description="Revenue metric",
     )
     referral: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
+        ge=SettingsFactory().build().validation.min_metric_value,
         description="Referral metric",
     )
 
@@ -108,7 +108,7 @@ class Metrics(BaseModel):
     @classmethod
     def validate_custom_metrics(cls, v: dict[str, Any]) -> dict[str, float]:
         """Validate custom metrics keys, values, and limit."""
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         if len(v) > settings.validation.max_custom_metrics:
             msg = settings.errors.too_many_metrics.format(

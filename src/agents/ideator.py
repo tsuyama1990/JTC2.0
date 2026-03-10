@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from src.agents.base import BaseAgent, SearchTool
-from src.core.config import Settings, get_settings
+from src.core.config import Settings, SettingsFactory
 from src.core.constants import ERR_UNIQUE_ID_VIOLATION
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
@@ -59,7 +59,7 @@ class IdeatorAgent(BaseAgent):
             app_settings: Optional settings override (Dependency Injection).
         """
         self.llm = llm
-        self.settings = app_settings or get_settings()
+        self.settings = app_settings or SettingsFactory().build()
         self.search_tool = search_tool or TavilySearch(
             api_key=self.settings.tavily_api_key.get_secret_value()
             if self.settings.tavily_api_key

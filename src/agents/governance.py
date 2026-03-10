@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel
 
 from src.agents.base import BaseAgent
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
 from src.core.llm import LLMFactory
 from src.core.metrics import calculate_ltv, calculate_payback_period, calculate_roi
@@ -24,8 +24,8 @@ class GovernanceAgent(BaseAgent):
     Agent responsible for Governance and Ringi-sho generation.
     """
 
-    def __init__(self, file_service: FileService | None = None) -> None:
-        self.file_service = file_service or FileService()
+    def __init__(self, file_service: FileService) -> None:
+        self.file_service = file_service
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
@@ -33,9 +33,9 @@ class GovernanceAgent(BaseAgent):
         """
         logger.info("Governance Agent: Starting analysis...")
         # Get settings locally or from dependency injection, to fix tests we can fetch explicitly here
-        from src.core.config import get_settings
+        from src.core.config import SettingsFactory
 
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         # 1. Context & Search
         industry = self._get_industry_context(state)
@@ -91,7 +91,7 @@ class GovernanceAgent(BaseAgent):
         return clean_query.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         prompt = (
             f"Context: Startup idea in {industry}.\n"
@@ -173,8 +173,10 @@ class GovernanceAgent(BaseAgent):
             ValidationError: If schema validation fails.
         """
         # Allow testing overrides
-        settings = getattr(self, "settings", get_settings())
-        llm = getattr(self, "llm", LLMFactory().get_llm())
+        from src.core.llm import LLMProvider
+
+        settings = getattr(self, "settings", SettingsFactory().build())
+        llm = getattr(self, "llm", LLMFactory(LLMProvider(settings)).get_llm())
 
         content = ""
         max_bytes = settings.governance.max_llm_response_size
@@ -198,6 +200,7 @@ class GovernanceAgent(BaseAgent):
         text = text.strip()
 
         import re
+
         # Try extracting JSON cleanly using non-greedy matching while avoiding catastrophic backtracking.
         # Fallback to the whole string if no code block exists.
         match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
@@ -213,7 +216,9 @@ class GovernanceAgent(BaseAgent):
             # Pydantic core handles dictionary validation, but let's strictly load first
             parsed = json.loads(text)
         except json.JSONDecodeError as e:
-            logger.exception(f"Failed to parse JSON. Error at line {e.lineno}. Snippet: {text[:50]}")
+            logger.exception(
+                f"Failed to parse JSON. Error at line {e.lineno}. Snippet: {text[:50]}"
+            )
             msg = "Response does not contain a valid JSON object."
             raise ValueError(msg) from e
         else:
@@ -226,7 +231,7 @@ class GovernanceAgent(BaseAgent):
         """
         Save Ringi-Sho to file using FileService.
         """
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         # Optimize string construction
         lines = [

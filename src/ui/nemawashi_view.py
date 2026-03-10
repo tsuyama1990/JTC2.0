@@ -3,7 +3,7 @@ from typing import cast
 
 import pyxel
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.core.constants import MSG_NEMAWASHI_TITLE
 from src.core.theme import (
     COLOR_EDGE_STRONG,
@@ -26,7 +26,7 @@ class NemawashiView:
         self.y = y
         self.w = w
         self.h = h
-        self.settings = get_settings()
+        self.settings = SettingsFactory().build()
 
     def _draw_edges(
         self, network: InfluenceNetwork, nodes: list[tuple[int, int, Stakeholder]], n: int

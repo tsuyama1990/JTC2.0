@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.domain_models.metrics import AARRR, DetailedMetrics, Metrics
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
@@ -53,8 +53,18 @@ def test_persona_validation_error() -> None:
     assert any("occupation" in e["loc"] for e in errors)
 
     # After model_validator errors don't always have the exact field name in loc
-    assert any("goals" in str(msg) for msg in error_msgs) or any("goals" in e["loc"] for e in errors) or any("Value error" in str(msg) for msg in error_msgs) or any("at least" in str(msg) for msg in error_msgs)
-    assert any("bio" in str(msg) for msg in error_msgs) or any("bio" in e["loc"] for e in errors) or any("Value error" in str(msg) for msg in error_msgs) or any("at least" in str(msg) for msg in error_msgs)
+    assert (
+        any("goals" in str(msg) for msg in error_msgs)
+        or any("goals" in e["loc"] for e in errors)
+        or any("Value error" in str(msg) for msg in error_msgs)
+        or any("at least" in str(msg) for msg in error_msgs)
+    )
+    assert (
+        any("bio" in str(msg) for msg in error_msgs)
+        or any("bio" in e["loc"] for e in errors)
+        or any("Value error" in str(msg) for msg in error_msgs)
+        or any("at least" in str(msg) for msg in error_msgs)
+    )
 
 
 def test_mvp_creation() -> None:
@@ -121,7 +131,7 @@ def test_metrics_numeric_validation() -> None:
 
 def test_metrics_limit_custom() -> None:
     """Test that custom metrics are limited."""
-    settings = get_settings()
+    settings = SettingsFactory().build()
     # Create a dict with VAL_MAX_CUSTOM_METRICS + 1 entries
     excessive_metrics = {
         f"metric_{i}": float(i) for i in range(settings.validation.max_custom_metrics + 1)
@@ -138,7 +148,7 @@ def test_global_state_lifecycle_validation() -> None:
     state = GlobalState()
     assert state.phase == Phase.IDEATION
 
-    settings = get_settings()
+    settings = SettingsFactory().build()
 
     # Should allow VERIFICATION transition only with persona
     state.phase = Phase.VERIFICATION

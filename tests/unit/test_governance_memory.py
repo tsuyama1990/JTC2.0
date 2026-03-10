@@ -4,7 +4,6 @@ import pytest
 from pydantic import BaseModel
 
 from src.agents.governance import GovernanceAgent
-from src.core.config import get_settings
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
 from src.core.services.file_service import FileService
 from src.domain_models.state import GlobalState
@@ -42,8 +41,7 @@ class TestGovernanceMemorySafety:
 
         # Avoid global patches, configure test-specific settings locally to the agent
         test_settings = Settings(
-            OPENAI_API_KEY="sk-12345678901234567890",
-            TAVILY_API_KEY="tvly-12345678901234567890"
+            OPENAI_API_KEY="sk-12345678901234567890", TAVILY_API_KEY="tvly-12345678901234567890"
         )
         test_settings.governance.max_llm_response_size = 10
         agent.settings = test_settings  # type: ignore[attr-defined]
@@ -64,7 +62,8 @@ class TestGovernanceMemorySafety:
         self, mock_search_cls: MagicMock, agent: GovernanceAgent
     ) -> None:
         """Verify search results are truncated before processing."""
-        settings = get_settings()
+        from src.core.config import SettingsFactory
+        settings = SettingsFactory().build()
         limit = settings.governance.max_search_result_size
 
         # Create a search result larger than the limit

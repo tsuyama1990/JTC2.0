@@ -1,23 +1,17 @@
 from collections.abc import Iterator
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from main import browse_and_select
 from src.domain_models.lean_canvas import LeanCanvas
 
 
-@patch("main.get_settings")
 @patch("main.input")
 @patch("main.echo")
-def test_browse_and_select_lazy(
-    mock_echo: MagicMock, mock_input: MagicMock, mock_get_settings: MagicMock
-) -> None:
+def test_browse_and_select_lazy(mock_echo, mock_input) -> None:
     """
     Test that browse_and_select consumes the iterator lazily
     and respects page size.
     """
-    mock_ui = mock_get_settings.return_value.ui
-    mock_ui.page_size = 2
-    mock_ui.select_prompt = "Select:"
 
     # Create a generator that yields 5 items
     def idea_generator() -> Iterator[LeanCanvas]:

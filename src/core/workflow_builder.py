@@ -11,18 +11,75 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+
 class WorkflowRegistry(Generic[T]):
     """Registry for declarative workflow nodes."""
+
     def __init__(self) -> None:
         self.nodes: dict[str, Callable[[T], dict[str, Any]]] = {}
 
-    def register(self, name: str) -> Callable[[Callable[[T], dict[str, Any]]], Callable[[T], dict[str, Any]]]:
+    def register(
+        self, name: str
+    ) -> Callable[[Callable[[T], dict[str, Any]]], Callable[[T], dict[str, Any]]]:
         def decorator(func: Callable[[T], dict[str, Any]]) -> Callable[[T], dict[str, Any]]:
             self.nodes[name] = func
             return func
+
         return decorator
 
+
 node_registry: WorkflowRegistry[GlobalState] = WorkflowRegistry()
+
+
+class NodeBuilder(Generic[T]):
+    """Responsible for registering nodes in the workflow builder."""
+    @staticmethod
+    def add_node(builder: "WorkflowBuilder[T]", name: str, action: Callable[[Any], dict[str, Any]]) -> "WorkflowBuilder[T]":
+        new_nodes = builder.nodes.copy()
+        new_nodes[name] = action
+        return WorkflowBuilder(
+            state_schema=builder.state_schema,
+            nodes=new_nodes,
+            edges=builder.edges,
+            entry_point=builder.entry_point,
+            interrupts=builder.interrupts,
+        )
+
+class EdgeBuilder(Generic[T]):
+    """Responsible for defining edges in the workflow builder."""
+    @staticmethod
+    def add_edge(builder: "WorkflowBuilder[T]", start_key: str, end_key: str) -> "WorkflowBuilder[T]":
+        new_edges = builder.edges.copy()
+        new_edges.append((start_key, end_key))
+        return WorkflowBuilder(
+            state_schema=builder.state_schema,
+            nodes=builder.nodes,
+            edges=new_edges,
+            entry_point=builder.entry_point,
+            interrupts=builder.interrupts,
+        )
+
+    @staticmethod
+    def set_entry_point(builder: "WorkflowBuilder[T]", key: str) -> "WorkflowBuilder[T]":
+        return WorkflowBuilder(
+            state_schema=builder.state_schema,
+            nodes=builder.nodes,
+            edges=builder.edges,
+            entry_point=key,
+            interrupts=builder.interrupts,
+        )
+
+class InterruptBuilder(Generic[T]):
+    """Responsible for setting interrupts in the workflow builder."""
+    @staticmethod
+    def set_interrupts(builder: "WorkflowBuilder[T]", interrupts: list[str]) -> "WorkflowBuilder[T]":
+        return WorkflowBuilder(
+            state_schema=builder.state_schema,
+            nodes=builder.nodes,
+            edges=builder.edges,
+            entry_point=builder.entry_point,
+            interrupts=interrupts,
+        )
 
 class WorkflowBuilder(Generic[T]):
     """Builds the StateGraph workflow, decoupling structure from implementation.
@@ -44,48 +101,16 @@ class WorkflowBuilder(Generic[T]):
         self.interrupts = interrupts.copy() if interrupts else []
 
     def add_node(self, name: str, action: Callable[[Any], dict[str, Any]]) -> "WorkflowBuilder[T]":
-        """Returns a new WorkflowBuilder with the added node."""
-        new_nodes = self.nodes.copy()
-        new_nodes[name] = action
-        return WorkflowBuilder(
-            state_schema=self.state_schema,
-            nodes=new_nodes,
-            edges=self.edges,
-            entry_point=self.entry_point,
-            interrupts=self.interrupts,
-        )
+        return NodeBuilder[T].add_node(self, name, action)
 
     def add_edge(self, start_key: str, end_key: str) -> "WorkflowBuilder[T]":
-        """Returns a new WorkflowBuilder with the added directed edge."""
-        new_edges = self.edges.copy()
-        new_edges.append((start_key, end_key))
-        return WorkflowBuilder(
-            state_schema=self.state_schema,
-            nodes=self.nodes,
-            edges=new_edges,
-            entry_point=self.entry_point,
-            interrupts=self.interrupts,
-        )
+        return EdgeBuilder[T].add_edge(self, start_key, end_key)
 
     def set_entry_point(self, key: str) -> "WorkflowBuilder[T]":
-        """Returns a new WorkflowBuilder with the updated entry point."""
-        return WorkflowBuilder(
-            state_schema=self.state_schema,
-            nodes=self.nodes,
-            edges=self.edges,
-            entry_point=key,
-            interrupts=self.interrupts,
-        )
+        return EdgeBuilder[T].set_entry_point(self, key)
 
     def set_interrupts(self, interrupts: list[str]) -> "WorkflowBuilder[T]":
-        """Returns a new WorkflowBuilder with the updated interrupts list."""
-        return WorkflowBuilder(
-            state_schema=self.state_schema,
-            nodes=self.nodes,
-            edges=self.edges,
-            entry_point=self.entry_point,
-            interrupts=interrupts,
-        )
+        return InterruptBuilder[T].set_interrupts(self, interrupts)
 
     def _validate_no_cycles(self) -> None:
         """Validates the graph to ensure no cyclic dependencies exist using DFS back-edge detection."""

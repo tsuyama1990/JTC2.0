@@ -6,7 +6,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 
 
 class MetricTarget(BaseModel):
@@ -27,7 +27,7 @@ class MetricTarget(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+        settings = SettingsFactory().build()
         for field in ["metric_name", "target_value", "measurement_method"]:
             val = getattr(self, field)
             if isinstance(val, str) and len(val) < settings.validation.min_content_length:
@@ -64,7 +64,7 @@ class ExperimentPlan(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
+        settings = SettingsFactory().build()
         for field in [
             "riskiest_assumption",
             "experiment_type",

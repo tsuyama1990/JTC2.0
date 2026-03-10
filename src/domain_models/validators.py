@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 
 if TYPE_CHECKING:
     from src.domain_models.state import GlobalState
@@ -28,7 +28,7 @@ class StateValidator:
         """
         from src.domain_models.enums import Phase
 
-        settings = get_settings()
+        settings = SettingsFactory().build()
 
         if state.phase == Phase.VERIFICATION and state.target_persona is None:
             raise ValueError(settings.errors.missing_persona)

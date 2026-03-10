@@ -1,6 +1,6 @@
 import logging
 
-from src.core.config import NemawashiConfig, get_settings
+from src.core.config import NemawashiConfig
 from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import InfluenceNetwork
 
@@ -12,28 +12,32 @@ class ConsensusEngine:
     Handles the core mathematical consensus building (French-DeGroot Model).
     """
 
-    def __init__(self, settings: NemawashiConfig | None = None) -> None:
+    def __init__(self, settings: NemawashiConfig, cache_size: int = 100) -> None:
         """
         Initialize the Consensus Engine.
 
         Args:
-            settings: Configuration settings for Nemawashi. If None, loads from global settings.
+            settings: Configuration settings for Nemawashi.
         """
-        self.settings = settings or get_settings().nemawashi
-        self._cache: dict[str, list[float]] = {}
+        import collections
+
+        self.settings = settings
+        self._cache: collections.OrderedDict[str, list[float]] = collections.OrderedDict()
+        self._cache_size = cache_size
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         try:
             cache_key = network.model_dump_json()
             if cache_key in self._cache:
+                self._cache.move_to_end(cache_key)
                 return self._cache[cache_key]
 
             result = self._calculate_consensus_impl(network)
 
-            if len(self._cache) > 10:
-                self._cache.pop(next(iter(self._cache)))
-
             self._cache[cache_key] = result
+            if len(self._cache) > self._cache_size:
+                self._cache.popitem(last=False)
+
         except Exception:
             return self._calculate_consensus_impl(network)
         else:

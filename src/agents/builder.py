@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent
-from src.core.config import get_settings
+from src.core.config import SettingsFactory
 from src.domain_models.agent_prompt import AgentPromptSpec
 from src.domain_models.state import GlobalState
 
@@ -20,7 +20,7 @@ class BuilderAgent(BaseAgent):
 
     def __init__(self, llm: ChatOpenAI) -> None:
         self.llm = llm
-        self.settings = get_settings()
+        self.settings = SettingsFactory().build()
 
     def generate_agent_prompt_spec(self, state: GlobalState) -> dict[str, Any]:
         """Generate Agent Prompt Spec."""
@@ -40,9 +40,8 @@ class BuilderAgent(BaseAgent):
             context_str += f"Sitemap: {state.sitemap_and_story.model_dump_json()}\n"
         if state.debate_history:
             import json
-            context_str += (
-                f"3H Review History: {json.dumps([msg.model_dump() for msg in state.debate_history])}\n"
-            )
+
+            context_str += f"3H Review History: {json.dumps([msg.model_dump() for msg in state.debate_history])}\n"
 
         prompt = ChatPromptTemplate.from_messages(
             [

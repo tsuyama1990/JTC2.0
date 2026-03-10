@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent, SearchTool
 from src.agents.mixins import RateLimitMixin
-from src.core.config import Settings, get_settings
+from src.core.config import Settings, SettingsFactory
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
@@ -30,7 +30,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
-        self.settings = app_settings or get_settings()
+        self.settings = app_settings or SettingsFactory().build()
 
         self.search_tool = search_tool or TavilySearch(
             api_key=self.settings.tavily_api_key.get_secret_value()
