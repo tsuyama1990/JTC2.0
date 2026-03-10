@@ -1,4 +1,3 @@
-import threading
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -390,7 +389,7 @@ class GovernanceConfig(BaseSettings):
 
 
 class RAGConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(extra="forbid")
     persist_dir: str = Field(default="./vector_store", description="Directory for RAG index")
     chunk_size: int = Field(default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG")
     max_transcripts: int = Field(default=50, description="Max number of transcripts to ingest")
@@ -446,7 +445,7 @@ class RAGConfig(BaseSettings):
 
 
 class SearchConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(extra="forbid")
     max_results: int = Field(default=5, description="Max search results")
     depth: str = Field(default="advanced", description="Search depth (basic/advanced)")
     query_template: str = Field(
@@ -456,7 +455,7 @@ class SearchConfig(BaseSettings):
 
 
 class ResiliencyConfig(BaseSettings):
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(extra="forbid")
     circuit_breaker_fail_max: int = Field(
         default=DEFAULT_CB_FAIL_MAX, description="Circuit breaker fail threshold"
     )
@@ -475,7 +474,7 @@ class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(
-        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="ignore"
+        env_file=os.getenv("ENV_FILE", ".env"), env_file_encoding="utf-8", extra="forbid"
     )
 
     openai_api_key: SecretStr = Field(
@@ -544,21 +543,3 @@ class SettingsFactory:
         return settings
 
 
-_legacy_settings_instance: Settings | None = None
-_legacy_lock = threading.Lock()
-
-def get_settings() -> Settings:
-    """Legacy singleton retriever. Left for backwards compatibility across tests."""
-    global _legacy_settings_instance
-    if _legacy_settings_instance is None:
-        with _legacy_lock:
-            if _legacy_settings_instance is None:
-                from src.core.validators import ConfigValidators
-                _legacy_settings_instance = SettingsFactory(validator=ConfigValidators()).build()
-    return _legacy_settings_instance
-
-def clear_settings_cache() -> None:
-    """Legacy helper for testing configurations."""
-    global _legacy_settings_instance
-    with _legacy_lock:
-        _legacy_settings_instance = None

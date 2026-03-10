@@ -134,8 +134,8 @@ def validate_safe_path(
                 (cwd / Path(allowed_path)).resolve(strict=False) for allowed_path in allowed_paths
             ]
 
-        # Verify the resolved path is within the allowed boundary
-        if not any(p.is_relative_to(parent) for parent in allowed_parents):
+        # Verify the resolved path strictly starts with the base path
+        if not any(str(p).startswith(str(parent)) for parent in allowed_parents):
             msg = f"Path traversal detected: {p}"
             # Don't import logger here to avoid circular imports or just use ValueError/ConfigurationError
             raise ConfigurationError(msg)

@@ -4,19 +4,26 @@ from typing import Any
 from langgraph.graph import END
 from langgraph.graph.state import CompiledStateGraph
 
+from src.core.config import Settings
+from src.core.factory import AgentFactory
 from src.core.workflow_builder import WorkflowBuilder, WorkflowRegistry
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
 
-
-
 class GraphBuilderService:
     """Builds the execution graph using the provided registry."""
 
-    def __init__(self, registry: WorkflowRegistry[GlobalState]) -> None:
+    def __init__(
+        self,
+        registry: WorkflowRegistry[GlobalState],
+        settings: Settings,
+        agent_factory: AgentFactory | None = None
+    ) -> None:
         self.registry = registry
+        self.settings = settings
+        self.agent_factory = agent_factory
 
     def _register_nodes(self, builder: WorkflowBuilder[GlobalState]) -> WorkflowBuilder[GlobalState]:
         """Register all nodes into the workflow builder using the registry."""
@@ -72,15 +79,13 @@ class GraphBuilderService:
 
 def create_app(
     registry: WorkflowRegistry[GlobalState],
+    settings: Settings,
+    agent_factory: AgentFactory | None = None,
     builder: WorkflowBuilder[GlobalState] | None = None,
 ) -> CompiledStateGraph[Any, Any]:
     """
     Create and compile the LangGraph application.
     This graph implements the "The JTC 2.0" architecture with documented HITL Gates.
     """
-    try:
-        service = GraphBuilderService(registry)
-        return service.build_graph(builder)
-    except Exception as e:
-        logger.error(f"Failed to build application graph: {e}")
-        raise RuntimeError(f"Workflow initialization failed: {e}") from e
+    service = GraphBuilderService(registry, settings, agent_factory)
+    return service.build_graph(builder)

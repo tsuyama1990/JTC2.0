@@ -12,7 +12,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.core.config import get_settings
+from src.core.config import Settings
 from src.core.constants import ERR_SEARCH_CONFIG_MISSING, ERR_SEARCH_FAILED
 
 logger = logging.getLogger(__name__)
@@ -21,19 +21,19 @@ logger = logging.getLogger(__name__)
 class TavilySearch:
     """Wrapper for Tavily Search API with retry logic."""
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, settings: 'Settings | None' = None) -> None:
         """
         Initialize Tavily Search client.
 
         Args:
             api_key: Optional API key override.
         """
-        settings = get_settings()
+
 
         # Prioritize explicit key, then config
         if api_key:
             self.api_key = api_key
-        elif settings.tavily_api_key:
+        elif settings and settings.tavily_api_key:
             self.api_key = settings.tavily_api_key.get_secret_value()
         else:
             raise ValueError(ERR_SEARCH_CONFIG_MISSING)
@@ -51,6 +51,7 @@ class TavilySearch:
     def search(
         self,
         query: str,
+        settings: 'Settings',
         max_results: int | None = None,
         search_depth: Literal["basic", "advanced"] | None = None,
     ) -> str:
@@ -61,7 +62,7 @@ class TavilySearch:
         expects a string block. We optimize by building the string efficiently,
         but ultimately we must return a single string for the prompt.
         """
-        settings = get_settings()
+
         # Cast necessary because model defaults return str instead of Literal
         depth: Literal["basic", "advanced"] = search_depth or settings.search.depth  # type: ignore[assignment]
 
@@ -83,7 +84,7 @@ class TavilySearch:
             for result in results
         )
 
-    def safe_search(self, query: str) -> str:
+    def safe_search(self, query: str, settings: 'Settings') -> str:
         """Execute a search safely, catching exceptions."""
         try:
             return self.search(query)
