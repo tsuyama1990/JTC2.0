@@ -6,8 +6,6 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import get_settings
-
 
 class MentalTower(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -23,14 +21,13 @@ class MentalTower(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        if len(self.belief) < settings.validation.min_content_length:
-            msg = f"belief must be at least {settings.validation.min_content_length} characters"
+        if len(self.belief) < 10:
+            msg = "belief must be at least 10 characters"
             raise ValueError(msg)
 
-        if len(self.cognitive_tasks) < settings.validation.min_list_length:
+        if len(self.cognitive_tasks) < 1:
             msg = (
-                f"cognitive_tasks must contain at least {settings.validation.min_list_length} items"
+                f"cognitive_tasks must contain at least {1} items"
             )
             raise ValueError(msg)
 
@@ -51,13 +48,12 @@ class MentalModelDiagram(BaseModel):
 
     @model_validator(mode="after")
     def validate_lengths(self) -> Self:
-        settings = get_settings()
-        if len(self.feature_alignment) < settings.validation.min_content_length:
-            msg = f"feature_alignment must be at least {settings.validation.min_content_length} characters"
+        if len(self.feature_alignment) < 10:
+            msg = "feature_alignment must be at least 10 characters"
             raise ValueError(msg)
 
-        if len(self.towers) < settings.validation.min_list_length:
-            msg = f"towers must contain at least {settings.validation.min_list_length} items"
+        if len(self.towers) < 1:
+            msg = f"towers must contain at least {1} items"
             raise ValueError(msg)
 
         return self
