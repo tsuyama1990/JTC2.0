@@ -123,7 +123,7 @@ def test_gate_transitions_data_integrity(
 
     state_ready_for_verification = state_after_gate_1.model_copy()
     state_ready_for_verification.target_persona = dummy_persona
-    state_ready_for_verification.phase = Phase.VERIFICATION
+    state_ready_for_verification.phase = Phase.CPF
 
     # Should pass
     GlobalState.model_validate(state_ready_for_verification.model_dump())
@@ -135,18 +135,18 @@ def test_gate_transitions_data_integrity(
             Feature(name="Feature1", description="Description", priority=Priority.MUST_HAVE)
         ],
         success_criteria="Criteria",
-        v0_url="https://v0.dev/test",
+
     )
 
     state_ready_for_solution = state_ready_for_verification.model_copy()
     state_ready_for_solution.mvp_definition = dummy_mvp
-    state_ready_for_solution.phase = Phase.SOLUTION
+    state_ready_for_solution.phase = Phase.PSF
 
     GlobalState.model_validate(state_ready_for_solution.model_dump())
 
     # 3. Validate Transition to PMF
     state_ready_for_pmf = state_ready_for_solution.model_copy()
-    state_ready_for_pmf.phase = Phase.PMF
+    state_ready_for_pmf.phase = Phase.OUTPUT
 
     GlobalState.model_validate(state_ready_for_pmf.model_dump())
 

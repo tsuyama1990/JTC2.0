@@ -12,9 +12,7 @@ class ExperimentPlan(BaseModel):
     riskiest_assumption: str = Field(..., description="今回検証する最もリスクの高い前提条件")
     experiment_type: str = Field(..., description="MVPの型（例：LP、コンシェルジュ、Wizard of Oz）")
     acquisition_channel: str = Field(..., description="初期の100人をどこから連れてくるか")
-    aarrr_metrics: list[MetricTarget] = Field(
-        ..., description="AARRR metrics tracking"
-    )
+    aarrr_metrics: list[MetricTarget] = Field(..., description="AARRR metrics tracking")
     pivot_condition: str = Field(
         ..., description="どのような結果になれば即撤退（ピボット）すべきか"
     )

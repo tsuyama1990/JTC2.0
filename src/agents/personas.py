@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 class RateLimiter:
     """Class to manage API rate limiting via composition instead of multiple inheritance."""
+
     def __init__(self, min_request_interval: float = 1.0) -> None:
         self._last_request_time: float = 0.0
         self._min_request_interval: float = min_request_interval

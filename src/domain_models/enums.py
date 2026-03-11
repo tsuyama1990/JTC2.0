@@ -3,9 +3,10 @@ from enum import StrEnum
 
 class Phase(StrEnum):
     IDEATION = "ideation"
-    VERIFICATION = "verification"
-    SOLUTION = "solution"
-    PMF = "pmf"
+    CPF = "cpf"
+    PSF = "psf"
+    VALIDATION = "validation"
+    OUTPUT = "output"
     GOVERNANCE = "governance"
 
 
@@ -14,3 +15,7 @@ class Role(StrEnum):
     FINANCE = "Finance Manager"
     SALES = "Sales Manager"
     CPO = "CPO"
+    VIRTUAL_CUSTOMER = "Virtual Customer"
+    HACKER = "Hacker"
+    HIPSTER = "Hipster"
+    HUSTLER = "Hustler"

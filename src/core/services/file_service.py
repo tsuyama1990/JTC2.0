@@ -120,7 +120,9 @@ class FileService:
 
         # 2. Alternative Analysis Section
         pdf.set_font("Helvetica", style="B", size=16)
-        pdf.cell(w=200, h=10, text="2. Alternative Analysis", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.cell(
+            w=200, h=10, text="2. Alternative Analysis", new_x="LMARGIN", new_y="NEXT", align="L"
+        )
         pdf.set_font("Helvetica", size=12)
         for alt in analysis.current_alternatives:
             pdf.multi_cell(
@@ -134,7 +136,14 @@ class FileService:
 
         # 3. Value Proposition Canvas Section
         pdf.set_font("Helvetica", style="B", size=16)
-        pdf.cell(w=200, h=10, text="3. Value Proposition Canvas", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.cell(
+            w=200,
+            h=10,
+            text="3. Value Proposition Canvas",
+            new_x="LMARGIN",
+            new_y="NEXT",
+            align="L",
+        )
 
         pdf.set_font("Helvetica", style="B", size=14)
         pdf.cell(w=200, h=10, text="Customer Profile:", new_x="LMARGIN", new_y="NEXT", align="L")
@@ -146,7 +155,9 @@ class FileService:
         pdf.set_font("Helvetica", style="B", size=14)
         pdf.cell(w=200, h=10, text="Value Map:", new_x="LMARGIN", new_y="NEXT", align="L")
         pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(w=0, h=10, text=f"Products & Services: {', '.join(vpc.value_map.products_and_services)}")
+        pdf.multi_cell(
+            w=0, h=10, text=f"Products & Services: {', '.join(vpc.value_map.products_and_services)}"
+        )
         pdf.multi_cell(w=0, h=10, text=f"Pain Relievers: {', '.join(vpc.value_map.pain_relievers)}")
         pdf.multi_cell(w=0, h=10, text=f"Gain Creators: {', '.join(vpc.value_map.gain_creators)}")
 

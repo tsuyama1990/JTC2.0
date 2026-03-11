@@ -53,7 +53,7 @@ def test_full_workflow_state_mutation(mock_get_llm: MagicMock) -> None:
     state.selected_idea = idea
     updates = verification_node(state)
     state.phase = updates["phase"]
-    assert state.phase == Phase.VERIFICATION
+    assert state.phase == Phase.CPF
 
     # Mock LLM outputs for the following nodes
     mock_llm_instance = mock_get_llm.return_value
@@ -68,7 +68,9 @@ def test_full_workflow_state_mutation(mock_get_llm: MagicMock) -> None:
         goals=["Build better software", "Save time"],
         frustrations=["Slow tools", "Bugs"],
         bio="Experienced software engineer looking for efficiency.",
-        empathy_map=EmpathyMap(says=["A", "B"], thinks=["C", "D"], does=["E", "F"], feels=["G", "H"])
+        empathy_map=EmpathyMap(
+            says=["A", "B"], thinks=["C", "D"], does=["E", "F"], feels=["G", "H"]
+        ),
     )
     mock_structured_llm.invoke.return_value = mock_persona
 
@@ -93,16 +95,12 @@ def test_full_workflow_state_mutation(mock_get_llm: MagicMock) -> None:
     # 4. Value Proposition Canvas
     mock_vpc = ValuePropositionCanvas(
         customer_profile=CustomerProfile(
-            customer_jobs=["A", "B"],
-            pains=["C", "D"],
-            gains=["E", "F"]
+            customer_jobs=["A", "B"], pains=["C", "D"], gains=["E", "F"]
         ),
         value_map=ValueMap(
-            products_and_services=["G", "H"],
-            pain_relievers=["I", "J"],
-            gain_creators=["K", "L"]
+            products_and_services=["G", "H"], pain_relievers=["I", "J"], gain_creators=["K", "L"]
         ),
-        fit_evaluation="Good fit"
+        fit_evaluation="Good fit",
     )
     mock_structured_llm.invoke.return_value = mock_vpc
 

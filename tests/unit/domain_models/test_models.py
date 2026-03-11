@@ -67,14 +67,28 @@ def test_mvp_creation() -> None:
         type=MVPType.LANDING_PAGE,
         core_features=[feature],
         success_criteria="Achieve 100 signups within the first week.",
-        v0_url="https://v0.dev/test",
-        deployment_status="deployed",
     )
     assert mvp.type == MVPType.LANDING_PAGE
     assert mvp.core_features[0].priority == Priority.MUST_HAVE
-    # Check string representation or HttpUrl properties
-    assert str(mvp.v0_url) == "https://v0.dev/test"
-    assert mvp.deployment_status == "deployed"
+
+
+def test_mvp_extra_fields_forbidden() -> None:
+    """Test that MVP rejects extra fields."""
+    with pytest.raises(ValidationError):
+        MVP.model_validate(
+            {
+                "type": "landing_page",
+                "core_features": [
+                    {
+                        "name": "Login System",
+                        "description": "Allow users to login via OAuth.",
+                        "priority": "must_have",
+                    }
+                ],
+                "success_criteria": "Achieve 100 signups within the first week.",
+                "extra_field": "should fail",
+            }
+        )
 
 
 def test_mvp_feature_validation() -> None:
@@ -145,8 +159,8 @@ def test_global_state_lifecycle_validation() -> None:
 
     settings = get_settings()
 
-    # Should allow VERIFICATION transition only with persona
-    state.phase = Phase.VERIFICATION
+    # Should allow CPF transition only with persona
+    state.phase = Phase.CPF
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
     assert settings.errors.missing_persona in str(exc.value)
@@ -160,12 +174,12 @@ def test_global_state_lifecycle_validation() -> None:
         frustrations=["Slow tools"],
         bio="Experienced manager.",
     )
-    state.phase = Phase.VERIFICATION
+    state.phase = Phase.CPF
     # Should pass now
     GlobalState.model_validate(state.model_dump())
 
-    # Should allow SOLUTION transition only with MVP
-    state.phase = Phase.SOLUTION
+    # Should allow OUTPUT transition only with MVP
+    state.phase = Phase.OUTPUT
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
     assert settings.errors.missing_mvp in str(exc.value)

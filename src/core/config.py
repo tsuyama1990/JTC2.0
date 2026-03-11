@@ -226,7 +226,12 @@ class SimulationConfig(BaseSettings):
     waiting_msg: str = Field(default=MSG_WAITING_FOR_DEBATE, description="Message when waiting")
 
     turn_sequence: list[dict[str, str]] = Field(
-        default_factory=lambda: json.loads(os.getenv("SIMULATION_TURN_SEQUENCE", '[{"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"}, {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"}, {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"}, {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"}, {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Defense"}]')),
+        default_factory=lambda: json.loads(
+            os.getenv(
+                "SIMULATION_TURN_SEQUENCE",
+                '[{"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"}, {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"}, {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"}, {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"}, {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Defense"}]',
+            )
+        ),
         description="List of simulation steps defining the turn sequence.",
     )
 
@@ -308,11 +313,16 @@ class GovernanceConfig(BaseSettings):
         description="Max bytes for LLM JSON response",
     )
     output_path: str = Field(
-        alias="RINGI_SHO_PATH", default_factory=lambda: os.getenv("RINGI_SHO_PATH", "RINGI_SHO.md"), description="Path for Ringi-sho output"
+        alias="RINGI_SHO_PATH",
+        default_factory=lambda: os.getenv("RINGI_SHO_PATH", "RINGI_SHO.md"),
+        description="Path for Ringi-sho output",
     )
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
-        default_factory=lambda: os.getenv("GOV_SEARCH_QUERY_TEMPLATE", "average CAC churn ARPU LTV for {industry} startups benchmarks"),
+        default_factory=lambda: os.getenv(
+            "GOV_SEARCH_QUERY_TEMPLATE",
+            "average CAC churn ARPU LTV for {industry} startups benchmarks",
+        ),
         description="Template for financial search",
     )
     max_search_result_size: int = Field(
@@ -327,12 +337,8 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
-    openai_api_key: SecretStr = Field(
-        alias="OPENAI_API_KEY", description="OpenAI API Key"
-    )
-    tavily_api_key: SecretStr = Field(
-        alias="TAVILY_API_KEY", description="Tavily Search API Key"
-    )
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
+    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
     v0_api_key: SecretStr | None = Field(
         alias="V0_API_KEY", default=None, description="V0.dev API Key"
     )
@@ -345,15 +351,24 @@ class Settings(BaseSettings):
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
 
     rag_persist_dir: str = Field(
-        alias="RAG_PERSIST_DIR", default_factory=lambda: os.getenv("RAG_PERSIST_DIR", "./vector_store"), description="Directory for RAG index"
+        alias="RAG_PERSIST_DIR",
+        default_factory=lambda: os.getenv("RAG_PERSIST_DIR", "./vector_store"),
+        description="Directory for RAG index",
     )
     hitl_interrupt_nodes: list[str] = Field(
         alias="HITL_INTERRUPT_NODES",
-        default_factory=lambda: json.loads(os.getenv("HITL_INTERRUPT_NODES", '["ideator", "verification", "vpc", "solution_proposal", "pmf"]')),
+        default_factory=lambda: json.loads(
+            os.getenv(
+                "HITL_INTERRUPT_NODES",
+                '["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]',
+            )
+        ),
         description="Nodes to interrupt after for Human-In-The-Loop feedback",
     )
     canvas_output_dir: str = Field(
-        alias="CANVAS_OUTPUT_DIR", default_factory=lambda: os.getenv("CANVAS_OUTPUT_DIR", "./outputs/canvas"), description="Directory for PDF canvases"
+        alias="CANVAS_OUTPUT_DIR",
+        default_factory=lambda: os.getenv("CANVAS_OUTPUT_DIR", "./outputs/canvas"),
+        description="Directory for PDF canvases",
     )
     rag_chunk_size: int = Field(
         alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG"
@@ -374,13 +389,18 @@ class Settings(BaseSettings):
         description="Max index size in MB",
     )
     rag_allowed_paths: list[str] = Field(
-        default_factory=lambda: json.loads(os.getenv("RAG_ALLOWED_PATHS", '["data", "vector_store", "tests"]')),
+        default_factory=lambda: json.loads(
+            os.getenv("RAG_ALLOWED_PATHS", '["data", "vector_store", "tests"]')
+        ),
         description="Allowed directories for RAG",
     )
     desc_metrics_aarrr: str = Field(
         alias="DESC_METRICS_AARRR",
-        default_factory=lambda: os.getenv("DESC_METRICS_AARRR", "Pirate Metrics (Acquisition, Activation, Retention, Revenue, Referral)"),
-        description="Description for AARRR metrics"
+        default_factory=lambda: os.getenv(
+            "DESC_METRICS_AARRR",
+            "Pirate Metrics (Acquisition, Activation, Retention, Revenue, Referral)",
+        ),
+        description="Description for AARRR metrics",
     )
     rag_rate_limit_interval: float = Field(
         alias="RAG_RATE_LIMIT_INTERVAL",
@@ -432,7 +452,9 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default_factory=lambda: os.getenv("SEARCH_QUERY_TEMPLATE", "emerging business trends and painful problems in {topic}"),
+        default_factory=lambda: os.getenv(
+            "SEARCH_QUERY_TEMPLATE", "emerging business trends and painful problems in {topic}"
+        ),
         description="Template for search queries",
     )
 
