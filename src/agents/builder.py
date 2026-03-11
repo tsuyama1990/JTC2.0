@@ -43,7 +43,7 @@ class BuilderAgent(BaseAgent):
         Yields unique features as they are found to avoid loading all into memory.
         """
         # Chunking logic for memory safety using generator
-        chunk_size = self.settings.feature_chunk_size
+        chunk_size = self.settings.app.feature_chunk_size
 
         # Use a set to stream deduplication as we process chunks
         unique_features: set[str] = set()

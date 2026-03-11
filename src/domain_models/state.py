@@ -54,7 +54,7 @@ class GlobalState(BaseModel):
         default_factory=list, description="Raw transcripts from PLAUD or interviews"
     )
     rag_index_path: str = Field(
-        default_factory=lambda: get_settings().rag_persist_dir,
+        default_factory=lambda: get_settings().rag.persist_dir,
         description="Path to the local vector store",
     )
 

@@ -20,7 +20,7 @@ from src.ui.renderer import SimulationRenderer
 
 # Configure logging
 settings = get_settings()
-logging.basicConfig(level=settings.log_level)
+logging.basicConfig(level=settings.app.log_level)
 logger = logging.getLogger(__name__)
 
 

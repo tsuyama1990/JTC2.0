@@ -15,21 +15,22 @@ def mock_settings() -> Generator[MagicMock, None, None]:
         mock.return_value.openai_api_key.get_secret_value.return_value = "sk-test"
         mock.return_value.llm_model = "gpt-4o"
         # Mock rag_persist_dir - must be a valid subdir relative to CWD, e.g. tests/
-        mock.return_value.rag_persist_dir = "tests/mock_vector_store"
+        mock.return_value.rag.persist_dir = "tests/mock_vector_store"
+        mock.return_value.rag.allowed_paths = ["tests"]
         # Errors
         mock.return_value.errors.config_missing_openai = "Missing API Key"
         # New Config fields
-        mock.return_value.rag_chunk_size = 4000
-        mock.return_value.rag_max_query_length = 500
-        mock.return_value.rag_max_index_size_mb = 500
-        mock.return_value.rag_max_document_length = 10000
-        mock.return_value.circuit_breaker_fail_max = 5
-        mock.return_value.circuit_breaker_reset_timeout = 60
-        mock.return_value.rag_allowed_paths = ["data", "vector_store", "tests"]
-        mock.return_value.rag_rate_limit_interval = 0.1
-        mock.return_value.rag_scan_depth_limit = 10
+        mock.return_value.rag.chunk_size = 4000
+        mock.return_value.rag.max_query_length = 500
+        mock.return_value.rag.max_index_size_mb = 500
+        mock.return_value.rag.max_document_length = 10000
+        mock.return_value.circuit_breaker.fail_max = 5
+        mock.return_value.circuit_breaker.reset_timeout = 60
+        mock.return_value.rag.allowed_paths = ["data", "vector_store", "tests"]
+        mock.return_value.rag.rate_limit_interval = 0.1
+        mock.return_value.rag.scan_depth_limit = 10
         # Ensure batch size is int
-        mock.return_value.rag_batch_size = 100
+        mock.return_value.rag.batch_size = 100
         yield mock
 
 

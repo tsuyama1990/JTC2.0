@@ -1,4 +1,5 @@
-from functools import lru_cache
+import threading
+import types
 from typing import Self
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
@@ -283,14 +284,18 @@ class SimulationConfig(BaseSettings):
     )
 
     @property
-    def agents(self) -> dict[str, AgentConfig]:
+    def agents(self) -> types.MappingProxyType[str, AgentConfig]:
         """Backwards compatibility accessor for agents dict."""
-        return {
-            "New Employee": self.agent_new_emp,
-            "Finance Manager": self.agent_finance,
-            "Sales Manager": self.agent_sales,
-            "CPO": self.agent_cpo,
-        }
+        import types
+
+        return types.MappingProxyType(
+            {
+                "New Employee": self.agent_new_emp,
+                "Finance Manager": self.agent_finance,
+                "Sales Manager": self.agent_sales,
+                "CPO": self.agent_cpo,
+            }
+        )
 
     @field_validator("width", "height")
     @classmethod
@@ -343,113 +348,129 @@ class GovernanceConfig(BaseSettings):
     )
 
 
-class Settings(BaseSettings):
-    """Configuration settings for the application."""
+class LLMConfig(BaseSettings):
+    """LLM configuration."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
+    model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
 
-    openai_api_key: SecretStr | None = Field(
-        alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
-    )
-    tavily_api_key: SecretStr | None = Field(
-        alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key"
-    )
-    v0_api_key: SecretStr | None = Field(
-        alias="V0_API_KEY", default=None, description="V0.dev API Key"
-    )
-    v0_api_url: str = Field(
-        alias="V0_API_URL",
-        default="https://api.v0.dev/chat/completions",
-        description="V0.dev API URL",
-    )
 
-    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
+class RAGConfig(BaseSettings):
+    """RAG configuration."""
 
-    rag_persist_dir: str = Field(
+    persist_dir: str = Field(
         alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index"
     )
-    rag_chunk_size: int = Field(
+    chunk_size: int = Field(
         alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG"
     )
-    rag_max_document_length: int = Field(
+    max_document_length: int = Field(
         alias="RAG_MAX_DOC_LENGTH",
         default=DEFAULT_RAG_MAX_DOC_LENGTH,
         description="Max document length",
     )
-    rag_max_query_length: int = Field(
+    max_query_length: int = Field(
         alias="RAG_MAX_QUERY_LENGTH",
         default=DEFAULT_RAG_MAX_QUERY_LENGTH,
         description="Max query length",
     )
-    rag_max_index_size_mb: int = Field(
+    max_index_size_mb: int = Field(
         alias="RAG_MAX_INDEX_SIZE_MB",
         default=DEFAULT_RAG_MAX_INDEX_SIZE_MB,
         description="Max index size in MB",
     )
-    rag_allowed_paths: list[str] = Field(
+    allowed_paths: list[str] = Field(
         default_factory=lambda: ["data", "vector_store", "tests"],
         description="Allowed directories for RAG",
     )
-    rag_rate_limit_interval: float = Field(
+    rate_limit_interval: float = Field(
         alias="RAG_RATE_LIMIT_INTERVAL",
         default=0.1,
         description="Min interval between RAG calls in seconds",
     )
-    rag_scan_depth_limit: int = Field(
+    scan_depth_limit: int = Field(
         alias="RAG_SCAN_DEPTH_LIMIT",
         default=10,
         description="Max recursion depth for directory scanning",
     )
-    rag_batch_size: int = Field(
+    batch_size: int = Field(
         alias="RAG_BATCH_SIZE",
         default=DEFAULT_RAG_BATCH_SIZE,
         description="Batch size for RAG ingestion",
     )
-    rag_query_timeout: float = Field(
+    query_timeout: float = Field(
         alias="RAG_QUERY_TIMEOUT", default=30.0, description="Timeout for RAG queries in seconds"
     )
+
+
+class CircuitBreakerConfig(BaseSettings):
+    """Circuit Breaker configuration."""
+
+    fail_max: int = Field(
+        alias="CB_FAIL_MAX",
+        default=DEFAULT_CB_FAIL_MAX,
+        description="Circuit breaker fail threshold",
+    )
+    reset_timeout: int = Field(
+        alias="CB_RESET_TIMEOUT",
+        default=DEFAULT_CB_RESET_TIMEOUT,
+        description="Circuit breaker reset timeout",
+    )
+
+
+class SearchConfig(BaseSettings):
+    """Search configuration."""
+
+    max_results: int = Field(
+        alias="SEARCH_MAX_RESULTS", default=5, description="Max search results"
+    )
+    depth: str = Field(
+        alias="SEARCH_DEPTH", default="advanced", description="Search depth (basic/advanced)"
+    )
+    query_template: str = Field(
+        alias="SEARCH_QUERY_TEMPLATE",
+        default="emerging business trends and painful problems in {topic}",
+        description="Template for search queries",
+    )
+
+
+class AppConfig(BaseSettings):
+    """General application configuration."""
 
     feature_chunk_size: int = Field(
         alias="FEATURE_CHUNK_SIZE",
         default=DEFAULT_FEATURE_CHUNK_SIZE,
         description="Chunk size for feature extraction",
     )
-
-    circuit_breaker_fail_max: int = Field(
-        alias="CB_FAIL_MAX",
-        default=DEFAULT_CB_FAIL_MAX,
-        description="Circuit breaker fail threshold",
-    )
-    circuit_breaker_reset_timeout: int = Field(
-        alias="CB_RESET_TIMEOUT",
-        default=DEFAULT_CB_RESET_TIMEOUT,
-        description="Circuit breaker reset timeout",
-    )
-
     iterator_safety_limit: int = Field(
         alias="ITERATOR_SAFETY_LIMIT",
         default=DEFAULT_ITERATOR_SAFETY_LIMIT,
         description="Max items for iterators",
     )
-
-    search_max_results: int = Field(
-        alias="SEARCH_MAX_RESULTS", default=5, description="Max search results"
-    )
-    search_depth: str = Field(
-        alias="SEARCH_DEPTH", default="advanced", description="Search depth (basic/advanced)"
-    )
-    search_query_template: str = Field(
-        alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}",
-        description="Template for search queries",
-    )
-
     log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
     ui_page_size: int = Field(
         alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI"
     )
 
+
+class Settings(BaseSettings):
+    """Configuration settings for the application."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
+
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
+    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
+    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key")
+    v0_api_url: str = Field(
+        alias="V0_API_URL",
+        description="V0.dev API URL",
+    )
+
     # Nested configurations - Use Field to allow Pydantic to manage them
+    llm: LLMConfig = Field(default_factory=LLMConfig)
+    rag: RAGConfig = Field(default_factory=RAGConfig)
+    circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig)
+    search: SearchConfig = Field(default_factory=SearchConfig)
+    app: AppConfig = Field(default_factory=AppConfig)
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
     errors: ErrorMessages = Field(default_factory=ErrorMessages)
     ui: UIConfig = Field(default_factory=UIConfig)
@@ -479,7 +500,20 @@ class Settings(BaseSettings):
         """Placeholder for key rotation."""
 
 
-@lru_cache
+_settings_state: dict[str, Settings | None] = {"instance": None}
+_settings_lock = threading.Lock()
+
+
 def get_settings() -> Settings:
-    """Load and cache settings."""
-    return Settings()
+    """Load and cache settings using a thread-safe singleton pattern."""
+    if _settings_state["instance"] is None:
+        with _settings_lock:
+            if _settings_state["instance"] is None:
+                _settings_state["instance"] = Settings()
+    return _settings_state["instance"] # type: ignore
+
+
+def clear_settings_cache() -> None:
+    """Clear the cached settings instance for testing purposes."""
+    with _settings_lock:
+        _settings_state["instance"] = None

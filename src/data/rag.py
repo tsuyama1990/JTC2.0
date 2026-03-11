@@ -116,18 +116,18 @@ class RAG:
     def __init__(self, persist_dir: str | None = None) -> None:
         self.settings = get_settings()
         # Security: Validate persist_dir path
-        raw_path = persist_dir or self.settings.rag_persist_dir
+        raw_path = persist_dir or self.settings.rag.persist_dir
         self.persist_dir = self._validate_path(raw_path)
 
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(
-            fail_max=self.settings.circuit_breaker_fail_max,
-            reset_timeout=self.settings.circuit_breaker_reset_timeout,
+            fail_max=self.settings.circuit_breaker.fail_max,
+            reset_timeout=self.settings.circuit_breaker.reset_timeout,
         )
 
         # Rate Limiting State
         self._last_call_time = 0.0
-        self._min_interval = self.settings.rag_rate_limit_interval
+        self._min_interval = self.settings.rag.rate_limit_interval
 
         # Incremental Size Tracking
         self._current_index_size = 0
@@ -135,7 +135,7 @@ class RAG:
             # Use cached scan
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
-                depth_limit=self.settings.rag_scan_depth_limit,
+                depth_limit=self.settings.rag.scan_depth_limit,
                 ttl_hash=int(time.time() // 60),  # Refresh every minute
             )
 
@@ -154,7 +154,7 @@ class RAG:
         try:
             path = Path(path_str).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
-            allowed_rel_paths = self.settings.rag_allowed_paths
+            allowed_rel_paths = self.settings.rag.allowed_paths
             allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
 
             path_exists = path.exists()
@@ -198,7 +198,7 @@ class RAG:
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
 
-        LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
+        LlamaSettings.llm = OpenAI(model=self.settings.llm.model, api_key=api_key_str)
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
         if Path(self.persist_dir).exists():
@@ -230,7 +230,7 @@ class RAG:
 
     def _check_index_size_limit(self) -> None:
         """Check if the tracked index size is too large."""
-        limit_mb = self.settings.rag_max_index_size_mb
+        limit_mb = self.settings.rag.max_index_size_mb
         limit_bytes = limit_mb * 1024 * 1024
 
         if self._current_index_size > limit_bytes:
@@ -251,8 +251,8 @@ class RAG:
         Yield documents from request content one by one.
         Tracks size updates internally.
         """
-        chunk_size = self.settings.rag_chunk_size
-        max_doc_len = self.settings.rag_max_document_length
+        chunk_size = self.settings.rag.chunk_size
+        max_doc_len = self.settings.rag.max_document_length
         current_chunk_idx = 0
 
         def content_generator() -> Iterator[str]:
@@ -301,7 +301,7 @@ class RAG:
             raise ValidationError(str(e)) from e
 
         doc_iterator = self._document_generator(request)
-        batch_size = self.settings.rag_batch_size
+        batch_size = self.settings.rag.batch_size
 
         # Generator that yields batches of documents
         def batch_generator() -> Iterator[list[Document]]:
@@ -352,7 +352,7 @@ class RAG:
             _scan_dir_size_cached.cache_clear()
             self._current_index_size = _scan_dir_size_cached(
                 self.persist_dir,
-                self.settings.rag_scan_depth_limit,
+                self.settings.rag.scan_depth_limit,
                 ttl_hash=int(time.time() // 60),
             )
 
@@ -372,7 +372,7 @@ class RAG:
 
         question = self._sanitize_query(question)
 
-        max_len = self.settings.rag_max_query_length
+        max_len = self.settings.rag.max_query_length
         if len(question) > max_len:
             msg = ERR_RAG_QUERY_TOO_LARGE.format(size=len(question))
             raise ValidationError(msg)
@@ -391,8 +391,8 @@ class RAG:
         from concurrent.futures import ThreadPoolExecutor
         from concurrent.futures import TimeoutError as FuturesTimeoutError
 
-        if self.settings.rag_rate_limit_interval > 0:
-            time.sleep(self.settings.rag_rate_limit_interval)
+        if self.settings.rag.rate_limit_interval > 0:
+            time.sleep(self.settings.rag.rate_limit_interval)
 
         timeout = getattr(self.settings, "rag_query_timeout", 30.0)
 
