@@ -56,34 +56,34 @@ def test_ideator_agent_flow(
     # 2. Setup Agent
     agent = IdeatorAgent(llm=mock_llm)
 
-    # 3. Mock internal helpers to isolate `run` logic from chain complexity
-    # This satisfies "testing public interface `run`" without getting bogged down in LangChain internals
-    with patch.object(agent, "_generate_ideas") as mock_gen_ideas:
-        expected_ideas = [
-            LeanCanvas(
-                id=0,
-                title="Valid Idea Title 0",
-                problem="Problem is valid valid",
-                customer_segments="Customer Segments are Valid",
-                unique_value_prop="UVP is valid valid",
-                solution="Solution is valid valid",
-            )
-        ]
-        mock_gen_ideas.return_value = expected_ideas
+    # 3. Test public interface using proper dependency injection for generator
+    expected_ideas = [
+        LeanCanvas(
+            id=0,
+            title="Valid Idea Title 0",
+            problem="Problem is valid valid",
+            customer_segments="Customer Segments are Valid",
+            unique_value_prop="UVP is valid valid",
+            solution="Solution is valid valid",
+        )
+    ]
 
-        # 4. Execute
-        state = GlobalState(topic="Test")
-        result = agent.run(state)
+    mock_generator = MagicMock()
+    mock_generator.generate.return_value = expected_ideas
+    agent.generator = mock_generator
 
-        # 5. Verify
-        assert list(result["generated_ideas"]) == expected_ideas
+    # 4. Execute
+    state = GlobalState(topic="Test")
+    result = agent.run(state)
 
-        # Verify research was called
-        mock_search_tool.safe_search.assert_called_with("Q: Test")
+    # 5. Verify
+    assert list(result["generated_ideas"]) == expected_ideas
 
-        # Verify generation was called with prompt (checking prompt content implicitly via _generate_prompt logic)
-        # We can check that _generate_ideas was called.
-        mock_gen_ideas.assert_called_once()
+    # Verify research was called (the safe_topic strips non-alphanumeric/spaces, so "Test" -> "Test")
+    mock_search_tool.safe_search.assert_called_with("Q: Test")
+
+    # Verify generation was called with prompt
+    mock_generator.generate.assert_called_once_with("Test", "Market Data")
 
 
 @patch("src.agents.ideator.get_settings")

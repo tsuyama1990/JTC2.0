@@ -3,6 +3,13 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.agents.base import BaseAgent, SearchTool
 from src.core.config import get_settings
@@ -21,35 +28,20 @@ class IdeasResponse(BaseModel):
     ideas: list[LeanCanvas] = Field(..., description="Exactly 10 Lean Canvas draft objects.")
 
 
-class IdeatorAgent(BaseAgent):
-    """
-    Ideator Agent responsible for generating initial startup ideas.
-    Phase 1: Idea Verification.
-    """
+class IdeaGenerator:
+    """Service class responsible for interacting with the LLM to generate ideas."""
 
-    def __init__(self, llm: Any = None, search_tool: SearchTool | None = None) -> None:
-        """
-        Initialize the Ideator Agent.
-
-        Args:
-            llm: Optional language model override for testing.
-            search_tool: Optional search tool override for testing.
-        """
+    def __init__(self, llm: Any = None) -> None:
         self.llm = llm or get_llm()
-        self.search_tool = search_tool or TavilySearch()
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
-        """Alias for execute to align with BaseAgent abstract method."""
-        return {"generated_ideas": self.execute(state).generated_ideas}
-
-    def _research(self, topic: str) -> str:
-        """Execute research logic."""
-        settings = get_settings()
-        query = settings.search_query_template.format(topic=topic)
-        return self.search_tool.safe_search(query)
-
-    def _generate_ideas(self, topic: str, search_results: str) -> list[LeanCanvas]:
-        """Generate ideas logic separated for testing."""
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def generate(self, topic: str, search_results: str) -> list[LeanCanvas]:
+        """Generate ideas using the LLM with retry logic."""
         system_prompt = (
             "You are an expert Startup Ideator and Business Strategist. "
             "Your objective is to generate exactly 10 distinct, 'Good Crazy' business ideas "
@@ -99,6 +91,38 @@ class IdeatorAgent(BaseAgent):
 
         return list(ideas)
 
+
+class IdeatorAgent(BaseAgent):
+    """
+    Ideator Agent responsible for generating initial startup ideas.
+    Phase 1: Idea Verification.
+    """
+
+    def __init__(self, llm: Any = None, search_tool: SearchTool | None = None) -> None:
+        """
+        Initialize the Ideator Agent.
+
+        Args:
+            llm: Optional language model override for testing.
+            search_tool: Optional search tool override for testing.
+        """
+        self.llm = llm or get_llm()
+        self.search_tool = search_tool or TavilySearch()
+        self.generator = IdeaGenerator(llm=self.llm)
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        """Alias for execute to align with BaseAgent abstract method."""
+        return {"generated_ideas": self.execute(state).generated_ideas}
+
+    def _research(self, topic: str) -> str:
+        """Execute research logic with basic sanitization."""
+        # Ensure alphanumeric base to prevent prompt/command injection issues in the template
+        # even though topic was sanitized in the CLI, the agent should validate input inherently.
+        safe_topic = "".join(c for c in topic if c.isalnum() or c.isspace() or c in "-_.")
+        settings = get_settings()
+        query = settings.search_query_template.format(topic=safe_topic)
+        return self.search_tool.safe_search(query)
+
     def execute(self, state: GlobalState) -> GlobalState:
         """
         Execute the Ideator logic.
@@ -108,7 +132,7 @@ class IdeatorAgent(BaseAgent):
         search_results = self._research(state.topic)
 
         try:
-            ideas = self._generate_ideas(state.topic, search_results)
+            ideas = self.generator.generate(state.topic, search_results)
             state.generated_ideas = LazyIdeaIterator(iter(ideas))
         except Exception:
             logger.exception("Failed to generate ideas")

@@ -1,7 +1,14 @@
+from enum import StrEnum
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.config import get_settings
+from src.core.constants import DEFAULT_MAX_TITLE_LENGTH, DEFAULT_MIN_TITLE_LENGTH
 
+
+class CanvasStatus(StrEnum):
+    DRAFT = "draft"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 class LeanCanvas(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -11,17 +18,17 @@ class LeanCanvas(BaseModel):
     customer_segments: str = Field(..., description="Target customers")
     unique_value_prop: str = Field(..., description="Single clear compelling message")
     solution: str = Field(..., description="Top 3 features")
-    status: str = "draft"
+    status: CanvasStatus = CanvasStatus.DRAFT
 
     @field_validator("title")
     @classmethod
     def validate_title_length(cls, v: str) -> str:
-        settings = get_settings().validation
-        if len(v) < settings.min_title_length:
-            msg = f"Title must be at least {settings.min_title_length} characters"
+        # Avoid relying on dynamic UI settings for validation bounds
+        if len(v) < DEFAULT_MIN_TITLE_LENGTH:
+            msg = f"Title must be at least {DEFAULT_MIN_TITLE_LENGTH} characters"
             raise ValueError(msg)
-        if len(v) > settings.max_title_length:
-            msg = f"Title must be at most {settings.max_title_length} characters"
+        if len(v) > DEFAULT_MAX_TITLE_LENGTH:
+            msg = f"Title must be at most {DEFAULT_MAX_TITLE_LENGTH} characters"
             raise ValueError(msg)
         return v
 
