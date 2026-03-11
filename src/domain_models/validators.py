@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from src.core.config import get_settings
+from src.core.config import get_error_messages
 
 if TYPE_CHECKING:
     from src.domain_models.state import GlobalState
@@ -28,12 +28,12 @@ class StateValidator:
         """
         from src.domain_models.enums import Phase
 
-        settings = get_settings()
+        errors = get_error_messages()
 
         if state.phase == Phase.VERIFICATION and state.target_persona is None:
-            raise ValueError(settings.errors.missing_persona)
+            raise ValueError(errors.missing_persona)
 
         if state.phase == Phase.SOLUTION and state.mvp_definition is None:
-            raise ValueError(settings.errors.missing_mvp)
+            raise ValueError(errors.missing_mvp)
 
         return state

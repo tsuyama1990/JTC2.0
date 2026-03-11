@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.config import get_settings
+from src.core.config import clear_settings_cache, get_settings
 from src.data.rag import RAG
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
@@ -62,7 +62,7 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     """
     Verify RAG prevents loading an index that exceeds the size limit.
     """
-    get_settings.cache_clear()
+    clear_settings_cache()
 
     # Create a dummy large file
     p = Path(temp_rag_dir) / "large_index_file.bin"
@@ -88,7 +88,7 @@ def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
     """
     Verify that ingestion chunks large text.
     """
-    get_settings.cache_clear()
+    clear_settings_cache()
 
     # Patch _validate_path
     with (

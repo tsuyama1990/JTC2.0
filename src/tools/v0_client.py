@@ -5,7 +5,7 @@ import time
 import httpx
 import pybreaker
 
-from src.core.config import get_settings
+from src.core.config import get_settings, get_v0_config
 from src.core.constants import (
     ERR_V0_API_KEY_MISSING,
     ERR_V0_GENERATION_FAILED,
@@ -88,8 +88,9 @@ class V0Client:
             "stream": False,
         }
 
-        max_retries = self.settings.v0.retry_max
-        backoff_factor = self.settings.v0.retry_backoff
+        v0_config = get_v0_config()
+        max_retries = v0_config.retry_max
+        backoff_factor = v0_config.retry_backoff
 
         try:
             with httpx.Client(timeout=60.0) as client:

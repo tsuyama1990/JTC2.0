@@ -4,7 +4,6 @@ import pytest
 from pydantic import BaseModel
 
 from src.agents.governance import GovernanceAgent
-from src.core.config import get_settings
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
 from src.core.services.file_service import FileService
 from src.domain_models.state import GlobalState
@@ -31,7 +30,8 @@ class TestGovernanceMemorySafety:
         # Mock streaming response
         # Create chunks that sum up to > limit
         # Limit set to 10 bytes for testing
-        settings = get_settings()
+        from src.core.config import get_governance_config
+        gov_config = get_governance_config()
 
         chunk1 = MagicMock()
         chunk1.content = "12345"
@@ -39,7 +39,7 @@ class TestGovernanceMemorySafety:
         chunk2.content = "678901"  # Total 11 chars
 
         # Patch the settings object instance directly
-        with patch.object(settings.governance, "max_llm_response_size", 10):
+        with patch.object(gov_config, "max_llm_response_size", 10):
             # mock_llm is the Client instance. We mock the stream method.
             mock_llm.stream.return_value = iter([chunk1, chunk2])
 
@@ -51,8 +51,9 @@ class TestGovernanceMemorySafety:
         self, mock_search_cls: MagicMock, agent: GovernanceAgent
     ) -> None:
         """Verify search results are truncated before processing."""
-        settings = get_settings()
-        limit = settings.governance.max_search_result_size
+        from src.core.config import get_governance_config
+        gov_config = get_governance_config()
+        limit = gov_config.max_search_result_size
 
         # Create a search result larger than the limit
         large_result = "A" * (limit + 1000)

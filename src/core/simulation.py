@@ -10,7 +10,7 @@ import logging
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from src.core.config import get_settings
+from src.core.config import get_simulation_config
 from src.core.factory import AgentFactory
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
@@ -23,13 +23,13 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
     Create the simulation sub-graph based on configured turn sequence.
     Dynamically builds nodes and edges from Settings.
     """
-    settings = get_settings()
+    sim_config = get_simulation_config()
 
     # Load sequence from settings.
-    # Settings.simulation.turn_sequence is a list of dicts.
+    # SimulationConfig.turn_sequence is a list of dicts.
     # We validate the role strings against the Role enum.
 
-    steps = settings.simulation.turn_sequence
+    steps = sim_config.turn_sequence
 
     workflow = StateGraph(GlobalState)
     previous_node = None

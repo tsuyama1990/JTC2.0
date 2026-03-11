@@ -13,7 +13,7 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.config import get_settings
+from src.core.config import get_error_messages, get_settings
 from src.core.constants import (
     ERR_CIRCUIT_OPEN,
     ERR_PATH_TRAVERSAL,
@@ -194,7 +194,8 @@ class RAG:
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
         if not self.settings.openai_api_key:
-            raise ConfigurationError(self.settings.errors.config_missing_openai)
+            err_msgs = get_error_messages()
+            raise ConfigurationError(err_msgs.config_missing_openai)
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
 

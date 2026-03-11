@@ -59,7 +59,7 @@ def test_cached_research_logic(mock_llm: MagicMock) -> None:
     mock_search.safe_search.side_effect = ["Result 1", "Result 2"]
 
     agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
-    agent._min_request_interval = 0.01  # Minimal delay for test speed but > 0 to test logic path
+    agent.rate_limiter._min_request_interval = 0.01  # Minimal delay for test speed but > 0 to test logic path
 
     # First call
     res1 = agent._cached_research("Topic A")
@@ -83,16 +83,16 @@ def test_rate_limit_wait(mock_llm: MagicMock) -> None:
 
     mock_search = MagicMock()
     agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
-    agent._min_request_interval = 0.1
+    agent.rate_limiter._min_request_interval = 0.1
 
     start = time.time()
-    agent._rate_limit_wait()
+    agent.rate_limiter.wait()
     # First call sets time, no wait if first? logic: if elapsed < min -> sleep.
     # Init last_request_time is 0.0. Time.time() is huge. elapsed is huge. No sleep.
 
     # Manually set last request time to now
-    agent._last_request_time = time.time()
-    agent._rate_limit_wait()
+    agent.rate_limiter._last_request_time = time.time()
+    agent.rate_limiter.wait()
     end = time.time()
 
     assert (end - start) >= 0.1

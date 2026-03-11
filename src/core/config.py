@@ -1,5 +1,7 @@
+import os
+import threading
 from functools import lru_cache
-from typing import Self
+from types import MappingProxyType
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -283,14 +285,15 @@ class SimulationConfig(BaseSettings):
     )
 
     @property
-    def agents(self) -> dict[str, AgentConfig]:
+    def agents(self) -> MappingProxyType[str, AgentConfig]:
         """Backwards compatibility accessor for agents dict."""
-        return {
+        from types import MappingProxyType
+        return MappingProxyType({
             "New Employee": self.agent_new_emp,
             "Finance Manager": self.agent_finance,
             "Sales Manager": self.agent_sales,
             "CPO": self.agent_cpo,
-        }
+        })
 
     @field_validator("width", "height")
     @classmethod
@@ -329,11 +332,15 @@ class GovernanceConfig(BaseSettings):
         description="Max bytes for LLM JSON response",
     )
     output_path: str = Field(
-        alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output"
+        alias="RINGI_SHO_PATH",
+        default_factory=lambda: os.getenv("RINGI_SHO_PATH", "RINGI_SHO.md"),
+        description="Path for Ringi-sho output",
     )
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
-        default="average CAC churn ARPU LTV for {industry} startups benchmarks",
+        default_factory=lambda: os.getenv(
+            "GOV_SEARCH_QUERY_TEMPLATE", "average CAC churn ARPU LTV for {industry} startups benchmarks"
+        ),
         description="Template for financial search",
     )
     max_search_result_size: int = Field(
@@ -348,18 +355,18 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(
-        alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
+    openai_api_key: SecretStr = Field(
+        ..., alias="OPENAI_API_KEY", description="OpenAI API Key"
     )
-    tavily_api_key: SecretStr | None = Field(
-        alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key"
+    tavily_api_key: SecretStr = Field(
+        ..., alias="TAVILY_API_KEY", description="Tavily Search API Key"
     )
     v0_api_key: SecretStr | None = Field(
         alias="V0_API_KEY", default=None, description="V0.dev API Key"
     )
     v0_api_url: str = Field(
+        ...,
         alias="V0_API_URL",
-        default="https://api.v0.dev/chat/completions",
         description="V0.dev API URL",
     )
 
@@ -387,7 +394,7 @@ class Settings(BaseSettings):
         description="Max index size in MB",
     )
     rag_allowed_paths: list[str] = Field(
-        default_factory=lambda: ["data", "vector_store", "tests"],
+        default_factory=lambda: os.getenv("RAG_ALLOWED_PATHS", "data,vector_store,tests").split(","),
         description="Allowed directories for RAG",
     )
     rag_rate_limit_interval: float = Field(
@@ -440,46 +447,110 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}",
+        default_factory=lambda: os.getenv(
+            "SEARCH_QUERY_TEMPLATE", "emerging business trends and painful problems in {topic}"
+        ),
         description="Template for search queries",
     )
 
-    log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
+    log_level: str = Field(
+        alias="LOG_LEVEL",
+        default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"),
+        description="Logging level",
+    )
     ui_page_size: int = Field(
         alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI"
     )
 
-    # Nested configurations - Use Field to allow Pydantic to manage them
-    validation: ValidationConfig = Field(default_factory=ValidationConfig)
-    errors: ErrorMessages = Field(default_factory=ErrorMessages)
-    ui: UIConfig = Field(default_factory=UIConfig)
-    simulation: SimulationConfig = Field(default_factory=SimulationConfig)
-    nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
-    v0: V0Config = Field(default_factory=V0Config)
-    governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
+    @field_validator("openai_api_key")
+    @classmethod
+    def validate_openai(cls, v: SecretStr) -> SecretStr:
+        ConfigValidators.validate_openai_key(v)
+        return v
 
-    def model_post_init(self, __context: object) -> None:
-        """Validate API keys on initialization."""
-        super().model_post_init(__context)
-        self.validate_api_keys()
+    @field_validator("tavily_api_key")
+    @classmethod
+    def validate_tavily(cls, v: SecretStr) -> SecretStr:
+        ConfigValidators.validate_tavily_key(v)
+        return v
 
-    def validate_api_keys(self) -> Self:
-        """Validate API keys are present and have correct format."""
-        if not self.openai_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-        ConfigValidators.validate_openai_key(self.openai_api_key)
+    @field_validator("v0_api_key")
+    @classmethod
+    def validate_v0(cls, v: SecretStr | None) -> SecretStr | None:
+        if v is not None:
+            ConfigValidators.validate_v0_key(v)
+        return v
 
-        if not self.tavily_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
-        ConfigValidators.validate_tavily_key(self.tavily_api_key)
 
-        return self
+class SettingsManager:
+    """Thread-safe singleton manager for Settings."""
 
-    def rotate_keys(self) -> None:
-        """Placeholder for key rotation."""
+    _instance: Settings | None = None
+    _lock = threading.Lock()
+
+    @classmethod
+    def get_settings(cls) -> Settings:
+        """Load and cache settings."""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = Settings()
+        return cls._instance
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear the cached settings instance for testing purposes."""
+        with cls._lock:
+            cls._instance = None
 
 
 @lru_cache
+def get_ui_config() -> UIConfig:
+    return UIConfig()
+
+
+@lru_cache
+def get_validation_config() -> ValidationConfig:
+    return ValidationConfig()
+
+
+@lru_cache
+def get_error_messages() -> ErrorMessages:
+    return ErrorMessages()
+
+
+@lru_cache
+def get_simulation_config() -> SimulationConfig:
+    return SimulationConfig()
+
+
+@lru_cache
+def get_nemawashi_config() -> NemawashiConfig:
+    return NemawashiConfig()
+
+
+@lru_cache
+def get_v0_config() -> V0Config:
+    return V0Config()
+
+
+@lru_cache
+def get_governance_config() -> GovernanceConfig:
+    return GovernanceConfig()
+
+
 def get_settings() -> Settings:
-    """Load and cache settings."""
-    return Settings()
+    """Public accessor for settings singleton."""
+    return SettingsManager.get_settings()
+
+
+def clear_settings_cache() -> None:
+    """Public accessor to clear settings cache."""
+    SettingsManager.clear_cache()
+    get_ui_config.cache_clear()
+    get_validation_config.cache_clear()
+    get_error_messages.cache_clear()
+    get_simulation_config.cache_clear()
+    get_nemawashi_config.cache_clear()
+    get_v0_config.cache_clear()
+    get_governance_config.cache_clear()

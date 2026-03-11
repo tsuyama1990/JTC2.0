@@ -63,7 +63,7 @@ class CPOAgent(PersonaAgent):
         """
         try:
             # 1. Build Standard Context
-            context = self._build_context(state)
+            context = self._context_builder.build_debate_context(state)
 
             # 2. Get Research Data (RAG)
             research_data = ""
