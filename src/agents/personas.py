@@ -16,6 +16,14 @@ from tenacity import (
 
 from src.agents.base import BaseAgent, SearchTool
 from src.core.config import Settings, get_settings
+from src.core.constants import (
+    PROMPT_ALTERNATIVE_ANALYSIS,
+    PROMPT_FINANCE_AGENT,
+    PROMPT_NEW_EMPLOYEE_AGENT,
+    PROMPT_PERSONA_GENERATOR,
+    PROMPT_SALES_AGENT,
+    PROMPT_VALUE_PROPOSITION,
+)
 from src.domain_models.alternative_analysis import AlternativeAnalysis
 from src.domain_models.persona import Persona
 from src.domain_models.simulation import DialogueMessage, Role
@@ -56,12 +64,7 @@ class PersonaGeneratorAgent(BaseAgent):
             logger.warning("No selected idea found for Persona Generation.")
             return {}
 
-        system_prompt = (
-            "You are an expert UX Researcher and Product Strategist. "
-            "Your task is to generate a highly detailed, realistic Customer Persona and an Empathy Map "
-            "(Says, Thinks, Does, Feels) based on the provided business idea. "
-            "Ensure the output strictly adheres to the requested JSON schema and avoid hallucinations."
-        )
+        system_prompt = PROMPT_PERSONA_GENERATOR
         human_prompt = (
             f"Business Idea: {state.selected_idea.title}\n"
             f"Problem: {state.selected_idea.problem}\n"
@@ -111,13 +114,7 @@ class AlternativeAnalysisAgent(BaseAgent):
             logger.warning("Missing selected idea or persona for Alternative Analysis.")
             return {}
 
-        system_prompt = (
-            "You are a sharp Business Analyst. Your task is to perform an Alternative Analysis. "
-            "Identify the current alternative tools (e.g., Excel, manual work, existing SaaS) "
-            "the persona uses, determine the switching costs, and articulate the 10x value proposition "
-            "that would compel them to switch to our new solution. "
-            "Output must strictly match the required JSON schema."
-        )
+        system_prompt = PROMPT_ALTERNATIVE_ANALYSIS
         human_prompt = (
             f"Idea: {state.selected_idea.title} - {state.selected_idea.solution}\n"
             f"Target Persona: {state.target_persona.name}, {state.target_persona.occupation}\n"
@@ -166,13 +163,7 @@ class ValuePropositionAgent(BaseAgent):
             logger.warning("Missing required context for Value Proposition Design.")
             return {}
 
-        system_prompt = (
-            "You are an expert Product Manager. Your task is to generate a Value Proposition Canvas. "
-            "Based on the provided persona and alternative analysis, map the Customer Profile (Jobs, Pains, Gains) "
-            "to the Value Map (Products & Services, Pain Relievers, Gain Creators). "
-            "Finally, evaluate how well they fit. "
-            "Output must strictly match the required JSON schema."
-        )
+        system_prompt = PROMPT_VALUE_PROPOSITION
 
         alt_analysis_text = ""
         if state.alternative_analysis:
@@ -327,12 +318,7 @@ class FinanceAgent(PersonaAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        system_prompt = (
-            "You are a conservative Finance Manager at a large Japanese traditional company. "
-            "You always ask about cost, risk, and timeline. "
-            "You use market data to find reasons why new ideas will fail. "
-            "Be critical but professional."
-        )
+        system_prompt = PROMPT_FINANCE_AGENT
         super().__init__(llm, Role.FINANCE, system_prompt, search_tool, app_settings)
 
     def _research_impl(self, topic: str) -> str:
@@ -350,11 +336,7 @@ class SalesAgent(PersonaAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        system_prompt = (
-            "You are an aggressive Sales Manager. "
-            "You worry about cannibalizing existing products and whether the sales force can actually sell this. "
-            "You care about immediate revenue and customer trust."
-        )
+        system_prompt = PROMPT_SALES_AGENT
         super().__init__(llm, Role.SALES, system_prompt, search_tool, app_settings)
 
 
@@ -367,9 +349,5 @@ class NewEmployeeAgent(PersonaAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        system_prompt = (
-            "You are a new employee presenting a startup idea. "
-            "You are nervous. You try to answer questions but often falter. "
-            "You defend the idea passionately but acknowledge weaknesses."
-        )
+        system_prompt = PROMPT_NEW_EMPLOYEE_AGENT
         super().__init__(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)

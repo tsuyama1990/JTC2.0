@@ -42,6 +42,23 @@ DEFAULT_NEMAWASHI_REDUCTION: Final[float] = 0.1
 DEFAULT_V0_RETRY_MAX: Final[int] = 3
 DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
 
+# --- Config & System Defaults ---
+DEFAULT_V0_API_URL: Final[str] = "https://api.v0.dev/chat/completions"
+DEFAULT_SEARCH_QUERY_TEMPLATE: Final[str] = "emerging business trends and painful problems in {topic}"
+DEFAULT_GOV_SEARCH_QUERY_TEMPLATE: Final[str] = "average CAC churn ARPU LTV for {industry} startups benchmarks"
+DEFAULT_RINGI_SHO_PATH: Final[str] = "RINGI_SHO.md"
+DEFAULT_CANVAS_OUTPUT_DIR: Final[str] = "./outputs/canvas"
+DEFAULT_RAG_PERSIST_DIR: Final[str] = "./vector_store"
+DEFAULT_HITL_INTERRUPT_NODES: Final[list[str]] = ["ideator", "verification", "vpc", "solution_proposal", "pmf"]
+DEFAULT_RAG_ALLOWED_PATHS: Final[list[str]] = ["data", "vector_store", "tests"]
+DEFAULT_SIMULATION_TURN_SEQUENCE: Final[list[dict[str, str]]] = [
+    {"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"},
+    {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"},
+    {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"},
+    {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"},
+    {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Defense"},
+]
+
 # --- Governance Defaults ---
 DEFAULT_MIN_ROI_THRESHOLD: Final[float] = 3.0
 DEFAULT_CAC: Final[float] = 500.0
@@ -132,3 +149,46 @@ DESC_EMPATHY_SAYS: Final[str] = "What the persona says"
 DESC_EMPATHY_THINKS: Final[str] = "What the persona thinks"
 DESC_EMPATHY_DOES: Final[str] = "What the persona does"
 DESC_EMPATHY_FEELS: Final[str] = "What the persona feels"
+
+# --- Prompts ---
+PROMPT_PERSONA_GENERATOR: Final[str] = (
+    "You are an expert UX Researcher and Product Strategist. "
+    "Your task is to generate a highly detailed, realistic Customer Persona and an Empathy Map "
+    "(Says, Thinks, Does, Feels) based on the provided business idea. "
+    "Ensure the output strictly adheres to the requested JSON schema and avoid hallucinations."
+)
+
+PROMPT_ALTERNATIVE_ANALYSIS: Final[str] = (
+    "You are a sharp Business Analyst. Your task is to perform an Alternative Analysis. "
+    "Identify the current alternative tools (e.g., Excel, manual work, existing SaaS) "
+    "the persona uses, determine the switching costs, and articulate the 10x value proposition "
+    "that would compel them to switch to our new solution. "
+    "Output must strictly match the required JSON schema."
+)
+
+PROMPT_VALUE_PROPOSITION: Final[str] = (
+    "You are an expert Product Manager. Your task is to generate a Value Proposition Canvas. "
+    "Based on the provided persona and alternative analysis, map the Customer Profile (Jobs, Pains, Gains) "
+    "to the Value Map (Products & Services, Pain Relievers, Gain Creators). "
+    "Finally, evaluate how well they fit. "
+    "Output must strictly match the required JSON schema."
+)
+
+PROMPT_FINANCE_AGENT: Final[str] = (
+    "You are a conservative Finance Manager at a large Japanese traditional company. "
+    "You always ask about cost, risk, and timeline. "
+    "You use market data to find reasons why new ideas will fail. "
+    "Be critical but professional."
+)
+
+PROMPT_SALES_AGENT: Final[str] = (
+    "You are an aggressive Sales Manager. "
+    "You worry about cannibalizing existing products and whether the sales force can actually sell this. "
+    "You care about immediate revenue and customer trust."
+)
+
+PROMPT_NEW_EMPLOYEE_AGENT: Final[str] = (
+    "You are a new employee presenting a startup idea. "
+    "You are nervous. You try to answer questions but often falter. "
+    "You defend the idea passionately but acknowledge weaknesses."
+)

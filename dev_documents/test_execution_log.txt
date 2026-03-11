@@ -57,10 +57,10 @@ src/agents/cpo.py                                  44     11    75%   56-58, 75-
 src/agents/governance.py                          105      7    93%   98-102, 199, 204
 src/agents/ideator.py                              67     23    66%   45-92, 134-136, 157-159
 src/agents/mixins.py                               23     23     0%   1-35
-src/agents/personas.py                            164     19    88%   56-57, 96, 111-112, 152, 166-167, 213, 285-287, 292-293, 302-305, 353-358
+src/agents/personas.py                            165     19    88%   64-65, 99, 114-115, 149, 163-164, 204, 276-278, 283-284, 293-296, 339-340
 src/core/__init__.py                                0      0   100%
 src/core/config.py                                157      0   100%
-src/core/constants.py                             100      0   100%
+src/core/constants.py                             115      0   100%
 src/core/exceptions.py                              6      0   100%
 src/core/factory.py                                49     16    67%   46-47, 52, 63-79
 src/core/graph.py                                  38      0   100%
@@ -105,5 +105,5 @@ src/tools/search.py                                34      4    88%   39, 75, 90
 src/tools/v0_client.py                             61     16    74%   58-60, 103-105, 108-115, 128-129
 src/ui/renderer.py                                 96     10    90%   87, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------------------
-TOTAL                                            2517    457    82%
-============================= 148 passed in 26.97s =============================
+TOTAL                                            2533    457    82%
+============================= 148 passed in 27.04s =============================
