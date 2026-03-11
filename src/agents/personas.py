@@ -2,17 +2,201 @@ import logging
 import time
 from typing import Any
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.agents.base import BaseAgent, SearchTool
 from src.agents.mixins import RateLimitMixin
 from src.core.config import Settings, get_settings
+from src.domain_models.alternative_analysis import AlternativeAnalysis
+from src.domain_models.persona import Persona
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
+from src.domain_models.value_proposition_canvas import ValuePropositionCanvas
 from src.tools.search import TavilySearch
 
 logger = logging.getLogger(__name__)
+
+
+class PersonaGeneratorAgent(BaseAgent):
+    """
+    Agent responsible for Phase 2, Step 2: Persona & Empathy Mapping.
+    Generates a high-resolution Persona and EmpathyMap based on the selected idea.
+    """
+
+    def __init__(self, llm: ChatOpenAI | Any) -> None:
+        self.llm = llm
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        """Execute the Persona Generation logic."""
+        if not state.selected_idea:
+            logger.warning("No selected idea found for Persona Generation.")
+            return {}
+
+        system_prompt = (
+            "You are an expert UX Researcher and Product Strategist. "
+            "Your task is to generate a highly detailed, realistic Customer Persona and an Empathy Map "
+            "(Says, Thinks, Does, Feels) based on the provided business idea. "
+            "Ensure the output strictly adheres to the requested JSON schema and avoid hallucinations."
+        )
+        human_prompt = (
+            f"Business Idea: {state.selected_idea.title}\n"
+            f"Problem: {state.selected_idea.problem}\n"
+            f"Solution: {state.selected_idea.solution}\n"
+            f"Customer Segments: {state.selected_idea.customer_segments}\n\n"
+            "Generate the Persona with Empathy Map."
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        try:
+            persona = self._invoke_llm(messages)
+        except Exception:
+            logger.exception("Failed to generate Persona after retries")
+            return {}
+        else:
+            return {"target_persona": persona}
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def _invoke_llm(self, messages: list[Any]) -> Persona:
+        structured_llm = self.llm.with_structured_output(Persona)
+        result = structured_llm.invoke(messages)
+        if isinstance(result, dict):
+            result = Persona.model_validate(result)
+        return result
+
+
+class AlternativeAnalysisAgent(BaseAgent):
+    """
+    Agent responsible for Phase 2, Step 3: Alternative Analysis.
+    Identifies current alternatives and infers the 10x value.
+    """
+
+    def __init__(self, llm: ChatOpenAI | Any) -> None:
+        self.llm = llm
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        if not state.selected_idea or not state.target_persona:
+            logger.warning("Missing selected idea or persona for Alternative Analysis.")
+            return {}
+
+        system_prompt = (
+            "You are a sharp Business Analyst. Your task is to perform an Alternative Analysis. "
+            "Identify the current alternative tools (e.g., Excel, manual work, existing SaaS) "
+            "the persona uses, determine the switching costs, and articulate the 10x value proposition "
+            "that would compel them to switch to our new solution. "
+            "Output must strictly match the required JSON schema."
+        )
+        human_prompt = (
+            f"Idea: {state.selected_idea.title} - {state.selected_idea.solution}\n"
+            f"Target Persona: {state.target_persona.name}, {state.target_persona.occupation}\n"
+            f"Persona Goals: {', '.join(state.target_persona.goals)}\n"
+            f"Persona Frustrations: {', '.join(state.target_persona.frustrations)}\n\n"
+            "Generate the Alternative Analysis."
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        try:
+            analysis = self._invoke_llm(messages)
+        except Exception:
+            logger.exception("Failed to generate Alternative Analysis after retries")
+            return {}
+        else:
+            return {"alternative_analysis": analysis}
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def _invoke_llm(self, messages: list[Any]) -> AlternativeAnalysis:
+        structured_llm = self.llm.with_structured_output(AlternativeAnalysis)
+        result = structured_llm.invoke(messages)
+        if isinstance(result, dict):
+            result = AlternativeAnalysis.model_validate(result)
+        return result
+
+
+class ValuePropositionAgent(BaseAgent):
+    """
+    Agent responsible for Phase 2, Step 4: Value Proposition Design.
+    """
+
+    def __init__(self, llm: ChatOpenAI | Any) -> None:
+        self.llm = llm
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        if not state.selected_idea or not state.target_persona:
+            logger.warning("Missing required context for Value Proposition Design.")
+            return {}
+
+        system_prompt = (
+            "You are an expert Product Manager. Your task is to generate a Value Proposition Canvas. "
+            "Based on the provided persona and alternative analysis, map the Customer Profile (Jobs, Pains, Gains) "
+            "to the Value Map (Products & Services, Pain Relievers, Gain Creators). "
+            "Finally, evaluate how well they fit. "
+            "Output must strictly match the required JSON schema."
+        )
+
+        alt_analysis_text = ""
+        if state.alternative_analysis:
+            alt_analysis_text = f"Alternative Analysis: Switching Cost: {state.alternative_analysis.switching_cost}, 10x Value: {state.alternative_analysis.ten_x_value}\n"
+
+        human_prompt = (
+            f"Idea: {state.selected_idea.title}\n"
+            f"Solution: {state.selected_idea.solution}\n"
+            f"Target Persona: {state.target_persona.name}, {state.target_persona.occupation}\n"
+            f"Persona Frustrations (Pains to solve): {', '.join(state.target_persona.frustrations)}\n"
+            f"{alt_analysis_text}\n"
+            "Generate the Value Proposition Canvas."
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        try:
+            vpc = self._invoke_llm(messages)
+        except Exception:
+            logger.exception("Failed to generate Value Proposition Canvas after retries")
+            return {}
+        else:
+            return {"value_proposition_canvas": vpc}
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def _invoke_llm(self, messages: list[Any]) -> ValuePropositionCanvas:
+        structured_llm = self.llm.with_structured_output(ValuePropositionCanvas)
+        result = structured_llm.invoke(messages)
+        if isinstance(result, dict):
+            result = ValuePropositionCanvas.model_validate(result)
+        return result
 
 
 class PersonaAgent(BaseAgent, RateLimitMixin):

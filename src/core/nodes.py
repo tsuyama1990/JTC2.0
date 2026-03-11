@@ -1,6 +1,7 @@
 import functools
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from src.core.factory import AgentFactory
@@ -45,8 +46,6 @@ def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
 def verification_node(state: GlobalState) -> dict[str, Any]:
     """
     Transition to Verification Phase.
-    Here we prepare for the 'Mom Test' by setting the phase.
-    The user will select the Riskiest Assumption (Gate 2) and provide transcripts.
     """
     StateValidator.validate_phase_requirements(state)
 
@@ -55,6 +54,56 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
     logger.info(f"Transitioning to Phase: {Phase.VERIFICATION}")
     return {"phase": Phase.VERIFICATION}
+
+
+@safe_node("Error in Persona Generation Node")
+def persona_node(state: GlobalState) -> dict[str, Any]:
+    """Generate target persona and empathy map."""
+    logger.info("Generating Persona and Empathy Map...")
+    agent = AgentFactory.get_persona_generator_agent()
+    return agent.run(state)
+
+
+@safe_node("Error in Alternative Analysis Node")
+def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
+    """Generate Alternative Analysis."""
+    logger.info("Generating Alternative Analysis...")
+    agent = AgentFactory.get_alternative_analysis_agent()
+    return agent.run(state)
+
+
+@safe_node("Error in Value Proposition Node")
+def vpc_node(state: GlobalState) -> dict[str, Any]:
+    """Generate Value Proposition Canvas."""
+    logger.info("Generating Value Proposition Canvas...")
+    agent = AgentFactory.get_vpc_agent()
+    result = agent.run(state)
+
+    # Generate PDF at HITL Gate 1.5 if generation is successful
+    if (
+        "value_proposition_canvas" in result
+        and state.target_persona
+        and state.alternative_analysis
+    ):
+        from src.core.config import get_settings
+        from src.core.services.file_service import FileService
+
+        settings = get_settings()
+        file_service = FileService()
+
+        try:
+            # Output directory for the PDF from settings
+            output_dir = Path.cwd() / settings.canvas_output_dir
+            file_service.generate_vpc_pdf(
+                persona=state.target_persona,
+                analysis=state.alternative_analysis,
+                vpc=result["value_proposition_canvas"],
+                output_dir=output_dir,
+            )
+        except Exception:
+            logger.exception("Failed to generate PDF at HITL Gate 1.5")
+
+    return result
 
 
 @safe_node("Error during transcript ingestion")

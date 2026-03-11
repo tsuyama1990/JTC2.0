@@ -1,9 +1,22 @@
+from unittest.mock import MagicMock
+
 import pytest
 from pydantic import ValidationError
 
+from src.agents.personas import (
+    AlternativeAnalysisAgent,
+    PersonaGeneratorAgent,
+    ValuePropositionAgent,
+)
+from src.domain_models.alternative_analysis import AlternativeAnalysis, AlternativeTool
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.persona import EmpathyMap, Persona
 from src.domain_models.state import GlobalState, Phase
+from src.domain_models.value_proposition_canvas import (
+    CustomerProfile,
+    ValueMap,
+    ValuePropositionCanvas,
+)
 
 
 def test_lean_canvas_valid() -> None:
@@ -97,3 +110,135 @@ def test_global_state_phase_enum() -> None:
     state = GlobalState(phase=Phase.VERIFICATION, target_persona=persona)
     assert state.phase == "verification"
     assert isinstance(state.phase, Phase)
+
+
+def test_persona_generator_agent_success() -> None:
+    mock_llm = MagicMock()
+    mock_structured = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured
+
+    expected_persona = Persona(
+        name="Test", occupation="Test", demographics="Test Demographics",
+        goals=["A", "B"], frustrations=["C", "D"], bio="Test Bio",
+        empathy_map=EmpathyMap(says=["A", "B"], thinks=["C", "D"], does=["E", "F"], feels=["G", "H"])
+    )
+    mock_structured.invoke.return_value = expected_persona
+
+    agent = PersonaGeneratorAgent(mock_llm)
+    idea = LeanCanvas(
+        id=1, title="Test Idea", problem="Test Problem Problem", customer_segments="Test Segment Segment", unique_value_prop="Test UVP UVP UVP", solution="Test Solution Solution"
+    )
+    state = GlobalState(topic="Test Idea", selected_idea=idea)
+
+    result = agent.run(state)
+    assert "target_persona" in result
+    assert result["target_persona"] == expected_persona
+
+def test_alternative_analysis_agent_success() -> None:
+    mock_llm = MagicMock()
+    mock_structured = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured
+
+    expected_analysis = AlternativeAnalysis(
+        current_alternatives=[AlternativeTool(name="A", financial_cost="B", time_cost="C", ux_friction="D")],
+        switching_cost="E",
+        ten_x_value="F"
+    )
+    mock_structured.invoke.return_value = expected_analysis
+
+    agent = AlternativeAnalysisAgent(mock_llm)
+    idea = LeanCanvas(
+        id=1, title="Test Idea", problem="Test Problem Problem", customer_segments="Test Segment Segment", unique_value_prop="Test UVP UVP UVP", solution="Test Solution Solution"
+    )
+    persona = Persona(
+        name="Test Name", occupation="Test Occupation", demographics="Test Demographics",
+        goals=["A", "B"], frustrations=["C", "D"], bio="Test Bio",
+        empathy_map=EmpathyMap(says=["A", "B"], thinks=["C", "D"], does=["E", "F"], feels=["G", "H"])
+    )
+    state = GlobalState(topic="Test Idea", selected_idea=idea, target_persona=persona)
+
+    result = agent.run(state)
+    assert "alternative_analysis" in result
+    assert result["alternative_analysis"] == expected_analysis
+
+def test_vpc_agent_success() -> None:
+    mock_llm = MagicMock()
+    mock_structured = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured
+
+    expected_vpc = ValuePropositionCanvas(
+        customer_profile=CustomerProfile(customer_jobs=["A", "B"], pains=["C", "D"], gains=["E", "F"]),
+        value_map=ValueMap(products_and_services=["G", "H"], pain_relievers=["I", "J"], gain_creators=["K", "L"]),
+        fit_evaluation="Good fit"
+    )
+    mock_structured.invoke.return_value = expected_vpc
+
+    agent = ValuePropositionAgent(mock_llm)
+    idea = LeanCanvas(
+        id=1, title="Test Idea", problem="Test Problem Problem", customer_segments="Test Segment Segment", unique_value_prop="Test UVP UVP UVP", solution="Test Solution Solution"
+    )
+    persona = Persona(
+        name="Test Name", occupation="Test Occupation", demographics="Test Demographics",
+        goals=["A", "B"], frustrations=["C", "D"], bio="Test Bio",
+        empathy_map=EmpathyMap(says=["A", "B"], thinks=["C", "D"], does=["E", "F"], feels=["G", "H"])
+    )
+    state = GlobalState(topic="Test Idea", selected_idea=idea, target_persona=persona)
+
+    result = agent.run(state)
+    assert "value_proposition_canvas" in result
+    assert result["value_proposition_canvas"] == expected_vpc
+
+def test_persona_agent_failure() -> None:
+    mock_llm = MagicMock()
+    mock_structured = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured
+    mock_structured.invoke.side_effect = Exception("Test failure")
+
+    agent = PersonaGeneratorAgent(mock_llm)
+    idea = LeanCanvas(
+        id=1, title="Test Idea", problem="Test Problem Problem", customer_segments="Test Segment Segment", unique_value_prop="Test UVP UVP UVP", solution="Test Solution Solution"
+    )
+    state = GlobalState(topic="Test Idea", selected_idea=idea)
+
+    result = agent.run(state)
+    assert result == {}
+
+def test_alternative_analysis_agent_failure() -> None:
+    mock_llm = MagicMock()
+    mock_structured = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured
+    mock_structured.invoke.side_effect = Exception("Test failure")
+
+    agent = AlternativeAnalysisAgent(mock_llm)
+    idea = LeanCanvas(
+        id=1, title="Test Idea", problem="Test Problem Problem", customer_segments="Test Segment Segment", unique_value_prop="Test UVP UVP UVP", solution="Test Solution Solution"
+    )
+    persona = Persona(
+        name="Test Name", occupation="Test Occupation", demographics="Test Demographics",
+        goals=["A", "B"], frustrations=["C", "D"], bio="Test Bio Test Bio Test Bio",
+        empathy_map=EmpathyMap(says=["A", "B"], thinks=["C", "D"], does=["E", "F"], feels=["G", "H"])
+    )
+    state = GlobalState(topic="Test Idea", selected_idea=idea, target_persona=persona)
+
+    result = agent.run(state)
+    assert result == {}
+
+def test_vpc_agent_failure() -> None:
+    mock_llm = MagicMock()
+    mock_structured = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured
+    mock_structured.invoke.side_effect = Exception("Test failure")
+
+    agent = ValuePropositionAgent(mock_llm)
+    idea = LeanCanvas(
+        id=1, title="Test Idea", problem="Test Problem Problem", customer_segments="Test Segment Segment", unique_value_prop="Test UVP UVP UVP", solution="Test Solution Solution"
+    )
+    persona = Persona(
+        name="Test Name", occupation="Test Occupation", demographics="Test Demographics",
+        goals=["A", "B"], frustrations=["C", "D"], bio="Test Bio Test Bio Test Bio",
+        empathy_map=EmpathyMap(says=["A", "B"], thinks=["C", "D"], does=["E", "F"], feels=["G", "H"])
+    )
+    state = GlobalState(topic="Test Idea", selected_idea=idea, target_persona=persona)
+
+    result = agent.run(state)
+    assert result == {}

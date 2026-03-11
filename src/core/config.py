@@ -368,6 +368,9 @@ class Settings(BaseSettings):
     rag_persist_dir: str = Field(
         alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index"
     )
+    canvas_output_dir: str = Field(
+        alias="CANVAS_OUTPUT_DIR", default="./outputs/canvas", description="Directory for PDF canvases"
+    )
     rag_chunk_size: int = Field(
         alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG"
     )
