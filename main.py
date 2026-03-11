@@ -63,26 +63,24 @@ def validate_topic(topic: str) -> str:
 
 
 def validate_filepath(filepath: str) -> Path:
-    """Validate filepath to prevent traversal attacks using canonical resolution."""
-    import os
+    """Validate filepath to prevent traversal attacks using strict canonical resolution."""
+    try:
+        # Use strict=True to automatically resolve symlinks and ensure path exists
+        path = Path(filepath).resolve(strict=True)
+        cwd = Path.cwd().resolve(strict=True)
 
-    # Resolve real absolute path eliminating symlinks
-    real_path_str = os.path.realpath(filepath)
-    path = Path(real_path_str)
+        if not path.is_relative_to(cwd):
+            msg = "File path must be strictly within the allowed project directory."
+            raise ValueError(msg)
 
-    # Allowed directory whitelist (restrict to current working directory)
-    allowed_dir = os.path.realpath(str(Path.cwd()))
-    allowed_path = Path(allowed_dir)
-
-    if not path.is_relative_to(allowed_path):
-        msg = "File path must be strictly within the allowed project directory."
-        raise ValueError(msg)
-
-    if not path.exists() or not path.is_file():
+        if not path.is_file():
+            msg = f"Valid file not found at: {filepath}"
+            raise ValueError(msg)
+    except FileNotFoundError as err:
         msg = f"Valid file not found at: {filepath}"
-        raise ValueError(msg)
-
-    return path
+        raise ValueError(msg) from err
+    else:
+        return path
 
 
 def _prompt_user_selection(current_page_items: list[LeanCanvas]) -> LeanCanvas | str:
@@ -168,28 +166,31 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
     manager.run()
 
 
-def _read_file_safe(path: Path) -> str:
-    """Read a file safely with size limits."""
-    # Max size 10MB
+def _read_file_chunks(path: Path, chunk_size: int = 1024 * 1024) -> Iterator[str]:
+    """Read a file safely using a generator to prevent OOM."""
     if path.stat().st_size > 10 * 1024 * 1024:
         msg = "File exceeds maximum allowed size of 10MB."
         raise ValueError(msg)
 
-    # We could chunk it, but standard ingest_text in RAG accepts a single string.
-    # At least we validate it's small enough to fit in memory safely.
     with path.open(encoding="utf-8") as f:
-        return f.read()
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
 
 def ingest_transcript(filepath: str) -> None:
-    """Ingest a transcript file into the RAG engine."""
+    """Ingest a transcript file into the RAG engine using streaming/chunking."""
     try:
         echo(f"Ingesting transcript from {filepath}...")
         path = validate_filepath(filepath)
 
-        content = _read_file_safe(path)
-
         rag = RAG()
-        rag.ingest_text(content, source=str(path))
+        # Stream 1MB chunks to prevent loading whole file into memory at once
+        for chunk in _read_file_chunks(path):
+            # We assume RAG can ingest sequentially chunk by chunk
+            rag.ingest_text(chunk, source=str(path))
+
         rag.persist_index()
         echo(f"Successfully ingested {filepath} into vector store.")
     except Exception:

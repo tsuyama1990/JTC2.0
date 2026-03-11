@@ -135,7 +135,11 @@ class IdeatorAgent(BaseAgent):
             return "No research data available due to invalid topic input."
 
         settings = get_settings()
-        query = settings.search_query_template.format(topic=validated_topic)
+        # Securely escape the template by avoiding generic .format()
+        # which can execute arbitrary formatting logic if the template is compromised.
+        # Ensure we only replace the exact placeholder literal safely.
+        template = settings.search_query_template
+        query = template.replace("{topic}", validated_topic)
         return self.search_tool.safe_search(query)
 
     def execute(self, state: GlobalState) -> GlobalState:

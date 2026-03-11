@@ -5,6 +5,7 @@ This module defines the 'Battle' subgraph where agents debate.
 The sequence is loaded from configuration to allow flexibility.
 """
 
+import functools
 import logging
 import threading
 from collections.abc import Iterator
@@ -51,19 +52,16 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
             msg = f"Invalid role '{role_str}' in simulation config step {node_name}."
             raise ValueError(msg) from err
 
-        # Create a closure for the node function
-        # We must bind defaults to capture the current iteration's values
-        def step_runner(
-            state: GlobalState, _role: Role = role, _desc: str = desc
-        ) -> dict[str, object]:
-            logger.info(_desc)
-            # Add type ignore for Any return from run
-            return AgentFactory.get_persona_agent(_role).run(state)  # type: ignore[no-any-return]
+        # Create a runner function avoiding late binding closure issues
+        def _step_runner(state: GlobalState, bound_role: Role, bound_desc: str) -> dict[str, object]:
+            logger.info(bound_desc)
+            return AgentFactory.get_persona_agent(bound_role).run(state)  # type: ignore[no-any-return]
 
-        # Name the function for debugging
-        step_runner.__name__ = f"run_{node_name}"
+        # Bind the specific arguments for this iteration
+        bound_runner = functools.partial(_step_runner, bound_role=role, bound_desc=desc)
+        bound_runner.__name__ = f"run_{node_name}"  # type: ignore[attr-defined]
 
-        workflow.add_node(node_name, step_runner)
+        workflow.add_node(node_name, bound_runner)
 
         if previous_node:
             workflow.add_edge(previous_node, node_name)
