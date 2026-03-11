@@ -132,7 +132,7 @@ class BuilderAgent(BaseAgent):
                     feature = next(feature_gen)
                     candidate_features.append(feature)
             except StopIteration:
-                pass
+                pass  # Safely handle the end of the generator
 
         if not candidate_features:
             logger.warning("No features extracted from solution.")

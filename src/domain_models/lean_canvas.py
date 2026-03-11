@@ -10,6 +10,7 @@ class CanvasStatus(StrEnum):
     APPROVED = "approved"
     REJECTED = "rejected"
 
+
 class LeanCanvas(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: int

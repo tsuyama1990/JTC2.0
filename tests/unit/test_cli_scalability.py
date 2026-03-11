@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
-import pytest
 
 from main import browse_and_select
 from src.domain_models.lean_canvas import LeanCanvas
@@ -38,6 +37,7 @@ def test_browse_and_select_lazy(
     assert result is not None
     assert result.id == 4
     assert mock_echo.call_count > 0
+
 
 @patch("main.get_settings")
 @patch("main.input")

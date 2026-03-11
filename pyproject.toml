@@ -87,6 +87,7 @@ ignore = [
     "PLC0415", # Import should be at top-level
     "BLE001", # Blind exception catch
     "PT019",  # Fixture without value injection
+    "RUF001", # Ambiguous string characters (often trips on JP text)
     "RUF003", # Ambiguous multiplication sign
     "ARG002", # Unused method argument
     "RUF043", # Pattern metacharacters not escaped in match
