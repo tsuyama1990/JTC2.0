@@ -111,18 +111,36 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     rag = RAG(persist_dir=state.rag_index_path)
 
     # Process transcripts in chunks to manage memory
-    chunk_size = 10
+    from src.core.config import get_settings
+    settings = get_settings()
+    chunk_size = settings.rag_batch_size
     total = len(state.transcripts)
 
-    for i in range(0, total, chunk_size):
-        chunk = state.transcripts[i : i + chunk_size]
-        logger.info(f"Ingesting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
+    import os
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        for transcript in chunk:
-            rag.ingest_transcript(transcript)
+    max_workers = (os.cpu_count() or 1) * 2 + 1
 
-        # Persist index after each chunk to free up ingestion buffers
-        rag.persist_index()
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for i in range(0, total, chunk_size):
+            chunk = state.transcripts[i : i + chunk_size]
+            logger.info(f"Submitting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
+            # Submit chunk to executor
+            for transcript in chunk:
+                futures.append(executor.submit(rag.ingest_transcript, transcript))
+
+        # Wait for all ingestion tasks to complete
+        for i, future in enumerate(as_completed(futures)):
+            try:
+                future.result()
+                if (i + 1) % 10 == 0:
+                    logger.info(f"Completed ingestion of {i + 1}/{total} transcripts")
+            except Exception:
+                logger.exception("Failed to ingest a transcript")
+
+    # Persist index once after all chunks to avoid O(n) I/O bottleneck
+    rag.persist_index()
 
     return {}
 

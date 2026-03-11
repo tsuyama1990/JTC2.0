@@ -5,6 +5,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from pydantic_core import ValidationError as PydanticValidationError
 from tenacity import (
     before_sleep_log,
     retry,
@@ -14,7 +15,6 @@ from tenacity import (
 )
 
 from src.agents.base import BaseAgent, SearchTool
-from src.agents.mixins import RateLimitMixin
 from src.core.config import Settings, get_settings
 from src.domain_models.alternative_analysis import AlternativeAnalysis
 from src.domain_models.persona import Persona
@@ -24,6 +24,21 @@ from src.domain_models.value_proposition_canvas import ValuePropositionCanvas
 from src.tools.search import TavilySearch
 
 logger = logging.getLogger(__name__)
+
+
+class RateLimiter:
+    """Class to manage API rate limiting via composition instead of multiple inheritance."""
+    def __init__(self, min_request_interval: float = 1.0) -> None:
+        self._last_request_time: float = 0.0
+        self._min_request_interval: float = min_request_interval
+
+    def wait(self) -> None:
+        """Enforce rate limiting for API calls."""
+        current_time = time.time()
+        elapsed = current_time - self._last_request_time
+        if elapsed < self._min_request_interval:
+            time.sleep(self._min_request_interval - elapsed)
+        self._last_request_time = time.time()
 
 
 class PersonaGeneratorAgent(BaseAgent):
@@ -69,7 +84,7 @@ class PersonaGeneratorAgent(BaseAgent):
             return {"target_persona": persona}
 
     @retry(
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_exception_type((ValueError, TypeError, KeyError, PydanticValidationError)),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         stop=stop_after_attempt(3),
         before_sleep=before_sleep_log(logger, logging.WARNING),
@@ -125,7 +140,7 @@ class AlternativeAnalysisAgent(BaseAgent):
             return {"alternative_analysis": analysis}
 
     @retry(
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_exception_type((ValueError, TypeError, KeyError, PydanticValidationError)),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         stop=stop_after_attempt(3),
         before_sleep=before_sleep_log(logger, logging.WARNING),
@@ -199,7 +214,7 @@ class ValuePropositionAgent(BaseAgent):
         return result
 
 
-class PersonaAgent(BaseAgent, RateLimitMixin):
+class PersonaAgent(BaseAgent):
     """Base class for persona-based agents in the simulation."""
 
     def __init__(
@@ -210,15 +225,11 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        RateLimitMixin.__init__(self)
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
         self.settings = app_settings or get_settings()
-
-        # Ensure API keys are present if we are initializing default tools
-        if search_tool is None:
-            self.settings.validate_api_keys()
+        self.rate_limiter = RateLimiter()
 
         self.search_tool = search_tool or TavilySearch(
             api_key=self.settings.tavily_api_key.get_secret_value()
@@ -266,7 +277,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         # But we still need to know if _research_impl exists on the subclass
         if hasattr(self, "_research_impl"):
             try:
-                self._rate_limit_wait()
+                self.rate_limiter.wait()
                 # Ensure return type is str
                 # We use getattr to bypass mypy 'attr-defined' error for dynamic dispatch
                 impl = self._research_impl

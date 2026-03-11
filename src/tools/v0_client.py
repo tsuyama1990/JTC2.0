@@ -27,7 +27,7 @@ class V0Client:
         self.api_key = api_key or (
             self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None
         )
-        self.base_url = self.settings.v0_api_url
+        self.base_url = self.settings.v0_api_url or "https://api.v0.dev/chat/completions"
 
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(

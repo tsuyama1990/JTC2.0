@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import Self
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -348,16 +347,16 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(
-        alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
+    openai_api_key: SecretStr = Field(
+        alias="OPENAI_API_KEY", description="OpenAI API Key"
     )
-    tavily_api_key: SecretStr | None = Field(
-        alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key"
+    tavily_api_key: SecretStr = Field(
+        alias="TAVILY_API_KEY", description="Tavily Search API Key"
     )
     v0_api_key: SecretStr | None = Field(
         alias="V0_API_KEY", default=None, description="V0.dev API Key"
     )
-    v0_api_url: str = Field(
+    v0_api_url: str | None = Field(
         alias="V0_API_URL",
         default="https://api.v0.dev/chat/completions",
         description="V0.dev API URL",
@@ -367,6 +366,11 @@ class Settings(BaseSettings):
 
     rag_persist_dir: str = Field(
         alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index"
+    )
+    hitl_interrupt_nodes: list[str] = Field(
+        alias="HITL_INTERRUPT_NODES",
+        default_factory=lambda: ["ideator", "verification", "vpc", "solution_proposal", "pmf"],
+        description="Nodes to interrupt after for Human-In-The-Loop feedback",
     )
     canvas_output_dir: str = Field(
         alias="CANVAS_OUTPUT_DIR", default="./outputs/canvas", description="Directory for PDF canvases"
@@ -464,19 +468,8 @@ class Settings(BaseSettings):
     def model_post_init(self, __context: object) -> None:
         """Validate API keys on initialization."""
         super().model_post_init(__context)
-        self.validate_api_keys()
-
-    def validate_api_keys(self) -> Self:
-        """Validate API keys are present and have correct format."""
-        if not self.openai_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
         ConfigValidators.validate_openai_key(self.openai_api_key)
-
-        if not self.tavily_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
         ConfigValidators.validate_tavily_key(self.tavily_api_key)
-
-        return self
 
     def rotate_keys(self) -> None:
         """Placeholder for key rotation."""

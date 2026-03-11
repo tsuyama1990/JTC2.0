@@ -1,4 +1,5 @@
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -20,8 +21,9 @@ class FileService:
     """
 
     def __init__(self) -> None:
-        # Max workers limited to avoid thread exhaustion
-        self._executor = ThreadPoolExecutor(max_workers=5)
+        # Max workers scales with CPU count to avoid thread starvation under load
+        max_workers = (os.cpu_count() or 1) * 2 + 1
+        self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self.settings = get_settings()
 
     def _validate_path(self, path: str | Path) -> Path:
@@ -29,13 +31,21 @@ class FileService:
         Validate path to prevent traversal.
         """
         try:
-            target_path = Path(path).resolve(strict=False)
+            p = Path(path)
+            # If path doesn't exist, we resolve its parent, which must exist
+            if p.exists():
+                target_path = p.resolve(strict=True)
+            else:
+                # Ensure the parent directory resolves cleanly and we construct the path back
+                parent = p.parent.resolve(strict=True)
+                target_path = parent / p.name
+
             cwd = Path.cwd().resolve(strict=True)
         except Exception as e:
             msg = f"Invalid path: {e}"
             raise ConfigurationError(msg) from e
 
-        if not str(target_path).startswith(str(cwd)):
+        if not target_path.is_relative_to(cwd):
             msg = f"Path traversal detected: {target_path}"
             raise ConfigurationError(msg)
 

@@ -84,5 +84,8 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     # Governance -> End (Report generated)
     workflow.add_edge("governance", END)
 
+    from src.core.config import get_settings
+    settings = get_settings()
+
     # Compile with Interrupts for HITL Gates
-    return workflow.compile(interrupt_after=["ideator", "verification", "vpc", "solution_proposal", "pmf"])
+    return workflow.compile(interrupt_after=settings.hitl_interrupt_nodes)

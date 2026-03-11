@@ -77,7 +77,8 @@ def test_simulation_turn_sequence(
     ]
 
     # Check args of each call
-    assert [c.args for c in mock_get_persona.call_args_list] == [c[0] for c in expected_calls]
+    # The first arg should be the role
+    assert [c.args[0] for c in mock_get_persona.call_args_list] == [c[0][0] for c in expected_calls]
 
 
 @patch("src.core.factory.AgentFactory.get_persona_agent")
