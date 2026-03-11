@@ -20,11 +20,18 @@ class FileService:
     Uses ThreadPoolExecutor for non-blocking I/O in async contexts.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, pdf_generator: type[IPDFGenerator] | None = None) -> None:
         # Max workers scales with CPU count to avoid thread starvation under load
         max_workers = (os.cpu_count() or 1) * 2 + 1
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self.settings = get_settings()
+
+        # Abstract PDF library dependency
+        if pdf_generator is None:
+            from fpdf import FPDF
+            self.pdf_generator_class: type[IPDFGenerator] = FPDF # type: ignore
+        else:
+            self.pdf_generator_class = pdf_generator
 
     def _validate_path(self, path: str | Path) -> Path:
         """
@@ -103,7 +110,7 @@ class FileService:
         """
         Generate a PDF containing Persona, Alternative Analysis, and Value Proposition Canvas.
         """
-        pdf = FPDF()
+        pdf = self.pdf_generator_class()
         pdf.add_page()
         pdf.set_font("Helvetica", size=12)
 

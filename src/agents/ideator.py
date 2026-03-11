@@ -1,7 +1,6 @@
 import logging
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 from tenacity import (
     before_sleep_log,
@@ -13,6 +12,7 @@ from tenacity import (
 
 from src.agents.base import BaseAgent, SearchTool
 from src.core.config import get_settings
+from src.core.interfaces import ILLMClient
 from src.core.llm import get_llm
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
@@ -31,7 +31,7 @@ class IdeasResponse(BaseModel):
 class IdeaGenerator:
     """Service class responsible for interacting with the LLM to generate ideas."""
 
-    def __init__(self, llm: Any = None) -> None:
+    def __init__(self, llm: ILLMClient | None = None) -> None:
         self.llm = llm or get_llm()
 
     @retry(
@@ -57,8 +57,8 @@ class IdeaGenerator:
         )
 
         messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=human_prompt),
+            ("system", system_prompt),
+            ("human", human_prompt),
         ]
 
         structured_llm = self.llm.with_structured_output(IdeasResponse)
@@ -110,7 +110,7 @@ class IdeatorAgent(BaseAgent):
     Phase 1: Idea Verification.
     """
 
-    def __init__(self, llm: Any = None, search_tool: SearchTool | None = None) -> None:
+    def __init__(self, llm: ILLMClient | None = None, search_tool: SearchTool | None = None) -> None:
         """
         Initialize the Ideator Agent.
 

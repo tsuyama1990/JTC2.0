@@ -1,11 +1,9 @@
 import logging
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
+from src.core.interfaces import ILLMClient
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
@@ -17,7 +15,7 @@ class The3HReviewAgent(BaseAgent):
     Executes Hacker, Hipster, and Hustler reviews.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
         self.settings = get_settings()
 
@@ -27,6 +25,8 @@ class The3HReviewAgent(BaseAgent):
         if not state.sitemap_and_story or not state.value_proposition_canvas:
             logger.warning("Missing required context for 3H Review.")
             return {}
+
+        from langchain_core.prompts import ChatPromptTemplate
 
         # Hacker Review
         hacker_prompt = ChatPromptTemplate.from_messages(

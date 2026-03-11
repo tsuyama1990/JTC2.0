@@ -1,7 +1,6 @@
 import logging
-from typing import Literal
+from typing import Literal, Any
 
-from tavily import InvalidAPIKeyError, MissingAPIKeyError, TavilyClient
 from tenacity import (
     after_log,
     before_sleep_log,
@@ -14,6 +13,7 @@ from tenacity import (
 
 from src.core.config import get_settings
 from src.core.constants import ERR_SEARCH_CONFIG_MISSING, ERR_SEARCH_FAILED
+from src.core.interfaces import ISearchClient
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class TavilySearch:
     """Wrapper for Tavily Search API with retry logic."""
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, search_client: ISearchClient | None = None) -> None:
         """
         Initialize Tavily Search client.
 
@@ -38,7 +38,11 @@ class TavilySearch:
         else:
             raise ValueError(ERR_SEARCH_CONFIG_MISSING)
 
-        self.client = TavilyClient(api_key=self.api_key)
+        if search_client is None:
+            from tavily import TavilyClient
+            self.client: Any = TavilyClient(api_key=self.api_key)
+        else:
+            self.client = search_client
 
     @retry(
         retry=retry_if_exception_type(Exception)
@@ -84,6 +88,7 @@ class TavilySearch:
 
     def safe_search(self, query: str) -> str:
         """Execute a search safely, catching exceptions."""
+        from tavily import InvalidAPIKeyError, MissingAPIKeyError
         try:
             return self.search(query)
         except (MissingAPIKeyError, InvalidAPIKeyError, ValueError):

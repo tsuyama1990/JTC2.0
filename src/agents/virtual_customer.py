@@ -1,11 +1,9 @@
 import logging
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
+from src.core.interfaces import ILLMClient
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
@@ -16,7 +14,7 @@ class VirtualCustomerAgent(BaseAgent):
     Agent responsible for Phase 4, Step 8: Virtual Solution Interview.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
         self.settings = get_settings()
 
@@ -41,6 +39,7 @@ class VirtualCustomerAgent(BaseAgent):
             "特に『面倒くささ（スイッチングコスト）』には敏感に反応してください。"
         )
 
+        from langchain_core.prompts import ChatPromptTemplate
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", prompt_system),
@@ -55,7 +54,7 @@ class VirtualCustomerAgent(BaseAgent):
         chain = prompt | self.llm
         try:
             result = chain.invoke({})
-            return {"virtual_customer_review": str(result.content)}
+            return {"virtual_customer_review": str(getattr(result, 'content', result))}
         except Exception:
             logger.exception("Failed to generate Virtual Customer feedback")
 

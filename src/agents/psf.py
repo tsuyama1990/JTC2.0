@@ -1,11 +1,9 @@
 import logging
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
+from src.core.interfaces import ILLMClient
 from src.domain_models.customer_journey import CustomerJourney
 from src.domain_models.mental_model_diagram import MentalModelDiagram
 from src.domain_models.sitemap_and_story import SitemapAndStory
@@ -19,7 +17,7 @@ class MentalModelJourneyAgent(BaseAgent):
     Agent responsible for Phase 3, Step 6: Mental Model & Journey Mapping.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
         self.settings = get_settings()
 
@@ -27,6 +25,9 @@ class MentalModelJourneyAgent(BaseAgent):
         if not state.target_persona or not state.value_proposition_canvas:
             logger.warning("Missing required context for Mental Model & Journey Mapping.")
             return {}
+
+        # Optional local import to avoid hard dependency at module layer if desired
+        from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -53,6 +54,7 @@ class MentalModelJourneyAgent(BaseAgent):
         if not isinstance(mm_result, MentalModelDiagram):
             return {}
 
+        from langchain_core.prompts import ChatPromptTemplate
         journey_prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -86,7 +88,7 @@ class SitemapWireframeAgent(BaseAgent):
     Agent responsible for Phase 3, Step 7: Sitemap & Lo-Fi Wireframing.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
         self.settings = get_settings()
 
@@ -95,6 +97,7 @@ class SitemapWireframeAgent(BaseAgent):
             logger.warning("Missing Customer Journey for Sitemap generation.")
             return {}
 
+        from langchain_core.prompts import ChatPromptTemplate
         prompt = ChatPromptTemplate.from_messages(
             [
                 (

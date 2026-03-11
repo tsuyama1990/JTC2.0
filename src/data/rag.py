@@ -2,90 +2,29 @@ import logging
 import os
 import time
 from collections.abc import Iterator
-from functools import lru_cache
 from pathlib import Path
 
 import pybreaker
-from llama_index.core import Document, VectorStoreIndex, load_index_from_storage
-from llama_index.core import Settings as LlamaSettings
-from llama_index.core.storage.storage_context import StorageContext
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
 from src.core.constants import (
     ERR_CIRCUIT_OPEN,
-    ERR_PATH_TRAVERSAL,
-    ERR_RAG_INDEX_SIZE,
     ERR_RAG_QUERY_TOO_LARGE,
-    ERR_RAG_TEXT_TOO_LARGE,
 )
 from src.core.exceptions import ConfigurationError, NetworkError, ValidationError
+from src.core.execution import execute_query_with_timeout
+from src.core.interfaces import IVectorStore
+from src.core.rate_limit import rate_limit_wait
+from src.core.security import sanitize_query, validate_safe_path
+from src.core.text_processing import chunk_text_generator
+from src.core.utils import scan_directory_size_cached
+from src.core.validation import validate_index_size
 from src.domain_models.transcript import Transcript
 
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=1)
-def _scan_dir_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -> int:
-    """
-    Cached version of directory size calculation.
-    ttl_hash is a trick to invalidate cache by passing a changing value (like time // 60).
-    """
-    return _scan_dir_size(path, depth_limit)
-
-
-def _scan_dir_size(path: str, depth_limit: int = 10) -> int:
-    """
-    Calculate directory size iteratively with depth limit and strict file count.
-
-    Args:
-        path: Path to scan.
-        depth_limit: Maximum recursion depth.
-
-    Returns:
-        Total size in bytes.
-    """
-    total = 0
-    file_count = 0
-    MAX_FILES = 10000
-
-    # Queue for BFS traversal: (path, current_depth)
-    queue = [(path, 0)]
-
-    # Track visited inodes to prevent loops via hardlinks/symlinks if followed (though we disable symlinks)
-    visited_inodes = set()
-
-    while queue:
-        current_path, depth = queue.pop(0)
-
-        if depth > depth_limit:
-            continue
-
-        try:
-            with os.scandir(current_path) as it:
-                for entry in it:
-                    if entry.is_file(follow_symlinks=False):
-                        stat = entry.stat()
-                        if stat.st_ino in visited_inodes:
-                            continue
-                        visited_inodes.add(stat.st_ino)
-
-                        total += stat.st_size
-                        file_count += 1
-                        if file_count > MAX_FILES:
-                            logger.warning(
-                                f"Scan file limit ({MAX_FILES}) reached at {current_path}. returning partial size."
-                            )
-                            return total
-
-                    elif entry.is_dir(follow_symlinks=False):
-                        queue.append((entry.path, depth + 1))
-        except OSError as e:
-            logger.warning(f"Error scanning index directory {current_path}: {e}")
-
-    return total
 
 
 class IngestionRequest(BaseModel):
@@ -133,63 +72,18 @@ class RAG:
         self._current_index_size = 0
         if Path(self.persist_dir).exists():
             # Use cached scan
-            self._current_index_size = _scan_dir_size_cached(
+            self._current_index_size = scan_directory_size_cached(
                 self.persist_dir,
                 depth_limit=self.settings.rag_scan_depth_limit,
                 ttl_hash=int(time.time() // 60),  # Refresh every minute
             )
 
-        self.index: VectorStoreIndex | None = None
+        self.index: IVectorStore | None = None
         self._init_llama()
 
     def _validate_path(self, path_str: str) -> str:
-        """
-        Ensure persist directory is safe and absolute.
-        Uses strict allowlist and pathlib.resolve(strict=True) for security.
-        """
-        if not path_str or not isinstance(path_str, str):
-            msg = "Path must be a non-empty string."
-            raise ConfigurationError(msg)
-
-        try:
-            path = Path(path_str).resolve(strict=False)
-            cwd = Path.cwd().resolve(strict=True)
-            allowed_rel_paths = self.settings.rag_allowed_paths
-            allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
-
-            path_exists = path.exists()
-            is_symlink = path.is_symlink() if path_exists else False
-            if path_exists:
-                path = path.resolve(strict=True)
-        except Exception as e:
-            msg = f"Invalid path format or non-existent parent: {e}"
-            raise ConfigurationError(msg) from e
-
-        is_safe = False
-        for parent in allowed_parents:
-            if str(path).startswith(str(parent)):
-                is_safe = True
-                break
-
-        if not is_safe:
-            logger.error(
-                f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}"
-            )
-            raise ConfigurationError(ERR_PATH_TRAVERSAL)
-
-        if is_symlink:
-            msg = "Symlinks not allowed in persist_dir."
-            raise ConfigurationError(msg)
-
-        return str(path)
-
-    def _sanitize_query(self, query: str) -> str:
-        """
-        Sanitize input query to prevent injection or processing issues.
-        Efficient implementation using list comprehension.
-        """
-        chars = [ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127]
-        return "".join(chars).strip()
+        """Ensure persist directory is safe."""
+        return validate_safe_path(path_str, self.settings.rag_allowed_paths)
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
@@ -197,6 +91,11 @@ class RAG:
             raise ConfigurationError(self.settings.errors.config_missing_openai)
 
         api_key_str = self.settings.openai_api_key.get_secret_value()
+
+        # Local import to prevent architectural hard-coupling at module level
+        from llama_index.core import Settings as LlamaSettings
+        from llama_index.embeddings.openai import OpenAIEmbedding
+        from llama_index.llms.openai import OpenAI
 
         LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
         LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
@@ -220,9 +119,11 @@ class RAG:
             return
 
         try:
+            from llama_index.core import load_index_from_storage
+            from llama_index.core.storage.storage_context import StorageContext
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
-            self.index = load_index_from_storage(storage_context)  # type: ignore[assignment]
+            self.index = load_index_from_storage(storage_context)
 
         except Exception:
             logger.exception("Failed to load index from %s", self.persist_dir)
@@ -230,62 +131,16 @@ class RAG:
 
     def _check_index_size_limit(self) -> None:
         """Check if the tracked index size is too large."""
-        limit_mb = self.settings.rag_max_index_size_mb
-        limit_bytes = limit_mb * 1024 * 1024
-
-        if self._current_index_size > limit_bytes:
-            msg = ERR_RAG_INDEX_SIZE.format(limit=limit_mb)
-            logger.error(msg)
-            raise MemoryError(msg)
+        validate_index_size(self._current_index_size, self.settings.rag_max_index_size_mb)
 
     def _rate_limit(self) -> None:
         """Simple blocking rate limiter."""
-        current = time.time()
-        elapsed = current - self._last_call_time
-        if elapsed < self._min_interval:
-            time.sleep(self._min_interval - elapsed)
-        self._last_call_time = time.time()
+        self._last_call_time = rate_limit_wait(self._last_call_time, self._min_interval)
 
-    def _document_generator(self, request: IngestionRequest) -> Iterator[Document]:
-        """
-        Yield documents from request content one by one.
-        Tracks size updates internally.
-        """
-        chunk_size = self.settings.rag_chunk_size
-        max_doc_len = self.settings.rag_max_document_length
-        current_chunk_idx = 0
-
-        def content_generator() -> Iterator[str]:
-            if isinstance(request.text, str):
-                if len(request.text) > max_doc_len:
-                    raise ValidationError(ERR_RAG_TEXT_TOO_LARGE.format(size=len(request.text)))
-                yield request.text
-            else:
-                yield from request.text
-
-        for content_part in content_generator():
-            if not isinstance(content_part, str):
-                logger.warning(f"Skipping non-string content in iterator from {request.source}")
-                continue
-
-            if len(content_part) > chunk_size:
-                chunks = [
-                    content_part[i : i + chunk_size]
-                    for i in range(0, len(content_part), chunk_size)
-                ]
-            else:
-                chunks = [content_part]
-
-            for chunk in chunks:
-                size_bytes = len(chunk.encode("utf-8"))
-                self._current_index_size += size_bytes
-                self._check_index_size_limit()
-
-                yield Document(
-                    text=chunk,
-                    metadata={"source": request.source, "chunk_index": current_chunk_idx},
-                )
-                current_chunk_idx += 1
+    def _size_tracker_callback(self, size_bytes: int) -> None:
+        """Callback to update and check size."""
+        self._current_index_size += size_bytes
+        self._check_index_size_limit()
 
     def ingest_text(self, text: str | Iterator[str], source: str) -> None:
         """
@@ -300,10 +155,17 @@ class RAG:
         except Exception as e:
             raise ValidationError(str(e)) from e
 
-        doc_iterator = self._document_generator(request)
+        doc_iterator = chunk_text_generator(
+            request.text,
+            request.source,
+            self.settings.rag_chunk_size,
+            self.settings.rag_max_document_length,
+            self._size_tracker_callback
+        )
         batch_size = self.settings.rag_batch_size
 
         # Generator that yields batches of documents
+        from llama_index.core import Document
         def batch_generator() -> Iterator[list[Document]]:
             batch: list[Document] = []
             for doc in doc_iterator:
@@ -325,6 +187,7 @@ class RAG:
                 return  # Empty input
 
             if self.index is None:
+                from llama_index.core import VectorStoreIndex
                 self.index = VectorStoreIndex.from_documents(first_batch)
             else:
                 self.index.insert_nodes(first_batch)
@@ -347,10 +210,13 @@ class RAG:
     def persist_index(self) -> None:
         """Persist the index to disk."""
         if self.index:
-            self.index.storage_context.persist(persist_dir=self.persist_dir)
-            logger.info(f"Index persisted to {self.persist_dir}")
-            _scan_dir_size_cached.cache_clear()
-            self._current_index_size = _scan_dir_size_cached(
+            # Using getattr to avoid tight coupling error
+            storage_context = getattr(self.index, "storage_context", None)
+            if storage_context:
+                storage_context.persist(persist_dir=self.persist_dir)
+                logger.info(f"Index persisted to {self.persist_dir}")
+            scan_directory_size_cached.cache_clear()
+            self._current_index_size = scan_directory_size_cached(
                 self.persist_dir,
                 self.settings.rag_scan_depth_limit,
                 ttl_hash=int(time.time() // 60),
@@ -370,7 +236,7 @@ class RAG:
             msg = "Query cannot be empty."
             raise ValueError(msg)
 
-        question = self._sanitize_query(question)
+        question = sanitize_query(question)
 
         max_len = self.settings.rag_max_query_length
         if len(question) > max_len:
@@ -387,29 +253,11 @@ class RAG:
         if self.index is None:
             return "No data available."
 
-        import time
-        from concurrent.futures import ThreadPoolExecutor
-        from concurrent.futures import TimeoutError as FuturesTimeoutError
-
-        if self.settings.rag_rate_limit_interval > 0:
-            time.sleep(self.settings.rag_rate_limit_interval)
-
         timeout = getattr(self.settings, "rag_query_timeout", 30.0)
 
-        try:
-            query_engine = self.index.as_query_engine()
-
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(query_engine.query, question)
-                response = future.result(timeout=timeout)
-
-            return str(response)
-
-        except FuturesTimeoutError:
-            logger.exception("RAG Query timed out after %s seconds", timeout)
-            msg = "Query execution timed out"
-            raise RuntimeError(msg) from None
-        except Exception as e:
-            logger.exception("LlamaIndex query failed: %s", e.__class__.__name__)
-            msg = f"Query execution failed: {e}"
-            raise RuntimeError(msg) from e
+        return execute_query_with_timeout(
+            self.index.as_query_engine(),
+            question,
+            timeout,
+            self.settings.rag_rate_limit_interval
+        )

@@ -1,11 +1,9 @@
 import logging
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
+from src.core.interfaces import ILLMClient
 from src.domain_models.agent_prompt_spec import AgentPromptSpec
 from src.domain_models.experiment_plan import ExperimentPlan
 from src.domain_models.state import GlobalState
@@ -19,7 +17,7 @@ class BuilderAgent(BaseAgent):
     It generates the AgentPromptSpec and ExperimentPlan.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
         self.settings = get_settings()
 
@@ -30,6 +28,8 @@ class BuilderAgent(BaseAgent):
         if not state.sitemap_and_story:
             logger.warning("No sitemap available for Spec Generation.")
             return {}
+
+        from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -63,6 +63,8 @@ class BuilderAgent(BaseAgent):
         if not state.agent_prompt_spec:
             logger.warning("No AgentPromptSpec available for Experiment Plan Generation.")
             return {}
+
+        from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages(
             [
