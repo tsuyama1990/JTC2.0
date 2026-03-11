@@ -94,12 +94,13 @@ class IdeaGenerator:
 
 class TopicInput(BaseModel):
     """Schema to enforce semantic validation of the input topic before research."""
+
     topic: str = Field(
         ...,
         min_length=3,
         max_length=200,
         pattern=r"^[a-zA-Z0-9\s\-_]+$",
-        description="A clean, alphanumeric business topic."
+        description="A clean, alphanumeric business topic.",
     )
 
 

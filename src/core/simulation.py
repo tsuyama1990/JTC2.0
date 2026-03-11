@@ -53,7 +53,9 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
             raise ValueError(msg) from err
 
         # Create a runner function avoiding late binding closure issues
-        def _step_runner(state: GlobalState, bound_role: Role, bound_desc: str) -> dict[str, object]:
+        def _step_runner(
+            state: GlobalState, bound_role: Role, bound_desc: str
+        ) -> dict[str, object]:
             logger.info(bound_desc)
             return AgentFactory.get_persona_agent(bound_role).run(state)  # type: ignore[no-any-return]
 
@@ -74,6 +76,7 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
         workflow.add_edge(previous_node, END)
 
     return workflow.compile()
+
 
 class SimulationManager:
     """Encapsulates thread management for the simulation UI."""
@@ -122,9 +125,10 @@ class SimulationService:
 
     def __init__(self) -> None:
         from src.core.graph import create_app
+
         self.app = create_app()
 
-    def run_ideation_to_gate(self, topic: str) -> tuple[Iterator['LeanCanvas'], GlobalState]:
+    def run_ideation_to_gate(self, topic: str) -> tuple[Iterator["LeanCanvas"], GlobalState]:
         from collections.abc import Iterator
 
         from src.domain_models.lean_canvas import LeanCanvas
@@ -133,17 +137,25 @@ class SimulationService:
         initial_state = {"topic": topic, "phase": Phase.IDEATION}
 
         final_state_data = None
-        for output in self.app.stream(initial_state, {"recursion_limit": 5, "configurable": {"thread_id": "1"}}):
+        for output in self.app.stream(
+            initial_state, {"recursion_limit": 5, "configurable": {"thread_id": "1"}}
+        ):
             node_name = next(iter(output.keys()))
             final_state_data = output[node_name]
 
         if final_state_data is None:
             return iter([]), GlobalState(topic=topic)
 
-        state_obj = GlobalState(**final_state_data) if isinstance(final_state_data, dict) else final_state_data
+        state_obj = (
+            GlobalState(**final_state_data)
+            if isinstance(final_state_data, dict)
+            else final_state_data
+        )
         generated_ideas_raw = getattr(state_obj, "generated_ideas", [])
 
-        iterator = iter(generated_ideas_raw) if hasattr(generated_ideas_raw, "__iter__") else iter([])
+        iterator = (
+            iter(generated_ideas_raw) if hasattr(generated_ideas_raw, "__iter__") else iter([])
+        )
 
         def _yield_items() -> Iterator[LeanCanvas]:
             for item in iterator:
@@ -160,6 +172,10 @@ class SimulationService:
 
         return _yield_items(), state_obj
 
-    def resume_after_gate(self, selected_idea: 'LeanCanvas') -> None:
+    def resume_after_gate(self, selected_idea: "LeanCanvas") -> None:
         from langgraph.types import Command
-        self.app.invoke(Command(resume={"selected_idea": selected_idea.model_dump()}), {"configurable": {"thread_id": "1"}})
+
+        self.app.invoke(
+            Command(resume={"selected_idea": selected_idea.model_dump()}),
+            {"configurable": {"thread_id": "1"}},
+        )

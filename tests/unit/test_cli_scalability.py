@@ -38,6 +38,7 @@ def test_browse_and_select_lazy(
     assert result.id == 4
     assert mock_echo.call_count > 0
 
+
 @patch("main.get_settings")
 @patch("main.input")
 @patch("main.echo")

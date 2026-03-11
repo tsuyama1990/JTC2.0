@@ -24,14 +24,23 @@ def test_full_workflow_state_mutation(mock_get_llm: MagicMock) -> None:
     # and ensuring that nodes which update these work.
 
     # Simulate Ideator updating state
-    idea = LeanCanvas(id=1, title="Test Idea", problem="Long enough problem", customer_segments="Long enough segments", unique_value_prop="Long enough prop", solution="Long enough solution")
+    idea = LeanCanvas(
+        id=1,
+        title="Test Idea",
+        problem="Long enough problem",
+        customer_segments="Long enough segments",
+        unique_value_prop="Long enough prop",
+        solution="Long enough solution",
+    )
     state = GlobalState(topic="Test Idea", selected_idea=idea)
 
     # Simulate a node injecting alternative_analysis
     analysis = AlternativeAnalysis(
-        current_alternatives=[AlternativeTool(name="A", financial_cost="B", time_cost="C", ux_friction="D")],
+        current_alternatives=[
+            AlternativeTool(name="A", financial_cost="B", time_cost="C", ux_friction="D")
+        ],
         switching_cost="E",
-        ten_x_value="F"
+        ten_x_value="F",
     )
 
     state.alternative_analysis = analysis

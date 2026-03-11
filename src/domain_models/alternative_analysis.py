@@ -7,8 +7,11 @@ class AlternativeTool(BaseModel):
     time_cost: str = Field(..., description="時間的コスト")
     ux_friction: str = Field(..., description="ユーザーが感じる最大のストレス・摩擦")
 
+
 class AlternativeAnalysis(BaseModel):
     model_config = ConfigDict(extra="forbid")
     current_alternatives: list[AlternativeTool]
     switching_cost: str = Field(..., description="ユーザーが乗り換える際に発生するコストや手間")
-    ten_x_value: str = Field(..., description="スイッチングコストを圧倒する、代替品の10倍の価値（UVP）")
+    ten_x_value: str = Field(
+        ..., description="スイッチングコストを圧倒する、代替品の10倍の価値（UVP）"
+    )

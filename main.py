@@ -179,6 +179,7 @@ def _read_file_chunks(path: Path, chunk_size: int = 1024 * 1024) -> Iterator[str
                 break
             yield chunk
 
+
 def ingest_transcript(filepath: str) -> None:
     """Ingest a transcript file into the RAG engine using streaming/chunking."""
     try:
