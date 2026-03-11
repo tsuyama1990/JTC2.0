@@ -62,9 +62,9 @@ def test_ideator_agent_flow(
         expected_ideas = [
             LeanCanvas(
                 id=0,
-                title="Idea",
+                title="Valid Idea Title 0",
                 problem="Problem is valid valid",
-                customer_segments="CS",
+                customer_segments="Customer Segments are Valid",
                 unique_value_prop="UVP is valid valid",
                 solution="Solution is valid valid",
             )
@@ -76,7 +76,7 @@ def test_ideator_agent_flow(
         result = agent.run(state)
 
         # 5. Verify
-        assert result["generated_ideas"] == expected_ideas
+        assert list(result["generated_ideas"]) == expected_ideas
 
         # Verify research was called
         mock_search_tool.safe_search.assert_called_with("Q: Test")

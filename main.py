@@ -7,9 +7,6 @@ from collections.abc import Iterator
 from itertools import chain, islice
 from pathlib import Path
 
-# Add src to path if running from root
-sys.path.append(".")
-
 from src.core.config import UIConfig, get_settings
 from src.core.graph import create_app
 from src.core.simulation import create_simulation_graph
@@ -30,15 +27,7 @@ def echo(msg: str) -> None:
 
 
 def safe_input(prompt: str) -> str:
-    """
-    Safely handle user input with stripping and EOF handling.
-
-    Args:
-        prompt: The prompt to display.
-
-    Returns:
-        Cleaned input string.
-    """
+    """Safely handle user input with stripping and EOF handling."""
     try:
         return input(prompt).strip()
     except EOFError:
@@ -48,10 +37,7 @@ def safe_input(prompt: str) -> str:
 
 
 def validate_topic(topic: str) -> str:
-    """
-    Sanitize and validate the topic string.
-    Allow alphanumeric, spaces, and basic punctuation.
-    """
+    """Sanitize and validate the topic string."""
     if not topic or not topic.strip():
         msg = "Topic cannot be empty."
         raise ValueError(msg)
@@ -60,10 +46,8 @@ def validate_topic(topic: str) -> str:
         msg = "Topic is too long (max 200 chars)."
         raise ValueError(msg)
 
-    # Allow alphanumeric, spaces, - _ . : ,
     if not re.match(r"^[a-zA-Z0-9\s\-_\.,:]+$", topic):
         logger.warning(f"Topic contains special characters: {topic}")
-        # STRICT sanitization: Remove anything not in allowlist
         topic = re.sub(r"[^a-zA-Z0-9\s\-_\.,:]", "", topic)
 
     if not topic.strip():
@@ -74,14 +58,10 @@ def validate_topic(topic: str) -> str:
 
 
 def validate_filepath(filepath: str) -> Path:
-    """
-    Validate filepath to prevent traversal attacks.
-    Ensures path is within the current working directory.
-    """
+    """Validate filepath to prevent traversal attacks."""
     path = Path(filepath).resolve()
     cwd = Path.cwd().resolve()
 
-    # Strict path traversal check
     if not path.is_relative_to(cwd):
         msg = "File path must be within the project directory."
         raise ValueError(msg)
@@ -110,7 +90,6 @@ def _process_page_selection(
             continue
 
         if choice.lower() == "n":
-            # If strictly less than page size, we know it's the last page
             if len(page_items) < page_size:
                 echo("End of list.")
                 return None
@@ -118,7 +97,6 @@ def _process_page_selection(
 
         try:
             idx = int(choice)
-            # Search in CURRENT page only
             selected = next((i for i in page_items if i.id == idx), None)
 
             if selected:
@@ -134,33 +112,26 @@ def _process_page_selection(
 def browse_and_select(
     ideas_gen: Iterator[LeanCanvas], page_size: int | None = None
 ) -> LeanCanvas | None:
-    """
-    Browse items from generator in chunks (pages) and allow selection.
-    Strictly O(page_size) memory usage.
-    """
+    """Browse items from generator in chunks (pages) and allow selection."""
     ui_config = get_settings().ui
     if page_size is None:
         page_size = ui_config.page_size
 
-    # Validation
     if page_size <= 0:
         logger.warning(f"Invalid page_size {page_size}, defaulting to 5")
         page_size = 5
 
-    # Peek to handle empty generator
     try:
         first_item = next(ideas_gen)
     except StopIteration:
         echo(ui_config.no_ideas)
         return None
 
-    # Put first item back into a new iterator
     current_iter = chain([first_item], ideas_gen)
 
     echo(ui_config.generated_header)
 
     while True:
-        # Materialize only ONE page (O(page_size) memory)
         page_items = list(islice(current_iter, page_size))
 
         if not page_items:
@@ -174,14 +145,13 @@ def browse_and_select(
         if result is None:
             return None
 
-        # If result is 'next', loop continues
         if result == "next":
             continue
 
     return None
 
 
-def _process_execution(topic: str) -> Iterator[LeanCanvas]:
+def _process_execution(topic: str) -> tuple[Iterator[LeanCanvas], GlobalState]:
     """Execute the ideation workflow."""
     ui_config = get_settings().ui
     echo(ui_config.phase_start.format(phase=Phase.IDEATION))
@@ -189,39 +159,35 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
     echo(ui_config.wait)
 
     app = create_app()
-    initial_state = GlobalState(topic=topic)
-    final_state = app.invoke(initial_state)
+    initial_state = {"topic": topic, "phase": Phase.IDEATION}
 
-    generated_ideas_raw = final_state.get("generated_ideas", [])
+    final_state_data = None
+    for output in app.stream(initial_state, {"recursion_limit": 5, "configurable": {"thread_id": "1"}}):
+        node_name = next(iter(output.keys()))
+        final_state_data = output[node_name]
 
-    if generated_ideas_raw is None:
-        return
+    if final_state_data is None:
+        return iter([]), GlobalState(topic=topic)
 
-    # Normalize to iterator and STRICTLY enforce iterator type
-    # We strictly expect an iterator or convert to one without loading into list first
-    if isinstance(generated_ideas_raw, list):
-        logger.warning(
-            "generated_ideas was materialized as a list. Memory usage optimization missed."
-        )
-        iterator = iter(generated_ideas_raw)
-    elif isinstance(generated_ideas_raw, Iterator):
-        iterator = generated_ideas_raw
-    else:
-        # Fallback for other iterables
-        iterator = iter(generated_ideas_raw)
+    state_obj = GlobalState(**final_state_data) if isinstance(final_state_data, dict) else final_state_data
+    generated_ideas_raw = getattr(state_obj, "generated_ideas", [])
 
-    # We yield items one by one to ensure this function remains a generator
-    for item in iterator:
-        if isinstance(item, LeanCanvas):
-            yield item
-        elif isinstance(item, dict):
-            try:
-                yield LeanCanvas(**item)
-            except Exception:
-                logger.exception("Failed to parse idea")
-                continue
-        else:
-            logger.warning(f"Unknown item type in generated ideas: {type(item)}")
+    iterator = iter(generated_ideas_raw) if hasattr(generated_ideas_raw, "__iter__") else iter([])
+
+    def _yield_items() -> Iterator[LeanCanvas]:
+        for item in iterator:
+            if isinstance(item, LeanCanvas):
+                yield item
+            elif isinstance(item, dict):
+                try:
+                    yield LeanCanvas(**item)
+                except Exception:
+                    logger.exception("Failed to parse idea")
+                    continue
+            else:
+                logger.warning(f"Unknown item type in generated ideas: {type(item)}")
+
+    return _yield_items(), state_obj
 
 
 def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
@@ -231,19 +197,13 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
     )
 
     app = create_simulation_graph()
-
-    # Shared state container
-    # We use a dict to hold the current state reference
     shared_state = {"current": initial_state}
 
     def background_task() -> None:
         try:
-            # We use stream_mode="values" to get full state updates
-            # app.stream yields state updates as dicts or objects depending on config
             for state_update in app.stream(initial_state, stream_mode="values"):
                 if isinstance(state_update, dict):
                     try:
-                        # Update shared state safely
                         shared_state["current"] = GlobalState(**state_update)
                     except Exception:
                         logger.exception("Failed to convert state update to GlobalState")
@@ -252,10 +212,6 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
                 else:
                     logger.warning(f"Unknown state update type: {type(state_update)}")
 
-            # Simulation finished
-            # We treat the simulation as effectively done even if simulation_active is True
-            # The UI loop will just continue showing the last state.
-
         except Exception:
             logger.exception("Simulation thread failed")
 
@@ -263,13 +219,9 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
     thread.start()
 
     try:
-        # Start UI (Blocking)
         renderer = SimulationRenderer(lambda: shared_state["current"])
         renderer.start()
     finally:
-        # Ensure cleanup if possible, though daemon thread dies with main
-        # Explicit join with timeout just to be clean if needed, though daemon handles it.
-        # But generally with Pyxel blocking, we just let it exit.
         pass
 
 
@@ -277,8 +229,6 @@ def ingest_transcript(filepath: str) -> None:
     """Ingest a transcript file into the RAG engine."""
     try:
         echo(f"Ingesting transcript from {filepath}...")
-
-        # Security: Validate filepath
         path = validate_filepath(filepath)
 
         with path.open(encoding="utf-8") as f:
@@ -312,17 +262,21 @@ def main() -> None:
         if not topic:
             topic = safe_input("Enter a business topic (e.g., 'AI for Agriculture'): ")
 
-        # Security: Validate topic
         topic = validate_topic(topic)
 
-        # STRICT SCALABILITY: typed_ideas_gen is a generator.
-        # We pass it directly to the browse function without converting to list.
-        typed_ideas_gen = _process_execution(topic)
-
+        typed_ideas_gen, state = _process_execution(topic)
         selected_idea = browse_and_select(typed_ideas_gen)
 
         if selected_idea:
             echo(ui_config.selected.format(title=selected_idea.title))
+            # Mutate state with selection and resume Graph
+            # Resume execution with the selected idea
+            try:
+                from langgraph.types import Command
+                app = create_app()
+                app.invoke(Command(resume={"selected_idea": selected_idea.model_dump()}), {"configurable": {"thread_id": "1"}})
+            except Exception:
+                logger.exception("Failed to resume graph")
             run_simulation_mode(topic, selected_idea)
 
     except Exception as e:

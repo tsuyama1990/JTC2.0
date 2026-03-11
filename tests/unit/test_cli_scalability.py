@@ -24,9 +24,9 @@ def test_browse_and_select_lazy(
         for i in range(5):
             yield LeanCanvas(
                 id=i,
-                title=f"Idea {i}",
+                title=f"Valid Idea Title {i}",
                 problem="Problem is valid valid",
-                customer_segments="Seg",
+                customer_segments="Customer Segments are Valid",
                 unique_value_prop="UVP is valid valid",
                 solution="Solution is valid valid",
             )
