@@ -1,31 +1,41 @@
+from enum import StrEnum
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.core.constants import DEFAULT_MAX_TITLE_LENGTH, DEFAULT_MIN_TITLE_LENGTH
+
+
+class CanvasStatus(StrEnum):
+    DRAFT = "draft"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 class LeanCanvas(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     id: int
     title: str = Field(..., description="A catchy name for the idea")
     problem: str = Field(..., description="Top 3 problems")
     customer_segments: str = Field(..., description="Target customers")
     unique_value_prop: str = Field(..., description="Single clear compelling message")
     solution: str = Field(..., description="Top 3 features")
-    status: str = "draft"
+    status: CanvasStatus = CanvasStatus.DRAFT
 
     @field_validator("title")
     @classmethod
     def validate_title_length(cls, v: str) -> str:
-        """Ensure title is not too short."""
-        if len(v) < 3:
-            msg = "Title must be at least 3 characters long"
+        # Avoid relying on dynamic UI settings for validation bounds
+        if len(v) < DEFAULT_MIN_TITLE_LENGTH:
+            msg = f"Title must be at least {DEFAULT_MIN_TITLE_LENGTH} characters"
+            raise ValueError(msg)
+        if len(v) > DEFAULT_MAX_TITLE_LENGTH:
+            msg = f"Title must be at most {DEFAULT_MAX_TITLE_LENGTH} characters"
             raise ValueError(msg)
         return v
 
-    @field_validator("problem", "solution", "unique_value_prop")
+    @field_validator("problem", "customer_segments", "unique_value_prop", "solution")
     @classmethod
     def validate_content_length(cls, v: str) -> str:
-        """Ensure content is substantive."""
-        if len(v.split()) < 3:
-            msg = "Content must contain at least 3 words"
+        if len(v) < 10:
+            msg = "Content fields must be at least 10 characters long to ensure detail"
             raise ValueError(msg)
         return v
