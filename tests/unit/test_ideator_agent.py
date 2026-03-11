@@ -21,6 +21,7 @@ def test_ideator_agent_run_success(
 ) -> None:
     # Setup settings
     mock_settings = mock_get_settings.return_value
+    mock_settings.search.query_template = "Q: {topic}"
     mock_settings.search_query_template = "Trends in {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "tv-key"
 
@@ -47,6 +48,7 @@ def test_ideator_agent_flow(
 
     # 1. Setup Dependencies
     mock_settings = mock_get_settings.return_value
+    mock_settings.search.query_template = "Q: {topic}"
     mock_settings.search_query_template = "Q: {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "key"
 
@@ -95,6 +97,7 @@ def test_ideator_agent_research_logic(
 ) -> None:
     # Test `_research` specifically
     mock_settings = mock_get_settings.return_value
+    mock_settings.search.query_template = "Q: {topic}"
     mock_settings.search_query_template = "Search {topic}"
     mock_settings.tavily_api_key.get_secret_value.return_value = "key"
 
@@ -105,4 +108,4 @@ def test_ideator_agent_research_logic(
     res = agent._research("AI")
 
     assert res == "Results"
-    mock_search.safe_search.assert_called_with("Search AI")
+    mock_search.safe_search.assert_called_with("Q: AI")

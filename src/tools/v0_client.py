@@ -31,8 +31,8 @@ class V0Client:
 
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(
-            fail_max=self.settings.circuit_breaker_fail_max,
-            reset_timeout=self.settings.circuit_breaker_reset_timeout,
+            fail_max=self.settings.circuit_breaker.fail_max,
+            reset_timeout=self.settings.circuit_breaker.reset_timeout,
         )
 
     def generate_ui(self, prompt: str) -> str:

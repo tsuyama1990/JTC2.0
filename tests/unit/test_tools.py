@@ -12,8 +12,8 @@ def test_tavily_search_success(mock_get_settings: MagicMock, mock_client_cls: Ma
     # Setup settings with explicit values
     mock_settings = mock_get_settings.return_value
     mock_settings.tavily_api_key.get_secret_value.return_value = "test-key"
-    mock_settings.search_max_results = 5
-    mock_settings.search_depth = "advanced"
+    mock_settings.search.max_results = 5
+    mock_settings.search.depth = "advanced"
 
     mock_client = mock_client_cls.return_value
     mock_client.search.return_value = {

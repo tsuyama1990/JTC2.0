@@ -31,7 +31,7 @@ def test_rag_memory_limit() -> None:
     rag = RAG(persist_dir="./tests/temp_rag_mem")
 
     # Mock settings to have a small limit
-    rag.settings.rag_max_index_size_mb = 1  # 1 MB
+    rag.settings.rag.max_index_size_mb = 1  # 1 MB
     limit_bytes = 1 * 1024 * 1024
 
     # Simulate current index size exceeding limit
@@ -57,13 +57,13 @@ def test_rag_input_validation() -> None:
     rag = RAG(persist_dir="./tests/temp_rag_val")
 
     # Text too large
-    large_text = "a" * (rag.settings.rag_max_document_length + 1)
+    large_text = "a" * (rag.settings.rag.max_document_length + 1)
     # ingest_text catches ValidationError and raises RuntimeError
     with pytest.raises(RuntimeError, match="Ingestion failed"):
         rag.ingest_text(large_text, "source")
 
     # Query too large
-    large_query = "a" * (rag.settings.rag_max_query_length + 1)
+    large_query = "a" * (rag.settings.rag.max_query_length + 1)
     with pytest.raises(ValidationError, match="Query too large"):
         rag.query(large_query)
 

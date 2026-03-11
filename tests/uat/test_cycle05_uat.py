@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.config import get_settings
+from src.core.config import clear_settings_cache
 from src.core.exceptions import V0GenerationError
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVPSpec
@@ -43,7 +43,7 @@ class TestCycle05UAT:
         if BuilderAgent is None:
             pytest.skip("BuilderAgent not implemented")
 
-        get_settings.cache_clear()
+        clear_settings_cache()
 
         # 1. Run Builder Agent (First Pass)
         mock_llm = MagicMock()
@@ -69,7 +69,7 @@ class TestCycle05UAT:
         if BuilderAgent is None or V0Client is None:
             pytest.skip("Components not available")
 
-        get_settings.cache_clear()
+        clear_settings_cache()
 
         # Setup state with selection
         initial_state.candidate_features = ["Feature 1 desc", "Feature 2 desc", "Feature 3 desc"]

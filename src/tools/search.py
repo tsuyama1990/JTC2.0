@@ -62,11 +62,11 @@ class TavilySearch:
         but ultimately we must return a single string for the prompt.
         """
         settings = get_settings()
-        depth: Literal["basic", "advanced"] = search_depth or settings.search_depth  # type: ignore[assignment]
+        depth: Literal["basic", "advanced"] = search_depth or settings.search.depth  # type: ignore[assignment]
 
         response = self.client.search(
             query=query,
-            max_results=max_results or settings.search_max_results,
+            max_results=max_results or settings.search.max_results,
             search_depth=depth,
         )
 

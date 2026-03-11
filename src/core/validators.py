@@ -45,11 +45,10 @@ class ConfigValidators:
         if v is None:
             return None
         secret = v.get_secret_value()
-        if not secret.startswith("sk-"):
-            msg = "OpenAI API Key must start with 'sk-'."
-            raise ValueError(msg)
-        if len(secret) < 20:
-            msg = "OpenAI API Key is too short."
+        import re
+
+        if not re.match(r"^sk-[a-zA-Z0-9]{48}$", secret):
+            msg = "OpenAI API Key must match the exact pattern 'sk-[a-zA-Z0-9]{48}'."
             raise ValueError(msg)
         return v
 

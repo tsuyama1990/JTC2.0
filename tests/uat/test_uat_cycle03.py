@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.config import get_settings
+from src.core.config import clear_settings_cache
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
 from src.domain_models.transcript import Transcript
@@ -11,14 +11,13 @@ from tests.conftest import DUMMY_ENV_VARS
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.agents.cpo.RAG")
 @patch("src.agents.cpo.ChatOpenAI")
-def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
+def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock) -> None:
     """
     Scenario 1: Transcript Injection and 'Mom Test' Failure.
     Verify that injecting negative customer feedback causes the CPO to suggest a pivot.
     """
-    get_settings.cache_clear()
+    clear_settings_cache()
     try:
         from src.agents.cpo import CPOAgent
     except ImportError:
@@ -43,7 +42,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     )
 
     # Mock RAG query response
-    mock_rag_instance = mock_rag_cls.return_value
+    mock_rag_instance = MagicMock()
     mock_rag_instance.query.return_value = "Customer says: I would never pay for this."
 
     # Mock LLM response to simulate CPO advice based on RAG
@@ -66,7 +65,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     # If self.llm is a mock, it returns `self.llm()`.
     # We set `return_value` so `self.llm(...)` returns `mock_chain_result`.
 
-    cpo = CPOAgent(mock_llm_instance)
+    cpo = CPOAgent(mock_llm_instance, rag_instance=mock_rag_instance)
     result = cpo.run(state)
 
     # Verify RAG was consulted
@@ -79,14 +78,13 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.agents.cpo.RAG")
 @patch("src.agents.cpo.ChatOpenAI")
-def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
+def test_uat_c03_02_validation_success(mock_llm: MagicMock) -> None:
     """
     Scenario 2: Validation Success.
     Verify that positive feedback reinforces the plan.
     """
-    get_settings.cache_clear()
+    clear_settings_cache()
     try:
         from src.agents.cpo import CPOAgent
     except ImportError:
@@ -109,7 +107,7 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
     )
 
     # Mock RAG query response
-    mock_rag_instance = mock_rag_cls.return_value
+    mock_rag_instance = MagicMock()
     mock_rag_instance.query.return_value = "Customer says: I love this!"
 
     # Mock LLM response
@@ -121,7 +119,7 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
     mock_llm_instance.return_value = mock_chain_result
 
     # Run CPO Agent
-    cpo = CPOAgent(mock_llm_instance)
+    cpo = CPOAgent(mock_llm_instance, rag_instance=mock_rag_instance)
     result = cpo.run(state)
 
     # Verify
