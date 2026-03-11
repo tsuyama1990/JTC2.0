@@ -15,6 +15,7 @@ def test_config_loading_success() -> None:
             "OPENAI_API_KEY": "sk-" + "a" * 48,
             "TAVILY_API_KEY": "tvly-" + "b" * 24,
             "V0_API_KEY": "v0-" + "c" * 24,
+            "V0_API_URL": "https://api.v0.dev/chat",
         },
     ):
         clear_settings_cache()
@@ -32,6 +33,7 @@ def test_config_missing_openai_key() -> None:
     with patch.dict(os.environ, {}, clear=True):
         # We need to set TAVILY_API_KEY to isolate the OPENAI_API_KEY check
         os.environ["TAVILY_API_KEY"] = "tvly-" + "b" * 24
+        os.environ["V0_API_URL"] = "https://api.v0.dev/chat"
         clear_settings_cache()
 
         # Validation happens on init
@@ -43,6 +45,7 @@ def test_config_missing_tavily_key() -> None:
     """Test validation error when Tavily key is missing."""
     with patch.dict(os.environ, {}, clear=True):
         os.environ["OPENAI_API_KEY"] = "sk-" + "a" * 48
+        os.environ["V0_API_URL"] = "https://api.v0.dev/chat"
         clear_settings_cache()
 
         with pytest.raises(ValueError, match=".*"):
@@ -56,6 +59,7 @@ def test_config_caching() -> None:
         {
             "OPENAI_API_KEY": "sk-" + "a" * 48,
             "TAVILY_API_KEY": "tvly-" + "b" * 24,
+            "V0_API_URL": "https://api.v0.dev/chat",
         },
     ):
         clear_settings_cache()
@@ -72,6 +76,7 @@ def test_invalid_log_level() -> None:
             "OPENAI_API_KEY": "sk-" + "a" * 48,
             "TAVILY_API_KEY": "tvly-" + "b" * 24,
             "LOG_LEVEL": "INVALID",
+            "V0_API_URL": "https://api.v0.dev/chat",
         },
     ):
         clear_settings_cache()

@@ -1,6 +1,7 @@
 import os
+import threading
 from functools import lru_cache
-from typing import Self
+from types import MappingProxyType
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -284,14 +285,15 @@ class SimulationConfig(BaseSettings):
     )
 
     @property
-    def agents(self) -> dict[str, AgentConfig]:
+    def agents(self) -> MappingProxyType[str, AgentConfig]:
         """Backwards compatibility accessor for agents dict."""
-        return {
+        from types import MappingProxyType
+        return MappingProxyType({
             "New Employee": self.agent_new_emp,
             "Finance Manager": self.agent_finance,
             "Sales Manager": self.agent_sales,
             "CPO": self.agent_cpo,
-        }
+        })
 
     @field_validator("width", "height")
     @classmethod
@@ -363,8 +365,8 @@ class Settings(BaseSettings):
         alias="V0_API_KEY", default=None, description="V0.dev API Key"
     )
     v0_api_url: str = Field(
+        ...,
         alias="V0_API_URL",
-        default_factory=lambda: os.getenv("V0_API_URL", "https://api.v0.dev/chat/completions"),
         description="V0.dev API URL",
     )
 
@@ -460,15 +462,6 @@ class Settings(BaseSettings):
         alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI"
     )
 
-    # Nested configurations - Use Field to allow Pydantic to manage them
-    validation: ValidationConfig = Field(default_factory=ValidationConfig)
-    errors: ErrorMessages = Field(default_factory=ErrorMessages)
-    ui: UIConfig = Field(default_factory=UIConfig)
-    simulation: SimulationConfig = Field(default_factory=SimulationConfig)
-    nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
-    v0: V0Config = Field(default_factory=V0Config)
-    governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
-
     @field_validator("openai_api_key")
     @classmethod
     def validate_openai(cls, v: SecretStr) -> SecretStr:
@@ -489,24 +482,75 @@ class Settings(BaseSettings):
         return v
 
 
-import threading
+class SettingsManager:
+    """Thread-safe singleton manager for Settings."""
 
-_settings_instance: Settings | None = None
-_settings_lock = threading.Lock()
+    _instance: Settings | None = None
+    _lock = threading.Lock()
+
+    @classmethod
+    def get_settings(cls) -> Settings:
+        """Load and cache settings."""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = Settings()
+        return cls._instance
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear the cached settings instance for testing purposes."""
+        with cls._lock:
+            cls._instance = None
+
+
+@lru_cache
+def get_ui_config() -> UIConfig:
+    return UIConfig()
+
+
+@lru_cache
+def get_validation_config() -> ValidationConfig:
+    return ValidationConfig()
+
+
+@lru_cache
+def get_error_messages() -> ErrorMessages:
+    return ErrorMessages()
+
+
+@lru_cache
+def get_simulation_config() -> SimulationConfig:
+    return SimulationConfig()
+
+
+@lru_cache
+def get_nemawashi_config() -> NemawashiConfig:
+    return NemawashiConfig()
+
+
+@lru_cache
+def get_v0_config() -> V0Config:
+    return V0Config()
+
+
+@lru_cache
+def get_governance_config() -> GovernanceConfig:
+    return GovernanceConfig()
 
 
 def get_settings() -> Settings:
-    """Load and cache settings using a thread-safe singleton pattern."""
-    global _settings_instance
-    if _settings_instance is None:
-        with _settings_lock:
-            if _settings_instance is None:
-                _settings_instance = Settings()
-    return _settings_instance
+    """Public accessor for settings singleton."""
+    return SettingsManager.get_settings()
 
 
 def clear_settings_cache() -> None:
-    """Clear the cached settings instance for testing purposes."""
-    global _settings_instance
-    with _settings_lock:
-        _settings_instance = None
+    """Public accessor to clear settings cache."""
+    SettingsManager.clear_cache()
+    get_ui_config.cache_clear()
+    get_validation_config.cache_clear()
+    get_error_messages.cache_clear()
+    get_simulation_config.cache_clear()
+    get_nemawashi_config.cache_clear()
+    get_v0_config.cache_clear()
+    get_governance_config.cache_clear()

@@ -12,9 +12,11 @@ def test_config_values() -> None:
     from src.core.config import Settings
 
     # Use environment variable naming for Pydantic BaseSettings init
+    # Must also include required V0_API_URL now
     s = Settings(
         OPENAI_API_KEY=SecretStr("sk-" + "a" * 48),
         TAVILY_API_KEY=SecretStr("tvly-" + "b" * 24),
+        V0_API_URL="https://api.v0.dev/chat",
     )
     assert s.llm_model == "gpt-4o"
     assert s.search_max_results == 5

@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel
 
 from src.agents.base import BaseAgent
-from src.core.config import get_settings
+from src.core.config import get_governance_config
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
 from src.core.llm import get_llm
 from src.core.metrics import calculate_ltv, calculate_payback_period, calculate_roi
@@ -32,18 +32,18 @@ class GovernanceAgent(BaseAgent):
         Run the governance check logic.
         """
         logger.info("Governance Agent: Starting analysis...")
-        settings = get_settings()
 
         # 1. Context & Search
         industry = self._get_industry_context(state)
         logger.info(f"Searching benchmarks for: {industry}")
         search = TavilySearch()
-        query = settings.governance.search_query_template.format(industry=industry)
+        gov_config = get_governance_config()
+        query = gov_config.search_query_template.format(industry=industry)
         search_result = search.safe_search(query)
 
         # Limit search result size to prevent Context Window overflow
         # Explicit truncation as per audit requirement
-        limit = settings.governance.max_search_result_size
+        limit = gov_config.max_search_result_size
         if len(search_result) > limit:
             logger.warning(f"Search result truncated to {limit} characters.")
             search_result = search_result[:limit]
@@ -53,7 +53,7 @@ class GovernanceAgent(BaseAgent):
         financials = self._estimate_financials(industry, search_result)
 
         # 3. Determine Status
-        is_viable = financials.roi >= settings.governance.min_roi_threshold
+        is_viable = financials.roi >= gov_config.min_roi_threshold
         approval_status = "Approved" if is_viable else "Rejected"
 
         # 4. Generate Ringi-Sho Content
@@ -82,7 +82,6 @@ class GovernanceAgent(BaseAgent):
         return sanitized.strip()
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
-        settings = get_settings()
 
         prompt = (
             f"Context: Startup idea in {industry}.\n"
@@ -97,9 +96,10 @@ class GovernanceAgent(BaseAgent):
             cac, arpu, churn = estimates.cac, estimates.arpu, estimates.churn_rate
         except Exception:
             logger.exception("Financial estimation failed. Using defaults.")
-            cac = settings.governance.default_cac
-            arpu = settings.governance.default_arpu
-            churn = settings.governance.default_churn
+            gov_config = get_governance_config()
+            cac = gov_config.default_cac
+            arpu = gov_config.default_arpu
+            churn = gov_config.default_churn
 
         ltv = calculate_ltv(arpu, churn)
         payback = calculate_payback_period(cac, arpu)
@@ -165,11 +165,11 @@ class GovernanceAgent(BaseAgent):
             JSONDecodeError: If parsing fails.
             ValidationError: If schema validation fails.
         """
-        settings = get_settings()
         llm = get_llm()
 
         content = ""
-        max_bytes = settings.governance.max_llm_response_size
+        gov_config = get_governance_config()
+        max_bytes = gov_config.max_llm_response_size
 
         # Memory Safety: Stream and check incremental size
         # Note: llm.stream() returns an iterator of chunks (AIMessageChunk)
@@ -211,7 +211,6 @@ class GovernanceAgent(BaseAgent):
         """
         Save Ringi-Sho to file using FileService.
         """
-        settings = get_settings()
 
         # Optimize string construction
         lines = [
@@ -234,4 +233,5 @@ class GovernanceAgent(BaseAgent):
 
         content = "\n".join(lines)
 
-        self.file_service.save_text_async(content, settings.governance.output_path)
+        gov_config = get_governance_config()
+        self.file_service.save_text_async(content, gov_config.output_path)

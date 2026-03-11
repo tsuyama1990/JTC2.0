@@ -1,6 +1,6 @@
 import logging
 
-from src.core.config import NemawashiConfig, get_settings
+from src.core.config import NemawashiConfig, get_nemawashi_config
 from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import InfluenceNetwork
 
@@ -19,7 +19,7 @@ class ConsensusEngine:
         Args:
             settings: Configuration settings for Nemawashi. If None, loads from global settings.
         """
-        self.settings = settings or get_settings().nemawashi
+        self.settings = settings or get_nemawashi_config()
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """

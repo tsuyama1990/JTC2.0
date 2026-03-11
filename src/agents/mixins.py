@@ -5,14 +5,14 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class RateLimitMixin:
-    """Mixin for API rate limiting."""
+class RateLimiter:
+    """Component for API rate limiting."""
 
     def __init__(self) -> None:
         self._last_request_time: float = 0.0
         self._min_request_interval: float = 1.0
 
-    def _rate_limit_wait(self) -> None:
+    def wait(self) -> None:
         """Enforce rate limiting for API calls."""
         current_time = time.time()
         elapsed = current_time - self._last_request_time

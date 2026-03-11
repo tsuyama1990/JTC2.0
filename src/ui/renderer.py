@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import pyxel
 
-from src.core.config import get_settings
+from src.core.config import get_simulation_config
 from src.domain_models.simulation import DialogueMessage
 from src.domain_models.state import GlobalState
 
@@ -29,7 +29,7 @@ class SimulationRenderer:
         """
         self.state_getter = state_getter
         self.headless = os.getenv("HEADLESS_MODE", "false").lower() == "true"
-        self.settings = get_settings().simulation
+        self.settings = get_simulation_config()
 
         self.width = self.settings.width
         self.height = self.settings.height

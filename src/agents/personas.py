@@ -6,8 +6,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent, SearchTool
-from src.agents.mixins import RateLimitMixin
+from src.agents.mixins import RateLimiter
 from src.core.config import Settings, get_settings
+from src.core.services.context_builder import ContextBuilderService
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
@@ -15,7 +16,7 @@ from src.tools.search import TavilySearch
 logger = logging.getLogger(__name__)
 
 
-class PersonaAgent(BaseAgent, RateLimitMixin):
+class PersonaAgent(BaseAgent):
     """Base class for persona-based agents in the simulation."""
 
     def __init__(
@@ -26,7 +27,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        RateLimitMixin.__init__(self)
+        self.rate_limiter = RateLimiter()
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
@@ -38,22 +39,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
             else None
         )
         self._research_cache: dict[str, str] = {}
-
-    def _build_context(self, state: GlobalState) -> str:
-        """Construct the conversation history context."""
-        context_parts = ["\nDEBATE HISTORY:"]
-
-        if state.selected_idea:
-            # Efficient prepending logic or just standard order
-            context_parts.insert(0, f"UVP: {state.selected_idea.unique_value_prop}")
-            context_parts.insert(0, f"SOLUTION: {state.selected_idea.solution}")
-            context_parts.insert(0, f"PROBLEM: {state.selected_idea.problem}")
-            context_parts.insert(0, f"IDEA: {state.selected_idea.title}")
-
-        # Generator expression for history
-        context_parts.extend(f"{msg.role}: {msg.content}" for msg in state.debate_history)
-
-        return "\n".join(context_parts)
+        self._context_builder = ContextBuilderService()
 
     def _generate_response(self, context: str, research_data: str = "") -> str:
         """Generate response using LLM."""
@@ -78,7 +64,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         # But we still need to know if _research_impl exists on the subclass
         if hasattr(self, "_research_impl"):
             try:
-                self._rate_limit_wait()
+                self.rate_limiter.wait()
                 # Ensure return type is str
                 # We use getattr to bypass mypy 'attr-defined' error for dynamic dispatch
                 impl = self._research_impl
@@ -95,7 +81,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """Run the agent logic."""
-        context = self._build_context(state)
+        context = self._context_builder.build_debate_context(state)
         research_data = ""
 
         # Override in subclasses if research is needed

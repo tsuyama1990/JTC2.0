@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.core.config import get_settings
+from src.core.config import get_error_messages, get_validation_config
 from src.domain_models.metrics import AARRR, DetailedMetrics, Metrics
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
@@ -121,10 +121,10 @@ def test_metrics_numeric_validation() -> None:
 
 def test_metrics_limit_custom() -> None:
     """Test that custom metrics are limited."""
-    settings = get_settings()
+    val_config = get_validation_config()
     # Create a dict with VAL_MAX_CUSTOM_METRICS + 1 entries
     excessive_metrics = {
-        f"metric_{i}": float(i) for i in range(settings.validation.max_custom_metrics + 1)
+        f"metric_{i}": float(i) for i in range(val_config.max_custom_metrics + 1)
     }
 
     with pytest.raises(ValidationError) as exc:
@@ -138,13 +138,13 @@ def test_global_state_lifecycle_validation() -> None:
     state = GlobalState()
     assert state.phase == Phase.IDEATION
 
-    settings = get_settings()
+    err_msgs = get_error_messages()
 
     # Should allow VERIFICATION transition only with persona
     state.phase = Phase.VERIFICATION
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
-    assert settings.errors.missing_persona in str(exc.value)
+    assert err_msgs.missing_persona in str(exc.value)
 
     # Correct transition
     state.target_persona = Persona(
@@ -163,7 +163,7 @@ def test_global_state_lifecycle_validation() -> None:
     state.phase = Phase.SOLUTION
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
-    assert settings.errors.missing_mvp in str(exc.value)
+    assert err_msgs.missing_mvp in str(exc.value)
 
 
 def test_agent_state_creation() -> None:

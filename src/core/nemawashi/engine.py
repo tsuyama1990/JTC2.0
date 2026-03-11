@@ -1,4 +1,4 @@
-from src.core.config import NemawashiConfig, get_settings
+from src.core.config import NemawashiConfig, get_nemawashi_config
 from src.core.nemawashi.analytics import InfluenceAnalyzer
 from src.core.nemawashi.consensus import ConsensusEngine
 from src.core.nemawashi.nomikai import NomikaiSimulator
@@ -12,7 +12,7 @@ class NemawashiEngine:
     """
 
     def __init__(self, settings: NemawashiConfig | None = None) -> None:
-        self.settings = settings or get_settings().nemawashi
+        self.settings = settings or get_nemawashi_config()
         self.consensus = ConsensusEngine(self.settings)
         self.analytics = InfluenceAnalyzer()
         self.simulator = NomikaiSimulator(self.settings)

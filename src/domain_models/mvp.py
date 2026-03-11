@@ -10,7 +10,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
-from src.core.config import get_settings
+from src.core.config import get_validation_config
 from src.core.constants import (
     DESC_FEATURE_DESC,
     DESC_FEATURE_NAME,
@@ -57,7 +57,7 @@ class Feature(BaseModel):
     description: str = Field(
         ...,
         description=DESC_FEATURE_DESC,
-        min_length=get_settings().validation.min_content_length,
+        min_length=get_validation_config().min_content_length,
         max_length=200,
     )
     priority: Priority = Field(..., description=DESC_FEATURE_PRIORITY)
@@ -83,12 +83,12 @@ class MVP(BaseModel):
     core_features: list[Feature] = Field(
         ...,
         description=DESC_MVP_CORE_FEATURES,
-        min_length=get_settings().validation.min_list_length,
+        min_length=get_validation_config().min_list_length,
     )
     success_criteria: str = Field(
         ...,
         description=DESC_MVP_SUCCESS_CRITERIA,
-        min_length=get_settings().validation.min_content_length,
+        min_length=get_validation_config().min_content_length,
         max_length=500,
     )
 

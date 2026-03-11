@@ -48,11 +48,10 @@ class ConfigValidators:
             return None
         secret = v.get_secret_value()
 
-        # OpenAI keys are typically 'sk-' followed by 48+ alphanumeric characters
-        # Sometimes 'sk-proj-' etc. The exact length varies, but generally > 32 chars.
-        pattern = re.compile(r"^sk-[a-zA-Z0-9_\-]{32,}$")
+        # OpenAI keys are typically 'sk-' followed by 48 alphanumeric characters
+        pattern = re.compile(r"^sk-[a-zA-Z0-9]{48}$")
         if not pattern.match(secret):
-            msg = r"OpenAI API Key format is invalid. Must match pattern '^sk-[a-zA-Z0-9_\-]{32,}$'."
+            msg = r"OpenAI API Key format is invalid. Must match pattern '^sk-[a-zA-Z0-9]{48}$'."
             raise ValueError(msg)
         return v
 

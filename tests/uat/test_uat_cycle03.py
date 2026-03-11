@@ -11,9 +11,8 @@ from tests.conftest import DUMMY_ENV_VARS
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.agents.cpo.RAG")
 @patch("src.agents.cpo.ChatOpenAI")
-def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
+def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock) -> None:
     """
     Scenario 1: Transcript Injection and 'Mom Test' Failure.
     Verify that injecting negative customer feedback causes the CPO to suggest a pivot.
@@ -42,10 +41,6 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
         ),
     )
 
-    # Mock RAG query response
-    mock_rag_instance = mock_rag_cls.return_value
-    mock_rag_instance.query.return_value = "Customer says: I would never pay for this."
-
     # Mock LLM response to simulate CPO advice based on RAG
     # The agent calls chain.invoke({}), which returns a message
     mock_chain_result = MagicMock()
@@ -66,11 +61,12 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     # If self.llm is a mock, it returns `self.llm()`.
     # We set `return_value` so `self.llm(...)` returns `mock_chain_result`.
 
+    # Mock RAG via dependency injection or direct method mocking to avoid brittle patch
     cpo = CPOAgent(mock_llm_instance)
-    result = cpo.run(state)
-
-    # Verify RAG was consulted
-    mock_rag_instance.query.assert_called()
+    with patch.object(cpo, "_cached_research", return_value="Customer says: I would never pay for this.") as mock_research:
+        result = cpo.run(state)
+        # Verify research was called (which proxies to RAG normally)
+        mock_research.assert_called()
 
     # Verify output
     assert "debate_history" in result
@@ -79,9 +75,8 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
-@patch("src.agents.cpo.RAG")
 @patch("src.agents.cpo.ChatOpenAI")
-def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
+def test_uat_c03_02_validation_success(mock_llm: MagicMock) -> None:
     """
     Scenario 2: Validation Success.
     Verify that positive feedback reinforces the plan.
@@ -108,10 +103,6 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
         ),
     )
 
-    # Mock RAG query response
-    mock_rag_instance = mock_rag_cls.return_value
-    mock_rag_instance.query.return_value = "Customer says: I love this!"
-
     # Mock LLM response
     mock_chain_result = MagicMock()
     mock_chain_result.content = "Customer validation is strong. Proceed."
@@ -120,12 +111,12 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
     mock_llm_instance.invoke.return_value = mock_chain_result
     mock_llm_instance.return_value = mock_chain_result
 
-    # Run CPO Agent
+    # Run CPO Agent with mocked research method
     cpo = CPOAgent(mock_llm_instance)
-    result = cpo.run(state)
+    with patch.object(cpo, "_cached_research", return_value="Customer says: I love this!") as mock_research:
+        result = cpo.run(state)
+        mock_research.assert_called()
 
     # Verify
-    mock_rag_instance.query.assert_called()
-
     last_msg = result["debate_history"][-1]
     assert "strong" in last_msg.content.lower()
