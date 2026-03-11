@@ -13,6 +13,42 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
+class ApprovalStampRenderer:
+    """Renders an Approval Stamp animation on screen."""
+
+    def __init__(self) -> None:
+        self.active = False
+        self.frame_count = 0
+        self.max_frames = 60
+        self.x = 100
+        self.y = 100
+
+    def trigger(self) -> None:
+        self.active = True
+        self.frame_count = 0
+        try:
+            # Play a simple sound effect for the stamp
+            pyxel.play(0, 0)
+        except Exception:
+            logger.debug("Sound playback failed or not configured.")
+
+    def update(self) -> None:
+        if self.active:
+            self.frame_count += 1
+            if self.frame_count >= self.max_frames:
+                self.active = False
+
+    def draw(self) -> None:
+        if self.active:
+            # Simple scale down effect
+            scale = max(1.0, 5.0 - (self.frame_count / 10.0))
+            color = 8  # Red
+            # Draw a bold rectangle for the stamp border
+            pyxel.rectb(self.x, self.y, int(60 * scale), int(40 * scale), color)
+            # Draw the text inside
+            pyxel.text(self.x + int(10 * scale), self.y + int(15 * scale), "APPROVED", color)
+
+
 class SimulationRenderer:
     """
     Renders the simulation state using Pyxel (Retro RPG style).
@@ -39,6 +75,8 @@ class SimulationRenderer:
         # Caching for text wrapping
         self._last_msg_content: str | None = None
         self._cached_lines: list[str] = []
+        self.stamp_renderer = ApprovalStampRenderer()
+        self._vpc_generated = False
 
     def start(self) -> None:
         """Start the Pyxel application loop."""
@@ -98,6 +136,13 @@ class SimulationRenderer:
         if pyxel.btnp(pyxel.KEY_Q):
             pyxel.quit()
 
+        state = self.state_getter()
+        if state.value_proposition_canvas is not None and not self._vpc_generated:
+            self.stamp_renderer.trigger()
+            self._vpc_generated = True
+
+        self.stamp_renderer.update()
+
     def draw(self) -> None:
         """Render the frame."""
         pyxel.cls(self.bg_color)
@@ -105,6 +150,7 @@ class SimulationRenderer:
 
         self._draw_agents()
         self._draw_dialogue(state)
+        self.stamp_renderer.draw()
 
     def _draw_agents(self) -> None:
         """Draw rectangles representing agents."""

@@ -10,13 +10,20 @@ from src.domain_models.validators import StateValidator
 
 __all__ = ["GlobalState", "Phase"]
 
+from .agent_spec import AgentPromptSpec
+from .alternative_analysis import AlternativeAnalysis
+from .customer_journey import CustomerJourney
+from .experiment_plan import ExperimentPlan
 from .lean_canvas import LeanCanvas
+from .mental_model import MentalModelDiagram
 from .metrics import Metrics, RingiSho
 from .mvp import MVP, MVPSpec
 from .persona import Persona
 from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage
+from .sitemap import SitemapAndStory
 from .transcript import Transcript
+from .value_proposition import ValuePropositionCanvas
 
 
 class GlobalState(BaseModel):
@@ -35,6 +42,13 @@ class GlobalState(BaseModel):
     messages: list[str] = Field(default_factory=list)
 
     target_persona: Persona | None = None
+    value_proposition_canvas: ValuePropositionCanvas | None = None
+    mental_model_diagram: MentalModelDiagram | None = None
+    alternative_analysis: AlternativeAnalysis | None = None
+    customer_journey: CustomerJourney | None = None
+    sitemap_and_story: SitemapAndStory | None = None
+    experiment_plan: ExperimentPlan | None = None
+    agent_prompt_spec: AgentPromptSpec | None = None
     mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
 
