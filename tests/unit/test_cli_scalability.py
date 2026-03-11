@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
-import pytest
 
 from main import browse_and_select
 from src.domain_models.lean_canvas import LeanCanvas

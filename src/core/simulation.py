@@ -111,7 +111,10 @@ class SimulationManager:
             renderer = self.renderer_factory(lambda: self.shared_state["current"])
             renderer.start()
         finally:
-            pass
+            if self._thread and self._thread.is_alive():
+                # Note: Python threads don't have a direct 'kill' mechanism.
+                # They will shut down when daemon=True, but we join for clarity.
+                self._thread.join(timeout=1.0)
 
 
 class SimulationService:

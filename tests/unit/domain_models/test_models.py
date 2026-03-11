@@ -7,6 +7,11 @@ from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
 from src.domain_models.simulation import AgentState, DeGrootProfile, Role
 from src.domain_models.state import GlobalState, Phase
+from src.domain_models.value_proposition_canvas import (
+    CustomerProfile,
+    ValueMap,
+    ValuePropositionCanvas,
+)
 
 
 def test_persona_creation() -> None:
@@ -190,3 +195,15 @@ def test_agent_states_validation() -> None:
     invalid_states = {Role.SALES: AgentState(role=Role.FINANCE, degroot_profile=profile)}
     with pytest.raises(ValidationError, match="Key Sales Manager does not match"):
         GlobalState(agent_states=invalid_states)
+
+
+def test_global_state_cpf_psf_mutations() -> None:
+    state = GlobalState()
+    profile = CustomerProfile(customer_jobs=["A"], pains=["B"], gains=["C"])
+    val_map = ValueMap(products_and_services=["X"], pain_relievers=["Y"], gain_creators=["Z"])
+    vpc = ValuePropositionCanvas(customer_profile=profile, value_map=val_map, fit_evaluation="Good")
+
+    state.value_proposition_canvas = vpc
+    validated = GlobalState.model_validate(state.model_dump())
+    assert validated.value_proposition_canvas is not None
+    assert validated.value_proposition_canvas.fit_evaluation == "Good"
