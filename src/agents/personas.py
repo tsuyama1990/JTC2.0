@@ -2,20 +2,210 @@ import logging
 import time
 from typing import Any
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from pydantic_core import ValidationError as PydanticValidationError
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.agents.base import BaseAgent, SearchTool
-from src.agents.mixins import RateLimitMixin
 from src.core.config import Settings, get_settings
+from src.core.constants import (
+    PROMPT_ALTERNATIVE_ANALYSIS,
+    PROMPT_FINANCE_AGENT,
+    PROMPT_NEW_EMPLOYEE_AGENT,
+    PROMPT_PERSONA_GENERATOR,
+    PROMPT_SALES_AGENT,
+    PROMPT_VALUE_PROPOSITION,
+)
+from src.domain_models.alternative_analysis import AlternativeAnalysis
+from src.domain_models.persona import Persona
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
+from src.domain_models.value_proposition_canvas import ValuePropositionCanvas
 from src.tools.search import TavilySearch
 
 logger = logging.getLogger(__name__)
 
 
-class PersonaAgent(BaseAgent, RateLimitMixin):
+class RateLimiter:
+    """Class to manage API rate limiting via composition instead of multiple inheritance."""
+    def __init__(self, min_request_interval: float = 1.0) -> None:
+        self._last_request_time: float = 0.0
+        self._min_request_interval: float = min_request_interval
+
+    def wait(self) -> None:
+        """Enforce rate limiting for API calls."""
+        current_time = time.time()
+        elapsed = current_time - self._last_request_time
+        if elapsed < self._min_request_interval:
+            time.sleep(self._min_request_interval - elapsed)
+        self._last_request_time = time.time()
+
+
+class PersonaGeneratorAgent(BaseAgent):
+    """
+    Agent responsible for Phase 2, Step 2: Persona & Empathy Mapping.
+    Generates a high-resolution Persona and EmpathyMap based on the selected idea.
+    """
+
+    def __init__(self, llm: ChatOpenAI | Any) -> None:
+        self.llm = llm
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        """Execute the Persona Generation logic."""
+        if not state.selected_idea:
+            logger.warning("No selected idea found for Persona Generation.")
+            return {}
+
+        system_prompt = PROMPT_PERSONA_GENERATOR
+        human_prompt = (
+            f"Business Idea: {state.selected_idea.title}\n"
+            f"Problem: {state.selected_idea.problem}\n"
+            f"Solution: {state.selected_idea.solution}\n"
+            f"Customer Segments: {state.selected_idea.customer_segments}\n\n"
+            "Generate the Persona with Empathy Map."
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        try:
+            persona = self._invoke_llm(messages)
+        except Exception:
+            logger.exception("Failed to generate Persona after retries")
+            return {}
+        else:
+            return {"target_persona": persona}
+
+    @retry(
+        retry=retry_if_exception_type((ValueError, TypeError, KeyError, PydanticValidationError)),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def _invoke_llm(self, messages: list[Any]) -> Persona:
+        structured_llm = self.llm.with_structured_output(Persona)
+        result = structured_llm.invoke(messages)
+        if isinstance(result, dict):
+            result = Persona.model_validate(result)
+        return result
+
+
+class AlternativeAnalysisAgent(BaseAgent):
+    """
+    Agent responsible for Phase 2, Step 3: Alternative Analysis.
+    Identifies current alternatives and infers the 10x value.
+    """
+
+    def __init__(self, llm: ChatOpenAI | Any) -> None:
+        self.llm = llm
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        if not state.selected_idea or not state.target_persona:
+            logger.warning("Missing selected idea or persona for Alternative Analysis.")
+            return {}
+
+        system_prompt = PROMPT_ALTERNATIVE_ANALYSIS
+        human_prompt = (
+            f"Idea: {state.selected_idea.title} - {state.selected_idea.solution}\n"
+            f"Target Persona: {state.target_persona.name}, {state.target_persona.occupation}\n"
+            f"Persona Goals: {', '.join(state.target_persona.goals)}\n"
+            f"Persona Frustrations: {', '.join(state.target_persona.frustrations)}\n\n"
+            "Generate the Alternative Analysis."
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        try:
+            analysis = self._invoke_llm(messages)
+        except Exception:
+            logger.exception("Failed to generate Alternative Analysis after retries")
+            return {}
+        else:
+            return {"alternative_analysis": analysis}
+
+    @retry(
+        retry=retry_if_exception_type((ValueError, TypeError, KeyError, PydanticValidationError)),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def _invoke_llm(self, messages: list[Any]) -> AlternativeAnalysis:
+        structured_llm = self.llm.with_structured_output(AlternativeAnalysis)
+        result = structured_llm.invoke(messages)
+        if isinstance(result, dict):
+            result = AlternativeAnalysis.model_validate(result)
+        return result
+
+
+class ValuePropositionAgent(BaseAgent):
+    """
+    Agent responsible for Phase 2, Step 4: Value Proposition Design.
+    """
+
+    def __init__(self, llm: ChatOpenAI | Any) -> None:
+        self.llm = llm
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        if not state.selected_idea or not state.target_persona:
+            logger.warning("Missing required context for Value Proposition Design.")
+            return {}
+
+        system_prompt = PROMPT_VALUE_PROPOSITION
+
+        alt_analysis_text = ""
+        if state.alternative_analysis:
+            alt_analysis_text = f"Alternative Analysis: Switching Cost: {state.alternative_analysis.switching_cost}, 10x Value: {state.alternative_analysis.ten_x_value}\n"
+
+        human_prompt = (
+            f"Idea: {state.selected_idea.title}\n"
+            f"Solution: {state.selected_idea.solution}\n"
+            f"Target Persona: {state.target_persona.name}, {state.target_persona.occupation}\n"
+            f"Persona Frustrations (Pains to solve): {', '.join(state.target_persona.frustrations)}\n"
+            f"{alt_analysis_text}\n"
+            "Generate the Value Proposition Canvas."
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt),
+        ]
+
+        try:
+            vpc = self._invoke_llm(messages)
+        except Exception:
+            logger.exception("Failed to generate Value Proposition Canvas after retries")
+            return {}
+        else:
+            return {"value_proposition_canvas": vpc}
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def _invoke_llm(self, messages: list[Any]) -> ValuePropositionCanvas:
+        structured_llm = self.llm.with_structured_output(ValuePropositionCanvas)
+        result = structured_llm.invoke(messages)
+        if isinstance(result, dict):
+            result = ValuePropositionCanvas.model_validate(result)
+        return result
+
+
+class PersonaAgent(BaseAgent):
     """Base class for persona-based agents in the simulation."""
 
     def __init__(
@@ -26,15 +216,11 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        RateLimitMixin.__init__(self)
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
         self.settings = app_settings or get_settings()
-
-        # Ensure API keys are present if we are initializing default tools
-        if search_tool is None:
-            self.settings.validate_api_keys()
+        self.rate_limiter = RateLimiter()
 
         self.search_tool = search_tool or TavilySearch(
             api_key=self.settings.tavily_api_key.get_secret_value()
@@ -82,7 +268,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         # But we still need to know if _research_impl exists on the subclass
         if hasattr(self, "_research_impl"):
             try:
-                self._rate_limit_wait()
+                self.rate_limiter.wait()
                 # Ensure return type is str
                 # We use getattr to bypass mypy 'attr-defined' error for dynamic dispatch
                 impl = self._research_impl
@@ -132,12 +318,7 @@ class FinanceAgent(PersonaAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        system_prompt = (
-            "You are a conservative Finance Manager at a large Japanese traditional company. "
-            "You always ask about cost, risk, and timeline. "
-            "You use market data to find reasons why new ideas will fail. "
-            "Be critical but professional."
-        )
+        system_prompt = PROMPT_FINANCE_AGENT
         super().__init__(llm, Role.FINANCE, system_prompt, search_tool, app_settings)
 
     def _research_impl(self, topic: str) -> str:
@@ -155,11 +336,7 @@ class SalesAgent(PersonaAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        system_prompt = (
-            "You are an aggressive Sales Manager. "
-            "You worry about cannibalizing existing products and whether the sales force can actually sell this. "
-            "You care about immediate revenue and customer trust."
-        )
+        system_prompt = PROMPT_SALES_AGENT
         super().__init__(llm, Role.SALES, system_prompt, search_tool, app_settings)
 
 
@@ -172,9 +349,5 @@ class NewEmployeeAgent(PersonaAgent):
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
-        system_prompt = (
-            "You are a new employee presenting a startup idea. "
-            "You are nervous. You try to answer questions but often falter. "
-            "You defend the idea passionately but acknowledge weaknesses."
-        )
+        system_prompt = PROMPT_NEW_EMPLOYEE_AGENT
         super().__init__(llm, Role.NEW_EMPLOYEE, system_prompt, search_tool, app_settings)

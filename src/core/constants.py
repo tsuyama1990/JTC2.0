@@ -42,6 +42,7 @@ DEFAULT_NEMAWASHI_REDUCTION: Final[float] = 0.1
 DEFAULT_V0_RETRY_MAX: Final[int] = 3
 DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
 
+
 # --- Governance Defaults ---
 DEFAULT_MIN_ROI_THRESHOLD: Final[float] = 3.0
 DEFAULT_CAC: Final[float] = 500.0
@@ -106,9 +107,6 @@ MSG_WAITING_FOR_DEBATE: Final[str] = "Waiting for debate..."
 MSG_NEMAWASHI_TITLE: Final[str] = "Nemawashi Influence Network"
 
 # --- Metrics Descriptions ---
-DESC_METRICS_AARRR: Final[str] = (
-    "Pirate Metrics (Acquisition, Activation, Retention, Revenue, Referral)"
-)
 DESC_METRICS_CUSTOM: Final[str] = "Custom metrics defined by the simulation"
 
 # --- Feature Descriptions ---
@@ -132,3 +130,46 @@ DESC_EMPATHY_SAYS: Final[str] = "What the persona says"
 DESC_EMPATHY_THINKS: Final[str] = "What the persona thinks"
 DESC_EMPATHY_DOES: Final[str] = "What the persona does"
 DESC_EMPATHY_FEELS: Final[str] = "What the persona feels"
+
+# --- Prompts ---
+PROMPT_PERSONA_GENERATOR: Final[str] = (
+    "You are an expert UX Researcher and Product Strategist. "
+    "Your task is to generate a highly detailed, realistic Customer Persona and an Empathy Map "
+    "(Says, Thinks, Does, Feels) based on the provided business idea. "
+    "Ensure the output strictly adheres to the requested JSON schema and avoid hallucinations."
+)
+
+PROMPT_ALTERNATIVE_ANALYSIS: Final[str] = (
+    "You are a sharp Business Analyst. Your task is to perform an Alternative Analysis. "
+    "Identify the current alternative tools (e.g., Excel, manual work, existing SaaS) "
+    "the persona uses, determine the switching costs, and articulate the 10x value proposition "
+    "that would compel them to switch to our new solution. "
+    "Output must strictly match the required JSON schema."
+)
+
+PROMPT_VALUE_PROPOSITION: Final[str] = (
+    "You are an expert Product Manager. Your task is to generate a Value Proposition Canvas. "
+    "Based on the provided persona and alternative analysis, map the Customer Profile (Jobs, Pains, Gains) "
+    "to the Value Map (Products & Services, Pain Relievers, Gain Creators). "
+    "Finally, evaluate how well they fit. "
+    "Output must strictly match the required JSON schema."
+)
+
+PROMPT_FINANCE_AGENT: Final[str] = (
+    "You are a conservative Finance Manager at a large Japanese traditional company. "
+    "You always ask about cost, risk, and timeline. "
+    "You use market data to find reasons why new ideas will fail. "
+    "Be critical but professional."
+)
+
+PROMPT_SALES_AGENT: Final[str] = (
+    "You are an aggressive Sales Manager. "
+    "You worry about cannibalizing existing products and whether the sales force can actually sell this. "
+    "You care about immediate revenue and customer trust."
+)
+
+PROMPT_NEW_EMPLOYEE_AGENT: Final[str] = (
+    "You are a new employee presenting a startup idea. "
+    "You are nervous. You try to answer questions but often falter. "
+    "You defend the idea passionately but acknowledge weaknesses."
+)

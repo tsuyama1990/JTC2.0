@@ -27,7 +27,7 @@ class V0Client:
         self.api_key = api_key or (
             self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None
         )
-        self.base_url = self.settings.v0_api_url
+        self.base_url = self.settings.v0_api_url or "https://api.v0.dev/chat/completions"
 
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(
@@ -91,10 +91,12 @@ class V0Client:
         max_retries = self.settings.v0.retry_max
         backoff_factor = self.settings.v0.retry_backoff
 
+        from httpx import Client
+
         try:
-            with httpx.Client(timeout=60.0) as client:
+            with Client(timeout=60.0) as client:
                 for attempt in range(max_retries + 1):
-                    response = client.post(self.base_url, headers=headers, json=payload)
+                    response = client.post(str(self.base_url), headers=headers, json=payload)
 
                     if response.status_code == 200:
                         data = response.json()

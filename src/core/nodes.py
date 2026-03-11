@@ -1,7 +1,8 @@
 import functools
 import logging
 from collections.abc import Callable
-from typing import Any
+from pathlib import Path
+from typing import Any, TypeVar
 
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
@@ -14,17 +15,18 @@ from src.domain_models.validators import StateValidator
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
 
 def safe_node(
     error_msg: str = "Error in graph node",
-) -> Callable[[Callable[..., Any]], Callable[..., dict[str, Any]]]:
+) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
     """Decorator to wrap graph nodes with consistent error handling."""
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., dict[str, Any]]:
+    def decorator(func: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             try:
-                return func(*args, **kwargs)  # type: ignore[no-any-return]
+                return func(*args, **kwargs)
             except Exception:
                 logger.exception(error_msg)
                 return {}
@@ -45,8 +47,6 @@ def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
 def verification_node(state: GlobalState) -> dict[str, Any]:
     """
     Transition to Verification Phase.
-    Here we prepare for the 'Mom Test' by setting the phase.
-    The user will select the Riskiest Assumption (Gate 2) and provide transcripts.
     """
     StateValidator.validate_phase_requirements(state)
 
@@ -57,23 +57,91 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
     return {"phase": Phase.VERIFICATION}
 
 
+@safe_node("Error in Persona Generation Node")
+def persona_node(state: GlobalState) -> dict[str, Any]:
+    """Generate target persona and empathy map."""
+    logger.info("Generating Persona and Empathy Map...")
+    agent = AgentFactory.get_persona_generator_agent()
+    return agent.run(state)
+
+
+@safe_node("Error in Alternative Analysis Node")
+def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
+    """Generate Alternative Analysis."""
+    logger.info("Generating Alternative Analysis...")
+    agent = AgentFactory.get_alternative_analysis_agent()
+    return agent.run(state)
+
+
+@safe_node("Error in Value Proposition Node")
+def vpc_node(state: GlobalState) -> dict[str, Any]:
+    """Generate Value Proposition Canvas."""
+    logger.info("Generating Value Proposition Canvas...")
+    agent = AgentFactory.get_vpc_agent()
+    result = agent.run(state)
+
+    # Generate PDF at HITL Gate 1.5 if generation is successful
+    if (
+        "value_proposition_canvas" in result
+        and state.target_persona
+        and state.alternative_analysis
+    ):
+        from src.core.config import get_settings
+        from src.core.services.file_service import FileService
+
+        settings = get_settings()
+        file_service = FileService()
+
+        try:
+            # Output directory for the PDF from settings
+            output_dir = Path.cwd() / settings.canvas_output_dir
+            file_service.generate_vpc_pdf(
+                persona=state.target_persona,
+                analysis=state.alternative_analysis,
+                vpc=result["value_proposition_canvas"],
+                output_dir=output_dir,
+            )
+        except Exception:
+            logger.exception("Failed to generate PDF at HITL Gate 1.5")
+
+    return result
+
+
 @safe_node("Error during transcript ingestion")
 def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     rag = RAG(persist_dir=state.rag_index_path)
 
     # Process transcripts in chunks to manage memory
-    chunk_size = 10
+    from src.core.config import get_settings
+    settings = get_settings()
+    chunk_size = settings.rag_batch_size
     total = len(state.transcripts)
 
-    for i in range(0, total, chunk_size):
-        chunk = state.transcripts[i : i + chunk_size]
-        logger.info(f"Ingesting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
+    import os
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        for transcript in chunk:
-            rag.ingest_transcript(transcript)
+    max_workers = (os.cpu_count() or 1) * 2 + 1
 
-        # Persist index after each chunk to free up ingestion buffers
-        rag.persist_index()
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for i in range(0, total, chunk_size):
+            chunk = state.transcripts[i : i + chunk_size]
+            logger.info(f"Submitting batch {i // chunk_size + 1}: {len(chunk)} transcripts")
+            # Submit chunk to executor
+            for transcript in chunk:
+                futures.append(executor.submit(rag.ingest_transcript, transcript))
+
+        # Wait for all ingestion tasks to complete
+        for i, future in enumerate(as_completed(futures)):
+            try:
+                future.result()
+                if (i + 1) % 10 == 0:
+                    logger.info(f"Completed ingestion of {i + 1}/{total} transcripts")
+            except Exception:
+                logger.exception("Failed to ingest a transcript")
+
+    # Persist index once after all chunks to avoid O(n) I/O bottleneck
+    rag.persist_index()
 
     return {}
 
@@ -146,7 +214,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    return cpo.run(state)  # type: ignore
+    return cpo.run(state)
 
 
 @safe_node("Error in Solution Proposal")

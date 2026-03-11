@@ -23,7 +23,7 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
+def create_simulation_graph() -> CompiledStateGraph[Any, Any, Any]:
     """
     Create the simulation sub-graph based on configured turn sequence.
     Dynamically builds nodes and edges from Settings.
@@ -57,7 +57,7 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
             state: GlobalState, bound_role: Role, bound_desc: str
         ) -> dict[str, object]:
             logger.info(bound_desc)
-            return AgentFactory.get_persona_agent(bound_role).run(state)  # type: ignore[no-any-return]
+            return AgentFactory.get_persona_agent(bound_role, state).run(state)
 
         # Bind the specific arguments for this iteration
         bound_runner = functools.partial(_step_runner, bound_role=role, bound_desc=desc)

@@ -1,12 +1,15 @@
 import logging
+from typing import Any
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.core.nodes import (
+    alternative_analysis_node,
     governance_node,
     mvp_generation_node,
     nemawashi_analysis_node,
+    persona_node,
     pmf_node,
     safe_cpo_run,
     safe_ideator_run,
@@ -14,13 +17,14 @@ from src.core.nodes import (
     solution_proposal_node,
     transcript_ingestion_node,
     verification_node,
+    vpc_node,
 )
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
+def create_app() -> CompiledStateGraph[Any, Any, Any]:
     """
     Create and compile the LangGraph application.
 
@@ -31,6 +35,9 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     # --- NODE DEFINITIONS ---
     workflow.add_node("ideator", safe_ideator_run)
     workflow.add_node("verification", verification_node)
+    workflow.add_node("persona", persona_node)
+    workflow.add_node("alternative_analysis", alternative_analysis_node)
+    workflow.add_node("vpc", vpc_node)
     workflow.add_node("transcript_ingestion", transcript_ingestion_node)
     workflow.add_node("simulation_round", safe_simulation_run)
     workflow.add_node("nemawashi_analysis", nemawashi_analysis_node)
@@ -47,10 +54,13 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     # Interrupt happens after 'ideator' returns.
     workflow.add_edge("ideator", "verification")
 
-    # Gate 2: Customer-Problem Fit (Riskiest Assumption)
-    # Interrupt happens after 'verification' returns.
-    # User provides transcript during resume.
-    workflow.add_edge("verification", "transcript_ingestion")
+    workflow.add_edge("verification", "persona")
+    workflow.add_edge("persona", "alternative_analysis")
+    workflow.add_edge("alternative_analysis", "vpc")
+
+    # Gate 1.5: Customer-Problem Fit (VPC Feedback)
+    # User provides transcript during resume and can review VPC
+    workflow.add_edge("vpc", "transcript_ingestion")
 
     # Process transcript then start simulation
     workflow.add_edge("transcript_ingestion", "simulation_round")
@@ -75,5 +85,8 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     # Governance -> End (Report generated)
     workflow.add_edge("governance", END)
 
+    from src.core.config import get_settings
+    settings = get_settings()
+
     # Compile with Interrupts for HITL Gates
-    return workflow.compile(interrupt_after=["ideator", "verification", "solution_proposal", "pmf"])
+    return workflow.compile(interrupt_after=settings.hitl_interrupt_nodes)
