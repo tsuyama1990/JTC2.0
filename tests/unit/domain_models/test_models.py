@@ -159,30 +159,26 @@ def test_global_state_lifecycle_validation() -> None:
 
     settings = get_settings()
 
-    # Should allow CPF transition only with persona
+    # Transition to CPF requires selected_idea
     state.phase = Phase.CPF
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
-    assert settings.errors.missing_persona in str(exc.value)
+    assert "Must select an idea" in str(exc.value)
 
-    # Correct transition
-    state.target_persona = Persona(
-        name="Alice",
-        occupation="Manager",
-        demographics="40, Female, London",
-        goals=["Efficiency"],
-        frustrations=["Slow tools"],
-        bio="Experienced manager.",
+    from src.domain_models.lean_canvas import LeanCanvas
+    state.selected_idea = LeanCanvas(
+        id=1, title="Test Idea Name", problem="Problem description long enough", customer_segments="Customer segments defined", unique_value_prop="UVP that passes checks", solution="Solution string enough"
     )
+
+    # Correct transition to CPF
     state.phase = Phase.CPF
-    # Should pass now
     GlobalState.model_validate(state.model_dump())
 
-    # Should allow OUTPUT transition only with MVP
-    state.phase = Phase.OUTPUT
-    with pytest.raises(ValidationError) as exc:
+    # Transition to PSF requires persona and vpc
+    state.phase = Phase.PSF
+    with pytest.raises(ValidationError) as exc2:
         GlobalState.model_validate(state.model_dump())
-    assert settings.errors.missing_mvp in str(exc.value)
+    assert settings.errors.missing_persona in str(exc2.value)
 
 
 def test_agent_state_creation() -> None:

@@ -99,15 +99,19 @@ def test_global_state_phase_enum() -> None:
     """Test GlobalState uses Phase enum."""
     # Note: CPF phase requires a target_persona
     persona = Persona(
-        name="Test",
+        name="Test Name",
         occupation="Tester",
         demographics="30, Testland, Test City, 12345",
-        goals=["Test"],
-        frustrations=["Bugs"],
-        bio="A tester.",
+        goals=["Test", "B"],
+        frustrations=["Bugs", "C"],
+        bio="A tester bio.",
         empathy_map=EmpathyMap(says=["Hi"], thinks=["Hmm"], does=["Test"], feels=["Good"]),
     )
-    state = GlobalState(phase=Phase.CPF, target_persona=persona)
+    state = GlobalState(
+        phase=Phase.CPF,
+        target_persona=persona,
+        selected_idea=LeanCanvas(id=1, title="Test Idea Name", problem="Problem description long enough", customer_segments="Customer segments defined", unique_value_prop="UVP that passes checks", solution="Solution string enough")
+    )
     assert state.phase == "cpf"
     assert isinstance(state.phase, Phase)
 

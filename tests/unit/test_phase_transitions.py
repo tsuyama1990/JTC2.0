@@ -1,14 +1,17 @@
 import pytest
 from pydantic import ValidationError
 
-from src.domain_models.state import GlobalState, Phase
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.persona import Persona, EmpathyMap
-from src.domain_models.value_proposition_canvas import ValuePropositionCanvas, CustomerProfile, ValueMap
-from src.domain_models.mental_model_diagram import MentalModelDiagram
-from src.domain_models.sitemap_and_story import SitemapAndStory
+from src.domain_models.persona import EmpathyMap, Persona
+from src.domain_models.state import GlobalState, Phase
+from src.domain_models.value_proposition_canvas import (
+    CustomerProfile,
+    ValueMap,
+    ValuePropositionCanvas,
+)
 
-def test_phase_progression():
+
+def test_phase_progression() -> None:
     state = GlobalState(topic="test")
     assert state.phase == Phase.IDEATION
 
@@ -53,7 +56,7 @@ def test_phase_progression():
     assert valid_state.phase == Phase.PSF
 
 
-def test_backward_phase_progression_prevented():
+def test_backward_phase_progression_prevented() -> None:
     state = GlobalState(topic="test")
     state.selected_idea = LeanCanvas(
         id=1, title="Test Idea Name", problem="Problem description long enough", customer_segments="Customer segments defined", unique_value_prop="UVP that passes checks", solution="Solution string enough"

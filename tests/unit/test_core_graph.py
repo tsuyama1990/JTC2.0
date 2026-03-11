@@ -135,7 +135,7 @@ def test_experiment_planning_node(mock_get_builder: MagicMock, mock_state: Globa
     assert result["mvp_definition"].core_features[0].name == "Test feature name mapping"
 
 
-def test_phase_transitions():
+def test_phase_transitions() -> None:
     state = GlobalState()
     assert state.phase == Phase.IDEATION
 

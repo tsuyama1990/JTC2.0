@@ -117,7 +117,7 @@ def test_gate_transitions_data_integrity(
         demographics="Data Center Worker",
         goals=["Pass tests"],
         frustrations=["Failures"],
-        bio="Test Bio",
+        bio="Test Bio is long enough.",
         empathy_map=EmpathyMap(says=["Hi"], thinks=["Logic"], does=["Code"], feels=["Good"]),
     )
 
@@ -128,27 +128,33 @@ def test_gate_transitions_data_integrity(
     # Should pass
     GlobalState.model_validate(state_ready_for_verification.model_dump())
 
-    # 2. Validate Transition to Solution
-    dummy_mvp = MVP(
-        type=MVPType.LANDING_PAGE,
-        core_features=[
-            Feature(name="Feature1", description="Description", priority=Priority.MUST_HAVE)
-        ],
-        success_criteria="Criteria",
-
+    # 2. Validate Transition to PSF
+    from src.domain_models.value_proposition_canvas import ValuePropositionCanvas, CustomerProfile, ValueMap
+    dummy_vpc = ValuePropositionCanvas(
+        customer_profile=CustomerProfile(customer_jobs=["A"], pains=["B"], gains=["C"]),
+        value_map=ValueMap(products_and_services=["A"], pain_relievers=["B"], gain_creators=["C"]),
+        fit_evaluation="Good fit evaluation."
     )
 
-    state_ready_for_solution = state_ready_for_verification.model_copy()
-    state_ready_for_solution.mvp_definition = dummy_mvp
-    state_ready_for_solution.phase = Phase.PSF
+    state_ready_for_psf = state_ready_for_verification.model_copy()
+    state_ready_for_psf.value_proposition_canvas = dummy_vpc
+    state_ready_for_psf.phase = Phase.PSF
 
-    GlobalState.model_validate(state_ready_for_solution.model_dump())
+    GlobalState.model_validate(state_ready_for_psf.model_dump())
 
-    # 3. Validate Transition to PMF
-    state_ready_for_pmf = state_ready_for_solution.model_copy()
-    state_ready_for_pmf.phase = Phase.OUTPUT
+    # 3. Validate Transition to OUTPUT
+    from src.domain_models.mental_model_diagram import MentalModelDiagram
+    from src.domain_models.sitemap_and_story import SitemapAndStory, Route, UserStory
 
-    GlobalState.model_validate(state_ready_for_pmf.model_dump())
+    state_ready_for_output = state_ready_for_psf.model_copy()
+    state_ready_for_output.mental_model_diagram = MentalModelDiagram(towers=[], feature_alignment="A")
+    state_ready_for_output.sitemap_and_story = SitemapAndStory(
+        sitemap=[Route(path="/", name="H", purpose="P", is_protected=False)],
+        core_story=UserStory(as_a="A", i_want_to="B", so_that="C", acceptance_criteria=["D"], target_route="/")
+    )
+    state_ready_for_output.phase = Phase.OUTPUT
+
+    GlobalState.model_validate(state_ready_for_output.model_dump())
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)

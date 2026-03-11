@@ -46,28 +46,27 @@ class StateValidator:
         # Enforce that if we are at a higher phase, the requirements of the lower phases must have been met
         # (State progression tracking logic)
 
-        if current_phase_idx >= phase_order[Phase.CPF]:
-            # Before going to CPF, we must have selected an idea
-            if state.selected_idea is None:
-                raise ValueError("Must select an idea before proceeding to CPF Phase.")
+        if current_phase_idx >= phase_order[Phase.CPF] and state.selected_idea is None:
+            msg = "Must select an idea before proceeding to CPF Phase."
+            raise ValueError(msg)
 
         if current_phase_idx >= phase_order[Phase.PSF]:
-            # Before going to PSF, we must have CPF artifacts
             if state.target_persona is None:
                 raise ValueError(settings.errors.missing_persona)
             if state.value_proposition_canvas is None:
-                 raise ValueError("Must have Value Proposition Canvas before proceeding to PSF Phase.")
+                msg = "Must have Value Proposition Canvas before proceeding to PSF Phase."
+                raise ValueError(msg)
 
-        if current_phase_idx >= phase_order[Phase.VALIDATION]:
-            # Before going to Validation, we must have PSF artifacts
-            if state.mental_model_diagram is None or state.sitemap_and_story is None:
-                 raise ValueError("Must have Mental Model and Sitemap before proceeding to Validation Phase.")
+        if current_phase_idx >= phase_order[Phase.VALIDATION] and (
+            state.mental_model_diagram is None or state.sitemap_and_story is None
+        ):
+            msg = "Must have Mental Model and Sitemap before proceeding to Validation Phase."
+            raise ValueError(msg)
 
-        if current_phase_idx >= phase_order[Phase.OUTPUT]:
-             pass # MVP is created *during* OUTPUT, so we can't require it beforehand
-
-        if current_phase_idx >= phase_order[Phase.GOVERNANCE]:
-             if state.agent_prompt_spec is None or state.experiment_plan is None:
-                 raise ValueError("Must have Agent Prompt Spec and Experiment Plan before proceeding to Governance Phase.")
+        if current_phase_idx >= phase_order[Phase.GOVERNANCE] and (
+            state.agent_prompt_spec is None or state.experiment_plan is None
+        ):
+            msg = "Must have Agent Prompt Spec and Experiment Plan before proceeding to Governance Phase."
+            raise ValueError(msg)
 
         return state

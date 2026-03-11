@@ -1,14 +1,18 @@
 from unittest.mock import MagicMock, patch
-import pytest
 
 from src.agents.psf import MentalModelJourneyAgent
-from src.domain_models.state import GlobalState
-from src.domain_models.persona import Persona, EmpathyMap
-from src.domain_models.value_proposition_canvas import ValuePropositionCanvas, CustomerProfile, ValueMap
-from src.domain_models.mental_model_diagram import MentalModelDiagram, MentalTower
 from src.domain_models.customer_journey import CustomerJourney, JourneyPhase
+from src.domain_models.mental_model_diagram import MentalModelDiagram, MentalTower
+from src.domain_models.persona import EmpathyMap, Persona
+from src.domain_models.state import GlobalState
+from src.domain_models.value_proposition_canvas import (
+    CustomerProfile,
+    ValueMap,
+    ValuePropositionCanvas,
+)
 
-def test_mental_model_agent_receives_context():
+
+def test_mental_model_agent_receives_context() -> None:
     state = GlobalState(
         topic="test",
         target_persona=Persona(
