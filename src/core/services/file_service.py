@@ -89,8 +89,8 @@ class FileService:
                     )
                     continue
                 logger.exception(f"OS error writing to {path} after {attempts} attempts")
-            except Exception:
-                logger.exception(f"Unexpected error writing to {path}")
+            except (ValueError, TypeError, RuntimeError):
+                logger.exception(f"Unexpected data error writing to {path}")
                 break
 
     def generate_vpc_pdf(

@@ -2,7 +2,7 @@ import functools
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
@@ -15,17 +15,18 @@ from src.domain_models.validators import StateValidator
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
 
 def safe_node(
     error_msg: str = "Error in graph node",
-) -> Callable[[Callable[..., Any]], Callable[..., dict[str, Any]]]:
+) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
     """Decorator to wrap graph nodes with consistent error handling."""
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., dict[str, Any]]:
+    def decorator(func: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             try:
-                return func(*args, **kwargs)  # type: ignore[no-any-return]
+                return func(*args, **kwargs)
             except Exception:
                 logger.exception(error_msg)
                 return {}
@@ -213,7 +214,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
     cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    return cpo.run(state)  # type: ignore
+    return cpo.run(state)
 
 
 @safe_node("Error in Solution Proposal")

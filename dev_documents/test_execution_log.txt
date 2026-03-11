@@ -59,11 +59,11 @@ src/agents/ideator.py                              67     23    66%   45-92, 134
 src/agents/mixins.py                               23     23     0%   1-35
 src/agents/personas.py                            165     19    88%   64-65, 99, 114-115, 149, 163-164, 204, 276-278, 283-284, 293-296, 339-340
 src/core/__init__.py                                0      0   100%
-src/core/config.py                                157      0   100%
-src/core/constants.py                             115      0   100%
+src/core/config.py                                160      0   100%
+src/core/constants.py                             105      0   100%
 src/core/exceptions.py                              6      0   100%
 src/core/factory.py                                49     16    67%   46-47, 52, 63-79
-src/core/graph.py                                  38      0   100%
+src/core/graph.py                                  39      0   100%
 src/core/llm.py                                    10      0   100%
 src/core/metrics.py                                17      0   100%
 src/core/nemawashi/__init__.py                      5      0   100%
@@ -72,7 +72,7 @@ src/core/nemawashi/consensus.py                    26      2    92%   37, 65
 src/core/nemawashi/engine.py                       19      1    95%   34
 src/core/nemawashi/nomikai.py                      73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
 src/core/nemawashi/utils.py                        43      6    86%   31-33, 46-47, 50
-src/core/nodes.py                                 164     33    80%   29-31, 53, 103-104, 138-140, 155-156, 174-178, 190-191, 215-216, 234-236, 239, 279-285, 293-299
+src/core/nodes.py                                 165     33    80%   30-32, 54, 104-105, 139-141, 156-157, 175-179, 191-192, 216-217, 235-237, 240, 280-286, 294-300
 src/core/services/__init__.py                       0      0   100%
 src/core/services/file_service.py                 105     67    36%   33-52, 66-67, 92-94, 106-172
 src/core/simulation.py                            103     58    44%   50-53, 85-89, 92-104, 108-120, 127-129, 132-173, 176-178
@@ -90,7 +90,7 @@ src/domain_models/enums.py                         12      0   100%
 src/domain_models/experiment_plan.py               12      0   100%
 src/domain_models/lean_canvas.py                   33      2    94%   32-33
 src/domain_models/mental_model_diagram.py           8      0   100%
-src/domain_models/metrics.py                       60      6    90%   121-122, 126-127, 131-132
+src/domain_models/metrics.py                       60      6    90%   124-125, 129-130, 134-135
 src/domain_models/mvp.py                           57      2    96%   144-145
 src/domain_models/persona.py                       28      2    93%   124-125
 src/domain_models/politics.py                      59      3    95%   82, 100, 111
@@ -102,8 +102,8 @@ src/domain_models/validators.py                    12      0   100%
 src/domain_models/value_proposition_canvas.py      14      0   100%
 src/tools/__init__.py                               3      0   100%
 src/tools/search.py                                34      4    88%   39, 75, 90-91
-src/tools/v0_client.py                             61     16    74%   58-60, 103-105, 108-115, 128-129
+src/tools/v0_client.py                             62     16    74%   58-60, 105-107, 110-117, 130-131
 src/ui/renderer.py                                 96     10    90%   87, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------------------
-TOTAL                                            2533    457    82%
-============================= 148 passed in 27.04s =============================
+TOTAL                                            2529    457    82%
+============================= 148 passed in 27.05s =============================

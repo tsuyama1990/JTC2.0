@@ -42,22 +42,6 @@ DEFAULT_NEMAWASHI_REDUCTION: Final[float] = 0.1
 DEFAULT_V0_RETRY_MAX: Final[int] = 3
 DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
 
-# --- Config & System Defaults ---
-DEFAULT_V0_API_URL: Final[str] = "https://api.v0.dev/chat/completions"
-DEFAULT_SEARCH_QUERY_TEMPLATE: Final[str] = "emerging business trends and painful problems in {topic}"
-DEFAULT_GOV_SEARCH_QUERY_TEMPLATE: Final[str] = "average CAC churn ARPU LTV for {industry} startups benchmarks"
-DEFAULT_RINGI_SHO_PATH: Final[str] = "RINGI_SHO.md"
-DEFAULT_CANVAS_OUTPUT_DIR: Final[str] = "./outputs/canvas"
-DEFAULT_RAG_PERSIST_DIR: Final[str] = "./vector_store"
-DEFAULT_HITL_INTERRUPT_NODES: Final[list[str]] = ["ideator", "verification", "vpc", "solution_proposal", "pmf"]
-DEFAULT_RAG_ALLOWED_PATHS: Final[list[str]] = ["data", "vector_store", "tests"]
-DEFAULT_SIMULATION_TURN_SEQUENCE: Final[list[dict[str, str]]] = [
-    {"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"},
-    {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"},
-    {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"},
-    {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"},
-    {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Defense"},
-]
 
 # --- Governance Defaults ---
 DEFAULT_MIN_ROI_THRESHOLD: Final[float] = 3.0
@@ -123,9 +107,6 @@ MSG_WAITING_FOR_DEBATE: Final[str] = "Waiting for debate..."
 MSG_NEMAWASHI_TITLE: Final[str] = "Nemawashi Influence Network"
 
 # --- Metrics Descriptions ---
-DESC_METRICS_AARRR: Final[str] = (
-    "Pirate Metrics (Acquisition, Activation, Retention, Revenue, Referral)"
-)
 DESC_METRICS_CUSTOM: Final[str] = "Custom metrics defined by the simulation"
 
 # --- Feature Descriptions ---

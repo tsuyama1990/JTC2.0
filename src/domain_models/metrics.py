@@ -11,7 +11,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
-from src.core.constants import DESC_METRICS_AARRR, DESC_METRICS_CUSTOM
+from src.core.constants import DESC_METRICS_CUSTOM
 
 
 class AARRR(BaseModel):
@@ -97,7 +97,10 @@ class Metrics(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    aarrr: AARRR = Field(default_factory=AARRR, description=DESC_METRICS_AARRR)
+    aarrr: AARRR = Field(
+        default_factory=AARRR,
+        description=get_settings().desc_metrics_aarrr
+    )
     detailed: DetailedMetrics = Field(
         default_factory=DetailedMetrics, description="Detailed simulation metrics"
     )
