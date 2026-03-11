@@ -448,6 +448,9 @@ class Settings(BaseSettings):
     ui_page_size: int = Field(
         alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI"
     )
+    pdf_export_dir: str = Field(
+        alias="PDF_EXPORT_DIR", default="outputs/canvas", description="Directory for PDF exports"
+    )
 
     # Nested configurations - Use Field to allow Pydantic to manage them
     validation: ValidationConfig = Field(default_factory=ValidationConfig)

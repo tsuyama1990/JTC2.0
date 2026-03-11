@@ -1,10 +1,12 @@
 from typing import Any
 
+from src.agents.alternative_analysis_agent import AlternativeAnalysisAgent
 from src.agents.builder import BuilderAgent
 from src.agents.cpo import CPOAgent
 from src.agents.governance import GovernanceAgent
 from src.agents.ideator import IdeatorAgent
-from src.agents.personas import FinanceAgent, NewEmployeeAgent, SalesAgent
+from src.agents.personas import FinanceAgent, NewEmployeeAgent, PersonaGeneratorAgent, SalesAgent
+from src.agents.vpc_agent import VPCAgent
 from src.core.config import get_settings
 from src.core.llm import get_llm
 from src.domain_models.simulation import Role
@@ -18,6 +20,21 @@ class AgentFactory:
     def get_ideator_agent() -> IdeatorAgent:
         llm = get_llm()
         return IdeatorAgent(llm)
+
+    @staticmethod
+    def get_persona_generator_agent() -> PersonaGeneratorAgent:
+        llm = get_llm()
+        return PersonaGeneratorAgent(llm)
+
+    @staticmethod
+    def get_alternative_analysis_agent() -> AlternativeAnalysisAgent:
+        llm = get_llm()
+        return AlternativeAnalysisAgent(llm)
+
+    @staticmethod
+    def get_vpc_agent() -> VPCAgent:
+        llm = get_llm()
+        return VPCAgent(llm)
 
     @staticmethod
     def get_builder_agent() -> BuilderAgent:

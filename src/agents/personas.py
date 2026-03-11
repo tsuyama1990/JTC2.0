@@ -8,11 +8,52 @@ from langchain_openai import ChatOpenAI
 from src.agents.base import BaseAgent, SearchTool
 from src.agents.mixins import RateLimitMixin
 from src.core.config import Settings, get_settings
+from src.domain_models.persona import Persona
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
 
 logger = logging.getLogger(__name__)
+
+
+class PersonaGeneratorAgent(BaseAgent):
+    """Generates Persona and EmpathyMap from the selected idea."""
+
+    def __init__(self, llm: ChatOpenAI) -> None:
+        self.llm = llm
+
+    def run(self, state: GlobalState) -> dict[str, Any]:
+        """Generate Persona and EmpathyMap."""
+        if not state.selected_idea:
+            logger.warning("No selected idea for Persona generation.")
+            return {}
+
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are an expert UX researcher. Create a highly detailed Persona and EmpathyMap based on the provided business idea context. The output must strictly follow the required schema without any hallucination.",
+                ),
+                (
+                    "user",
+                    f"Idea Title: {state.selected_idea.title}\n"
+                    f"Problem: {state.selected_idea.problem}\n"
+                    f"Customer Segments: {state.selected_idea.customer_segments}\n"
+                    f"Unique Value Proposition: {state.selected_idea.unique_value_prop}\n"
+                    f"Solution: {state.selected_idea.solution}\n\n"
+                    "Generate the Persona including an EmpathyMap.",
+                ),
+            ]
+        )
+        chain = prompt | self.llm.with_structured_output(Persona)
+        try:
+            result = chain.invoke({})
+            if isinstance(result, Persona):
+                return {"target_persona": result}
+        except Exception:
+            logger.exception("Failed to generate Persona")
+
+        return {}
 
 
 class PersonaAgent(BaseAgent, RateLimitMixin):

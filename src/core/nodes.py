@@ -5,6 +5,7 @@ from typing import Any
 
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
+from src.core.services.pdf_export import export_phase2_documents
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
@@ -55,6 +56,42 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 
     logger.info(f"Transitioning to Phase: {Phase.VERIFICATION}")
     return {"phase": Phase.VERIFICATION}
+
+
+@safe_node("Error in Persona Node")
+def persona_node(state: GlobalState) -> dict[str, Any]:
+    """Generate Persona and EmpathyMap."""
+    logger.info("Running Persona Node...")
+    agent = AgentFactory.get_persona_generator_agent()
+    return agent.run(state)
+
+
+@safe_node("Error in Alternative Analysis Node")
+def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
+    """Generate Alternative Analysis."""
+    logger.info("Running Alternative Analysis Node...")
+    agent = AgentFactory.get_alternative_analysis_agent()
+    return agent.run(state)
+
+
+@safe_node("Error in Value Proposition Canvas Node")
+def vpc_node(state: GlobalState) -> dict[str, Any]:
+    """Generate Value Proposition Canvas and trigger PDF export / Pyxel stamp."""
+    logger.info("Running Value Proposition Canvas Node...")
+    agent = AgentFactory.get_vpc_agent()
+    result = agent.run(state)
+
+    # Export Phase 2 models at HITL Gate 1.5
+    # The actual state object might not have the new result merged yet depending on LangGraph,
+    # so we update the local copy of the state with the result just for exporting purposes.
+    if "value_proposition_canvas" in result:
+        state_for_export = state.model_copy()
+        state_for_export.value_proposition_canvas = result["value_proposition_canvas"]
+        export_phase2_documents(state_for_export)
+    else:
+        export_phase2_documents(state)
+
+    return result
 
 
 @safe_node("Error during transcript ingestion")
