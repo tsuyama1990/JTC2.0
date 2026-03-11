@@ -46,11 +46,10 @@ def create_simulation_graph() -> CompiledStateGraph:  # type: ignore[type-arg]
         # Ensure role is a valid Role enum member
         try:
             role = Role(role_str)
-        except ValueError:
-            logger.exception(
-                f"Invalid role '{role_str}' in simulation config. Skipping step {node_name}."
-            )
-            continue
+        except ValueError as err:
+            logger.exception(f"Critical configuration error: Invalid role '{role_str}'")
+            msg = f"Invalid role '{role_str}' in simulation config step {node_name}."
+            raise ValueError(msg) from err
 
         # Create a closure for the node function
         # We must bind defaults to capture the current iteration's values

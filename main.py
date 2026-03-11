@@ -63,16 +63,23 @@ def validate_topic(topic: str) -> str:
 
 
 def validate_filepath(filepath: str) -> Path:
-    """Validate filepath to prevent traversal attacks."""
-    path = Path(filepath).resolve(strict=True)
-    cwd = Path.cwd().resolve(strict=True)
+    """Validate filepath to prevent traversal attacks using canonical resolution."""
+    import os
 
-    if not path.is_relative_to(cwd):
-        msg = "File path must be within the project directory."
+    # Resolve real absolute path eliminating symlinks
+    real_path_str = os.path.realpath(filepath)
+    path = Path(real_path_str)
+
+    # Allowed directory whitelist (restrict to current working directory)
+    allowed_dir = os.path.realpath(str(Path.cwd()))
+    allowed_path = Path(allowed_dir)
+
+    if not path.is_relative_to(allowed_path):
+        msg = "File path must be strictly within the allowed project directory."
         raise ValueError(msg)
 
-    if not path.exists():
-        msg = f"File not found: {filepath}"
+    if not path.exists() or not path.is_file():
+        msg = f"Valid file not found at: {filepath}"
         raise ValueError(msg)
 
     return path

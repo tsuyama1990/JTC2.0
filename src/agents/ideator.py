@@ -92,6 +92,17 @@ class IdeaGenerator:
         return list(ideas)
 
 
+class TopicInput(BaseModel):
+    """Schema to enforce semantic validation of the input topic before research."""
+    topic: str = Field(
+        ...,
+        min_length=3,
+        max_length=200,
+        pattern=r"^[a-zA-Z0-9\s\-_]+$",
+        description="A clean, alphanumeric business topic."
+    )
+
+
 class IdeatorAgent(BaseAgent):
     """
     Ideator Agent responsible for generating initial startup ideas.
@@ -115,12 +126,16 @@ class IdeatorAgent(BaseAgent):
         return {"generated_ideas": self.execute(state).generated_ideas}
 
     def _research(self, topic: str) -> str:
-        """Execute research logic with basic sanitization."""
-        # Ensure alphanumeric base to prevent prompt/command injection issues in the template
-        # even though topic was sanitized in the CLI, the agent should validate input inherently.
-        safe_topic = "".join(c for c in topic if c.isalnum() or c.isspace() or c in "-_.")
+        """Execute research logic using validated input to prevent prompt injections."""
+        try:
+            # Semantic validation: Ensure format and length constraints
+            validated_topic = TopicInput(topic=topic).topic
+        except Exception:
+            logger.exception("Invalid topic format for research")
+            return "No research data available due to invalid topic input."
+
         settings = get_settings()
-        query = settings.search_query_template.format(topic=safe_topic)
+        query = settings.search_query_template.format(topic=validated_topic)
         return self.search_tool.safe_search(query)
 
     def execute(self, state: GlobalState) -> GlobalState:

@@ -102,7 +102,7 @@ def test_ideator_agent_research_logic(
     mock_search.safe_search.return_value = "Results"
 
     agent = IdeatorAgent(llm=mock_llm)
-    res = agent._research("AI")
+    res = agent._research("AI Tech")
 
     assert res == "Results"
-    mock_search.safe_search.assert_called_with("Search AI")
+    mock_search.safe_search.assert_called_with("Search AI Tech")
