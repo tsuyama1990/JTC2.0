@@ -57,11 +57,13 @@ A critical architectural principle of JTC 2.0 is the strict enforcement of bound
 - **Domain Models (`src/domain_models/`):** These are pure Pydantic schemas defining the shape of the data. They contain structural definitions and data validation logic only. They must not contain business logic, API calls, or dependencies on external services. They represent the "What" of the system.
 - **Core Services (`src/core/`):** This layer encapsulates the business logic, configuration management, LLM interaction wrappers, graph definitions, and utility functions. It operates on the Domain Models but is entirely agnostic to the User Interface. It represents the "How" of the backend operations.
 - **Agents (`src/agents/`):** This module defines the behavior, tools, and specific prompts for the various AI personas. Agents process specific inputs from the `GlobalState` and return structured updates. They are isolated reasoning units.
-- **User Interface (`src/ui/`):** The Pyxel frontend. Its sole responsibility is rendering state and capturing user input. It must not contain business logic or attempt to directly mutate the `GlobalState`. It communicates with the core engine via well-defined, asynchronous interfaces.
+- **User Interface (`src/ui/`):** The Pyxel frontend. Its sole responsibility is rendering state and capturing user input. It must not contain business logic or attempt to directly mutate the `GlobalState`. **Crucially, Pyxel mandates execution within the main application thread.** Therefore, the LangGraph orchestrator must be invoked asynchronously or within a separate thread (e.g., `ThreadPoolExecutor`). The UI will communicate with the core engine via a thread-safe `state_getter()` callback, polling the `GlobalState` snapshot to trigger animations or visual updates without blocking the underlying LLM network requests.
 
-### Data Flow and State Transitions
+### Data Flow and LLM Self-Correction Loop
 
 The execution flow represents a strict forward progression through the defined phases. Backward phase jumps are generally prohibited to maintain the integrity of the Chain of Thought, though iterative refinement within a phase (via HITL feedback) is fully supported.
+
+To guarantee the "Hallucination Elimination" objective, the data flow incorporates an **LLM Self-Correction Loop**. When an agent relies on `with_structured_output` for strict Pydantic parsing, the LLM execution is wrapped in a `tenacity` `@retry` block. If the LLM generates a hallucinated field or violates a custom validator, a `pydantic.ValidationError` is raised. The system catches this error, dynamically appends the exact error message to the prompt, and forces the LLM to correct its own schema violation in the subsequent attempt before the LangGraph node is permitted to update the `GlobalState`.
 
 ```mermaid
 graph TD
@@ -222,9 +224,9 @@ This design enforces the Chain of Thought. The execution is sequential: a node c
 
 ## 5. Implementation Plan
 
-The development and deployment of the JTC 2.0 Remastered Edition are strictly divided into exactly 6 sequential implementation cycles. This phased approach ensures systematic progress, rigorous validation at each step, and prevents overwhelming architectural complexity during development.
+The development and deployment of the JTC 2.0 Remastered Edition are strictly divided into exactly 6 sequential implementation cycles. This highly modular, additive approach ensures systematic progress, rigorous validation at each step, and prevents overwhelming architectural complexity by isolating concerns. **Crucially, this plan explicitly maps the 14 execution steps defined in the `ALL_SPEC.md` "Fitness Journey Workflow" onto the 6 implementation cycles to eliminate any implementation ambiguity.**
 
-### Cycle 1: Schema Foundations and Domain Model Implementation
+### Cycle 1: Schema Foundations and Domain Model Implementation (Step 0)
 **Primary Objective:** Establish the rigorous structural backbone required to eliminate AI hallucinations by implementing the comprehensive suite of new Pydantic models.
 **Detailed Tasks:**
 - Define and implement the complete set of new Pydantic models in `src/domain_models/extended_models.py` (or integrated appropriately). This includes `ValuePropositionCanvas`, `AlternativeAnalysis`, `MentalModelDiagram`, `CustomerJourney`, `SitemapAndStory`, `ExperimentPlan`, and `AgentPromptSpec`.
@@ -233,50 +235,49 @@ The development and deployment of the JTC 2.0 Remastered Edition are strictly di
 - Configure the environment and ensure the linter (`ruff`) and type checker (`mypy`) are passing strictly.
 **Outcome:** A robust, fully typed data layer capable of supporting complex, multi-stage agent reasoning without the risk of schema degradation or context loss.
 
-### Cycle 2: Phase 2 Core - Customer Problem Fit (CPF) Engine
-**Primary Objective:** Build the analytical engine that rigorously verifies whether the proposed business idea solves a problem worth solving, grounded in reality.
+### Cycle 2: Phase 2 Core - Customer Problem Fit Engine (Steps 2-5)
+**Primary Objective:** Build the analytical engine that rigorously verifies whether the proposed business idea solves a problem worth solving, grounded in reality and data.
 **Detailed Tasks:**
-- Implement the `alternative_analysis_node`. This node will consume the `selected_idea` and `target_persona` from the state to deduce realistic alternative solutions and calculate the switching costs versus the proposed value.
-- Implement the `vpc_node` (Value Proposition Canvas). This node maps the customer's pains and gains to the solution's specific relievers and creators, enforcing a logical fit.
-- Establish the first new interrupt, HITL Gate 1.5 (CPF Feedback). This requires configuring LangGraph to pause execution, allowing the user to review the generated Pydantic models.
-- Implement a lightweight PDF generation service (`src/tools/pdf_generator.py`) to visually export the CPF documents for easier user review during the HITL pause.
-**Outcome:** The LangGraph orchestrator can successfully guide the LLM to accurately deduce alternative solutions, validate value propositions, and pause interactively for user refinement.
+- **Step 2:** Refine the existing `persona_node` to enforce the output into the stricter Pydantic models with the required `EmpathyMap`.
+- **Step 3:** Implement the `alternative_analysis_node`. This node consumes the `selected_idea` to deduce realistic alternative solutions and explicitly calculates the switching costs versus the proposed 10x value.
+- **Step 4:** Implement the `vpc_node` (Value Proposition Canvas). This critical node forces the LLM to map the customer's pains to the solution's specific relievers.
+- **Step 5:** Integrate the `transcript_ingestion_node`. The RAG pipeline must be strictly attached here to ensure the CPO agent utilizes factual vector data to evaluate the preceding CPF models ("The Mom Test").
+- Establish **HITL Gate 1.5** (CPF Feedback), configuring LangGraph's `interrupt_after` to pause execution. Implement the `pdf_generator.py` service to visually export the CPF documents.
+**Outcome:** The LangGraph orchestrator successfully executes Steps 2 through 5, utilizing factual RAG context to validate the core problem logic.
 
-### Cycle 3: Phase 3 Core - Problem Solution Fit (PSF) Engine
-**Primary Objective:** Translate the validated customer problems into actionable psychological models and concrete, minimalist software feature requirements.
+### Cycle 3: Phase 3 Core - Problem Solution Fit Engine (Steps 6-7)
+**Primary Objective:** Translate the validated CPF problems into actionable psychological models and concrete, minimalist software architecture to achieve Problem-Solution Fit.
 **Detailed Tasks:**
-- Implement the `mental_model_journey_node`. This critical node constructs the user's belief systems (Mental Towers) and maps the sequential Customer Journey, ultimately identifying the singular "worst pain point" that the MVP must address.
-- Implement the `sitemap_wireframe_node`. Based on the identified pain point, this node builds a clean, necessary-only information architecture (Sitemap) and defines the core User Story, strictly stripping away any "nice-to-have" features that do not address the core pain.
-- Establish HITL Gate 1.8 (PSF Feedback) for user review and precise refinement of the journey and functional scope.
-- Extend the PDF generation capabilities to render the Mental Models and Customer Journeys visually.
-**Outcome:** A clear, unbroken logical chain connecting deep psychological user needs directly to concrete software structure, eliminating feature bloat before any code is conceptualized.
+- **Step 6:** Implement the `mental_model_journey_node`. This complex step forces the AI to construct the `MentalModelDiagram` and map the sequential `CustomerJourney`, culminating in the explicit identification of the "worst pain point."
+- **Step 7:** Implement the `sitemap_wireframe_node`. Based precisely on the Step 6 output, this node must generate a strict `SitemapAndStory`, defining the information architecture and the core user story while aggressively eliminating non-essential features (feature bloat).
+- Establish **HITL Gate 1.8** (PSF Feedback) for user intervention and refinement.
+- Extend the PDF generation service to render the new Mental Models and Customer Journeys visually during the interrupt phase.
+**Outcome:** The system flawlessly maps deep psychological needs to concrete software architecture (Steps 6-7) before any coding considerations are made.
 
-### Cycle 4: Phase 4 Validation - Virtual Customer & 3H Review
-**Primary Objective:** Subject the refined idea and software architecture to brutal, simulated market scrutiny and expert evaluation to ensure viability.
+### Cycle 4: Phase 4 Validation - Multi-Agent Simulation (Steps 8-10)
+**Primary Objective:** Subject the refined software architecture to brutal, simulated market scrutiny and expert evaluation via multi-agent debate to ensure ultimate viability.
 **Detailed Tasks:**
-- Enhance the existing `virtual_customer_node`. Inject the newly generated `MentalModelDiagram` and `AlternativeAnalysis` into its prompt context to ensure its feedback is highly realistic, grounded, and sensitive to switching costs.
-- Implement the `3h_review_node`. Create distinct, specialized prompts for the Hacker (focusing on technical debt and scalability), Hipster (focusing on UX friction), and Hustler (focusing on unit economics). Ensure these agents review the wireframes strictly against the established CPF/PSF context.
-- Establish HITL Gate 2, forcing the user to make a deliberate "Pivot or Persevere" decision based on the simulated feedback.
-- Implement robust circuit breakers to prevent infinite debate loops during the 3H Review.
-**Outcome:** A rigorous, multi-faceted defense simulation that reliably exposes weaknesses in the business model, technical feasibility, and user experience.
+- **Step 8:** Enhance the `virtual_customer_node`. Crucially, inject the `MentalModelDiagram` generated in Step 6 into the Virtual Customer's system prompt to enforce grounded, realistic feedback regarding switching costs.
+- Establish **HITL Gate 2** (Pivot or Persevere), forcing the user to make a deliberate decision based on the Virtual Customer's simulated market response.
+- **Step 9:** Execute the `jtc_simulation_node`. The "New Employee" agent must defend the PSF architecture against the "Finance Manager" and "Sales Manager" within the `GlobalState`.
+- **Step 10:** Implement the `3h_review_node`. Create distinct prompts for the Hacker (technical debt), Hipster (UX friction), and Hustler (unit economics) to review the wireframes against the established CPF context. Implement the circuit breakers to prevent infinite token loops.
+**Outcome:** A rigorous, multi-faceted defense simulation executing Steps 8 through 10, exposing critical weaknesses in the architecture before any MVP generation.
 
-### Cycle 5: Phase 5 & 6 Output - The Perfect Specification Generation
-**Primary Objective:** Synthesize all validated data into the final, universally actionable artifacts, deprecating the legacy direct UI generation approach.
+### Cycle 5: Phase 5 & 6 Core - Specification & GTM Planning (Steps 11-12)
+**Primary Objective:** Synthesize the entire Chain of Thought context into the final, universally actionable markdown artifacts, explicitly deprecating the fragile, direct v0.dev API generation method.
 **Detailed Tasks:**
-- Implement the `spec_generation_node`. This node aggregates the entirety of the `GlobalState` context and meticulously formats it into the highly structured `AgentPromptSpec.md` format, ready for AI coding agents.
-- Implement the `experiment_planning_node` to create the pragmatic, AARRR-based `ExperimentPlan.md`, detailing exactly how the user should test the MVP in the real world.
-- Establish HITL Gate 3 for the final review of these output documents.
-- Implement the dynamic "Approval" stamp animation mechanics within the Pyxel UI to trigger upon the successful generation of these final documents.
-**Outcome:** The system successfully shifts its output from a fragile URL generation to universally compatible markdown instructions, alongside a strategic business execution plan.
+- **Step 11:** Implement the `spec_generation_node`. This node must aggregate the entire context payload from the `GlobalState` and meticulously format it into the highly structured, LLM-optimized `AgentPromptSpec.md` format (including the Mermaid state machine requirements).
+- **Step 12:** Implement the `experiment_planning_node` to autonomously generate the pragmatic, Go-To-Market `ExperimentPlan.md`, detailing exactly how the user should test the MVP using AARRR metrics.
+- Establish **HITL Gate 3** for the final review of these output documents before generation.
+**Outcome:** The system successfully shifts its output paradigm, generating universally compatible markdown specifications (Steps 11-12) ready for ingestion by Cursor or Windsurf.
 
-### Cycle 6: Integration, UI Polish, and Governance Finalization
-**Primary Objective:** Finalize the user experience, ensure total system stability across the entire pipeline, and complete the overarching JTC thematic elements.
+### Cycle 6: Governance, Integration, and UI Polish (Steps 13 & System Finalization)
+**Primary Objective:** Implement the final Governance check, complete the Pyxel UI integration, and guarantee total system stability across the entire 14-step workflow.
 **Detailed Tasks:**
-- Polish the Pyxel frontend to accurately reflect all new LangGraph node transitions, ensuring the gamified experience remains cohesive and responsive.
-- Implement the Governance node (`jtc_simulation_node`) to generate the final Ringi-sho (approval document), incorporating basic financial projections (LTV/CAC analysis).
-- Conduct exhaustive End-to-End (E2E) testing across the entire 14-step workflow, utilizing the Marimo notebook for User Acceptance Testing.
-- Finalize all repository documentation, including `README.md` and the `tutorials/UAT_AND_TUTORIAL.py` file.
-**Outcome:** A cohesive, rigorously tested, gamified, and highly reliable enterprise business accelerator platform ready for end-user deployment.
+- **Step 13:** Implement the `governance_node` to execute the final JTC corporate check, summarizing the business validation into the formal Ringi-sho (approval document) format within the state.
+- **UI Integration:** Polish the Pyxel frontend polling loops. Implement the dynamic, animated "Approval" stamp mechanic to visually trigger upon the successful generation of the PDF canvas models at each HITL gate.
+- **E2E Validation:** Execute exhaustive End-to-End (E2E) testing across the complete 14-step workflow using the `tutorials/UAT_AND_TUTORIAL.py` Marimo notebook to ensure flawless state transitions and UI responsiveness.
+**Outcome:** A fully integrated, rigorously tested, gamified enterprise business accelerator completing all 14 sequential steps of the 'Fitness Journey Workflow'.
 
 ## 6. Test Strategy
 
