@@ -5,12 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, m
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
-    DEFAULT_ARPU,
-    DEFAULT_CAC,
     DEFAULT_CB_FAIL_MAX,
     DEFAULT_CB_RESET_TIMEOUT,
     DEFAULT_CHARS_PER_LINE,
-    DEFAULT_CHURN,
     DEFAULT_CONSOLE_SLEEP,
     DEFAULT_DIALOGUE_X,
     DEFAULT_DIALOGUE_Y,
@@ -19,23 +16,15 @@ from src.core.constants import (
     DEFAULT_HEIGHT,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
-    DEFAULT_MAX_LLM_RESPONSE_SIZE,
-    DEFAULT_MAX_SEARCH_RESULT_SIZE,
     DEFAULT_MAX_TITLE_LENGTH,
     DEFAULT_MAX_TURNS,
     DEFAULT_MAX_Y,
-    DEFAULT_MIN_ROI_THRESHOLD,
     DEFAULT_MIN_TITLE_LENGTH,
     DEFAULT_NEMAWASHI_BOOST,
     DEFAULT_NEMAWASHI_MAX_STEPS,
     DEFAULT_NEMAWASHI_REDUCTION,
     DEFAULT_NEMAWASHI_TOLERANCE,
     DEFAULT_PAGE_SIZE,
-    DEFAULT_RAG_BATCH_SIZE,
-    DEFAULT_RAG_CHUNK_SIZE,
-    DEFAULT_RAG_MAX_DOC_LENGTH,
-    DEFAULT_RAG_MAX_INDEX_SIZE_MB,
-    DEFAULT_RAG_MAX_QUERY_LENGTH,
     DEFAULT_V0_RETRY_BACKOFF,
     DEFAULT_V0_RETRY_MAX,
     DEFAULT_WIDTH,
@@ -313,19 +302,19 @@ class GovernanceConfig(BaseSettings):
 
     min_roi_threshold: float = Field(
         alias="MIN_ROI_THRESHOLD",
-        default=DEFAULT_MIN_ROI_THRESHOLD,
+        default=3.0,
         description="Minimum ROI for approval",
     )
-    default_cac: float = Field(alias="DEFAULT_CAC", default=DEFAULT_CAC, description="Fallback CAC")
+    default_cac: float = Field(alias="DEFAULT_CAC", default=500.0, description="Fallback CAC")
     default_arpu: float = Field(
-        alias="DEFAULT_ARPU", default=DEFAULT_ARPU, description="Fallback ARPU"
+        alias="DEFAULT_ARPU", default=50.0, description="Fallback ARPU"
     )
     default_churn: float = Field(
-        alias="DEFAULT_CHURN", default=DEFAULT_CHURN, description="Fallback Churn Rate"
+        alias="DEFAULT_CHURN", default=0.05, description="Fallback Churn Rate"
     )
     max_llm_response_size: int = Field(
         alias="MAX_LLM_RESPONSE_SIZE",
-        default=DEFAULT_MAX_LLM_RESPONSE_SIZE,
+        default=10_000,
         description="Max bytes for LLM JSON response",
     )
     output_path: str = Field(
@@ -338,7 +327,7 @@ class GovernanceConfig(BaseSettings):
     )
     max_search_result_size: int = Field(
         alias="MAX_SEARCH_RESULT_SIZE",
-        default=DEFAULT_MAX_SEARCH_RESULT_SIZE,
+        default=5000,
         description="Max chars for search result context",
     )
 
@@ -378,21 +367,21 @@ class Settings(BaseSettings):
         alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index"
     )
     rag_chunk_size: int = Field(
-        alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG"
+        alias="RAG_CHUNK_SIZE", default=1024, description="Chunk size for RAG"
     )
     rag_max_document_length: int = Field(
         alias="RAG_MAX_DOC_LENGTH",
-        default=DEFAULT_RAG_MAX_DOC_LENGTH,
+        default=1_000_000,
         description="Max document length",
     )
     rag_max_query_length: int = Field(
         alias="RAG_MAX_QUERY_LENGTH",
-        default=DEFAULT_RAG_MAX_QUERY_LENGTH,
+        default=1000,
         description="Max query length",
     )
     rag_max_index_size_mb: int = Field(
         alias="RAG_MAX_INDEX_SIZE_MB",
-        default=DEFAULT_RAG_MAX_INDEX_SIZE_MB,
+        default=500,
         description="Max index size in MB",
     )
     rag_allowed_paths: list[str] = Field(
@@ -411,7 +400,7 @@ class Settings(BaseSettings):
     )
     rag_batch_size: int = Field(
         alias="RAG_BATCH_SIZE",
-        default=DEFAULT_RAG_BATCH_SIZE,
+        default=100,
         description="Batch size for RAG ingestion",
     )
     rag_query_timeout: float = Field(

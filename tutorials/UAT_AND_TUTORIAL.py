@@ -49,40 +49,9 @@ def __1() -> tuple[object]:
                 self._setup_mocks()
 
         def _setup_mocks(self) -> None:
-            class MockState:
-                def __init__(self, **kwargs: object) -> None:
-                    self.debate_history = []
-                    self.simulation_active = False
-
-            class MockSimApp:
-                def stream(self, initial_state: object, stream_mode: str) -> object:
-                    yield {
-                        "debate_history": [
-                            {"role": "System", "content": "Mock simulation finished."}
-                        ],
-                        "simulation_active": False,
-                    }
-
-            class MockPhase:
-                IDEATION = "ideation"
-
-            class MockRenderer:
-                def __init__(self, getter: object) -> None:
-                    self.getter = getter
-
-                def start(self) -> None:
-                    if callable(self.getter):
-                        self.getter()
-                    time.sleep(0.1)
-
-            self.GlobalState = MockState
-
-            def mock_app_factory() -> MockSimApp:
-                return MockSimApp()
-
-            self.create_simulation_graph = mock_app_factory
-            self.Phase = MockPhase
-            self.SimulationRenderer = MockRenderer
+            # We don't dynamically redefine the class attributes to avoid complex typing mismatches
+            # between real domain models and runtime mocks. The actual fallback behavior
+            # handles the mock path safely through early returns when `is_mocked == True`.
             self.is_mocked = True
 
         def _execute_bg_thread(
@@ -115,6 +84,12 @@ def __1() -> tuple[object]:
 
         def run_simulation(self, topic: str, canvas: object) -> None:
             from contextlib import contextmanager
+
+            if self.is_mocked:
+                # If mocked, we simulate the renderer delay and return early.
+                self.mo.md(f"**Warning**: Running mock simulation. Simulated success for '{topic}'.")
+                time.sleep(1)
+                return
 
             initial_state = self.GlobalState(
                 topic=topic, selected_idea=canvas, simulation_active=True, phase=self.Phase.IDEATION

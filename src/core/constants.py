@@ -18,13 +18,6 @@ DEFAULT_MIN_TITLE_LENGTH: Final[int] = 5
 DEFAULT_MAX_TITLE_LENGTH: Final[int] = 100
 DEFAULT_ITERATOR_SAFETY_LIMIT: Final[int] = 10000
 
-# --- RAG Defaults ---
-DEFAULT_RAG_CHUNK_SIZE: Final[int] = 1024
-DEFAULT_RAG_MAX_DOC_LENGTH: Final[int] = 1_000_000  # 1MB text limit
-DEFAULT_RAG_MAX_QUERY_LENGTH: Final[int] = 1000
-DEFAULT_RAG_MAX_INDEX_SIZE_MB: Final[int] = 500  # 500MB index limit
-DEFAULT_RAG_BATCH_SIZE: Final[int] = 100
-
 # --- Feature Extraction Defaults ---
 DEFAULT_FEATURE_CHUNK_SIZE: Final[int] = 2000
 
@@ -41,14 +34,6 @@ DEFAULT_NEMAWASHI_REDUCTION: Final[float] = 0.1
 # --- V0 Defaults ---
 DEFAULT_V0_RETRY_MAX: Final[int] = 3
 DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
-
-# --- Governance Defaults ---
-DEFAULT_MIN_ROI_THRESHOLD: Final[float] = 3.0
-DEFAULT_CAC: Final[float] = 500.0
-DEFAULT_ARPU: Final[float] = 50.0
-DEFAULT_CHURN: Final[float] = 0.05
-DEFAULT_MAX_LLM_RESPONSE_SIZE: Final[int] = 10_000  # Bytes
-DEFAULT_MAX_SEARCH_RESULT_SIZE: Final[int] = 5000
 
 # --- Error Messages ---
 ERR_UNIQUE_ID_VIOLATION: Final[str] = "Duplicate ID detected."
