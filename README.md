@@ -1,38 +1,77 @@
-# The JTC 2.0: Enterprise Business Accelerator
+# The JTC 2.0: Enterprise Business Accelerator (Remastered Edition)
 
-![Status](https://img.shields.io/badge/Status-Cycle_5_Complete-green)
+![Status](https://img.shields.io/badge/Status-Architected-green)
 ![Python](https://img.shields.io/badge/Python-3.12+-blue)
+![LangGraph](https://img.shields.io/badge/Agent_Engine-LangGraph-orange)
+![Pydantic](https://img.shields.io/badge/Data_Validation-Pydantic-purple)
 
-**The JTC 2.0** is a paradigm-shifting multi-agent system that fuses the rigorous methodology of **"Startup Science"** with the complex organizational dynamics of **Traditional Japanese Companies (JTCs)**. It is not just a chatbot; it is a role-playing simulation where your business ideas are subjected to "Gekizume" (harsh feedback) by AI agents, validated against real customer interviews, and automatically built into MVPs.
+**The JTC 2.0 (Remastered Edition)** is a paradigm-shifting multi-agent system designed to accelerate the business creation process within Traditional Japanese Companies (JTC). By fusing the rigorous principles of "Startup Science" (Customer-Problem Fit & Problem-Solution Fit) with the nuanced realities of corporate politics, this system offers an unprecedented simulation platform for intrapreneurs.
 
-## 🚀 Overview
+Instead of relying on fragile, direct API UI generation, the Remastered Edition acts as the ultimate "Requirements Engineering Engine." It systematically eradicates AI hallucinations through a strict Pydantic-driven "Chain of Thought" pipeline, guiding your nebulous ideas through grueling virtual corporate validation to produce a flawless, universally compatible `AgentPromptSpec.md`—ready for instant execution by Cursor, Windsurf, or any modern autonomous coding agent.
 
--   **What**: An AI-powered co-founder that helps you brainstorm, validate, and simulate the organizational resistance to new business ideas.
--   **Why**: To help intrapreneurs navigate the "Valley of Death" in large organizations by simulating the harsh reality of corporate decision-making before pitching to real stakeholders.
--   **How**: Uses **LangGraph** to orchestrate specialized agents (Ideator, Finance, Sales, CPO) and **Tavily** for real-time market research.
+## 🚀 Key Features
 
-## ✨ Features
+*   **Hallucination-Free Schema Engine:** Uses strict Pydantic models (`extra="forbid"`) to force AI agents to construct business logic step-by-step. It demands a validated `ValuePropositionCanvas` before a `CustomerJourney`, and a `MentalModelDiagram` before a single line of `Sitemap` is drawn.
+*   **The "Gekizume" Simulation (JTC Board & 3H Review):** Subject your ideas to harsh, simulated corporate pushback. Your "New Employee" proxy defends the concept against skeptical Finance and Sales agents, while the Hacker, Hipster, and Hustler (3H) reviewers ruthlessly critique your technical debt, UX friction, and unit economics.
+*   **Secure Customer Interview RAG:** Ground the simulation in reality. Ingest raw customer interview transcripts (via PLAUD or similar) securely. The CPO agent uses this local vector data to enforce "The Mom Test," ensuring features are built on facts, not AI assumptions.
+*   **Decoupled "Retro RPG" UI (Pyxel):** Maintain psychological safety through "De-identification." Experience brutal corporate feedback and earn dynamic "Approval" stamps within a gamified 16-color Pyxel interface, completely separated from the complex LangGraph backend.
+*   **Universal Output Generation:** Bypasses proprietary UI lock-in. Outputs a comprehensive `AgentPromptSpec.md` and `ExperimentPlan.md` (AARRR metrics), ready to be handed off to any AI development workflow.
 
--   **Automated Ideation Engine**: Generates 10 distinct, research-backed Lean Canvas business ideas from a single topic.
--   **JTC Simulation Engine ("The Meeting")**: Watch your "New Employee" proxy defend your idea against skeptical "Finance Manager" and aggressive "Sales Manager" agents in a realistic debate.
--   **Real-World Data Ingestion (Secure RAG)**: Ingest customer interview transcripts (via `--ingest`) to ground the simulation in primary data. Features strict path validation and memory-safe processing for large files.
--   **CPO Mentor Agent**: A silent observer who provides fact-based, data-driven advice ("The Mom Test") using ingested transcripts to validate or pivot your idea.
--   **Nemawashi (Root-Binding) Engine**: Analyze the invisible influence network within the organization. Identify "Key Influencers" and simulate "Nomikai" (drinking parties) to build consensus behind the scenes using the French-DeGroot model.
--   **Automated MVP Construction**: Generate high-fidelity React/Tailwind UI from your Lean Canvas using v0.dev.
--   **Business Governance & Ringi-sho**: Automated financial analysis (LTV/CAC, ROI) and generation of a formal "Ringi-sho" approval document to secure executive buy-in.
--   **Pyxel Retro UI**: A gamified RPG-style interface for observing the simulation without personal emotional attachment ("De-identification").
--   **Modular Architecture**: Designed for scalability and maintainability with strict schema validation and separated responsibilities.
+## 🏗 Architecture Overview
+
+The system is architected as an event-driven state machine orchestrated by LangGraph. It strictly separates complex LLM reasoning from deterministic data validation. The `GlobalState` is sequentially populated with complex Pydantic models through 6 strict phases, pausing at Human-in-the-Loop (HITL) gates for user intervention.
+
+```mermaid
+graph TD
+    User([User Input / Transcripts]) -->|CLI / Pyxel UI| CLI(CLI Entry Point)
+    CLI -->|Initialize & Configure| Graph(LangGraph Orchestrator)
+
+    subgraph "Phase 1: Idea Verification"
+        Graph --> Node1(Ideation & PEST)
+        Node1 --> State[GlobalState]
+    end
+
+    subgraph "Phase 2: Customer Problem Fit (CPF)"
+        State --> Node2(Persona & VPC)
+        State --> Node3(Alternative Analysis)
+        State --> Node5(Transcript RAG)
+        Node2 & Node3 & Node5 --> State
+        State --> HITL15{HITL Gate: CPF Feedback}
+    end
+
+    subgraph "Phase 3: Problem Solution Fit (PSF)"
+        HITL15 --> Node6(Mental Model & Journey)
+        State --> Node7(Sitemap & Wireframe)
+        Node6 & Node7 --> State
+        State --> HITL18{HITL Gate: PSF Feedback}
+    end
+
+    subgraph "Phase 4: Validation & Review"
+        HITL18 --> Node8(Virtual Customer)
+        State --> Node9(JTC Board Debate)
+        State --> Node10(3H Review)
+    end
+
+    subgraph "Phase 5 & 6: Output & Governance"
+        State --> Node11(Spec Generation)
+        State --> Node12(Experiment Planning)
+        Node11 & Node12 --> Output[(AgentPromptSpec.md & PDFs)]
+    end
+
+    State -.->|Async Poll| UI(Pyxel Frontend)
+```
 
 ## 📋 Prerequisites
 
 -   **Python 3.12+**
--   **uv** (Modern Python package manager)
+-   **uv** (The extremely fast Python package and project manager)
 -   **API Keys**:
-    -   `OPENAI_API_KEY` (GPT-4o recommended)
-    -   `TAVILY_API_KEY` (For market research)
-    -   `V0_API_KEY` (For MVP Generation)
+    -   `OPENAI_API_KEY` (GPT-4o required for complex schema generation)
+    -   `TAVILY_API_KEY` (Required for Phase 1 Market Research)
 
-## 🛠 Installation
+## 🛠 Installation & Setup
+
+We strictly use `uv` for dependency management to guarantee reproducible environments.
 
 1.  **Clone the repository**
     ```bash
@@ -46,67 +85,68 @@
     ```
 
 3.  **Configure Environment**
-    Create a `.env` file in the root directory:
+    Create a `.env` file in the root directory and add your keys. Add the `UV_PROJECT_ENVIRONMENT` to prevent permission issues in automated environments.
     ```bash
-    OPENAI_API_KEY=sk-...
-    TAVILY_API_KEY=tvly-...
-    V0_API_KEY=v0-...
+    cp .env.example .env
+    # Edit .env to add:
+    # OPENAI_API_KEY=sk-...
+    # TAVILY_API_KEY=tvly-...
+    # UV_PROJECT_ENVIRONMENT=".venv"
     ```
 
 ## 🚀 Usage
 
-**Ingest Customer Transcripts:**
-
-First, feed the system with real-world data (e.g., interview notes):
-
+**1. Ground the System with Real Data (Optional but Recommended):**
+Feed the RAG pipeline with your raw customer interview notes to give the CPO agent factual context.
 ```bash
-uv run main.py --ingest ./path/to/interview.txt
+uv run main.py --ingest ./path/to/customer_interviews.txt
 ```
 
-**Start the Ideation & Simulation:**
-
+**2. Start the Simulation & Ideation:**
+Launch the main engine with your target business domain.
 ```bash
-uv run main.py "AI for Agriculture"
+uv run main.py "AI solutions for independent plumbers"
+```
+*The Pyxel UI will launch. Follow the on-screen prompts to select an idea, navigate the HITL gates, survive the Board review, and collect your final `AgentPromptSpec.md`.*
+
+**3. Interactive Tutorial & UAT (Marimo):**
+To understand the "Chain of Thought" or verify the system locally without Pyxel, run the interactive notebook:
+```bash
+uv run marimo edit tutorials/UAT_AND_TUTORIAL.py
 ```
 
-The system will:
-1.  Research the topic and generate 10 Lean Canvas drafts.
-2.  Ask you to select one "Plan A" to proceed.
-3.  Launch the **JTC Simulation** where agents debate the plan.
-4.  The **CPO Agent** will intervene after the meeting to provide data-backed mentoring based on your ingested transcripts.
-5.  The **Nemawashi Engine** will analyze the political landscape and advise on who to influence first.
-6.  The **Builder Agent** will construct an MVP Spec and generate a UI URL via v0.dev.
+## 🧪 Development Workflow
 
-## 🏗 Architecture
+The project enforces strict quality standards to prevent AI-generated technical debt.
 
-**Directory Structure:**
+**Run the Validation Suite:**
+This command executes tests with coverage, runs the strict `ruff` linter (enforcing a max-complexity of 10), and performs `mypy` strict type checking. **This must pass before any commit.**
+```bash
+uv run pytest && uv run ruff check . && uv run mypy .
+```
+
+**"Mock Mode" Execution:**
+For CI pipelines or offline development, bypass all LLM API calls and test the LangGraph orchestrator deterministically using local fixtures:
+```bash
+MOCK_MODE=true uv run pytest
+```
+
+## 📂 Project Structure
 
 ```ascii
 .
 ├── src/
-│   ├── agents/             # Agent Logic (Ideator, CPO, Personas, Builder)
-│   ├── core/               # Core Logic
-│   │   ├── nemawashi/      # Consensus Building Package (Logic, Analytics, Nomikai)
-│   │   ├── simulation.py   # Simulation Graph
-│   │   └── config.py       # Configuration & Validation
-│   ├── data/               # RAG Engine & Ingestion
-│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, Politics, GlobalState, MVP)
-│   ├── tools/              # API Wrappers (Tavily, V0Client)
-│   ├── ui/                 # Pyxel Renderer
+│   ├── agents/             # Persona definitions (Ideator, CPO, Hacker, etc.)
+│   ├── core/               # LangGraph orchestration, Config, and LLM wrappers
+│   ├── data/               # LlamaIndex RAG implementation and parsers
+│   ├── domain_models/      # Strict Pydantic schemas (LeanCanvas, VPC, MentalModel)
+│   ├── ui/                 # Pyxel "Retro RPG" rendering engine
 │   └── main.py             # CLI Entry Point
-├── tests/                  # Unit & UAT Tests
-├── dev_documents/          # Specs & Logs
-└── pyproject.toml          # Project Configuration
+├── tests/                  # Unit, Integration, and Mock Mode E2E tests
+├── dev_documents/          # Architectural Specifications and UAT Plans
+├── tutorials/              # Marimo notebooks for interactive validation
+└── pyproject.toml          # Strict dependency and linter configurations
 ```
-
-## 🗺 Roadmap
-
--   **Cycle 1: Foundation & Ideation (Completed)**
--   **Cycle 2: JTC Simulation (Completed)**
--   **Cycle 3: Real World Connection (RAG) (Completed)**
--   **Cycle 4: Consensus Building (Nemawashi) (Completed)**
--   **Cycle 5: MVP Generation (Completed)**
--   **Cycle 6: Governance & Finalization (Completed)**
 
 ## 📄 License
 
