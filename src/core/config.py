@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Self
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
@@ -343,10 +343,23 @@ class GovernanceConfig(BaseSettings):
     )
 
 
+class PromptConfig(BaseModel):
+    """Configuration for configurable prompt templates to avoid hardcoding."""
+    model_config = ConfigDict(extra="ignore")
+
+    v0_system: str = Field(
+        default="You are an expert UI/UX designer. Create a detailed MVP specification for v0.dev generation."
+    )
+    v0_user: str = Field(
+        default="App Name: {app_name}\nCore Feature: {feature}\nContext: {idea_context}\n\nGenerate MVPSpec:"
+    )
+
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
+
+    prompts: PromptConfig = Field(default_factory=PromptConfig)
 
     openai_api_key: SecretStr | None = Field(
         alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"

@@ -39,6 +39,23 @@ class BuilderAgent(BaseAgent):
             msg = "Missing required API configuration"
             raise ValueError(msg)
 
+    def _create_content_stream(
+        self, solution_description: str | Iterator[str], chunk_size: int
+    ) -> Iterator[str]:
+        """Normalize input to an iterator of validated text chunks."""
+        if isinstance(solution_description, str):
+            stream = chunk_text(solution_description, chunk_size)
+        else:
+            stream = solution_description
+
+        for chunk in stream:
+            if not chunk or not chunk.strip():
+                continue
+            if len(chunk.strip()) < 5:
+                logger.warning(f"Chunk too short, skipping: {chunk}")
+                continue
+            yield chunk
+
     def _extract_features(self, solution_description: str | Iterator[str]) -> Iterator[str]:
         """
         Extract discrete features from the solution description using LLM.
@@ -52,29 +69,10 @@ class BuilderAgent(BaseAgent):
         # Use a set to stream deduplication as we process chunks
         unique_features: set[str] = set()
 
-        def content_stream() -> Iterator[str]:
-            # Always convert to iterator
-            if isinstance(solution_description, str):
-                stream = chunk_text(solution_description, chunk_size)
-            else:
-                stream = solution_description
-
-            for chunk in stream:
-                # Validate content
-                if not chunk or not chunk.strip():
-                    continue
-                if len(chunk.strip()) < 5:
-                    logger.warning(f"Chunk too short, skipping: {chunk}")
-                    continue
-                yield chunk
-
-        for chunk in content_stream():
+        for chunk in self._create_content_stream(solution_description, chunk_size):
             prompt = ChatPromptTemplate.from_messages(
                 [
-                    (
-                        "system",
-                        "You are a product manager. Extract distinct features from the solution description.",
-                    ),
+                    ("system", "You are a product manager. Extract distinct features from the solution description."),
                     ("user", f"Solution Description: {chunk}\n\nList the features:"),
                 ]
             )
@@ -98,14 +96,12 @@ class BuilderAgent(BaseAgent):
         """
         prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    "You are an expert UI/UX designer. Create a detailed MVP specification for v0.dev generation.",
-                ),
-                (
-                    "user",
-                    f"App Name: {app_name}\nCore Feature: {feature}\nContext: {idea_context}\n\nGenerate MVPSpec:",
-                ),
+                ("system", self.settings.prompts.v0_system),
+                ("user", self.settings.prompts.v0_user.format(
+                    app_name=app_name,
+                    feature=feature,
+                    idea_context=idea_context
+                )),
             ]
         )
         chain = prompt | self.llm.with_structured_output(MVPSpec)
@@ -172,8 +168,13 @@ class BuilderAgent(BaseAgent):
 
         def sanitize_input(text: str) -> str:
             """Sanitize user input to prevent prompt injection."""
-            # Remove characters that could be used to inject system prompt instructions
-            return text.replace("{", "").replace("}", "").replace("<", "").replace(">", "")
+            import html
+            import re
+
+            # HTML escape to prevent markup injection
+            text = html.escape(text)
+            # Remove brackets that could be used for template injection
+            return re.sub(r"[{}]", "", text)
 
         sanitized_app_name = sanitize_input(spec.app_name)
         sanitized_core_feature = sanitize_input(spec.core_feature)
@@ -232,7 +233,7 @@ class BuilderAgent(BaseAgent):
         try:
             logger.info("Executing MVP generation...")
             return self.generate_mvp(state)
-        except Exception as e:
+        except Exception:
             logger.exception("BuilderAgent run failed during MVP generation.")
             # Return current state unchanged on failure, relying on outer loop/circuit breaker
             return {}
