@@ -2,7 +2,7 @@ import functools
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
@@ -14,15 +14,14 @@ from src.domain_models.validators import StateValidator
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T")
+
+T = TypeVar("T", bound=Callable[..., dict[str, Any]])
 
 
-def safe_node(
-    error_msg: str = "Error in graph node",
-) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
+def safe_node(error_msg: str = "Error in graph node") -> Callable[[T], T]:
     """Decorator to wrap graph nodes with consistent error handling."""
 
-    def decorator(func: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
+    def decorator(func: T) -> T:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             try:
@@ -31,7 +30,7 @@ def safe_node(
                 logger.exception(error_msg)
                 return {}
 
-        return wrapper
+        return cast(T, wrapper)
 
     return decorator
 

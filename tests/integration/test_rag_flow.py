@@ -68,7 +68,10 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
 
     with (
         patch("llama_index.llms.openai.OpenAI", return_value=MockLLM()),
-        patch("llama_index.embeddings.openai.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+        patch(
+            "llama_index.embeddings.openai.OpenAIEmbedding",
+            return_value=MockEmbedding(embed_dim=1536),
+        ),
     ):
         rag = RAG(persist_dir=temp_vector_store)
         transcript = Transcript(
@@ -99,7 +102,10 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 
     with (
         patch("llama_index.llms.openai.OpenAI", return_value=MockLLM()),
-        patch("llama_index.embeddings.openai.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+        patch(
+            "llama_index.embeddings.openai.OpenAIEmbedding",
+            return_value=MockEmbedding(embed_dim=1536),
+        ),
     ):
         # Initialize RAG with temp path
         rag = RAG(persist_dir=temp_vector_store)
@@ -162,7 +168,7 @@ def test_cpo_agent_behavior() -> None:
     )
 
     # Run
-    res = agent.run(state)  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
+    res = agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
 
     # Check RAG usage
     agent.rag.query.assert_called()

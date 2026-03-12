@@ -35,9 +35,9 @@ def test_config_missing_openai_key() -> None:
         os.environ["MOCK_MODE"] = "false"
         get_settings.cache_clear()
 
-        from src.core.exceptions import ConfigurationError
+        from pydantic import ValidationError
 
-        with pytest.raises(ConfigurationError, match="OPENAI_API_KEY is required"):
+        with pytest.raises(ValidationError):
             get_settings()
 
 

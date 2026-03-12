@@ -62,7 +62,7 @@ class TestBuilderAgent:
             )
             mock_model_runnable.invoke.return_value = spec
 
-            result = agent.generate_spec(state_with_context)
+            result = agent.generate_spec(state_with_context)  # type: ignore[arg-type]
 
             assert "agent_prompt_spec" in result
             assert result["agent_prompt_spec"] == spec

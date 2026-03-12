@@ -125,26 +125,23 @@ def test_agent_prompt_spec_schema() -> None:
 
     # Verify extra fields are forbidden
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-        AgentPromptSpec.model_validate({
-            "sitemap": "test",
-            "routing_and_constraints": "test",
-            "core_user_story": {
-                "as_a": "A",
-                "i_want_to": "B",
-                "so_that": "C",
-                "acceptance_criteria": ["D"],
-                "target_route": "E"
-            },
-            "state_machine": {
-                "success": "A",
-                "loading": "B",
-                "error": "C",
-                "empty": "D"
-            },
-            "validation_rules": "test",
-            "mermaid_flowchart": "test",
-            "extra_field": "should_fail"
-        })
+        AgentPromptSpec.model_validate(
+            {
+                "sitemap": "test",
+                "routing_and_constraints": "test",
+                "core_user_story": {
+                    "as_a": "A",
+                    "i_want_to": "B",
+                    "so_that": "C",
+                    "acceptance_criteria": ["D"],
+                    "target_route": "E",
+                },
+                "state_machine": {"success": "A", "loading": "B", "error": "C", "empty": "D"},
+                "validation_rules": "test",
+                "mermaid_flowchart": "test",
+                "extra_field": "should_fail",
+            }
+        )
 
 
 def test_agent_prompt_spec_valid() -> None:

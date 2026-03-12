@@ -78,7 +78,7 @@ class TestCycle06UAT:
                 mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
 
                 # Run agent
-                result = agent.run(initial_state)
+                result = agent.run(initial_state)  # type: ignore[arg-type]
 
                 # Verify RingiSho created
                 if "ringi_sho" in result:
@@ -131,7 +131,7 @@ class TestCycle06UAT:
 
                 mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
 
-                result = agent.run(initial_state)
+                result = agent.run(initial_state)  # type: ignore[arg-type]
 
                 if "ringi_sho" in result:
                     ringi_sho = result["ringi_sho"]

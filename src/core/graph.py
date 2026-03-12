@@ -3,7 +3,6 @@ from collections.abc import Callable
 from typing import Any
 
 from langgraph.graph import END, StateGraph
-from langgraph.graph.state import CompiledStateGraph
 
 from src.core.interfaces import INodeRegistry
 from src.domain_models.state import GlobalState
@@ -63,7 +62,7 @@ def get_default_registry() -> INodeRegistry:
     return registry
 
 
-def create_app(registry: INodeRegistry | None = None) -> CompiledStateGraph[Any, Any, Any]:
+def create_app(registry: INodeRegistry | None = None) -> Any:
     """
     Create and compile the LangGraph application.
 

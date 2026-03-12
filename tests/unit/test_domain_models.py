@@ -173,7 +173,7 @@ def test_persona_generator_agent_success() -> None:
     )
     state = GlobalState(topic="Test Idea", selected_idea=idea)
 
-    result = agent.run(state)  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
+    result = agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
     assert "target_persona" in result
     assert result["target_persona"] == expected_persona
 
@@ -214,7 +214,7 @@ def test_alternative_analysis_agent_success() -> None:
     )
     state = GlobalState(topic="Test Idea", selected_idea=idea, target_persona=persona)
 
-    result = agent.run(state)  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
+    result = agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
     assert "alternative_analysis" in result
     assert result["alternative_analysis"] == expected_analysis
 
@@ -257,7 +257,7 @@ def test_vpc_agent_success() -> None:
     )
     state = GlobalState(topic="Test Idea", selected_idea=idea, target_persona=persona)
 
-    result = agent.run(state)  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
+    result = agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
     assert "value_proposition_canvas" in result
     assert result["value_proposition_canvas"] == expected_vpc
 
@@ -279,7 +279,7 @@ def test_persona_agent_failure() -> None:
     )
     state = GlobalState(topic="Test Idea", selected_idea=idea)
 
-    result = agent.run(state)  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
+    result = agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
     assert result == {}
 
 
@@ -311,7 +311,7 @@ def test_alternative_analysis_agent_failure() -> None:
     )
     state = GlobalState(topic="Test Idea", selected_idea=idea, target_persona=persona)
 
-    result = agent.run(state)  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
+    result = agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
     assert result == {}
 
 
@@ -343,5 +343,5 @@ def test_vpc_agent_failure() -> None:
     )
     state = GlobalState(topic="Test Idea", selected_idea=idea, target_persona=persona)
 
-    result = agent.run(state)  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
+    result = agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
     assert result == {}

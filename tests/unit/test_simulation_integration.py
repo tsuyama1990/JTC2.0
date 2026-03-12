@@ -54,7 +54,7 @@ def test_simulation_turn_sequence(
 
         # Determine role from last call? No, side_effect doesn't know.
         # But we can inspect the call args of get_persona_agent?
-        # Actually, get_persona_agent is called, returns mock_agent, then .run(state)  # type: ignore  # type: ignore[arg-type] is called.
+        # Actually, get_persona_agent is called, returns mock_agent, then .run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore[arg-type] is called.
         # We can just return a dummy update and verify the sequence of calls to factory.
         new_msg = DialogueMessage(role=Role.NEW_EMPLOYEE, content="Msg", timestamp=time.time())
         return {"debate_history": [*state.debate_history, new_msg]}

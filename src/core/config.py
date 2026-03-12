@@ -334,9 +334,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(
-        default=None, alias="OPENAI_API_KEY", description="OpenAI API Key"
-    )
+    openai_api_key: SecretStr = Field(..., alias="OPENAI_API_KEY", description="OpenAI API Key")
     tavily_api_key: SecretStr | None = Field(
         default=None, alias="TAVILY_API_KEY", description="Tavily Search API Key"
     )

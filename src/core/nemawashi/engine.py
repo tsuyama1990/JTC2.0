@@ -1,3 +1,5 @@
+from typing import Any
+
 from src.core.config import NemawashiConfig, get_settings
 from src.core.nemawashi.analytics import InfluenceAnalyzer
 from src.core.nemawashi.consensus import ConsensusEngine
@@ -11,14 +13,25 @@ class NemawashiEngine:
     Aggregates consensus calculation, analytics, and simulation logic.
     """
 
-    def __init__(self, settings: NemawashiConfig | None = None) -> None:
+    def __init__(
+        self,
+        settings: NemawashiConfig | None = None,
+        consensus_engine: Any = None,
+        influence_analyzer: Any = None,
+        nomikai_simulator: Any = None,
+    ) -> None:
         self.settings = settings or get_settings().nemawashi
-        self.consensus = ConsensusEngine(self.settings)
-        self.analytics = InfluenceAnalyzer()
-        self.simulator = NomikaiSimulator(self.settings)
+        self.consensus = consensus_engine or ConsensusEngine(self.settings)
+        self.analytics = influence_analyzer or InfluenceAnalyzer()
+        self.simulator = nomikai_simulator or NomikaiSimulator(self.settings)
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """Run the DeGroot model to calculate final opinion distribution."""
+        n = len(network.stakeholders)
+        if n == 0:
+            msg = "Cannot calculate consensus on an empty network"
+            raise ValueError(msg)
+
         # Validate network connectivity before consensus calculation
         from src.domain_models.politics import SparseMatrixEntry
 
@@ -43,12 +56,14 @@ class NemawashiEngine:
 
         if matrix_input and not self.analytics.is_connected(matrix_input):
             # Fallback behavior: if network is disconnected, consensus is impossible.
-            # Return current support levels or handle appropriately.
+            # Return current support levels rather than failing fully, as subsets might still exist.
             import logging
 
             logging.getLogger(__name__).warning(
                 "Influence network is not fully connected. Consensus may not converge globally."
             )
+            # Cannot converge globally; return initial opinions as best-effort default
+            return [s.initial_support for s in network.stakeholders]
 
         return self.consensus.calculate_consensus(network)
 

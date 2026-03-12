@@ -78,7 +78,7 @@ class TestGovernanceAgent:
             # stream returns an iterator. We simulate it with a list.
             mock_llm.stream.side_effect = [[mock_chunk_fin], [mock_chunk_ringi]]
 
-            result = agent.run(mock_state)
+            result = agent.run(mock_state)  # type: ignore[arg-type]
 
             # Expectation: RingiSho and metrics populated
             assert isinstance(result, dict)

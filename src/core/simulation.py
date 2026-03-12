@@ -12,7 +12,6 @@ from collections.abc import Iterator
 from typing import Any
 
 from langgraph.graph import END, StateGraph
-from langgraph.graph.state import CompiledStateGraph
 
 from src.core.config import get_settings
 from src.domain_models.lean_canvas import LeanCanvas
@@ -22,13 +21,14 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-def create_simulation_graph(agent_factory: Any = None) -> CompiledStateGraph[Any, Any, Any]:
+def create_simulation_graph(agent_factory: Any = None) -> Any:
     """
     Create the simulation sub-graph based on configured turn sequence.
     Dynamically builds nodes and edges from Settings.
     """
     if agent_factory is None:
         from src.core.factory import AgentFactory
+
         agent_factory = AgentFactory()
     settings = get_settings()
 
@@ -55,11 +55,9 @@ def create_simulation_graph(agent_factory: Any = None) -> CompiledStateGraph[Any
             raise ValueError(msg) from err
 
         # Create a runner function avoiding late binding closure issues
-        def _step_runner(
-            state: GlobalState, bound_role: Role, bound_desc: str
-        ) -> dict[str, Any]:
+        def _step_runner(state: GlobalState, bound_role: Role, bound_desc: str) -> dict[str, Any]:
             logger.info(bound_desc)
-            return agent_factory.get_persona_agent(bound_role, state).run(state) # type: ignore[no-any-return]
+            return agent_factory.get_persona_agent(bound_role, state).run(state)  # type: ignore[no-any-return]
 
         # Bind the specific arguments for this iteration
         bound_runner = functools.partial(_step_runner, bound_role=role, bound_desc=desc)

@@ -121,7 +121,7 @@ def test_persona_agent_run(
     agent = NewEmployeeAgent(llm=mock_llm)
 
     with patch.object(agent, "_generate_response", return_value="Defended!"):
-        result = agent.run(mock_state)
+        result = agent.run(mock_state)  # type: ignore[arg-type]
 
         assert "debate_history" in result
         assert len(result["debate_history"]) == 1

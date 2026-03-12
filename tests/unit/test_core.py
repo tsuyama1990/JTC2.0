@@ -44,12 +44,12 @@ def test_get_llm_override(mock_get_settings: MagicMock) -> None:
 
 @patch("src.core.llm.get_settings")
 def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
-    from src.core.llm import LLMFactory
+    from src.core.llm import _default_factory
 
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = None
     # Reset factory singleton for testing
-    LLMFactory._instance = None
+    _default_factory._client = None
 
     # Updated error message constant in Cycle 06
     with pytest.raises(ValueError, match="LLM configuration invalid."):

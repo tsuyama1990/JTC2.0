@@ -2,8 +2,8 @@ import logging
 import os
 import time
 from collections.abc import Iterator
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 import pybreaker
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -55,7 +55,7 @@ class RAG:
         self,
         persist_dir: str | None = None,
         vector_store: IVectorStore | None = None,
-        embedding_service: Any | None = None, # Used to avoid strict import if custom injected
+        embedding_service: Any | None = None,  # Used to avoid strict import if custom injected
     ) -> None:
         self.settings = get_settings()
         # Security: Validate persist_dir path
@@ -114,6 +114,7 @@ class RAG:
 
             if embedding_service is None:
                 from llama_index.embeddings.openai import OpenAIEmbedding
+
                 LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
             else:
                 LlamaSettings.embed_model = embedding_service

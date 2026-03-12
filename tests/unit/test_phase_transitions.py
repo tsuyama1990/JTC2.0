@@ -88,9 +88,9 @@ def test_agent_context_inheritance() -> None:
                     problem="Top 3 problems string longer than 10",
                     customer_segments="Target customers string longer than 10",
                     unique_value_prop="Single clear compelling message",
-                    solution="Top 3 features string longer than 10"
+                    solution="Top 3 features string longer than 10",
                 )
-            ]
+            ],
         )
         mock_graph.stream.return_value = [{"ideator_node": ideation_result_state.model_dump()}]
 
