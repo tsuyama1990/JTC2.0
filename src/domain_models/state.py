@@ -10,13 +10,20 @@ from src.domain_models.validators import StateValidator
 
 __all__ = ["GlobalState", "Phase"]
 
+from .agent_spec import AgentPromptSpec
+from .alternative import AlternativeAnalysis
+from .experiment import ExperimentPlan
+from .journey import CustomerJourney
 from .lean_canvas import LeanCanvas
+from .mental_model import MentalModelDiagram
 from .metrics import Metrics, RingiSho
 from .mvp import MVP, MVPSpec
 from .persona import Persona
 from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage
+from .sitemap import SitemapAndStory
 from .transcript import Transcript
+from .value_proposition import ValuePropositionCanvas
 
 
 class GlobalState(BaseModel):
@@ -57,6 +64,14 @@ class GlobalState(BaseModel):
         default_factory=lambda: get_settings().rag_persist_dir,
         description="Path to the local vector store",
     )
+
+    vpc: ValuePropositionCanvas | None = None
+    alternative_analysis: AlternativeAnalysis | None = None
+    mental_model: MentalModelDiagram | None = None
+    customer_journey: CustomerJourney | None = None
+    sitemap_and_story: SitemapAndStory | None = None
+    experiment_plan: ExperimentPlan | None = None
+    agent_prompt_spec: AgentPromptSpec | None = None
 
     agent_states: dict[Role, AgentState] = Field(
         default_factory=dict, description="Persistent state of agents (e.g. DeGroot weights)"

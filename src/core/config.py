@@ -305,9 +305,7 @@ class GovernanceConfig(BaseSettings):
         description="Minimum ROI for approval",
     )
     default_cac: float = Field(alias="DEFAULT_CAC", default=500.0, description="Fallback CAC")
-    default_arpu: float = Field(
-        alias="DEFAULT_ARPU", default=50.0, description="Fallback ARPU"
-    )
+    default_arpu: float = Field(alias="DEFAULT_ARPU", default=50.0, description="Fallback ARPU")
     default_churn: float = Field(
         alias="DEFAULT_CHURN", default=0.05, description="Fallback Churn Rate"
     )
@@ -447,6 +445,7 @@ class Settings(BaseSettings):
             msg = "rag_scan_depth_limit must be positive."
             raise ValueError(msg)
         return v
+
     rag_batch_size: int = Field(
         alias="RAG_BATCH_SIZE",
         default=100,
@@ -504,7 +503,6 @@ class Settings(BaseSettings):
     nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
-
 
 
 @lru_cache

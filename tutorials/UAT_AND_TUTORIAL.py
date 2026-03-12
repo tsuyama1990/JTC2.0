@@ -31,6 +31,7 @@ def __1() -> tuple[object]:
     class TutorialContext:
         def __init__(self) -> None:
             import os
+
             self.mo = mo
             self.os = os
 
@@ -87,7 +88,9 @@ def __1() -> tuple[object]:
 
             if self.is_mocked:
                 # If mocked, we simulate the renderer delay and return early.
-                self.mo.md(f"**Warning**: Running mock simulation. Simulated success for '{topic}'.")
+                self.mo.md(
+                    f"**Warning**: Running mock simulation. Simulated success for '{topic}'."
+                )
                 time.sleep(1)
                 return
 

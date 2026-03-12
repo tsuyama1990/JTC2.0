@@ -87,6 +87,14 @@ class CPOAgent(PersonaAgent):
 
                 research_data += "\n".join(stakeholders_info)
 
+            # 4. Inject Value Proposition Canvas and Alternative Analysis
+            if state.vpc:
+                research_data += f"\n\nVALUE PROPOSITION CANVAS:\n{state.vpc.model_dump_json()}"
+            if state.alternative_analysis:
+                research_data += (
+                    f"\n\nALTERNATIVE ANALYSIS:\n{state.alternative_analysis.model_dump_json()}"
+                )
+
             content = self._generate_response(context, research_data)
 
             # Create message
