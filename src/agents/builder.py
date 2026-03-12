@@ -36,7 +36,7 @@ class BuilderAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
         if not self.settings.v0_api_key:
-            msg = "V0 API Key is missing"
+            msg = "Missing required API configuration"
             raise ValueError(msg)
 
     def _extract_features(self, solution_description: str | Iterator[str]) -> Iterator[str]:
@@ -53,19 +53,22 @@ class BuilderAgent(BaseAgent):
         unique_features: set[str] = set()
 
         def content_stream() -> Iterator[str]:
+            # Always convert to iterator
             if isinstance(solution_description, str):
-                if not solution_description or len(solution_description) < 10:
-                    logger.warning("Solution description too short for feature extraction.")
-                    return
-                # Sanitize/Truncate check on full string if given, but ideally we process stream
-                yield from chunk_text(solution_description, chunk_size)
+                stream = chunk_text(solution_description, chunk_size)
             else:
-                yield from solution_description
+                stream = solution_description
+
+            for chunk in stream:
+                # Validate content
+                if not chunk or not chunk.strip():
+                    continue
+                if len(chunk.strip()) < 5:
+                    logger.warning(f"Chunk too short, skipping: {chunk}")
+                    continue
+                yield chunk
 
         for chunk in content_stream():
-            if not chunk.strip():
-                continue
-
             prompt = ChatPromptTemplate.from_messages(
                 [
                     (
@@ -167,11 +170,26 @@ class BuilderAgent(BaseAgent):
             idea_context=f"{state.selected_idea.problem} -> {state.selected_idea.unique_value_prop}",
         )
 
-        # Construct a prompt for v0 from the spec
-        v0_prompt = (
-            f"Create a {spec.ui_style} React component using Tailwind CSS for '{spec.app_name}'. "
-            f"Core Feature: {spec.core_feature}. "
-            f"Include components: {', '.join(spec.components)}."
+        def sanitize_input(text: str) -> str:
+            """Sanitize user input to prevent prompt injection."""
+            # Remove characters that could be used to inject system prompt instructions
+            return text.replace("{", "").replace("}", "").replace("<", "").replace(">", "")
+
+        sanitized_app_name = sanitize_input(spec.app_name)
+        sanitized_core_feature = sanitize_input(spec.core_feature)
+        sanitized_components = [sanitize_input(c) for c in spec.components]
+
+        # Use ChatPromptTemplate to properly format the prompt with sanitized inputs
+        prompt_template = ChatPromptTemplate.from_template(
+            "Create a {ui_style} React component using Tailwind CSS for '{app_name}'. "
+            "Core Feature: {core_feature}. "
+            "Include components: {components}."
+        )
+        v0_prompt = prompt_template.format(
+            ui_style=spec.ui_style,
+            app_name=sanitized_app_name,
+            core_feature=sanitized_core_feature,
+            components=", ".join(sanitized_components),
         )
         spec.v0_prompt = v0_prompt
 
@@ -200,7 +218,21 @@ class BuilderAgent(BaseAgent):
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
-        Agent entry point. Delegates to generate_mvp() as the primary responsibility
-        for Cycle 5 (MVP Construction).
+        Agent entry point. Orchestrates the MVP generation process.
+        Validates state prerequisites and handles overall execution errors.
         """
-        return self.generate_mvp(state)
+        if not state.selected_idea:
+            logger.error("BuilderAgent requires a selected_idea in the state.")
+            return {}
+
+        if not state.selected_feature and not state.candidate_features:
+            logger.info("No features selected or proposed yet. Proposing features...")
+            return self.propose_features(state)
+
+        try:
+            logger.info("Executing MVP generation...")
+            return self.generate_mvp(state)
+        except Exception as e:
+            logger.exception("BuilderAgent run failed during MVP generation.")
+            # Return current state unchanged on failure, relying on outer loop/circuit breaker
+            return {}

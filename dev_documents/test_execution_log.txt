@@ -4,32 +4,32 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 130 items
+collected 131 items
 
 tests/integration/test_rag_flow.py ...                                   [  2%]
-tests/uat/test_cycle05_uat.py ...                                        [  4%]
+tests/uat/test_cycle05_uat.py ....                                       [  5%]
 tests/uat/test_cycle06_uat.py ..                                         [  6%]
-tests/uat/test_memory_safety.py ...                                      [  8%]
+tests/uat/test_memory_safety.py ...                                      [  9%]
 tests/uat/test_nemawashi_uat.py ..                                       [ 10%]
 tests/uat/test_uat_cycle01.py ...                                        [ 12%]
 tests/uat/test_uat_cycle02.py .                                          [ 13%]
-tests/uat/test_uat_cycle03.py ..                                         [ 14%]
+tests/uat/test_uat_cycle03.py ..                                         [ 15%]
 tests/unit/domain_models/test_models.py ...........                      [ 23%]
 tests/unit/domain_models/test_mvp.py ....                                [ 26%]
 tests/unit/domain_models/test_politics.py .....                          [ 30%]
-tests/unit/domain_models/test_simulation_models.py .....                 [ 33%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 34%]
 tests/unit/domain_models/test_transcript.py ...                          [ 36%]
-tests/unit/test_builder_agent.py .                                       [ 36%]
+tests/unit/test_builder_agent.py .                                       [ 37%]
 tests/unit/test_cli_input.py ...                                         [ 39%]
 tests/unit/test_cli_scalability.py .                                     [ 40%]
 tests/unit/test_config.py .......                                        [ 45%]
 tests/unit/test_core.py ....                                             [ 48%]
 tests/unit/test_core_graph.py .....                                      [ 52%]
-tests/unit/test_cpo_agent.py ..                                          [ 53%]
+tests/unit/test_cpo_agent.py ..                                          [ 54%]
 tests/unit/test_domain_models.py .......                                 [ 59%]
 tests/unit/test_file_service.py ...                                      [ 61%]
 tests/unit/test_governance_agent.py .                                    [ 62%]
-tests/unit/test_governance_memory.py ..                                  [ 63%]
+tests/unit/test_governance_memory.py ..                                  [ 64%]
 tests/unit/test_ideator_agent.py ...                                     [ 66%]
 tests/unit/test_metrics_logic.py .........                               [ 73%]
 tests/unit/test_nemawashi.py ....                                        [ 76%]
@@ -50,7 +50,7 @@ Name                                Stmts   Miss  Cover   Missing
 src/__init__.py                         0      0   100%
 src/agents/__init__.py                  6      0   100%
 src/agents/base.py                      9      0   100%
-src/agents/builder.py                 103     37    64%   39-40, 58-59, 63, 67, 87-90, 96-117, 124-125, 138-143, 150-151, 156-160, 181-183, 206
+src/agents/builder.py                 122     46    62%   60, 65, 67-68, 90-93, 99-120, 127-128, 141-146, 153-154, 159-163, 199-201, 224-238
 src/agents/cpo.py                      44     11    75%   56-58, 75-88, 95-97
 src/agents/governance.py              105      7    93%   98-102, 199, 204
 src/agents/ideator.py                  47     12    74%   31-34, 97-107
@@ -96,7 +96,7 @@ src/tools/search.py                    34      4    88%   39, 75, 90-91
 src/tools/v0_client.py                 61     16    74%   58-60, 103-105, 108-115, 128-129
 src/ui/renderer.py                     96     10    90%   87, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------
-TOTAL                                2123    322    85%
-============================= 130 passed in 18.73s =============================
+TOTAL                                2142    331    85%
+============================= 131 passed in 17.66s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")
