@@ -28,6 +28,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.15.2",
     "memory-profiler>=0.61.0",
+    "marimo>=0.20.4",
 ]
 
 [tool.ruff]
@@ -97,6 +98,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]  # Allow assert in tests
+"tutorials/**/*.py" = ["N803", "N807"]  # Marimo generates __() functions and passes class names as arguments
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10  # Exceeding this prompts function splitting (prevent AI long functions)
@@ -112,3 +114,4 @@ testpaths = ["tests"]
 strict = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
+exclude = ["tutorials"]

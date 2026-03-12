@@ -97,6 +97,6 @@ src/tools/v0_client.py                 61     16    74%   58-60, 103-105, 108-11
 src/ui/renderer.py                     96     10    90%   87, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------
 TOTAL                                2149    336    84%
-============================= 131 passed in 19.15s =============================
+============================= 131 passed in 18.90s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

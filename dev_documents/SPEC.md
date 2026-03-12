@@ -1,47 +1,50 @@
-# Cycle 1 Specification: Foundation & Ideation
+# Cycle 2 Specification: JTC Simulation (The Meeting)
 
 ## 1. Summary
 
-The primary objective of **Cycle 1** is to establish the project's foundational architecture and implement the **Ideation Engine**. This cycle focuses on setting up the **LangGraph** orchestrator, defining the core `GlobalState`, and creating the **Ideator Agent** capable of generating 10 valid Lean Canvas drafts based on a user's initial prompt (e.g., "A business for elderly care").
+The primary objective of **Cycle 2** is to implement the **Gekizume Simulation and Proxy Model** as part of the JTC 2.0. This cycle focuses on setting up the Persona Agents (Finance Manager, Sales Manager, and New Employee), implementing the debate sub-graph orchestrating these agents, and providing a Pyxel-based Retro UI to render the "Meeting Room" scene visually.
 
-We will also implement **Gate 1 (Idea Verification)**, where the user must select a single "Plan A" from the generated options to proceed. This establishes the pattern for subsequent Human-in-the-Loop (HITL) interactions.
+The idea is that after selecting a Lean Canvas ("Plan A"), the simulation takes over, showcasing the realistic "Gekizume" (harsh feedback) environment without direct user participation (De-identification), creating a psychological buffer.
 
 ## 2. System Architecture
 
 ### 2.1. File Structure
 
-This cycle will create the following file structure. **Bold** files are new or modified in this cycle.
+This cycle updates or creates the following file structure. **Bold** files are new or heavily modified in this cycle.
 
 ```ascii
 .
 ├── dev_documents/
-├── **src/**
-│   ├── **__init__.py**
-│   ├── **agents/**
-│   │   ├── **__init__.py**
-│   │   ├── **base.py**         # Base Agent Class
-│   │   └── **ideator.py**      # Ideator Agent (Generates Lean Canvases)
-│   ├── **core/**
-│   │   ├── **__init__.py**
-│   │   ├── **config.py**       # Env Vars (OPENAI_API_KEY, TAVILY_API_KEY)
-│   │   ├── **graph.py**        # Main LangGraph Definition
-│   │   └── **llm.py**          # LLM Client Factory (OpenAI)
-│   ├── **domain_models/**      # Domain Models
-│   │   ├── **__init__.py**
-│   │   ├── **lean_canvas.py**  # LeanCanvas Pydantic Model
-│   │   └── **state.py**        # GlobalState & Phase Pydantic Models
-│   ├── **tools/**
-│   │   ├── **__init__.py**
-│   │   └── **search.py**       # Tavily Search Tool Wrapper
-│   └── **main.py**             # CLI Entry Point for Testing
-├── **tests/**
-│   ├── **__init__.py**
-│   ├── **conftest.py**
-│   ├── **unit/**
-│   │   ├── **test_domain_models.py**
-│   │   └── **test_ideator_agent.py**
-│   └── **uat/**
-│       └── **test_uat_cycle01.py**
+├── src/
+│   ├── agents/
+│   │   ├── base.py
+│   │   ├── ideator.py
+│   │   └── **personas.py**     # Finance, Sales, NewEmployee Agents
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── graph.py
+│   │   ├── llm.py
+│   │   ├── **nodes.py**        # Graph node implementations, including simulation run
+│   │   └── **simulation.py**   # Debate sub-graph logic
+│   ├── domain_models/
+│   │   ├── lean_canvas.py
+│   │   ├── state.py
+│   │   └── **simulation.py**   # AgentState, DeGrootProfile, DialogueMessage
+│   ├── tools/
+│   │   └── search.py
+│   ├── ui/
+│   │   ├── **renderer.py**     # Pyxel simulation render logic
+│   │   └── **nemawashi_view.py** # UI view component for influence network
+│   └── main.py                 # Uses SimulationRenderer to start Pyxel app loop
+├── tests/
+│   ├── conftest.py
+│   ├── unit/
+│   │   ├── test_domain_models.py
+│   │   ├── test_ideator_agent.py
+│   │   └── **test_simulation_logic.py**
+│   └── uat/
+│       ├── test_uat_cycle01.py
+│       └── **test_uat_cycle02.py**
 ├── .env.example
 ├── pyproject.toml
 └── README.md
@@ -49,83 +52,74 @@ This cycle will create the following file structure. **Bold** files are new or m
 
 ### 2.2. Component Interaction
 
-1.  **User** runs `main.py` with a business topic.
-2.  **Graph** initializes `GlobalState`.
-3.  **Ideator Agent** receives the state, uses **Tavily** to research the topic.
-4.  **Ideator Agent** generates 10 `LeanCanvas` objects.
-5.  **Graph** pauses at `Gate 1`.
-6.  **User** selects an ID (0-9).
-7.  **Graph** updates `GlobalState.selected_canvas` and terminates (for this cycle).
+1.  **User** selects a Lean Canvas in `main.py`.
+2.  **App** runs `run_simulation_mode()` passing the selected idea to `create_simulation_graph()`.
+3.  **Simulation Thread** runs LangGraph nodes asynchronously, updating `GlobalState.debate_history`.
+4.  **Persona Agents** (Finance, Sales, New Employee) take turns arguing about the problem, using the LLM and Research tools.
+5.  **Pyxel UI** runs on the main thread, polling the `state_getter` periodically to draw the dialogs, colors, and simulation state.
+6.  **Simulation** finishes when the defined turns run out or debate logic stops, and UI reflects the final outcomes.
 
 ## 3. Design Architecture
 
 ### 3.1. Domain Models (`src/domain_models/`)
 
-We will use Pydantic to ensure strict typing and validation.
+We strictly use Pydantic models.
 
-**`src/domain_models/lean_canvas.py`**:
+**`src/domain_models/simulation.py`**:
 ```python
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from src.domain_models.enums import Role
 
-class LeanCanvas(BaseModel):
-    id: int
-    title: str = Field(..., description="A catchy name for the idea")
-    problem: str = Field(..., description="Top 3 problems")
-    customer_segments: str = Field(..., description="Target customers")
-    unique_value_prop: str = Field(..., description="Single clear compelling message")
-    solution: str = Field(..., description="Top 3 features")
-    status: str = "draft"
+class DeGrootProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    self_confidence: float = Field(0.5, ge=0.0, le=1.0)
+    influence_weights: dict[str, float] = Field(default_factory=dict)
+
+class AgentState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: Role
+    degroot_profile: DeGrootProfile = Field(default_factory=DeGrootProfile)
+
+class DialogueMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: Role
+    content: str = Field(min_length=1)
+    timestamp: float
 ```
 
-**`src/domain_models/state.py`**:
+**`src/domain_models/state.py`** (Partial additions):
 ```python
-from pydantic import BaseModel
-from typing import List, Optional
-from enum import Enum
-from .lean_canvas import LeanCanvas
-
-class Phase(str, Enum):
-    IDEATION = "ideation"
-    VERIFICATION = "verification"
-    SOLUTION = "solution"
-    PMF = "pmf"
-
-class GlobalState(BaseModel):
-    """The central state of the LangGraph workflow."""
-    phase: Phase = Phase.IDEATION
-    topic: str = ""
-    generated_ideas: List[LeanCanvas] = []
-    selected_idea: Optional[LeanCanvas] = None
-    messages: List[str] = []
+    debate_history: list[DialogueMessage] = Field(default_factory=list)
+    simulation_active: bool = False
+    agent_states: dict[Role, AgentState] = Field(default_factory=dict)
 ```
 
-### 3.2. Agent Design (`src/agents/ideator.py`)
+### 3.2. Agent Design (`src/agents/personas.py`)
 
--   **Role**: Startup Ideator / Researcher.
--   **Goal**: Generate high-quality, distinct business ideas.
--   **Constraint**: Must produce exactly 10 ideas.
--   **Tools**: `TavilySearch`.
+-   **Role**: Finance Manager
+    -   **Goal**: Critiques financial ROI, costs, and market risks.
+-   **Role**: Sales Manager
+    -   **Goal**: Evaluates sales feasibility, cannibalization, and immediate revenue.
+-   **Role**: New Employee
+    -   **Goal**: Passionately defends the idea but acknowledges weaknesses, representing the user.
 
 ## 4. Implementation Approach
 
-1.  **Project Setup**: Initialize `uv`, install `langgraph`, `langchain-openai`, `pydantic`, `tavily-python`.
-2.  **Core Logic**: Implement `GlobalState` and `LeanCanvas` models in `src/domain_models/`.
-3.  **LLM Setup**: Create `src/core/llm.py` to configure the ChatOpenAI client.
-4.  **Agent Creation**: Implement `IdeatorAgent` in `src/agents/ideator.py`. It should take a topic, search Tavily for trends, and output a JSON list of 10 ideas.
-5.  **Graph Construction**: Define the StateGraph in `src/core/graph.py`. Add the `ideator` node and a conditional edge to `selection`.
-6.  **CLI Interface**: Create a simple `main.py` to run the graph and print the 10 ideas, prompting for user input.
+1.  **Domain Setup**: Implement `DialogueMessage`, `AgentState`, and `DeGrootProfile` schemas. Update `GlobalState`.
+2.  **Agent Creation**: Implement `PersonaAgent` and its specific subclasses (`FinanceAgent`, `SalesAgent`, `NewEmployeeAgent`) in `src/agents/personas.py`.
+3.  **Graph Setup**: Implement `create_simulation_graph()` in `src/core/simulation.py` to route dialogue iteratively according to settings.
+4.  **Pyxel UI**: Build `SimulationRenderer` in `src/ui/renderer.py` using Pyxel for retro styling, handling states correctly even in headless contexts.
+5.  **Integration**: Connect the `SimulationRenderer` inside `main.py` allowing a graphical review of the generated debate.
 
 ## 5. Test Strategy
 
 ### 5.1. Unit Testing
--   **File**: `tests/unit/test_ideator_agent.py`
+-   **File**: `tests/unit/test_simulation_logic.py` and `tests/unit/test_domain_models.py`
 -   **Scope**:
-    -   Verify `LeanCanvas` validation raises errors on missing fields.
-    -   Mock the LLM response to ensure `IdeatorAgent` correctly parses JSON into `List[LeanCanvas]`.
-    -   Mock Tavily search to avoid API costs during testing.
+    -   Verify `AgentState` and `DialogueMessage` schema validations.
+    -   Verify the turns generated by LLM mock update the `debate_history`.
 
-### 5.2. Integration Testing
+### 5.2. Integration / UAT Testing
+-   **File**: `tests/uat/test_uat_cycle02.py`
 -   **Scope**:
-    -   Run the full graph with a mock LLM.
-    -   Verify the state transitions from `START` -> `ideator` -> `selection`.
-    -   Verify that after selection, the `selected_idea` is correctly populated in the state.
+    -   Run the sequence of a debate (New Employee -> Finance -> New Employee) and verify that state updates correspond correctly to the messages.
