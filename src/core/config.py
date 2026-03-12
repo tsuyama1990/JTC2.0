@@ -244,6 +244,13 @@ class SimulationConfig(BaseModel):
     )
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
+    circuit_breakers: list[str] = Field(
+        default_factory=lambda: json.loads(
+            os.getenv("SIMULATION_CIRCUIT_BREAKERS", '["平行線ですね", "同意します"]')
+        ),
+        description="List of strings that trigger early termination of a debate.",
+    )
+
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
