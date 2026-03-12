@@ -3,8 +3,7 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
-from src.core.interfaces import ILLMClient
-from src.domain_models.state import GlobalState
+from src.core.interfaces import ILLMClient, IStateContext
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ class VirtualCustomerAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         if (
             not state.target_persona
             or not state.mental_model_diagram

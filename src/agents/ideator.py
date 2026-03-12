@@ -12,11 +12,10 @@ from tenacity import (
 
 from src.agents.base import BaseAgent, SearchTool
 from src.core.config import get_settings
-from src.core.interfaces import ILLMClient
+from src.core.interfaces import ILLMClient, IStateContext
 from src.core.llm import get_llm
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
 
 logger = logging.getLogger(__name__)
@@ -124,7 +123,7 @@ class IdeatorAgent(BaseAgent):
         self.search_tool = search_tool or TavilySearch()
         self.generator = IdeaGenerator(llm=self.llm)
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         """Alias for execute to align with BaseAgent abstract method."""
         return {"generated_ideas": self.execute(state).generated_ideas}
 
@@ -145,16 +144,16 @@ class IdeatorAgent(BaseAgent):
         query = template.replace("{topic}", validated_topic)
         return self.search_tool.safe_search(query)
 
-    def execute(self, state: GlobalState) -> GlobalState:
+    def execute(self, state: Any) -> Any:
         """
         Execute the Ideator logic.
         """
-        logger.info(f"IdeatorAgent starting for topic: {state.topic}")
+        logger.info(f"IdeatorAgent starting for topic: {getattr(state, 'topic', '')}")
 
-        search_results = self._research(state.topic)
+        search_results = self._research(getattr(state, "topic", ""))
 
         try:
-            ideas = self.generator.generate(state.topic, search_results)
+            ideas = self.generator.generate(getattr(state, "topic", ""), search_results)
             state.generated_ideas = LazyIdeaIterator(iter(ideas))
         except Exception:
             logger.exception("Failed to generate ideas")

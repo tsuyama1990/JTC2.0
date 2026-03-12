@@ -67,7 +67,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     # We set `return_value` so `self.llm(...)` returns `mock_chain_result`.
 
     cpo = CPOAgent(mock_llm_instance)
-    result = cpo.run(state)
+    result = cpo.run(state)  # type: ignore  # type: ignore[arg-type]
 
     # Verify RAG was consulted
     mock_rag_instance.query.assert_called()
@@ -122,7 +122,7 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
 
     # Run CPO Agent
     cpo = CPOAgent(mock_llm_instance)
-    result = cpo.run(state)
+    result = cpo.run(state)  # type: ignore  # type: ignore[arg-type]
 
     # Verify
     mock_rag_instance.query.assert_called()

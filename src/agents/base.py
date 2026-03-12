@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Protocol
 
-from src.domain_models.state import GlobalState
+from src.core.interfaces import IStateContext
 
 
 class SearchTool(Protocol):
@@ -27,14 +27,14 @@ class BaseAgent(ABC):
     """
 
     @abstractmethod
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         """
         Run the agent logic.
 
         This method is the entry point for the agent's workflow node.
 
         Args:
-            state: The current global state of the application.
+            state: The current global state of the application adhering to IStateContext.
 
         Returns:
             A dictionary containing key-value pairs to update the global state.

@@ -162,7 +162,7 @@ def test_cpo_agent_behavior() -> None:
     )
 
     # Run
-    res = agent.run(state)
+    res = agent.run(state)  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
 
     # Check RAG usage
     agent.rag.query.assert_called()

@@ -23,58 +23,47 @@ from src.domain_models.state import GlobalState
 class AgentFactory:
     """Factory for creating agents with dependencies injected."""
 
-    @staticmethod
-    def get_ideator_agent() -> IdeatorAgent:
+    def get_ideator_agent(self) -> IdeatorAgent:
         llm = get_llm()
         return IdeatorAgent(llm)
 
-    @staticmethod
-    def get_persona_generator_agent() -> PersonaGeneratorAgent:
+    def get_persona_generator_agent(self) -> PersonaGeneratorAgent:
         llm = get_llm()
         return PersonaGeneratorAgent(llm)
 
-    @staticmethod
-    def get_alternative_analysis_agent() -> AlternativeAnalysisAgent:
+    def get_alternative_analysis_agent(self) -> AlternativeAnalysisAgent:
         llm = get_llm()
         return AlternativeAnalysisAgent(llm)
 
-    @staticmethod
-    def get_vpc_agent() -> ValuePropositionAgent:
+    def get_vpc_agent(self) -> ValuePropositionAgent:
         llm = get_llm()
         return ValuePropositionAgent(llm)
 
-    @staticmethod
-    def get_mental_model_journey_agent() -> MentalModelJourneyAgent:
+    def get_mental_model_journey_agent(self) -> MentalModelJourneyAgent:
         llm = get_llm()
         return MentalModelJourneyAgent(llm)
 
-    @staticmethod
-    def get_sitemap_wireframe_agent() -> SitemapWireframeAgent:
+    def get_sitemap_wireframe_agent(self) -> SitemapWireframeAgent:
         llm = get_llm()
         return SitemapWireframeAgent(llm)
 
-    @staticmethod
-    def get_virtual_customer_agent() -> VirtualCustomerAgent:
+    def get_virtual_customer_agent(self) -> VirtualCustomerAgent:
         llm = get_llm()
         return VirtualCustomerAgent(llm)
 
-    @staticmethod
-    def get_3h_review_agent() -> The3HReviewAgent:
+    def get_3h_review_agent(self) -> The3HReviewAgent:
         llm = get_llm()
         return The3HReviewAgent(llm)
 
-    @staticmethod
-    def get_builder_agent() -> BuilderAgent:
+    def get_builder_agent(self) -> BuilderAgent:
         llm = get_llm()
         return BuilderAgent(llm)
 
-    @staticmethod
-    def get_governance_agent() -> GovernanceAgent:
+    def get_governance_agent(self) -> GovernanceAgent:
         """Create a new Governance Agent."""
         return GovernanceAgent()
 
-    @staticmethod
-    def get_persona_agent(role: Role, state: GlobalState) -> BaseAgent:
+    def get_persona_agent(self, role: Role, state: GlobalState) -> BaseAgent:
         """
         Get a persona agent instance.
 

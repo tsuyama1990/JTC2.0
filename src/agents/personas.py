@@ -21,11 +21,10 @@ from src.core.constants import (
     PROMPT_SALES_AGENT,
     PROMPT_VALUE_PROPOSITION,
 )
-from src.core.interfaces import ILLMClient
+from src.core.interfaces import ILLMClient, IStateContext
 from src.domain_models.alternative_analysis import AlternativeAnalysis
 from src.domain_models.persona import Persona
 from src.domain_models.simulation import DialogueMessage, Role
-from src.domain_models.state import GlobalState
 from src.domain_models.value_proposition_canvas import ValuePropositionCanvas
 from src.tools.search import TavilySearch
 
@@ -57,7 +56,7 @@ class PersonaGeneratorAgent(BaseAgent):
     def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         """Execute the Persona Generation logic."""
         if not state.selected_idea:
             logger.warning("No selected idea found for Persona Generation.")
@@ -108,7 +107,7 @@ class AlternativeAnalysisAgent(BaseAgent):
     def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         if not state.selected_idea or not state.target_persona:
             logger.warning("Missing selected idea or persona for Alternative Analysis.")
             return {}
@@ -157,7 +156,7 @@ class ValuePropositionAgent(BaseAgent):
     def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         if not state.selected_idea or not state.target_persona:
             logger.warning("Missing required context for Value Proposition Design.")
             return {}
@@ -228,7 +227,7 @@ class PersonaAgent(BaseAgent):
         )
         self._research_cache: dict[str, str] = {}
 
-    def _build_context(self, state: GlobalState) -> str:
+    def _build_context(self, state: IStateContext) -> str:
         """Construct the conversation history context."""
         context_parts = ["\nDEBATE HISTORY:"]
 
@@ -279,7 +278,7 @@ class PersonaAgent(BaseAgent):
         logger.warning(f"Agent {self.role} attempted research without implementation.")
         return ""
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         """Run the agent logic."""
         context = self._build_context(state)
         research_data = ""

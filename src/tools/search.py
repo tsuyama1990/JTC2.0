@@ -1,13 +1,11 @@
 import logging
 from typing import Any, Literal
 
-from tavily import InvalidAPIKeyError, MissingAPIKeyError
 from tenacity import (
     after_log,
     before_sleep_log,
     retry,
     retry_if_exception_type,
-    retry_unless_exception_type,
     stop_after_attempt,
     wait_exponential,
 )
@@ -49,8 +47,7 @@ class TavilySearch:
             self.client = search_client
 
     @retry(
-        retry=retry_if_exception_type(Exception)
-        & retry_unless_exception_type((MissingAPIKeyError, InvalidAPIKeyError, ValueError)),
+        retry=retry_if_exception_type(Exception),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         stop=stop_after_attempt(3),
         before_sleep=before_sleep_log(logger, logging.WARNING),
@@ -92,13 +89,16 @@ class TavilySearch:
 
     def safe_search(self, query: str) -> str:
         """Execute a search safely, catching exceptions."""
-        from tavily import InvalidAPIKeyError, MissingAPIKeyError
-
         try:
             return self.search(query)
-        except (MissingAPIKeyError, InvalidAPIKeyError, ValueError):
-            logger.exception("Tavily search failed: Invalid Configuration/Auth")
+        except ValueError:
+            logger.exception("Search failed: Invalid Configuration")
             return ERR_SEARCH_FAILED
-        except Exception:
-            logger.exception("Tavily search failed after retries")
+        except Exception as e:
+            # Check for API key errors by name dynamically without importing them explicitly
+            err_name = type(e).__name__
+            if err_name in ["MissingAPIKeyError", "InvalidAPIKeyError"]:
+                logger.exception("Search failed: Invalid Configuration/Auth")
+                return ERR_SEARCH_FAILED
+            logger.exception("Search failed after retries")
             return ERR_SEARCH_FAILED

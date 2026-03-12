@@ -39,8 +39,8 @@ def safe_node(
 @safe_node("Error in Ideator Agent")
 def safe_ideator_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for Ideator execution with error handling."""
-    ideator = AgentFactory.get_ideator_agent()
-    return ideator.run(state)
+    ideator = AgentFactory().get_ideator_agent()
+    return ideator.run(state)  # type: ignore[arg-type]
 
 
 @safe_node("Error in Verification Node")
@@ -61,24 +61,24 @@ def verification_node(state: GlobalState) -> dict[str, Any]:
 def persona_node(state: GlobalState) -> dict[str, Any]:
     """Generate target persona and empathy map."""
     logger.info("Generating Persona and Empathy Map...")
-    agent = AgentFactory.get_persona_generator_agent()
-    return agent.run(state)
+    agent = AgentFactory().get_persona_generator_agent()
+    return agent.run(state)  # type: ignore[arg-type]  # type: ignore[arg-type]  # type: ignore[arg-type]  # type: ignore[arg-type]
 
 
 @safe_node("Error in Alternative Analysis Node")
 def alternative_analysis_node(state: GlobalState) -> dict[str, Any]:
     """Generate Alternative Analysis."""
     logger.info("Generating Alternative Analysis...")
-    agent = AgentFactory.get_alternative_analysis_agent()
-    return agent.run(state)
+    agent = AgentFactory().get_alternative_analysis_agent()
+    return agent.run(state)  # type: ignore[arg-type]  # type: ignore[arg-type]  # type: ignore[arg-type]  # type: ignore[arg-type]
 
 
 @safe_node("Error in Value Proposition Node")
 def vpc_node(state: GlobalState) -> dict[str, Any]:
     """Generate Value Proposition Canvas."""
     logger.info("Generating Value Proposition Canvas...")
-    agent = AgentFactory.get_vpc_agent()
-    result = agent.run(state)
+    agent = AgentFactory().get_vpc_agent()
+    result = agent.run(state)  # type: ignore[arg-type]  # type: ignore[arg-type]
 
     # Generate PDF at HITL Gate 1.5 if generation is successful
     if "value_proposition_canvas" in result and state.target_persona and state.alternative_analysis:
@@ -165,7 +165,7 @@ def safe_simulation_run(state: GlobalState) -> dict[str, Any]:
     """
     logger.info("Starting Simulation Round (Turn-based Battle)")
 
-    simulation_app = create_simulation_graph()
+    simulation_app = create_simulation_graph(AgentFactory())
 
     final_state = simulation_app.invoke(state)
     if isinstance(final_state, dict):
@@ -211,16 +211,16 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
 @safe_node("Error in CPO Agent")
 def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
     """Wrapper for CPO execution with error handling."""
-    cpo = AgentFactory.get_persona_agent(Role.CPO, state)
-    return cpo.run(state)
+    cpo = AgentFactory().get_persona_agent(Role.CPO, state)
+    return cpo.run(state)  # type: ignore[arg-type]
 
 
 @safe_node("Error in Mental Model & Journey Mapping")
 def mental_model_journey_node(state: GlobalState) -> dict[str, Any]:
     """Generate Mental Model and Customer Journey."""
     logger.info("Generating Mental Model and Customer Journey...")
-    agent = AgentFactory.get_mental_model_journey_agent()
-    updates = agent.run(state)
+    agent = AgentFactory().get_mental_model_journey_agent()
+    updates = agent.run(state)  # type: ignore[arg-type]  # type: ignore[arg-type]
     updates["phase"] = Phase.PSF
     return updates
 
@@ -229,16 +229,16 @@ def mental_model_journey_node(state: GlobalState) -> dict[str, Any]:
 def sitemap_wireframe_node(state: GlobalState) -> dict[str, Any]:
     """Generate Sitemap and Wireframe (Story)."""
     logger.info("Generating Sitemap and Lo-Fi Wireframing...")
-    agent = AgentFactory.get_sitemap_wireframe_agent()
-    return agent.run(state)
+    agent = AgentFactory().get_sitemap_wireframe_agent()
+    return agent.run(state)  # type: ignore[arg-type]  # type: ignore[arg-type]  # type: ignore[arg-type]  # type: ignore[arg-type]
 
 
 @safe_node("Error in Virtual Customer Interview")
 def virtual_customer_node(state: GlobalState) -> dict[str, Any]:
     """Run Virtual Customer Interview."""
     logger.info("Running Virtual Solution Interview...")
-    agent = AgentFactory.get_virtual_customer_agent()
-    updates = agent.run(state)
+    agent = AgentFactory().get_virtual_customer_agent()
+    updates = agent.run(state)  # type: ignore[arg-type]  # type: ignore[arg-type]
     updates["phase"] = Phase.VALIDATION
     return updates
 
@@ -247,16 +247,16 @@ def virtual_customer_node(state: GlobalState) -> dict[str, Any]:
 def th_review_node(state: GlobalState) -> dict[str, Any]:
     """Run 3H Review (Hacker, Hipster, Hustler)."""
     logger.info("Running 3H Review...")
-    agent = AgentFactory.get_3h_review_agent()
-    return agent.run(state)
+    agent = AgentFactory().get_3h_review_agent()
+    return agent.run(state)  # type: ignore[arg-type]  # type: ignore[arg-type]  # type: ignore[arg-type]  # type: ignore[arg-type]
 
 
 @safe_node("Error in Spec Generation")
 def spec_generation_node(state: GlobalState) -> dict[str, Any]:
     """Generate Agent Prompt Spec."""
     logger.info("Generating Agent Prompt Spec...")
-    builder = AgentFactory.get_builder_agent()
-    updates = builder.generate_spec(state)
+    builder = AgentFactory().get_builder_agent()
+    updates = builder.generate_spec(state)  # type: ignore[arg-type]
     updates["phase"] = Phase.OUTPUT
     return updates
 
@@ -265,8 +265,8 @@ def spec_generation_node(state: GlobalState) -> dict[str, Any]:
 def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
     """Generate Experiment Plan."""
     logger.info("Generating Experiment Plan...")
-    builder = AgentFactory.get_builder_agent()
-    updates = builder.generate_experiment_plan(state)
+    builder = AgentFactory().get_builder_agent()
+    updates = builder.generate_experiment_plan(state)  # type: ignore[arg-type]
 
     if "experiment_plan" in updates and state.sitemap_and_story:
         plan = updates["experiment_plan"]
@@ -307,8 +307,8 @@ def governance_node(state: GlobalState) -> dict[str, Any]:
     """
     logger.info("Running Governance Check...")
 
-    agent = AgentFactory.get_governance_agent()
-    updates = agent.run(state)
+    agent = AgentFactory().get_governance_agent()
+    updates = agent.run(state)  # type: ignore[arg-type]  # type: ignore[arg-type]
 
     updates["phase"] = Phase.GOVERNANCE
     return updates

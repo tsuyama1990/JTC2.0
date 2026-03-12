@@ -16,7 +16,7 @@ def test_config_values() -> None:
         OPENAI_API_KEY=SecretStr("sk-12345678901234567890"),
         TAVILY_API_KEY=SecretStr("tvly-12345678901234567890"),
     )
-    assert s.llm_model == "gpt-4o"
+    assert s.llm_model is None
     assert s.search_max_results == 5
     assert s.openai_api_key == SecretStr("sk-12345678901234567890")
 
@@ -44,14 +44,13 @@ def test_get_llm_override(mock_get_settings: MagicMock) -> None:
 
 @patch("src.core.llm.get_settings")
 def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
-    # Clear lru_cache to ensure we get a fresh execution
-    get_llm.cache_clear()
+    from src.core.llm import LLMFactory
 
     mock_settings = mock_get_settings.return_value
     mock_settings.openai_api_key = None
-    # Updated error message constant in Cycle 06
-    with pytest.raises(ValueError, match="LLM configuration invalid"):
-        get_llm()
+    # Reset factory singleton for testing
+    LLMFactory._instance = None
 
-    # Clear again for safety
-    get_llm.cache_clear()
+    # Updated error message constant in Cycle 06
+    with pytest.raises(ValueError, match="LLM configuration invalid."):
+        get_llm()

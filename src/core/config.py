@@ -345,11 +345,11 @@ class Settings(BaseSettings):
     )
     v0_api_url: str | None = Field(
         alias="V0_API_URL",
-        default_factory=lambda: os.getenv("V0_API_URL", "https://api.v0.dev/chat/completions"),
+        default=None,
         description="V0.dev API URL",
     )
 
-    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
+    llm_model: str | None = Field(alias="LLM_MODEL", default=None, description="LLM Model name")
 
     rag_persist_dir: str = Field(
         alias="RAG_PERSIST_DIR",

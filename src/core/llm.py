@@ -5,27 +5,34 @@ from src.core.constants import ERR_LLM_CONFIG_MISSING
 from src.core.interfaces import ILLMClient
 
 
-@lru_cache
+class LLMFactory:
+    """Factory pattern for LLM client instantiation."""
+
+    _instance: ILLMClient | None = None
+
+    @classmethod
+    def get_client(cls, model: str | None = None) -> ILLMClient:
+        if cls._instance is not None and model is None:
+            return cls._instance
+
+        from langchain_openai import ChatOpenAI
+
+        settings = get_settings()
+        if not settings.openai_api_key:
+            raise ValueError(ERR_LLM_CONFIG_MISSING)
+
+        client = ChatOpenAI(model=model or settings.llm_model, api_key=settings.openai_api_key)
+        if model is None:
+            cls._instance = client # type: ignore
+        return client # type: ignore
+
+    @classmethod
+    def set_client(cls, client: ILLMClient) -> None:
+        """Inject a specific client instance, useful for testing."""
+        cls._instance = client
+
 def get_llm(model: str | None = None) -> ILLMClient:
     """
-    Factory to get the LLM client.
-    Cached to prevent resource waste (Architecture constraint).
-
-    Args:
-        model: Optional model name override. Defaults to config settings.
-
-    Returns:
-        ILLMClient instance.
-
-    Raises:
-        ValueError: If OpenAI API key is missing.
+    Deprecated. Use LLMFactory instead.
     """
-    # Local import to decouple from concrete classes
-    from langchain_openai import ChatOpenAI
-
-    settings = get_settings()
-    if not settings.openai_api_key:
-        raise ValueError(ERR_LLM_CONFIG_MISSING)
-
-    # Returns an instance that structurally types ILLMClient
-    return ChatOpenAI(model=model or settings.llm_model, api_key=settings.openai_api_key)  # type: ignore
+    return LLMFactory.get_client(model)
