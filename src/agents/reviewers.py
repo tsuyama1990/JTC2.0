@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from src.agents.base import BaseAgent
@@ -8,26 +9,59 @@ from src.core.interfaces import ILLMClient, IStateContext
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ReviewContext:
+    sitemap_json: str
+    vpc_json: str
+    sys_prompts: dict[str, str]
+    circuit_breakers: list[str]
+
 class The3HReviewAgent(BaseAgent):
     """
     Agent responsible for Phase 4, Step 10: 3H Review.
     Executes Hacker, Hipster, and Hustler reviews.
     """
 
-    def __init__(self, llm: ILLMClient) -> None:
+    def __init__(self, llm: ILLMClient, settings: Settings | None = None) -> None:
         self.llm = llm
-        self.settings: Settings = get_settings()
+        self.settings: Settings = settings or get_settings()
+
+    def _invoke_review(self, role: str, other_feedback: str, ctx: ReviewContext) -> str:
+        from langchain_core.prompts import ChatPromptTemplate
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", ctx.sys_prompts[role]),
+                (
+                    "user",
+                    "Context:\nSitemap & Story: {sitemap}\nVPC: {vpc}\n\nPrevious Feedback:\n{other_feedback}\n\nProvide your review:",
+                ),
+            ]
+        )
+        try:
+            res = self.llm.invoke(
+                prompt.format_messages(
+                    sitemap=ctx.sitemap_json,
+                    vpc=ctx.vpc_json,
+                    other_feedback=other_feedback,
+                )
+            )
+            return str(getattr(res, "content", res))
+        except Exception:
+            logger.exception(f"Failed {role} review")
+            return ""
+
+    def _check_circuit_breaker(self, role: str, response: str, breakers: list[str]) -> bool:
+        for breaker in breakers:
+            if breaker in response:
+                logger.warning(f"Circuit breaker '{breaker}' triggered by {role}.")
+                return True
+        return False
 
     def _run_turn(
         self,
         reviews: dict[str, str],
-        sys_prompts: dict[str, str],
-        sitemap_json: str,
-        vpc_json: str,
-        circuit_breakers: list[str],
+        ctx: ReviewContext,
     ) -> bool:
-        from langchain_core.prompts import ChatPromptTemplate
-
         # Immutable copy of reviews for the current turn context to prevent race conditions/inconsistencies
         frozen_reviews = dict(reviews)
 
@@ -35,32 +69,10 @@ class The3HReviewAgent(BaseAgent):
             other_feedback = "\n".join(
                 [f"{k}: {v}" for k, v in frozen_reviews.items() if k != role]
             )
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", sys_prompts[role]),
-                    (
-                        "user",
-                        "Context:\nSitemap & Story: {sitemap}\nVPC: {vpc}\n\nPrevious Feedback:\n{other_feedback}\n\nProvide your review:",
-                    ),
-                ]
-            )
-            try:
-                res = self.llm.invoke(
-                    prompt.format_messages(
-                        sitemap=sitemap_json,
-                        vpc=vpc_json,
-                        other_feedback=other_feedback,
-                    )
-                )
-                reviews[role] = str(getattr(res, "content", res))
-            except Exception:
-                logger.exception(f"Failed {role} review")
-                reviews[role] = ""
+            reviews[role] = self._invoke_review(role, other_feedback, ctx)
 
-            for breaker in circuit_breakers:
-                if breaker in reviews[role]:
-                    logger.warning(f"Circuit breaker '{breaker}' triggered by {role}.")
-                    return True
+            if self._check_circuit_breaker(role, reviews[role], ctx.circuit_breakers):
+                return True
 
         return False
 
@@ -87,12 +99,17 @@ class The3HReviewAgent(BaseAgent):
         }
         reviews = {"Hacker": "", "Hipster": "", "Hustler": ""}
 
+        ctx = ReviewContext(
+            sitemap_json=sitemap_json,
+            vpc_json=vpc_json,
+            sys_prompts=sys_prompts,
+            circuit_breakers=circuit_breakers,
+        )
+
         while turn < max_turns:
             logger.info(f"3H Review Turn {turn + 1}/{max_turns}")
 
-            circuit_broken = self._run_turn(
-                reviews, sys_prompts, sitemap_json, vpc_json, circuit_breakers
-            )
+            circuit_broken = self._run_turn(reviews, ctx)
 
             if circuit_broken:
                 break

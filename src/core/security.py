@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from pathlib import Path
 
 from src.core.constants import ERR_PATH_TRAVERSAL
@@ -42,9 +43,9 @@ class SecretMaskerFilter(logging.Filter):
                         formatted_msg = formatted_msg.replace(secret, masked)
                 record.msg = formatted_msg
                 record.args = ()  # Clear args since msg is fully formatted
-            except Exception: # noqa: S110
-                # Silently fail string formatting fallback; do not log here to avoid recursive loop
-                pass
+            except (ValueError, TypeError) as e:
+                import sys
+                print(f"WARNING: Log mask string formatting failed: {e}", file=sys.stderr)  # noqa: T201
 
         return True
 
@@ -58,17 +59,25 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
         msg = "Path must be a non-empty string."
         raise ConfigurationError(msg)
 
+    # Reject explicit relative path traversal characters completely before processing
+    if ".." in path_str:
+        raise ConfigurationError(ERR_PATH_TRAVERSAL)
+
+    path_obj = Path(path_str)
+    if path_obj.is_symlink():
+        msg = "Symlinks not allowed in persist_dir."
+        raise ConfigurationError(msg)
+
     try:
-        path = Path(path_str).resolve(strict=False)
+        # Resolve the parent directory strictly to ensure it exists and isn't a symlink traversal,
+        # then append the leaf node. This allows creating new directories safely.
+        parent_path = path_obj.parent.resolve(strict=True)
+        path = parent_path / path_obj.name
+
         cwd = Path.cwd().resolve(strict=True)
         allowed_parents = [(cwd / p).resolve() for p in allowed_rel_paths]
-
-        path_exists = path.exists()
-        is_symlink = path.is_symlink() if path_exists else False
-        if path_exists:
-            path = path.resolve(strict=True)
     except Exception as e:
-        msg = f"Invalid path format or non-existent parent: {e}"
+        msg = f"Invalid path format, non-existent parent, or symlink: {e}"
         raise ConfigurationError(msg) from e
 
     is_safe = False
@@ -81,17 +90,14 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
         logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
         raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
-    if is_symlink:
-        msg = "Symlinks not allowed in persist_dir."
-        raise ConfigurationError(msg)
-
     return str(path)
+
+
 
 
 def sanitize_query(query: str) -> str:
     """
     Sanitize input query to prevent injection or processing issues.
-    Efficient implementation using list comprehension.
+    Efficient implementation using regex.
     """
-    chars = [ch for ch in query if (32 <= ord(ch) < 127) or ch in "\t\r\n" or ord(ch) > 127]
-    return "".join(chars).strip()
+    return re.sub(r'[^\x20-\x7E\t\r\n\u0100-\uffff]', '', query).strip()
