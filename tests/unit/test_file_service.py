@@ -18,11 +18,13 @@ class TestFileService:
     ) -> None:
         """Verify save_text_async correctly delegates to sync method."""
         # `save_text_async` is just submitting a job to an executor, so wait for executor.
-        file_service.save_text_async("content", "test.md")
-        file_service._executor.shutdown(wait=True)
-
-        # We need to test whatever type save_text_async actually passed in
-        from pathlib import Path
+        with patch("src.core.services.file_service.Path.cwd") as mock_cwd:
+            from pathlib import Path
+            mock_cwd.return_value = Path("/app")
+            # We mock _validate_path directly to bypass real file system resolving strict=True checks
+            with patch.object(file_service, "_validate_path", return_value=Path("/app/test.md")):
+                file_service.save_text_async("content", "test.md")
+                file_service._executor.shutdown(wait=True)
 
         mock_save_sync.assert_called_once()
         args, _ = mock_save_sync.call_args
@@ -39,9 +41,10 @@ class TestFileService:
     ) -> None:
         """Verify handling of PermissionError."""
         mock_save_sync.side_effect = PermissionError("Access denied")
-
-        file_service.save_text_async("content", "protected.md")
-        file_service._executor.shutdown(wait=True)
+        from pathlib import Path
+        with patch.object(file_service, "_validate_path", return_value=Path("/app/protected.md")):
+            file_service.save_text_async("content", "protected.md")
+            file_service._executor.shutdown(wait=True)
 
     @patch("src.core.services.file_service.FileService._save_text_sync")
     def test_save_text_async_os_error(
@@ -52,9 +55,10 @@ class TestFileService:
     ) -> None:
         """Verify handling of generic OSError."""
         mock_save_sync.side_effect = OSError("Disk full")
-
-        file_service.save_text_async("content", "file.md")
-        file_service._executor.shutdown(wait=True)
+        from pathlib import Path
+        with patch.object(file_service, "_validate_path", return_value=Path("/app/file.md")):
+            file_service.save_text_async("content", "file.md")
+            file_service._executor.shutdown(wait=True)
 
     def test_path_traversal_prevention(self, file_service: FileService) -> None:
         """Verify path traversal is prevented."""
