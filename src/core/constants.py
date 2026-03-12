@@ -88,6 +88,16 @@ ERR_RAG_QUERY_TOO_LARGE: Final[str] = "Query too large."
 ERR_RAG_TEXT_TOO_LARGE: Final[str] = "Document text too large."
 
 # --- UI Messages ---
+MSG_TUTORIAL_TITLE: Final[str] = "# JTC 2.0 User Acceptance Test / Tutorial"
+MSG_TUTORIAL_START_SIM: Final[str] = "## Starting Simulation"
+MSG_TUTORIAL_SUCCESS: Final[str] = "Simulation completed successfully."
+MSG_TUTORIAL_MOCK_MODE: Final[str] = "**Mock Mode**: Simulating workflow for '{topic}'"
+MSG_TUTORIAL_MOCK_WARN: Final[str] = (
+    "**Warning**: Imports failed. Skipping real simulation. Simulated success for '{topic}'."
+)
+MSG_TUTORIAL_ERR_DEP: Final[str] = "Missing marimo or core dependency."
+MSG_TUTORIAL_ERR_SYNC: Final[str] = "Please ensure you have installed dependencies with `uv sync`."
+MSG_TUTORIAL_ERR_FATAL: Final[str] = "A fatal error occurred while running the Marimo notebook."
 MSG_NO_IDEAS: Final[str] = "No ideas generated yet."
 MSG_GENERATED_HEADER: Final[str] = "=== Generated Lean Canvas Ideas ==="
 MSG_PRESS_ENTER: Final[str] = "Press Enter to continue..."

@@ -18,7 +18,9 @@ class SimulationRenderer:
     Renders the simulation state using Pyxel (Retro RPG style).
     """
 
-    def __init__(self, state_getter: Callable[[], GlobalState]) -> None:
+    def __init__(
+        self, state_getter: Callable[[], GlobalState], headless: bool | None = None
+    ) -> None:
         """
         Initialize the renderer.
 
@@ -26,9 +28,14 @@ class SimulationRenderer:
             state_getter: A function that returns the current GlobalState.
                           This allows the renderer to pull the latest state
                           from the simulation thread.
+            headless: Explicitly set headless mode. If None, falls back to env var.
         """
         self.state_getter = state_getter
-        self.headless = os.getenv("HEADLESS_MODE", "false").lower() == "true"
+        if headless is not None:
+            self.headless = headless
+        else:
+            self.headless = os.getenv("HEADLESS_MODE", "false").lower() == "true"
+
         self.settings = get_settings().simulation
 
         self.width = self.settings.width

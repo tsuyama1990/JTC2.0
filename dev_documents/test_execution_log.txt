@@ -58,7 +58,7 @@ src/agents/mixins.py                   23      6    74%   28, 31-35
 src/agents/personas.py                 77     10    87%   89-91, 96-97, 106-109, 157-162
 src/core/__init__.py                    0      0   100%
 src/core/config.py                    170      4    98%   365-366, 474, 478
-src/core/constants.py                 100      0   100%
+src/core/constants.py                 108      0   100%
 src/core/exceptions.py                  6      0   100%
 src/core/factory.py                    42     19    55%   24-25, 30, 43-49, 57-68
 src/core/graph.py                      30      0   100%
@@ -84,6 +84,7 @@ src/domain_models/common.py            23      0   100%
 src/domain_models/enums.py             12      0   100%
 src/domain_models/lean_canvas.py       24      0   100%
 src/domain_models/metrics.py           60      6    90%   121-122, 126-127, 131-132
+src/domain_models/mock_data.py          3      3     0%   1-9
 src/domain_models/mvp.py               57      2    96%   144-145
 src/domain_models/persona.py           28      2    93%   124-125
 src/domain_models/politics.py          59      3    95%   82, 100, 111
@@ -94,9 +95,9 @@ src/domain_models/validators.py        12      0   100%
 src/tools/__init__.py                   3      0   100%
 src/tools/search.py                    34      4    88%   39, 75, 90-91
 src/tools/v0_client.py                 61     16    74%   58-60, 103-105, 108-115, 128-129
-src/ui/renderer.py                     96     10    90%   87, 90-94, 118, 128-134, 154
+src/ui/renderer.py                     98     11    89%   35, 94, 97-101, 125, 135-141, 161
 -----------------------------------------------------------------
-TOTAL                                2149    336    84%
-============================= 131 passed in 18.16s =============================
+TOTAL                                2162    340    84%
+============================= 131 passed in 18.56s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

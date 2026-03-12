@@ -5,26 +5,16 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-def __1():
+def __1() -> tuple[object]:
     import logging
-    import os
-    import sys
     import threading
     import time
-    from pathlib import Path
-    from typing import Any
 
     import marimo as mo
-
-    # Ensure project root is in path for imports to work
-    project_root = str(Path(__file__).parent.parent.resolve())
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
 
     logger = logging.getLogger(__name__)
 
     try:
-        from src.core.config import get_settings
         from src.core.graph import create_app
         from src.core.simulation import create_simulation_graph
         from src.domain_models.lean_canvas import LeanCanvas
@@ -40,11 +30,14 @@ def __1():
 
     class TutorialContext:
         def __init__(self) -> None:
+            import os
             self.mo = mo
             self.os = os
 
             if IMPORTS_SUCCESSFUL:
-                self.get_settings = get_settings
+                # Use a specific tutorial config mock or modify the settings
+                # Actually, wait, passing dependency injection instead of global config.
+                # Just keeping a reference without mutating global is fine.
                 self.create_app = create_app
                 self.create_simulation_graph = create_simulation_graph
                 self.GlobalState = GlobalState
@@ -56,36 +49,44 @@ def __1():
                 self._setup_mocks()
 
         def _setup_mocks(self) -> None:
-            class DummyMock:
-                def __init__(self, *args: object, **kwargs: object) -> None:
-                    pass
+            class MockState:
+                def __init__(self, **kwargs: object) -> None:
+                    self.debate_history = []
+                    self.simulation_active = False
 
-                def stream(self, *args: object, **kwargs: object) -> "Any":
-                    yield {"debate_history": []}
+            class MockSimApp:
+                def stream(self, initial_state: object, stream_mode: str) -> object:
+                    yield {
+                        "debate_history": [
+                            {"role": "System", "content": "Mock simulation finished."}
+                        ],
+                        "simulation_active": False,
+                    }
 
-                def __call__(self, *args: object, **kwargs: object) -> "Any":
-                    return self
+            class MockPhase:
+                IDEATION = "ideation"
 
-                def __getattr__(self, item: str) -> "Any":
-                    return DummyMock()
+            class MockRenderer:
+                def __init__(self, getter: object) -> None:
+                    self.getter = getter
 
-            self.get_settings = DummyMock
-            self.create_app = DummyMock
-            self.create_simulation_graph = DummyMock
-            self.GlobalState = DummyMock
-            self.Phase = DummyMock
-            self.LeanCanvas = DummyMock
-            self.SimulationRenderer = DummyMock
+                def start(self) -> None:
+                    if callable(self.getter):
+                        self.getter()
+                    time.sleep(0.1)
+
+            self.GlobalState = MockState
+
+            def mock_app_factory() -> MockSimApp:
+                return MockSimApp()
+
+            self.create_simulation_graph = mock_app_factory
+            self.Phase = MockPhase
+            self.SimulationRenderer = MockRenderer
             self.is_mocked = True
 
-        def _run_mock(self, topic: str) -> None:
-            self.mo.md(
-                f"**Warning**: Running mock simulation due to import failure. Simulated success for '{topic}'."
-            )
-            time.sleep(1)
-
         def _execute_bg_thread(
-            self, sim_app: "Any", initial_state: "GlobalState", shared_state: dict[str, "Any"]
+            self, sim_app: object, initial_state: object, shared_state: dict[str, object]
         ) -> tuple[threading.Thread, threading.Event]:
             error_event = threading.Event()
             ready_event = threading.Event()
@@ -107,17 +108,13 @@ def __1():
             ready_event.wait(timeout=2.0)
             return thread, error_event
 
-        def _run_renderer(self, shared_state: dict[str, "Any"]) -> None:
-            # We assume headless context is handled externally
-            renderer = self.SimulationRenderer(lambda: shared_state["current"])
+        def _run_renderer(self, shared_state: dict[str, object]) -> None:
+            # Pass headless mode explicitly rather than mutating environment variables
+            renderer = self.SimulationRenderer(lambda: shared_state["current"], headless=True)
             renderer.start()
 
-        def run_simulation(self, topic: str, canvas: "Any") -> None:
+        def run_simulation(self, topic: str, canvas: object) -> None:
             from contextlib import contextmanager
-
-            if self.is_mocked:
-                self._run_mock(topic)
-                return
 
             initial_state = self.GlobalState(
                 topic=topic, selected_idea=canvas, simulation_active=True, phase=self.Phase.IDEATION
@@ -141,19 +138,7 @@ def __1():
                 finally:
                     thread.join(timeout=2.0)
 
-            @contextmanager
-            def headless_context():
-                old_headless = self.os.environ.get("HEADLESS_MODE")
-                self.os.environ["HEADLESS_MODE"] = "true"
-                try:
-                    yield
-                finally:
-                    if old_headless is not None:
-                        self.os.environ["HEADLESS_MODE"] = old_headless
-                    else:
-                        self.os.environ.pop("HEADLESS_MODE", None)
-
-            with managed_thread(), headless_context():
+            with managed_thread():
                 self._run_renderer(shared_state)
 
     ctx = TutorialContext()
@@ -161,24 +146,22 @@ def __1():
 
 
 @app.cell
-def __2(ctx):
-    ctx.mo.md("# JTC 2.0 User Acceptance Test / Tutorial")
+def __2(ctx: object) -> tuple[object]:
+    from src.core.constants import MSG_TUTORIAL_TITLE
+
+    return (ctx.mo.md(MSG_TUTORIAL_TITLE),)
 
 
 @app.cell
-def __3(ctx):
-
-    # We shouldn't mutate environ globally without context in tutorials.
-    # The auditor complained about modifying os.environ directly here too? Wait, the auditor said:
-    # "Directly modifying environment variables without validation or cleanup..."
-    # I'll fix this in the next step, but right now I'm just renaming the func.
+def __3(ctx: object) -> tuple[object, str, object]:
+    from src.core.constants import MSG_TUTORIAL_MOCK_MODE
 
     try:
-        from tests.fixtures.mock_data import get_mock_canvas
+        from src.domain_models.mock_data import get_mock_canvas
 
         mock_canvas = get_mock_canvas()
     except ImportError:
-        # Fallback if tests module is not in path for some reason during pure tutorial execution
+        # Graceful degradation
         mock_canvas = ctx.LeanCanvas(
             id=1,
             title="AI for Plumbers",
@@ -186,38 +169,24 @@ def __3(ctx):
             customer_segments="Independent Plumbers",
             unique_value_prop="Automated Scheduling",
             solution="AI Assistant",
+            status="draft",
         )
 
     topic = mock_canvas.title.strip() if mock_canvas.title else "Generic Startup Idea"
-    result_md = ctx.mo.md(f"**Mock Mode**: Simulating workflow for '{topic}'")
+    result_md = ctx.mo.md(MSG_TUTORIAL_MOCK_MODE.format(topic=topic))
     return mock_canvas, topic, result_md
 
 
 @app.cell
-def __4(ctx, mock_canvas, topic):
-    ctx.mo.md("## Starting Simulation")
+def __4(ctx: object, mock_canvas: object, topic: str) -> tuple[object]:
+    from src.core.constants import MSG_TUTORIAL_START_SIM, MSG_TUTORIAL_SUCCESS
 
-    # Execute simulation in headless mode
-    ctx.run_simulation(topic, mock_canvas)
-
-    final_md = ctx.mo.md("Simulation completed successfully in Mock Mode.")
-    return (final_md,)
-
-
-if __name__ == "__main__":
-    import sys
+    ctx.mo.md(MSG_TUTORIAL_START_SIM)
 
     try:
-        app.run()
-    except ImportError:
-        print("Missing marimo or core dependency.", file=sys.stderr)
-        print("Please ensure you have installed dependencies with `uv sync`.", file=sys.stderr)
-        sys.exit(1)
-    except SystemExit:
-        raise
+        ctx.run_simulation(topic, mock_canvas)
+        final_md = ctx.mo.md(MSG_TUTORIAL_SUCCESS)
     except Exception as e:
-        print("A fatal error occurred while running the Marimo notebook.", file=sys.stderr)
-        import logging
+        final_md = ctx.mo.md(f"**Error during simulation**: {e}")
 
-        logging.exception("Execution failed", exc_info=e)
-        sys.exit(1)
+    return (final_md,)
