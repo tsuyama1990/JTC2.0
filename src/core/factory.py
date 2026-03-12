@@ -16,8 +16,22 @@ from src.agents.reviewers import The3HReviewAgent
 from src.agents.virtual_customer import VirtualCustomerAgent
 from src.core.config import get_settings
 from src.core.llm import get_llm
+from src.core.services.file_service import FileService
+from src.core.services.mvp_service import MVPService
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
+
+
+class ServiceFactory:
+    """Factory for creating stateless services."""
+
+    @staticmethod
+    def get_file_service() -> FileService:
+        return FileService()
+
+    @staticmethod
+    def get_mvp_service() -> MVPService:
+        return MVPService()
 
 
 class AgentFactory:
