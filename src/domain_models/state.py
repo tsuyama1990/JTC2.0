@@ -3,7 +3,6 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.enums import Phase, Role
 from src.domain_models.validators import StateValidator
 
@@ -28,14 +27,14 @@ from .value_proposition import ValuePropositionCanvas
 class GlobalState(BaseModel):
     """The central state of the LangGraph workflow."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     phase: Phase = Phase.IDEATION
     topic: str = ""
 
     # Critical: Wrapper for memory efficiency.
-    # We use a validator to ensure it's the right type.
-    generated_ideas: LazyIdeaIterator | None = None
+    # We use a standard Iterator. Set arbitrary_types_allowed=True to support it.
+    generated_ideas: Iterator[LeanCanvas] | None = None
 
     selected_idea: LeanCanvas | None = None
     messages: list[str] = Field(default_factory=list)
@@ -107,21 +106,21 @@ class GlobalState(BaseModel):
     @field_validator("rag_index_path")
     @classmethod
     def validate_rag_index_path(cls, v: str) -> str:
+        import os
         from pathlib import Path
 
-        from src.core.config import get_settings
         if not v:
             return v
 
         is_allowed = False
-        settings = get_settings()
-        for allowed_path in settings.rag_allowed_paths:
+        allowed_paths = os.getenv("RAG_ALLOWED_PATHS", "data,vector_store,tests,./vector_store").split(",")
+        for allowed_path in allowed_paths:
             if v == allowed_path or v.startswith(allowed_path + "/"):
                 is_allowed = True
                 break
 
         if not is_allowed:
-            msg = f"Invalid RAG path '{v}'. Must be within allowed paths: {settings.rag_allowed_paths}"
+            msg = f"Invalid RAG path '{v}'. Must be within allowed paths: {allowed_paths}"
             raise ValueError(msg)
 
         if not Path(v).exists():
@@ -142,22 +141,18 @@ class GlobalState(BaseModel):
 
     @field_validator("generated_ideas", mode="before")
     @classmethod
-    def wrap_iterator(cls, v: object) -> object:
+    def validate_iterator(cls, v: object) -> object:
         """
-        Auto-wrap Iterator[LeanCanvas] into LazyIdeaIterator if needed.
         Strictly enforces that the input is a valid Iterator.
         """
         if v is None:
             return None
 
-        if isinstance(v, LazyIdeaIterator):
+        if isinstance(v, Iterator):
             return v
 
-        if isinstance(v, Iterator):
-            return LazyIdeaIterator(v)
-
         # Reject invalid types explicitly
-        msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
+        msg = f"generated_ideas must be an Iterator, got {type(v)}"
         raise TypeError(msg)
 
     @model_validator(mode="after")

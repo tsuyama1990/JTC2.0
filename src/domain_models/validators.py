@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING
 
-from src.core.config import get_settings
-
 if TYPE_CHECKING:
     from src.domain_models.state import GlobalState
 
@@ -28,12 +26,12 @@ class StateValidator:
         """
         from src.domain_models.enums import Phase
 
-        settings = get_settings()
-
         if state.phase == Phase.VERIFICATION and state.target_persona is None:
-            raise ValueError(settings.errors.missing_persona)
+            msg = "Target persona is required for this phase."
+            raise ValueError(msg)
 
         if state.phase == Phase.SOLUTION and state.mvp_definition is None:
-            raise ValueError(settings.errors.missing_mvp)
+            msg = "MVP definition is required for this phase."
+            raise ValueError(msg)
 
         return state

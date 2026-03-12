@@ -3,57 +3,6 @@ from functools import lru_cache
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.core.constants import (
-    DEFAULT_CB_FAIL_MAX,
-    DEFAULT_CB_RESET_TIMEOUT,
-    DEFAULT_CHARS_PER_LINE,
-    DEFAULT_CONSOLE_SLEEP,
-    DEFAULT_DIALOGUE_X,
-    DEFAULT_DIALOGUE_Y,
-    DEFAULT_FEATURE_CHUNK_SIZE,
-    DEFAULT_FPS,
-    DEFAULT_HEIGHT,
-    DEFAULT_ITERATOR_SAFETY_LIMIT,
-    DEFAULT_LINE_HEIGHT,
-    DEFAULT_MAX_TITLE_LENGTH,
-    DEFAULT_MAX_TURNS,
-    DEFAULT_MAX_Y,
-    DEFAULT_MIN_TITLE_LENGTH,
-    DEFAULT_NEMAWASHI_BOOST,
-    DEFAULT_NEMAWASHI_MAX_STEPS,
-    DEFAULT_NEMAWASHI_REDUCTION,
-    DEFAULT_NEMAWASHI_TOLERANCE,
-    DEFAULT_PAGE_SIZE,
-    DEFAULT_V0_RETRY_BACKOFF,
-    DEFAULT_V0_RETRY_MAX,
-    DEFAULT_WIDTH,
-    ERR_CONFIG_MISSING_OPENAI_KEY,
-    ERR_CONFIG_MISSING_TAVILY_KEY,
-    ERR_INVALID_METRIC_KEY,
-    ERR_LLM_CONFIG_MISSING,
-    ERR_LLM_FAILURE,
-    ERR_MISSING_MVP,
-    ERR_MISSING_PERSONA,
-    ERR_SEARCH_CONFIG_MISSING,
-    ERR_SEARCH_FAILED,
-    ERR_TOO_MANY_METRICS,
-    ERR_UNIQUE_ID_VIOLATION,
-    MSG_CYCLE_COMPLETE,
-    MSG_EXECUTION_ERROR,
-    MSG_GENERATED_HEADER,
-    MSG_ID_NOT_FOUND,
-    MSG_INVALID_INPUT,
-    MSG_NO_IDEAS,
-    MSG_PHASE_START,
-    MSG_PRESS_ENTER,
-    MSG_RESEARCHING,
-    MSG_SELECT_PROMPT,
-    MSG_SELECTED,
-    MSG_SIM_TITLE,
-    MSG_TOPIC_EMPTY,
-    MSG_WAIT,
-    MSG_WAITING_FOR_DEBATE,
-)
 from src.core.theme import (
     AGENT_POS_CPO,
     AGENT_POS_FINANCE,
@@ -73,10 +22,10 @@ class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
     min_title_length: int = Field(
-        default=DEFAULT_MIN_TITLE_LENGTH, description="Minimum length for titles"
+        default=3, description="Minimum length for titles"
     )
     max_title_length: int = Field(
-        default=DEFAULT_MAX_TITLE_LENGTH, description="Maximum length for titles"
+        default=100, description="Maximum length for titles"
     )
     min_content_length: int = Field(default=3, description="Minimum length for content blocks")
     max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
@@ -92,17 +41,17 @@ class ValidationConfig(BaseSettings):
 class ErrorMessages(BaseSettings):
     """Error messages for the application."""
 
-    unique_id_violation: str = ERR_UNIQUE_ID_VIOLATION
-    config_missing_openai: str = ERR_CONFIG_MISSING_OPENAI_KEY
-    config_missing_tavily: str = ERR_CONFIG_MISSING_TAVILY_KEY
-    search_config_missing: str = ERR_SEARCH_CONFIG_MISSING
-    llm_config_missing: str = ERR_LLM_CONFIG_MISSING
-    search_failed: str = ERR_SEARCH_FAILED
-    llm_failure: str = ERR_LLM_FAILURE
-    too_many_metrics: str = ERR_TOO_MANY_METRICS
-    invalid_metric_key: str = ERR_INVALID_METRIC_KEY
-    missing_persona: str = ERR_MISSING_PERSONA
-    missing_mvp: str = ERR_MISSING_MVP
+    unique_id_violation: str = "Unique ID constraint violated."
+    config_missing_openai: str = "OPENAI_API_KEY is not set."
+    config_missing_tavily: str = "TAVILY_API_KEY is not set."
+    search_config_missing: str = "Search configuration is incomplete."
+    llm_config_missing: str = "LLM configuration is incomplete."
+    search_failed: str = "Search operation failed."
+    llm_failure: str = "LLM operation failed."
+    too_many_metrics: str = "Too many custom metrics defined. Maximum is {limit}."
+    invalid_metric_key: str = "Invalid custom metric key: {key}."
+    missing_persona: str = "Target persona is required for this phase."
+    missing_mvp: str = "MVP definition is required for this phase."
 
 
 class UIConfig(BaseSettings):
@@ -110,23 +59,23 @@ class UIConfig(BaseSettings):
 
     page_size: int = Field(
         alias="UI_PAGE_SIZE",
-        default=DEFAULT_PAGE_SIZE,
+        default=3,
         description="Number of items per page in UI",
     )
 
-    no_ideas: str = MSG_NO_IDEAS
-    generated_header: str = MSG_GENERATED_HEADER
-    press_enter: str = MSG_PRESS_ENTER
-    select_prompt: str = MSG_SELECT_PROMPT
-    id_not_found: str = MSG_ID_NOT_FOUND
-    invalid_input: str = MSG_INVALID_INPUT
-    selected: str = MSG_SELECTED
-    cycle_complete: str = MSG_CYCLE_COMPLETE
-    topic_empty: str = MSG_TOPIC_EMPTY
-    phase_start: str = MSG_PHASE_START
-    researching: str = MSG_RESEARCHING
-    wait: str = MSG_WAIT
-    execution_error: str = MSG_EXECUTION_ERROR
+    no_ideas: str = "No ideas generated."
+    generated_header: str = "\n--- Generated Ideas ---"
+    press_enter: str = "Press Enter to continue..."
+    select_prompt: str = "\nSelect an idea by ID, or 'q' to quit, 'n'/'p' for pages: "
+    id_not_found: str = "Error: ID not found."
+    invalid_input: str = "Invalid input."
+    selected: str = "Selected Plan:"
+    cycle_complete: str = "\n=== Cycle Complete ==="
+    topic_empty: str = "Topic cannot be empty."
+    phase_start: str = "Starting Phase: {phase}"
+    researching: str = "Researching topic: {topic}..."
+    wait: str = "Please wait..."
+    execution_error: str = "Execution error occurred."
 
 
 class AgentConfig(BaseModel):
@@ -160,22 +109,22 @@ class NemawashiConfig(BaseSettings):
 
     max_steps: int = Field(
         alias="NEMAWASHI_MAX_STEPS",
-        default=DEFAULT_NEMAWASHI_MAX_STEPS,
+        default=50,
         description="Max iterations for consensus",
     )
     tolerance: float = Field(
         alias="NEMAWASHI_TOLERANCE",
-        default=DEFAULT_NEMAWASHI_TOLERANCE,
+        default=1e-4,
         description="Convergence tolerance",
     )
     nomikai_boost: float = Field(
         alias="NEMAWASHI_NOMIKAI_BOOST",
-        default=DEFAULT_NEMAWASHI_BOOST,
+        default=0.2,
         description="Boost factor from Nomikai",
     )
     nomikai_reduction: float = Field(
         alias="NEMAWASHI_NOMIKAI_REDUCTION",
-        default=DEFAULT_NEMAWASHI_REDUCTION,
+        default=0.1,
         description="Stubbornness reduction from Nomikai",
     )
 
@@ -184,11 +133,11 @@ class V0Config(BaseSettings):
     """Configuration for v0.dev integration."""
 
     retry_max: int = Field(
-        alias="V0_RETRY_MAX", default=DEFAULT_V0_RETRY_MAX, description="Max retries for API calls"
+        alias="V0_RETRY_MAX", default=3, description="Max retries for API calls"
     )
     retry_backoff: float = Field(
         alias="V0_RETRY_BACKOFF",
-        default=DEFAULT_V0_RETRY_BACKOFF,
+        default=2.0,
         description="Exponential backoff factor",
     )
 
@@ -196,21 +145,21 @@ class V0Config(BaseSettings):
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
-    width: int = Field(default=DEFAULT_WIDTH, description="Window width")
-    height: int = Field(default=DEFAULT_HEIGHT, description="Window height")
-    fps: int = Field(default=DEFAULT_FPS, description="Frames per second")
-    title: str = Field(default=MSG_SIM_TITLE, description="Window title")
+    width: int = Field(default=256, description="Window width")
+    height: int = Field(default=256, description="Window height")
+    fps: int = Field(default=30, description="Frames per second")
+    title: str = Field(default="JTC Simulation: The Meeting", description="Window title")
     bg_color: int = Field(default=COLOR_BG, description="Background color")
     text_color: int = Field(default=COLOR_TEXT, description="Text color")
 
     chars_per_line: int = Field(
-        default=DEFAULT_CHARS_PER_LINE, description="Characters per line in dialogue"
+        default=32, description="Characters per line in dialogue"
     )
-    line_height: int = Field(default=DEFAULT_LINE_HEIGHT, description="Line height in pixels")
-    dialogue_x: int = Field(default=DEFAULT_DIALOGUE_X, description="Dialogue box X position")
-    dialogue_y: int = Field(default=DEFAULT_DIALOGUE_Y, description="Dialogue box Y position")
-    max_y: int = Field(default=DEFAULT_MAX_Y, description="Max Y for scrolling")
-    waiting_msg: str = Field(default=MSG_WAITING_FOR_DEBATE, description="Message when waiting")
+    line_height: int = Field(default=10, description="Line height in pixels")
+    dialogue_x: int = Field(default=10, description="Dialogue box X position")
+    dialogue_y: int = Field(default=150, description="Dialogue box Y position")
+    max_y: int = Field(default=500, description="Max Y for scrolling")
+    waiting_msg: str = Field(default="Waiting for debate...", description="Message when waiting")
 
     turn_sequence: list[dict[str, str]] = Field(
         default_factory=lambda: [
@@ -240,9 +189,9 @@ class SimulationConfig(BaseSettings):
     )
 
     console_sleep: float = Field(
-        default=DEFAULT_CONSOLE_SLEEP, description="Sleep time for console fallback"
+        default=1.5, description="Sleep time for console fallback"
     )
-    max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
+    max_turns: int = Field(default=10, description="Max turns in simulation")
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
@@ -459,24 +408,24 @@ class Settings(BaseSettings):
 
     feature_chunk_size: int = Field(
         alias="FEATURE_CHUNK_SIZE",
-        default=DEFAULT_FEATURE_CHUNK_SIZE,
+        default=5,
         description="Chunk size for feature extraction",
     )
 
     circuit_breaker_fail_max: int = Field(
         alias="CB_FAIL_MAX",
-        default=DEFAULT_CB_FAIL_MAX,
+        default=3,
         description="Circuit breaker fail threshold",
     )
     circuit_breaker_reset_timeout: int = Field(
         alias="CB_RESET_TIMEOUT",
-        default=DEFAULT_CB_RESET_TIMEOUT,
+        default=300,
         description="Circuit breaker reset timeout",
     )
 
     iterator_safety_limit: int = Field(
         alias="ITERATOR_SAFETY_LIMIT",
-        default=DEFAULT_ITERATOR_SAFETY_LIMIT,
+        default=1000,
         description="Max items for iterators",
     )
 
@@ -494,7 +443,7 @@ class Settings(BaseSettings):
 
     log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
     ui_page_size: int = Field(
-        alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI"
+        alias="UI_PAGE_SIZE", default=3, description="Page size for UI"
     )
 
     # Nested configurations - Use Field to allow Pydantic to manage them

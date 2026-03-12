@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Any
 
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.agents.base import SearchTool
 from src.agents.personas import PersonaAgent
@@ -24,7 +24,7 @@ class CPOAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: BaseChatModel,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
         rag_path: str | None = None,

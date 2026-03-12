@@ -2,8 +2,8 @@ import logging
 import time
 from typing import Any
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 
 from src.agents.base import BaseAgent, SearchTool
 from src.agents.mixins import RateLimitMixin
@@ -20,7 +20,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: BaseChatModel,
         role: Role,
         system_prompt: str,
         search_tool: SearchTool | None = None,
@@ -127,7 +127,7 @@ class FinanceAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: BaseChatModel,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -150,7 +150,7 @@ class SalesAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: BaseChatModel,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -167,7 +167,7 @@ class NewEmployeeAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: BaseChatModel,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:

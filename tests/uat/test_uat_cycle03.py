@@ -12,7 +12,7 @@ from tests.conftest import DUMMY_ENV_VARS
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 @patch("src.agents.cpo.RAG")
-@patch("src.agents.cpo.ChatOpenAI")
+@patch("src.agents.cpo.BaseChatModel")
 def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
     """
     Scenario 1: Transcript Injection and 'Mom Test' Failure.
@@ -80,7 +80,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 @patch("src.agents.cpo.RAG")
-@patch("src.agents.cpo.ChatOpenAI")
+@patch("src.agents.cpo.BaseChatModel")
 def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
     """
     Scenario 2: Validation Success.
