@@ -44,30 +44,22 @@ def test_mental_model_agent_receives_context() -> None:
     )
     mock_structured.invoke.side_effect = [mock_mm, mock_cj]
 
-    with patch("src.agents.psf.ChatPromptTemplate.from_messages") as mock_prompt:
-        # We need to mock the prompt to intercept the call arguments
-        mock_prompt_tmpl = MagicMock()
-        mock_prompt.return_value = mock_prompt_tmpl
-        mock_chain = MagicMock()
-        mock_prompt_tmpl.__or__.return_value = mock_chain
-        mock_chain.invoke.side_effect = [mock_mm, mock_cj]
+    result = agent.run(state)
 
-        result = agent.run(state)
+    # Verify the context was passed to the invokes
+    assert mock_structured.invoke.call_count == 2
 
-        # Verify the context was passed to the prompts
-        assert mock_prompt.call_count == 2
+    # First call: MM prompt
+    call_1_args = mock_structured.invoke.call_args_list[0][0][0]
+    user_msg_1 = call_1_args[1]["content"]
+    assert "Persona" in user_msg_1
+    assert "VPC" in user_msg_1
 
-        # First call: MM prompt
-        call_1_args = mock_prompt.call_args_list[0][0][0]
-        user_msg_1 = call_1_args[1][1]
-        assert "Persona" in user_msg_1
-        assert "VPC" in user_msg_1
+    # Second call: Journey prompt
+    call_2_args = mock_structured.invoke.call_args_list[1][0][0]
+    user_msg_2 = call_2_args[1]["content"]
+    assert "Mental Model" in user_msg_2
+    assert "Persona" in user_msg_2
 
-        # Second call: Journey prompt
-        call_2_args = mock_prompt.call_args_list[1][0][0]
-        user_msg_2 = call_2_args[1][1]
-        assert "Mental Model" in user_msg_2
-        assert "Persona" in user_msg_2
-
-        assert "mental_model_diagram" in result
-        assert "customer_journey" in result
+    assert "mental_model_diagram" in result
+    assert "customer_journey" in result

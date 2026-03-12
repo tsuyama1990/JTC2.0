@@ -1,10 +1,10 @@
 import logging
-from collections.abc import Iterator
-from typing import Callable
+from collections.abc import Callable, Iterator
 
-from src.core.exceptions import ValidationError
-from src.core.constants import ERR_RAG_TEXT_TOO_LARGE
 from llama_index.core import Document
+
+from src.core.constants import ERR_RAG_TEXT_TOO_LARGE
+from src.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 

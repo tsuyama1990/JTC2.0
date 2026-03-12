@@ -4,6 +4,7 @@ from src.core.config import get_settings
 from src.core.constants import ERR_LLM_CONFIG_MISSING
 from src.core.interfaces import ILLMClient
 
+
 @lru_cache
 def get_llm(model: str | None = None) -> ILLMClient:
     """

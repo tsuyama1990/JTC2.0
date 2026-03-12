@@ -1,4 +1,5 @@
 import logging
+
 from src.core.constants import ERR_RAG_INDEX_SIZE
 
 logger = logging.getLogger(__name__)

@@ -6,16 +6,15 @@ from tenacity import RetryError
 from src.tools.search import TavilySearch
 
 
-@patch("src.tools.search.TavilyClient")
 @patch("src.tools.search.get_settings")
-def test_tavily_search_success(mock_get_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+def test_tavily_search_success(mock_get_settings: MagicMock) -> None:
     # Setup settings with explicit values
     mock_settings = mock_get_settings.return_value
     mock_settings.tavily_api_key.get_secret_value.return_value = "test-key"
     mock_settings.search_max_results = 5
     mock_settings.search_depth = "advanced"
 
-    mock_client = mock_client_cls.return_value
+    mock_client = MagicMock()
     mock_client.search.return_value = {
         "results": [
             {"title": "Title 1", "content": "Content 1", "url": "http://example.com/1"},
@@ -23,7 +22,7 @@ def test_tavily_search_success(mock_get_settings: MagicMock, mock_client_cls: Ma
         ]
     }
 
-    search = TavilySearch()
+    search = TavilySearch(search_client=mock_client)
     result = search.search("query")
 
     assert "Title 1" in result
@@ -35,18 +34,15 @@ def test_tavily_search_success(mock_get_settings: MagicMock, mock_client_cls: Ma
     mock_client.search.assert_called_with(query="query", max_results=5, search_depth="advanced")
 
 
-@patch("src.tools.search.TavilyClient")
 @patch("src.tools.search.get_settings")
-def test_tavily_search_error_with_retry(
-    mock_get_settings: MagicMock, mock_client_cls: MagicMock
-) -> None:
+def test_tavily_search_error_with_retry(mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.tavily_api_key.get_secret_value.return_value = "test-key"
-    mock_client = mock_client_cls.return_value
+    mock_client = MagicMock()
     # Simulate repeated failure
     mock_client.search.side_effect = Exception("Search error")
 
-    search = TavilySearch()
+    search = TavilySearch(search_client=mock_client)
 
     # We expect RetryError after retries are exhausted (tenacity behavior)
     # The search() method raises RetryError if retries fail.
@@ -58,16 +54,15 @@ def test_tavily_search_error_with_retry(
     assert mock_client.search.call_count >= 3
 
 
-@patch("src.tools.search.TavilyClient")
 @patch("src.tools.search.get_settings")
-def test_tavily_safe_search_error(mock_get_settings: MagicMock, mock_client_cls: MagicMock) -> None:
+def test_tavily_safe_search_error(mock_get_settings: MagicMock) -> None:
     mock_settings = mock_get_settings.return_value
     mock_settings.tavily_api_key.get_secret_value.return_value = "test-key"
-    mock_client = mock_client_cls.return_value
+    mock_client = MagicMock()
     # Simulate repeated failure
     mock_client.search.side_effect = Exception("Search error")
 
-    search = TavilySearch()
+    search = TavilySearch(search_client=mock_client)
 
     # safe_search should catch the RetryError (or underlying) and return error message
     # Updated to match constant ERR_SEARCH_FAILED in Cycle 06

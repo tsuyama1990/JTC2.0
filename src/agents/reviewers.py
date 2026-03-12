@@ -39,8 +39,9 @@ class The3HReviewAgent(BaseAgent):
             ]
         )
         try:
-            hacker_result = (hacker_prompt | self.llm).invoke({})
-            updates["hacker_review"] = str(hacker_result.content)
+            hacker_messages = hacker_prompt.format_messages()
+            hacker_result = self.llm.invoke(hacker_messages)
+            updates["hacker_review"] = str(getattr(hacker_result, 'content', hacker_result))
         except Exception:
             logger.exception("Failed Hacker review")
 
@@ -55,8 +56,9 @@ class The3HReviewAgent(BaseAgent):
             ]
         )
         try:
-            hipster_result = (hipster_prompt | self.llm).invoke({})
-            updates["hipster_review"] = str(hipster_result.content)
+            hipster_messages = hipster_prompt.format_messages()
+            hipster_result = self.llm.invoke(hipster_messages)
+            updates["hipster_review"] = str(getattr(hipster_result, 'content', hipster_result))
         except Exception:
             logger.exception("Failed Hipster review")
 
@@ -71,8 +73,9 @@ class The3HReviewAgent(BaseAgent):
             ]
         )
         try:
-            hustler_result = (hustler_prompt | self.llm).invoke({})
-            updates["hustler_review"] = str(hustler_result.content)
+            hustler_messages = hustler_prompt.format_messages()
+            hustler_result = self.llm.invoke(hustler_messages)
+            updates["hustler_review"] = str(getattr(hustler_result, 'content', hustler_result))
         except Exception:
             logger.exception("Failed Hustler review")
 

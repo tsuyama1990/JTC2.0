@@ -10,7 +10,6 @@ from src.core.config import get_settings
 from src.core.graph import create_app
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
 from src.domain_models.state import GlobalState, Phase
 from tests.conftest import DUMMY_ENV_VARS
@@ -129,7 +128,11 @@ def test_gate_transitions_data_integrity(
     GlobalState.model_validate(state_ready_for_verification.model_dump())
 
     # 2. Validate Transition to PSF
-    from src.domain_models.value_proposition_canvas import ValuePropositionCanvas, CustomerProfile, ValueMap
+    from src.domain_models.value_proposition_canvas import (
+        CustomerProfile,
+        ValueMap,
+        ValuePropositionCanvas,
+    )
     dummy_vpc = ValuePropositionCanvas(
         customer_profile=CustomerProfile(customer_jobs=["A"], pains=["B"], gains=["C"]),
         value_map=ValueMap(products_and_services=["A"], pain_relievers=["B"], gain_creators=["C"]),
@@ -144,7 +147,7 @@ def test_gate_transitions_data_integrity(
 
     # 3. Validate Transition to OUTPUT
     from src.domain_models.mental_model_diagram import MentalModelDiagram
-    from src.domain_models.sitemap_and_story import SitemapAndStory, Route, UserStory
+    from src.domain_models.sitemap_and_story import Route, SitemapAndStory, UserStory
 
     state_ready_for_output = state_ready_for_psf.model_copy()
     state_ready_for_output.mental_model_diagram = MentalModelDiagram(towers=[], feature_alignment="A")

@@ -1,5 +1,6 @@
 import time
 
+
 def rate_limit_wait(last_call_time: float, min_interval: float) -> float:
     """
     Simple blocking rate limiter.

@@ -51,9 +51,9 @@ class VirtualCustomerAgent(BaseAgent):
             ]
         )
 
-        chain = prompt | self.llm
         try:
-            result = chain.invoke({})
+            messages = prompt.format_messages()
+            result = self.llm.invoke(messages)
             return {"virtual_customer_review": str(getattr(result, 'content', result))}
         except Exception:
             logger.exception("Failed to generate Virtual Customer feedback")

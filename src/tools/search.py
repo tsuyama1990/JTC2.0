@@ -1,6 +1,7 @@
 import logging
-from typing import Literal, Any
+from typing import Any, Literal
 
+from tavily import InvalidAPIKeyError, MissingAPIKeyError
 from tenacity import (
     after_log,
     before_sleep_log,

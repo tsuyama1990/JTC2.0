@@ -46,9 +46,10 @@ class BuilderAgent(BaseAgent):
                 ),
             ]
         )
-        chain = prompt | self.llm.with_structured_output(AgentPromptSpec)
         try:
-            result = chain.invoke({})
+            structured_llm = self.llm.with_structured_output(AgentPromptSpec)
+            messages = prompt.format_messages()
+            result = structured_llm.invoke(messages)
             if isinstance(result, AgentPromptSpec):
                 return {"agent_prompt_spec": result}
         except Exception:
@@ -79,9 +80,10 @@ class BuilderAgent(BaseAgent):
                 ),
             ]
         )
-        chain = prompt | self.llm.with_structured_output(ExperimentPlan)
         try:
-            result = chain.invoke({})
+            structured_llm = self.llm.with_structured_output(ExperimentPlan)
+            messages = prompt.format_messages()
+            result = structured_llm.invoke(messages)
             if isinstance(result, ExperimentPlan):
                 return {"experiment_plan": result}
         except Exception:

@@ -26,27 +26,22 @@ class MentalModelJourneyAgent(BaseAgent):
             logger.warning("Missing required context for Mental Model & Journey Mapping.")
             return {}
 
-        # Optional local import to avoid hard dependency at module layer if desired
-        from langchain_core.prompts import ChatPromptTemplate
-
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are an expert UX researcher. Generate a Mental Model Diagram and a Customer Journey based on the provided context.",
-                ),
-                (
-                    "user",
-                    f"Persona: {state.target_persona.model_dump_json()}\n"
-                    f"VPC: {state.value_proposition_canvas.model_dump_json()}\n"
-                    "Generate Mental Model Diagram:",
-                ),
-            ]
-        )
-        mm_chain = prompt | self.llm.with_structured_output(MentalModelDiagram)
+        prompt_messages = [
+            {
+                "role": "system",
+                "content": "You are an expert UX researcher. Generate a Mental Model Diagram and a Customer Journey based on the provided context.",
+            },
+            {
+                "role": "user",
+                "content": f"Persona: {state.target_persona.model_dump_json()}\n"
+                           f"VPC: {state.value_proposition_canvas.model_dump_json()}\n"
+                           "Generate Mental Model Diagram:",
+            },
+        ]
 
         try:
-            mm_result = mm_chain.invoke({})
+            structured_llm = self.llm.with_structured_output(MentalModelDiagram)
+            mm_result = structured_llm.invoke(prompt_messages)
         except Exception:
             logger.exception("Failed to generate Mental Model Diagram")
             return {}
@@ -54,25 +49,22 @@ class MentalModelJourneyAgent(BaseAgent):
         if not isinstance(mm_result, MentalModelDiagram):
             return {}
 
-        from langchain_core.prompts import ChatPromptTemplate
-        journey_prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are an expert UX researcher. Generate a Customer Journey based on the Mental Model.",
-                ),
-                (
-                    "user",
-                    f"Mental Model: {mm_result.model_dump_json()}\n"
-                    f"Persona: {state.target_persona.model_dump_json()}\n"
-                    "Generate Customer Journey:",
-                ),
-            ]
-        )
-        journey_chain = journey_prompt | self.llm.with_structured_output(CustomerJourney)
+        journey_prompt_messages = [
+            {
+                "role": "system",
+                "content": "You are an expert UX researcher. Generate a Customer Journey based on the Mental Model.",
+            },
+            {
+                "role": "user",
+                "content": f"Mental Model: {mm_result.model_dump_json()}\n"
+                           f"Persona: {state.target_persona.model_dump_json()}\n"
+                           "Generate Customer Journey:",
+            },
+        ]
 
         try:
-            journey_result = journey_chain.invoke({})
+            journey_llm = self.llm.with_structured_output(CustomerJourney)
+            journey_result = journey_llm.invoke(journey_prompt_messages)
         except Exception:
             logger.exception("Failed to generate Customer Journey")
             return {"mental_model_diagram": mm_result}
@@ -97,24 +89,21 @@ class SitemapWireframeAgent(BaseAgent):
             logger.warning("Missing Customer Journey for Sitemap generation.")
             return {}
 
-        from langchain_core.prompts import ChatPromptTemplate
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are an expert Information Architect. Generate a Sitemap and Core User Story.",
-                ),
-                (
-                    "user",
-                    f"Customer Journey: {state.customer_journey.model_dump_json()}\n"
-                    "Generate SitemapAndStory:",
-                ),
-            ]
-        )
-        chain = prompt | self.llm.with_structured_output(SitemapAndStory)
+        prompt_messages = [
+            {
+                "role": "system",
+                "content": "You are an expert Information Architect. Generate a Sitemap and Core User Story.",
+            },
+            {
+                "role": "user",
+                "content": f"Customer Journey: {state.customer_journey.model_dump_json()}\n"
+                           "Generate SitemapAndStory:",
+            },
+        ]
 
         try:
-            result = chain.invoke({})
+            structured_llm = self.llm.with_structured_output(SitemapAndStory)
+            result = structured_llm.invoke(prompt_messages)
             if isinstance(result, SitemapAndStory):
                 return {"sitemap_and_story": result}
         except Exception:

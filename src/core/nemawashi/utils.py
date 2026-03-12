@@ -37,6 +37,36 @@ class NemawashiUtils:
             raise ValidationError(msg)
 
     @staticmethod
+    def validate_symmetry(
+        matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6
+    ) -> None:
+        """
+        Validate that the influence matrix is symmetric.
+        """
+        is_symmetric = True
+        try:
+            if hasattr(matrix, "transpose"):
+                # Sparse or numpy matrix
+                m = cast(csr_matrix, matrix)
+                if not np.allclose(m.toarray(), m.transpose().toarray(), atol=tolerance):
+                    is_symmetric = False
+            else:
+                # List of lists
+                dense = cast(list[list[float]], matrix)
+                n = len(dense)
+                for i in range(n):
+                    for j in range(n):
+                        if abs(dense[i][j] - dense[j][i]) > tolerance:
+                            is_symmetric = False
+        except Exception as e:
+            msg = f"Symmetry check failed: {e}"
+            raise ValidationError(msg) from e
+
+        if not is_symmetric:
+            msg = "Influence matrix is not symmetric"
+            raise ValidationError(msg)
+
+    @staticmethod
     def build_sparse_matrix(network: InfluenceNetwork, n: int) -> csr_matrix:
         """
         Construct a CSR matrix from the network data efficiently.

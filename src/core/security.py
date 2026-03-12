@@ -1,7 +1,8 @@
 import logging
 from pathlib import Path
-from src.core.exceptions import ConfigurationError
+
 from src.core.constants import ERR_PATH_TRAVERSAL
+from src.core.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 

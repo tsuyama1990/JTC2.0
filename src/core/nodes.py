@@ -143,6 +143,7 @@ def _ingest_impl(state: GlobalState) -> dict[str, Any]:
     return {}
 
 
+@safe_node("Error in Transcript Ingestion")
 def transcript_ingestion_node(state: GlobalState) -> dict[str, Any]:
     """
     Ingest customer transcripts into the RAG system.

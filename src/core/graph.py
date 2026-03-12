@@ -97,4 +97,9 @@ def create_app() -> CompiledStateGraph[Any, Any, Any]:
     settings = get_settings()
 
     # Compile with Interrupts for HITL Gates
-    return workflow.compile(interrupt_after=settings.hitl_interrupt_nodes)
+    try:
+        return workflow.compile(interrupt_after=settings.hitl_interrupt_nodes)
+    except Exception as e:
+        logger.exception("Failed to compile LangGraph workflow.")
+        msg = "Workflow compilation failed. Please check graph configuration."
+        raise RuntimeError(msg) from e

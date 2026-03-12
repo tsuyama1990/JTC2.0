@@ -87,18 +87,22 @@ class RAG:
 
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
-        if not self.settings.openai_api_key:
-            raise ConfigurationError(self.settings.errors.config_missing_openai)
+        import os
+        is_mock = os.getenv("MOCK_MODE", "false").lower() == "true"
 
-        api_key_str = self.settings.openai_api_key.get_secret_value()
+        if not is_mock:
+            if not self.settings.openai_api_key:
+                raise ConfigurationError(self.settings.errors.config_missing_openai)
 
-        # Local import to prevent architectural hard-coupling at module level
-        from llama_index.core import Settings as LlamaSettings
-        from llama_index.embeddings.openai import OpenAIEmbedding
-        from llama_index.llms.openai import OpenAI
+            api_key_str = self.settings.openai_api_key.get_secret_value()
 
-        LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
-        LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
+            # Local import to prevent architectural hard-coupling at module level
+            from llama_index.core import Settings as LlamaSettings
+            from llama_index.embeddings.openai import OpenAIEmbedding
+            from llama_index.llms.openai import OpenAI
+
+            LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
+            LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
 
         if Path(self.persist_dir).exists():
             self._load_existing_index()

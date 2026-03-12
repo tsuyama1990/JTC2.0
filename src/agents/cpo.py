@@ -5,10 +5,10 @@ from typing import Any
 from src.agents.base import SearchTool
 from src.agents.personas import PersonaAgent
 from src.core.config import Settings
+from src.core.interfaces import ILLMClient
 from src.data.rag import RAG
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
-from src.core.interfaces import ILLMClient
 
 logger = logging.getLogger(__name__)
 

@@ -96,7 +96,7 @@ class PersonaGeneratorAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = Persona.model_validate(result)
-        return result
+        return result # type: ignore
 
 
 class AlternativeAnalysisAgent(BaseAgent):
@@ -146,7 +146,7 @@ class AlternativeAnalysisAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = AlternativeAnalysis.model_validate(result)
-        return result
+        return result # type: ignore
 
 
 class ValuePropositionAgent(BaseAgent):
@@ -201,7 +201,7 @@ class ValuePropositionAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = ValuePropositionCanvas.model_validate(result)
-        return result
+        return result # type: ignore
 
 
 class PersonaAgent(BaseAgent):

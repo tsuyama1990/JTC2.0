@@ -3,10 +3,9 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from fpdf import FPDF
-
 from src.core.config import get_settings
 from src.core.exceptions import ConfigurationError
+from src.core.interfaces import IPDFGenerator
 from src.domain_models.alternative_analysis import AlternativeAnalysis
 from src.domain_models.persona import Persona
 from src.domain_models.value_proposition_canvas import ValuePropositionCanvas
@@ -76,14 +75,31 @@ class FileService:
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Includes simple retry logic for robustness.
+        Includes simple retry logic for robustness and uses atomic file writes.
         """
+        import os
+        import tempfile
+
         attempts = 3
         for attempt in range(attempts):
             try:
                 # Ensure parent exists
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(content, encoding="utf-8")
+
+                # Atomic write pattern
+                fd, temp_path_str = tempfile.mkstemp(dir=path.parent, prefix="tmp_", suffix=".txt")
+                try:
+                    with os.fdopen(fd, 'w', encoding="utf-8") as f:
+                        f.write(content)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    Path(temp_path_str).replace(path)
+                except Exception:
+                    temp_path = Path(temp_path_str)
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    raise
+
                 logger.info(f"File saved successfully to {path}")
                 break
             except PermissionError:

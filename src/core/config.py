@@ -2,8 +2,8 @@ import json
 import os
 from functools import lru_cache
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     DEFAULT_ARPU,
@@ -82,8 +82,10 @@ from src.core.theme import (
 from src.core.validators import ConfigValidators
 
 
-class ValidationConfig(BaseSettings):
+class ValidationConfig(BaseModel):
     """Validation constraints for domain models."""
+
+    model_config = ConfigDict(extra="forbid")
 
     min_title_length: int = Field(
         default=DEFAULT_MIN_TITLE_LENGTH, description="Minimum length for titles"
@@ -102,8 +104,10 @@ class ValidationConfig(BaseSettings):
     max_percentage_value: float = Field(default=100.0, description="Maximum percentage value")
 
 
-class ErrorMessages(BaseSettings):
+class ErrorMessages(BaseModel):
     """Error messages for the application."""
+
+    model_config = ConfigDict(extra="forbid")
 
     unique_id_violation: str = ERR_UNIQUE_ID_VIOLATION
     config_missing_openai: str = ERR_CONFIG_MISSING_OPENAI_KEY
@@ -118,11 +122,12 @@ class ErrorMessages(BaseSettings):
     missing_mvp: str = ERR_MISSING_MVP
 
 
-class UIConfig(BaseSettings):
+class UIConfig(BaseModel):
     """UI Strings and Configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     page_size: int = Field(
-        alias="UI_PAGE_SIZE",
         default=DEFAULT_PAGE_SIZE,
         description="Number of items per page in UI",
     )
@@ -145,7 +150,7 @@ class UIConfig(BaseSettings):
 class AgentConfig(BaseModel):
     """Configuration for a single agent in the UI."""
 
-    model_config = SettingsConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     role: str = Field(..., description="Role name of the agent")
     label: str = Field(..., description="Short label for UI")
@@ -168,46 +173,47 @@ class AgentConfig(BaseModel):
         return ConfigValidators.validate_dimension(v)
 
 
-class NemawashiConfig(BaseSettings):
+class NemawashiConfig(BaseModel):
     """Configuration for Nemawashi Consensus Building."""
 
+    model_config = ConfigDict(extra="forbid")
+
     max_steps: int = Field(
-        alias="NEMAWASHI_MAX_STEPS",
         default=DEFAULT_NEMAWASHI_MAX_STEPS,
         description="Max iterations for consensus",
     )
     tolerance: float = Field(
-        alias="NEMAWASHI_TOLERANCE",
         default=DEFAULT_NEMAWASHI_TOLERANCE,
         description="Convergence tolerance",
     )
     nomikai_boost: float = Field(
-        alias="NEMAWASHI_NOMIKAI_BOOST",
         default=DEFAULT_NEMAWASHI_BOOST,
         description="Boost factor from Nomikai",
     )
     nomikai_reduction: float = Field(
-        alias="NEMAWASHI_NOMIKAI_REDUCTION",
         default=DEFAULT_NEMAWASHI_REDUCTION,
         description="Stubbornness reduction from Nomikai",
     )
 
 
-class V0Config(BaseSettings):
+class V0Config(BaseModel):
     """Configuration for v0.dev integration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     retry_max: int = Field(
-        alias="V0_RETRY_MAX", default=DEFAULT_V0_RETRY_MAX, description="Max retries for API calls"
+        default=DEFAULT_V0_RETRY_MAX, description="Max retries for API calls"
     )
     retry_backoff: float = Field(
-        alias="V0_RETRY_BACKOFF",
         default=DEFAULT_V0_RETRY_BACKOFF,
         description="Exponential backoff factor",
     )
 
 
-class SimulationConfig(BaseSettings):
+class SimulationConfig(BaseModel):
     """Configuration for the Pyxel Simulation UI."""
+
+    model_config = ConfigDict(extra="forbid")
 
     width: int = Field(default=DEFAULT_WIDTH, description="Window width")
     height: int = Field(default=DEFAULT_HEIGHT, description="Window height")
@@ -292,33 +298,31 @@ class SimulationConfig(BaseSettings):
         return ConfigValidators.validate_color(v)
 
 
-class GovernanceConfig(BaseSettings):
+class GovernanceConfig(BaseModel):
     """Configuration for Governance and Financials."""
 
+    model_config = ConfigDict(extra="forbid")
+
     min_roi_threshold: float = Field(
-        alias="MIN_ROI_THRESHOLD",
         default=DEFAULT_MIN_ROI_THRESHOLD,
         description="Minimum ROI for approval",
     )
-    default_cac: float = Field(alias="DEFAULT_CAC", default=DEFAULT_CAC, description="Fallback CAC")
+    default_cac: float = Field(default=DEFAULT_CAC, description="Fallback CAC")
     default_arpu: float = Field(
-        alias="DEFAULT_ARPU", default=DEFAULT_ARPU, description="Fallback ARPU"
+        default=DEFAULT_ARPU, description="Fallback ARPU"
     )
     default_churn: float = Field(
-        alias="DEFAULT_CHURN", default=DEFAULT_CHURN, description="Fallback Churn Rate"
+        default=DEFAULT_CHURN, description="Fallback Churn Rate"
     )
     max_llm_response_size: int = Field(
-        alias="MAX_LLM_RESPONSE_SIZE",
         default=DEFAULT_MAX_LLM_RESPONSE_SIZE,
         description="Max bytes for LLM JSON response",
     )
     output_path: str = Field(
-        alias="RINGI_SHO_PATH",
         default_factory=lambda: os.getenv("RINGI_SHO_PATH", "RINGI_SHO.md"),
         description="Path for Ringi-sho output",
     )
     search_query_template: str = Field(
-        alias="GOV_SEARCH_QUERY_TEMPLATE",
         default_factory=lambda: os.getenv(
             "GOV_SEARCH_QUERY_TEMPLATE",
             "average CAC churn ARPU LTV for {industry} startups benchmarks",
@@ -326,7 +330,6 @@ class GovernanceConfig(BaseSettings):
         description="Template for financial search",
     )
     max_search_result_size: int = Field(
-        alias="MAX_SEARCH_RESULT_SIZE",
         default=DEFAULT_MAX_SEARCH_RESULT_SIZE,
         description="Max chars for search result context",
     )
@@ -335,10 +338,10 @@ class GovernanceConfig(BaseSettings):
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
-    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
-    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
+    openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY", description="OpenAI API Key")
+    tavily_api_key: SecretStr | None = Field(default=None, alias="TAVILY_API_KEY", description="Tavily Search API Key")
     v0_api_key: SecretStr | None = Field(
         alias="V0_API_KEY", default=None, description="V0.dev API Key"
     )
@@ -472,11 +475,19 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
-    def model_post_init(self, __context: object) -> None:
-        """Validate API keys on initialization."""
-        super().model_post_init(__context)
-        ConfigValidators.validate_openai_key(self.openai_api_key)
-        ConfigValidators.validate_tavily_key(self.tavily_api_key)
+    @field_validator("openai_api_key")
+    @classmethod
+    def validate_openai(cls, v: SecretStr | None) -> SecretStr | None:
+        if v is not None:
+            ConfigValidators.validate_openai_key(v)
+        return v
+
+    @field_validator("tavily_api_key")
+    @classmethod
+    def validate_tavily(cls, v: SecretStr | None) -> SecretStr | None:
+        if v is not None:
+            ConfigValidators.validate_tavily_key(v)
+        return v
 
     def rotate_keys(self) -> None:
         """Placeholder for key rotation."""
@@ -485,4 +496,10 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Load and cache settings."""
-    return Settings()
+    settings = Settings()
+    # Strict runtime verification
+    if os.getenv("MOCK_MODE", "false").lower() != "true" and not settings.openai_api_key:
+        from src.core.exceptions import ConfigurationError
+        msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
+        raise ConfigurationError(msg)
+    return settings

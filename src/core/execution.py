@@ -2,10 +2,9 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
+from typing import Any
 
 logger = logging.getLogger(__name__)
-
-from typing import Any
 
 def execute_query_with_timeout(
     query_engine: Any,
