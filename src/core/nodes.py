@@ -82,10 +82,10 @@ def vpc_node(state: GlobalState) -> dict[str, Any]:
     # Generate PDF at HITL Gate 1.5 if generation is successful
     if "value_proposition_canvas" in result and state.target_persona and state.alternative_analysis:
         from src.core.config import get_settings
-        from src.core.services.file_service import FileService
+        from src.core.factory import ServiceFactory
 
         settings = get_settings()
-        file_service = FileService()
+        file_service = ServiceFactory.get_file_service()
 
         try:
             # Output directory for the PDF from settings
@@ -260,10 +260,10 @@ def spec_generation_node(state: GlobalState) -> dict[str, Any]:
 
     if "agent_prompt_spec" in updates:
         from src.core.config import get_settings
-        from src.core.services.file_service import FileService
+        from src.core.factory import ServiceFactory
 
         settings = get_settings()
-        file_service = FileService()
+        file_service = ServiceFactory.get_file_service()
         try:
             output_dir = Path.cwd() / settings.canvas_output_dir
             file_service.generate_agent_prompt_spec_md(
@@ -285,10 +285,10 @@ def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
 
     if "experiment_plan" in updates:
         from src.core.config import get_settings
-        from src.core.services.file_service import FileService
+        from src.core.factory import ServiceFactory
 
         settings = get_settings()
-        file_service = FileService()
+        file_service = ServiceFactory.get_file_service()
         try:
             output_dir = Path.cwd() / settings.canvas_output_dir
             file_service.generate_experiment_plan_md(
@@ -299,33 +299,15 @@ def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
             logger.exception("Failed to write Experiment Plan to disk.")
 
     if "experiment_plan" in updates and state.sitemap_and_story:
-        plan = updates["experiment_plan"]
-        from src.domain_models.mvp import MVP, Feature, MVPType, Priority
+        from src.core.factory import ServiceFactory
 
-        # Determine the core feature from the generated user story and experiment plan
-        feature_name = state.sitemap_and_story.core_story.i_want_to
-        feature_name = feature_name if len(feature_name) <= 50 else feature_name[:47] + "..."
-        feature_name = feature_name if len(feature_name) >= 3 else feature_name + " feature"
-
-        description = plan.riskiest_assumption
-        from src.core.config import get_settings
-
-        min_len = get_settings().validation.min_content_length
-        if len(description) < min_len:
-            description = description.ljust(min_len, ".")
-
-        mvp = MVP(
-            type=MVPType.SINGLE_FEATURE,
-            core_features=[
-                Feature(
-                    name=feature_name,
-                    description=description,
-                    priority=Priority.MUST_HAVE,
-                )
-            ],
-            success_criteria=plan.pivot_condition,
+        mvp_service = ServiceFactory.get_mvp_service()
+        mvp = mvp_service.generate_mvp_definition(
+            plan=updates["experiment_plan"],
+            sitemap_and_story=state.sitemap_and_story
         )
-        updates["mvp_definition"] = mvp
+        if mvp:
+            updates["mvp_definition"] = mvp
 
     return updates
 

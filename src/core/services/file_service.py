@@ -39,17 +39,22 @@ class FileService:
         """
         Validate path to prevent traversal.
         """
+        def _raise_path_error(m: str) -> None:
+            raise ConfigurationError(m)
+
         try:
             p = Path(path)
-            # If path doesn't exist, we resolve its parent, which must exist
-            if p.exists():
-                target_path = p.resolve(strict=True)
-            else:
-                # Ensure the parent directory resolves cleanly and we construct the path back
-                parent = p.parent.resolve(strict=True)
-                target_path = parent / p.name
 
+            if ".." in p.parts:
+                _raise_path_error(f"Path traversal detected (contains '..'): {path}")
+
+            if p.is_absolute():
+                _raise_path_error(f"Absolute paths are not allowed: {path}")
+
+            # Resolve the path strictly within the current working directory
             cwd = Path.cwd().resolve(strict=True)
+            target_path = (cwd / p).resolve()
+
         except Exception as e:
             msg = f"Invalid path: {e}"
             raise ConfigurationError(msg) from e
@@ -84,21 +89,27 @@ class FileService:
         import tempfile
 
         attempts = 3
+        def _raise_symlink_error(m: str) -> None:
+            raise OSError(m)
+
         for attempt in range(attempts):
             try:
                 # Ensure parent exists
                 path.parent.mkdir(parents=True, exist_ok=True)
 
-                # Atomic write pattern
+                if path.exists() and path.is_symlink():
+                    _raise_symlink_error(f"Target path is a symlink: {path}")
+
+                # Atomic write pattern in the exact same directory
                 fd, temp_path_str = tempfile.mkstemp(dir=path.parent, prefix="tmp_", suffix=".txt")
+                temp_path = Path(temp_path_str)
                 try:
                     with os.fdopen(fd, "w", encoding="utf-8") as f:
                         f.write(content)
                         f.flush()
                         os.fsync(f.fileno())
-                    Path(temp_path_str).replace(path)
+                    temp_path.replace(path)
                 except Exception:
-                    temp_path = Path(temp_path_str)
                     if temp_path.exists():
                         temp_path.unlink()
                     raise
@@ -108,16 +119,24 @@ class FileService:
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
                 break  # No point retrying permission error
-            except OSError:
-                if attempt < attempts - 1:
+            except OSError as e:
+                if attempt < attempts - 1 and "symlink" not in str(e):
                     logger.warning(
                         f"OS error writing to {path}, retrying... ({attempt + 1}/{attempts})"
                     )
                     continue
                 logger.exception(f"OS error writing to {path} after {attempts} attempts")
+                break
             except (ValueError, TypeError, RuntimeError):
                 logger.exception(f"Unexpected data error writing to {path}")
                 break
+
+    def _sanitize_md(self, text: str) -> str:
+        """
+        Sanitizes user input for Markdown generation.
+        Escapes simple HTML tags to prevent execution in markdown parsers.
+        """
+        return text.replace("<", "&lt;").replace(">", "&gt;")
 
     def generate_agent_prompt_spec_md(
         self,
@@ -137,32 +156,32 @@ class FileService:
                 "- Role: Expert Frontend Engineer & UI/UX Designer",
                 "- Stack: Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui, Lucide-react",
                 "- Principles: One Feature One Value, Mobile First, Accessible (WCAG 2.1)",
-                f"- Routing & Components: {spec.routing_and_constraints}\n",
+                f"- Routing & Components: {self._sanitize_md(spec.routing_and_constraints)}\n",
                 "# 🗺️ Sitemap & Information Architecture\n",
-                f"{spec.sitemap}\n",
+                f"{self._sanitize_md(spec.sitemap)}\n",
                 "# 🎯 Core User Story\n",
-                f"- As a: {spec.core_user_story.as_a}",
-                f"- I want to: {spec.core_user_story.i_want_to}",
-                f"- So that: {spec.core_user_story.so_that}",
-                f"- Target Route: {spec.core_user_story.target_route}",
+                f"- As a: {self._sanitize_md(spec.core_user_story.as_a)}",
+                f"- I want to: {self._sanitize_md(spec.core_user_story.i_want_to)}",
+                f"- So that: {self._sanitize_md(spec.core_user_story.so_that)}",
+                f"- Target Route: {self._sanitize_md(spec.core_user_story.target_route)}",
                 "- Acceptance Criteria:"
             ]
             for ac in spec.core_user_story.acceptance_criteria:
-                content.append(f"  - {ac}")
+                content.append(f"  - {self._sanitize_md(ac)}")
 
             content.extend([
                 "\n# 📊 Data Schema & Flow\n",
                 "Validation Rules:",
-                f"{spec.validation_rules}\n",
+                f"{self._sanitize_md(spec.validation_rules)}\n",
                 "🔄 State Machine (Mermaid)\n",
                 "```mermaid",
-                spec.mermaid_flowchart.replace("```mermaid", "").replace("```", "").strip(),
+                self._sanitize_md(spec.mermaid_flowchart.replace("```mermaid", "").replace("```", "").strip()),
                 "```\n",
                 "🖥️ UI Structure & States",
-                f"Success State: {spec.state_machine.success}",
-                f"Loading State: {spec.state_machine.loading}",
-                f"Empty State: {spec.state_machine.empty}",
-                f"Error State: {spec.state_machine.error}"
+                f"Success State: {self._sanitize_md(spec.state_machine.success)}",
+                f"Loading State: {self._sanitize_md(spec.state_machine.loading)}",
+                f"Empty State: {self._sanitize_md(spec.state_machine.empty)}",
+                f"Error State: {self._sanitize_md(spec.state_machine.error)}"
             ])
 
             self._save_text_sync("\n".join(content), output_path)
@@ -188,16 +207,16 @@ class FileService:
 
             content = [
                 "# 🧪 MVP Experiment Plan\n",
-                f"**Riskiest Assumption:** {plan.riskiest_assumption}",
-                f"**Experiment Type:** {plan.experiment_type}",
-                f"**Acquisition Channel:** {plan.acquisition_channel}",
-                f"**Pivot Condition:** {plan.pivot_condition}\n",
+                f"**Riskiest Assumption:** {self._sanitize_md(plan.riskiest_assumption)}",
+                f"**Experiment Type:** {self._sanitize_md(plan.experiment_type)}",
+                f"**Acquisition Channel:** {self._sanitize_md(plan.acquisition_channel)}",
+                f"**Pivot Condition:** {self._sanitize_md(plan.pivot_condition)}\n",
                 "## 📈 AARRR Metrics Framework\n"
             ]
             for metric in plan.aarrr_metrics:
-                content.append(f"### {metric.metric_name}")
-                content.append(f"- **Target:** {metric.target_value}")
-                content.append(f"- **Method:** {metric.measurement_method}\n")
+                content.append(f"### {self._sanitize_md(metric.metric_name)}")
+                content.append(f"- **Target:** {self._sanitize_md(metric.target_value)}")
+                content.append(f"- **Method:** {self._sanitize_md(metric.measurement_method)}\n")
 
             self._save_text_sync("\n".join(content), output_path)
             logger.info(f"EXPERIMENT_PLAN MD generated successfully at {output_path}")
