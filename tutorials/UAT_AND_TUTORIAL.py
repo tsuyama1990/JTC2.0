@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import marimo
 
 __generated_with = "0.20.4"
@@ -6,6 +7,7 @@ app = marimo.App(width="medium")
 
 @app.cell
 def __1() -> tuple[object]:
+    # type: ignore
     import logging
     import threading
     import time

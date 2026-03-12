@@ -4,28 +4,50 @@ Defines the Experiment Plan domain models.
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.config import get_settings
+
 
 class MetricTarget(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    metric_name: str = Field(..., description="指標名(例: Day7 Retention)", min_length=1)
-    target_value: str = Field(..., description="PMF達成とみなす目標値(例: 40%以上)", min_length=1)
-    measurement_method: str = Field(..., description="計測方法", min_length=1)
+    metric_name: str = Field(
+        ...,
+        description="指標名(例: Day7 Retention)",
+        min_length=get_settings().validation.min_list_length,
+    )
+    target_value: str = Field(
+        ...,
+        description="PMF達成とみなす目標値(例: 40%以上)",
+        min_length=get_settings().validation.min_list_length,
+    )
+    measurement_method: str = Field(
+        ..., description="計測方法", min_length=get_settings().validation.min_list_length
+    )
 
 
 class ExperimentPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
     riskiest_assumption: str = Field(
-        ..., description="今回検証する最もリスクの高い前提条件", min_length=5
+        ...,
+        description="今回検証する最もリスクの高い前提条件",
+        min_length=get_settings().validation.min_content_length,
     )
     experiment_type: str = Field(
-        ..., description="MVPの型(例: LP、コンシェルジュ、Wizard of Oz)", min_length=1
+        ...,
+        description="MVPの型(例: LP、コンシェルジュ、Wizard of Oz)",
+        min_length=get_settings().validation.min_list_length,
     )
     acquisition_channel: str = Field(
-        ..., description="初期の100人をどこから連れてくるか", min_length=1
+        ...,
+        description="初期の100人をどこから連れてくるか",
+        min_length=get_settings().validation.min_list_length,
     )
     aarrr_metrics: list[MetricTarget] = Field(
-        ..., description="AARRRフレームワークに基づく追跡指標", min_length=1
+        ...,
+        description="AARRRフレームワークに基づく追跡指標",
+        min_length=get_settings().validation.min_list_length,
     )
     pivot_condition: str = Field(
-        ..., description="どのような結果になれば即撤退(ピボット)すべきか", min_length=5
+        ...,
+        description="どのような結果になれば即撤退(ピボット)すべきか",
+        min_length=get_settings().validation.min_content_length,
     )

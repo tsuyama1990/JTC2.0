@@ -21,6 +21,6 @@ def test_cpo_research(mock_llm: MagicMock, mock_rag: MagicMock) -> None:
     agent.rag = MagicMock()
     agent.rag.query.return_value = "Found customer data"
 
-    result = agent._research_impl("SaaS Platform")
+    result = agent._cached_research("SaaS Platform")
     assert result == "Found customer data"
     agent.rag.query.assert_called()

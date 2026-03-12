@@ -372,23 +372,26 @@ class Settings(BaseSettings):
     @classmethod
     def validate_v0_api_key(cls, v: SecretStr) -> SecretStr:
         """Validate the format of the V0 API Key."""
+        import re
+
         secret = v.get_secret_value()
         if len(secret) < 10:
             msg = "v0_api_key must be at least 10 characters long."
+            raise ValueError(msg)
+        if not re.match(r"^[\w\-]+$", secret):
+            msg = "v0_api_key contains invalid characters."
             raise ValueError(msg)
         return v
 
     v0_api_url: str = Field(
         alias="V0_API_URL",
-        default="https://api.v0.dev/chat/completions",
         description="V0.dev API URL",
+        pattern=r"^https://api\.v0\.dev/.*$",
     )
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
 
-    rag_persist_dir: str = Field(
-        alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index"
-    )
+    rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", description="Directory for RAG index")
     rag_chunk_size: int = Field(
         alias="RAG_CHUNK_SIZE", default=1024, description="Chunk size for RAG"
     )
@@ -407,9 +410,8 @@ class Settings(BaseSettings):
         default=500,
         description="Max index size in MB",
     )
-    rag_allowed_paths: list[str] = Field(
+    rag_allowed_paths: str | list[str] = Field(
         alias="RAG_ALLOWED_PATHS",
-        default_factory=lambda: ["data", "vector_store", "tests"],
         description="Allowed directories for RAG",
     )
     rag_rate_limit_interval: float = Field(

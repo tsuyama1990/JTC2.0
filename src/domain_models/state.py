@@ -3,7 +3,6 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.core.config import get_settings
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.enums import Phase, Role
 from src.domain_models.validators import StateValidator
@@ -61,7 +60,7 @@ class GlobalState(BaseModel):
         default_factory=list, description="Raw transcripts from PLAUD or interviews"
     )
     rag_index_path: str = Field(
-        default_factory=lambda: get_settings().rag_persist_dir,
+        default="",
         description="Path to the local vector store",
     )
 
@@ -82,14 +81,53 @@ class GlobalState(BaseModel):
     @field_validator("transcripts")
     @classmethod
     def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
-        """Ensure transcripts are unique by source."""
-        # Simple list validation logic, keeping it here for field proximity or move to validator?
-        # The audit asked to "Extract complex validation logic".
-        # This is relatively simple, but let's be strict.
+        """Ensure transcripts are unique by source, validate content size, and sanitize."""
+        import re
+
         sources = [t.source for t in v]
         if len(sources) != len(set(sources)):
             msg = "Duplicate transcript sources found."
             raise ValueError(msg)
+
+        for transcript in v:
+            if len(transcript.content) > 100000:
+                msg = f"Transcript {transcript.source} content exceeds maximum allowed size (100k chars)."
+                raise ValueError(msg)
+            if len(transcript.content.strip()) < 10:
+                msg = f"Transcript {transcript.source} content is too short."
+                raise ValueError(msg)
+
+            # Basic sanitization: remove potential script tags or null bytes
+            sanitized = re.sub(r"(?i)<script.*?>.*?</script>", "", transcript.content)
+            sanitized = sanitized.replace("\x00", "")
+            transcript.content = sanitized
+
+        return v
+
+    @field_validator("rag_index_path")
+    @classmethod
+    def validate_rag_index_path(cls, v: str) -> str:
+        from pathlib import Path
+
+        from src.core.config import get_settings
+        if not v:
+            return v
+
+        is_allowed = False
+        settings = get_settings()
+        for allowed_path in settings.rag_allowed_paths:
+            if v == allowed_path or v.startswith(allowed_path + "/"):
+                is_allowed = True
+                break
+
+        if not is_allowed:
+            msg = f"Invalid RAG path '{v}'. Must be within allowed paths: {settings.rag_allowed_paths}"
+            raise ValueError(msg)
+
+        if not Path(v).exists():
+            msg = f"RAG index path '{v}' does not exist."
+            raise ValueError(msg)
+
         return v
 
     @field_validator("agent_states")

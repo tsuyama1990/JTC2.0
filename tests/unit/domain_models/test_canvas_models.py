@@ -54,7 +54,7 @@ def test_value_proposition_canvas_invalid() -> None:
                     "pain_relievers": ["Reliever"],
                     "gain_creators": ["Creator"],
                 },
-                "fit_evaluation": "fit",  # min length is 5
+                "fit_evaluation": "f",  # length 1, min is 3
             }
         )
 
