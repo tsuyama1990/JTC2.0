@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Iterator
+from itertools import islice
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -126,13 +127,9 @@ class BuilderAgent(BaseAgent):
             MAX_FEATURES = 100
             feature_gen = self._extract_features(state.selected_idea.solution)
 
-            candidate_features = []
-            try:
-                for _ in range(MAX_FEATURES):
-                    feature = next(feature_gen)
-                    candidate_features.append(feature)
-            except StopIteration:
-                logger.debug("Finished extracting features")
+            # Safely consume up to MAX_FEATURES without manual loop overhead
+            candidate_features = list(islice(feature_gen, MAX_FEATURES))
+            logger.debug("Finished extracting features")
 
         if not candidate_features:
             logger.warning("No features extracted from solution.")
@@ -176,12 +173,18 @@ class BuilderAgent(BaseAgent):
 
         # We rely on exceptions propagating to the caller (safe_node wrapper)
         # Standardized Error Handling: Do not swallow critical failures here.
-        v0_client = V0Client(
-            api_key=self.settings.v0_api_key.get_secret_value()
-            if self.settings.v0_api_key
-            else None
-        )
-        url = v0_client.generate_ui(v0_prompt)
+        if not self.settings.v0_api_key:
+            msg = "V0 API Key is missing. Cannot generate UI."
+            logger.error(msg)
+            raise ValueError(msg)
+
+        try:
+            v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value())
+            url = v0_client.generate_ui(v0_prompt)
+        except Exception:
+            logger.exception("V0 generation failed due to network or API error")
+            # Re-raise the original exception to preserve standard error types (like V0GenerationError)
+            raise
 
         logger.info(f"MVP Generated: {url}")
 
@@ -193,6 +196,7 @@ class BuilderAgent(BaseAgent):
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
-        Legacy run method. Delegates to propose_features (default behavior).
+        Agent entry point. Delegates to generate_mvp() as the primary responsibility
+        for Cycle 5 (MVP Construction).
         """
-        return self.propose_features(state)
+        return self.generate_mvp(state)
