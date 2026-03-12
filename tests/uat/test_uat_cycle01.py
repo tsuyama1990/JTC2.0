@@ -133,10 +133,11 @@ def test_gate_transitions_data_integrity(
         ValueMap,
         ValuePropositionCanvas,
     )
+
     dummy_vpc = ValuePropositionCanvas(
         customer_profile=CustomerProfile(customer_jobs=["A"], pains=["B"], gains=["C"]),
         value_map=ValueMap(products_and_services=["A"], pain_relievers=["B"], gain_creators=["C"]),
-        fit_evaluation="Good fit evaluation."
+        fit_evaluation="Good fit evaluation.",
     )
 
     state_ready_for_psf = state_ready_for_verification.model_copy()
@@ -150,10 +151,14 @@ def test_gate_transitions_data_integrity(
     from src.domain_models.sitemap_and_story import Route, SitemapAndStory, UserStory
 
     state_ready_for_output = state_ready_for_psf.model_copy()
-    state_ready_for_output.mental_model_diagram = MentalModelDiagram(towers=[], feature_alignment="A")
+    state_ready_for_output.mental_model_diagram = MentalModelDiagram(
+        towers=[], feature_alignment="A"
+    )
     state_ready_for_output.sitemap_and_story = SitemapAndStory(
         sitemap=[Route(path="/", name="H", purpose="P", is_protected=False)],
-        core_story=UserStory(as_a="A", i_want_to="B", so_that="C", acceptance_criteria=["D"], target_route="/")
+        core_story=UserStory(
+            as_a="A", i_want_to="B", so_that="C", acceptance_criteria=["D"], target_route="/"
+        ),
     )
     state_ready_for_output.phase = Phase.OUTPUT
 

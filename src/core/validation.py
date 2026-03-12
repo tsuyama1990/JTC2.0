@@ -4,6 +4,7 @@ from src.core.constants import ERR_RAG_INDEX_SIZE
 
 logger = logging.getLogger(__name__)
 
+
 def validate_index_size(current_size_bytes: int, limit_mb: int) -> None:
     """Check if the tracked index size is too large."""
     limit_bytes = limit_mb * 1024 * 1024

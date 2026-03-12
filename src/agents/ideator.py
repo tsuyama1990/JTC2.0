@@ -110,7 +110,9 @@ class IdeatorAgent(BaseAgent):
     Phase 1: Idea Verification.
     """
 
-    def __init__(self, llm: ILLMClient | None = None, search_tool: SearchTool | None = None) -> None:
+    def __init__(
+        self, llm: ILLMClient | None = None, search_tool: SearchTool | None = None
+    ) -> None:
         """
         Initialize the Ideator Agent.
 

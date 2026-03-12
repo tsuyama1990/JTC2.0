@@ -40,6 +40,7 @@ class VirtualCustomerAgent(BaseAgent):
         )
 
         from langchain_core.prompts import ChatPromptTemplate
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", prompt_system),
@@ -54,7 +55,7 @@ class VirtualCustomerAgent(BaseAgent):
         try:
             messages = prompt.format_messages()
             result = self.llm.invoke(messages)
-            return {"virtual_customer_review": str(getattr(result, 'content', result))}
+            return {"virtual_customer_review": str(getattr(result, "content", result))}
         except Exception:
             logger.exception("Failed to generate Virtual Customer feedback")
 

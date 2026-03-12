@@ -110,7 +110,14 @@ def test_global_state_phase_enum() -> None:
     state = GlobalState(
         phase=Phase.CPF,
         target_persona=persona,
-        selected_idea=LeanCanvas(id=1, title="Test Idea Name", problem="Problem description long enough", customer_segments="Customer segments defined", unique_value_prop="UVP that passes checks", solution="Solution string enough")
+        selected_idea=LeanCanvas(
+            id=1,
+            title="Test Idea Name",
+            problem="Problem description long enough",
+            customer_segments="Customer segments defined",
+            unique_value_prop="UVP that passes checks",
+            solution="Solution string enough",
+        ),
     )
     assert state.phase == "cpf"
     assert isinstance(state.phase, Phase)

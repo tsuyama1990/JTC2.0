@@ -28,4 +28,4 @@ def get_llm(model: str | None = None) -> ILLMClient:
         raise ValueError(ERR_LLM_CONFIG_MISSING)
 
     # Returns an instance that structurally types ILLMClient
-    return ChatOpenAI(model=model or settings.llm_model, api_key=settings.openai_api_key) # type: ignore
+    return ChatOpenAI(model=model or settings.llm_model, api_key=settings.openai_api_key)  # type: ignore

@@ -22,7 +22,12 @@ def test_phase_progression() -> None:
 
     # Provide the idea
     state.selected_idea = LeanCanvas(
-        id=1, title="Test Idea Name", problem="Problem description long enough", customer_segments="Customer segments defined", unique_value_prop="UVP that passes checks", solution="Solution string enough"
+        id=1,
+        title="Test Idea Name",
+        problem="Problem description long enough",
+        customer_segments="Customer segments defined",
+        unique_value_prop="UVP that passes checks",
+        solution="Solution string enough",
     )
     # Now CPF transition should work
     state.phase = Phase.CPF
@@ -37,8 +42,13 @@ def test_phase_progression() -> None:
 
     # Add persona, but no VPC
     state.target_persona = Persona(
-        name="Test Name", occupation="Test Occ", demographics="Test Demo", goals=["A", "B"], frustrations=["C", "D"], bio="A valid bio string.",
-        empathy_map=EmpathyMap(says=["A"], thinks=["B"], does=["C"], feels=["D"])
+        name="Test Name",
+        occupation="Test Occ",
+        demographics="Test Demo",
+        goals=["A", "B"],
+        frustrations=["C", "D"],
+        bio="A valid bio string.",
+        empathy_map=EmpathyMap(says=["A"], thinks=["B"], does=["C"], feels=["D"]),
     )
     with pytest.raises(ValidationError) as exc_info2:
         GlobalState.model_validate(state.model_dump())
@@ -48,7 +58,7 @@ def test_phase_progression() -> None:
     state.value_proposition_canvas = ValuePropositionCanvas(
         customer_profile=CustomerProfile(customer_jobs=["A"], pains=["B"], gains=["C"]),
         value_map=ValueMap(products_and_services=["A"], pain_relievers=["B"], gain_creators=["C"]),
-        fit_evaluation="Good"
+        fit_evaluation="Good",
     )
 
     # Now PSF transition should work
@@ -59,17 +69,27 @@ def test_phase_progression() -> None:
 def test_backward_phase_progression_prevented() -> None:
     state = GlobalState(topic="test")
     state.selected_idea = LeanCanvas(
-        id=1, title="Test Idea Name", problem="Problem description long enough", customer_segments="Customer segments defined", unique_value_prop="UVP that passes checks", solution="Solution string enough"
+        id=1,
+        title="Test Idea Name",
+        problem="Problem description long enough",
+        customer_segments="Customer segments defined",
+        unique_value_prop="UVP that passes checks",
+        solution="Solution string enough",
     )
     state.phase = Phase.CPF
     state.target_persona = Persona(
-        name="Test Name", occupation="Test Occ", demographics="Test Demo", goals=["A", "B"], frustrations=["C", "D"], bio="A valid bio string.",
-        empathy_map=EmpathyMap(says=["A"], thinks=["B"], does=["C"], feels=["D"])
+        name="Test Name",
+        occupation="Test Occ",
+        demographics="Test Demo",
+        goals=["A", "B"],
+        frustrations=["C", "D"],
+        bio="A valid bio string.",
+        empathy_map=EmpathyMap(says=["A"], thinks=["B"], does=["C"], feels=["D"]),
     )
     state.value_proposition_canvas = ValuePropositionCanvas(
         customer_profile=CustomerProfile(customer_jobs=["A"], pains=["B"], gains=["C"]),
         value_map=ValueMap(products_and_services=["A"], pain_relievers=["B"], gain_creators=["C"]),
-        fit_evaluation="Good"
+        fit_evaluation="Good",
     )
 
     # Push to PSF

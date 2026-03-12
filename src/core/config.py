@@ -201,9 +201,7 @@ class V0Config(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    retry_max: int = Field(
-        default=DEFAULT_V0_RETRY_MAX, description="Max retries for API calls"
-    )
+    retry_max: int = Field(default=DEFAULT_V0_RETRY_MAX, description="Max retries for API calls")
     retry_backoff: float = Field(
         default=DEFAULT_V0_RETRY_BACKOFF,
         description="Exponential backoff factor",
@@ -308,12 +306,8 @@ class GovernanceConfig(BaseModel):
         description="Minimum ROI for approval",
     )
     default_cac: float = Field(default=DEFAULT_CAC, description="Fallback CAC")
-    default_arpu: float = Field(
-        default=DEFAULT_ARPU, description="Fallback ARPU"
-    )
-    default_churn: float = Field(
-        default=DEFAULT_CHURN, description="Fallback Churn Rate"
-    )
+    default_arpu: float = Field(default=DEFAULT_ARPU, description="Fallback ARPU")
+    default_churn: float = Field(default=DEFAULT_CHURN, description="Fallback Churn Rate")
     max_llm_response_size: int = Field(
         default=DEFAULT_MAX_LLM_RESPONSE_SIZE,
         description="Max bytes for LLM JSON response",
@@ -340,8 +334,12 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY", description="OpenAI API Key")
-    tavily_api_key: SecretStr | None = Field(default=None, alias="TAVILY_API_KEY", description="Tavily Search API Key")
+    openai_api_key: SecretStr | None = Field(
+        default=None, alias="OPENAI_API_KEY", description="OpenAI API Key"
+    )
+    tavily_api_key: SecretStr | None = Field(
+        default=None, alias="TAVILY_API_KEY", description="Tavily Search API Key"
+    )
     v0_api_key: SecretStr | None = Field(
         alias="V0_API_KEY", default=None, description="V0.dev API Key"
     )
@@ -500,6 +498,7 @@ def get_settings() -> Settings:
     # Strict runtime verification
     if os.getenv("MOCK_MODE", "false").lower() != "true" and not settings.openai_api_key:
         from src.core.exceptions import ConfigurationError
+
         msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
         raise ConfigurationError(msg)
     return settings

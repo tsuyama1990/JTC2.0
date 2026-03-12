@@ -166,8 +166,14 @@ def test_global_state_lifecycle_validation() -> None:
     assert "Must select an idea" in str(exc.value)
 
     from src.domain_models.lean_canvas import LeanCanvas
+
     state.selected_idea = LeanCanvas(
-        id=1, title="Test Idea Name", problem="Problem description long enough", customer_segments="Customer segments defined", unique_value_prop="UVP that passes checks", solution="Solution string enough"
+        id=1,
+        title="Test Idea Name",
+        problem="Problem description long enough",
+        customer_segments="Customer segments defined",
+        unique_value_prop="UVP that passes checks",
+        solution="Solution string enough",
     )
 
     # Correct transition to CPF

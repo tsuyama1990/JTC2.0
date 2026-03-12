@@ -25,8 +25,6 @@ from src.domain_models.transcript import Transcript
 logger = logging.getLogger(__name__)
 
 
-
-
 class IngestionRequest(BaseModel):
     """
     Request model for ingesting text.
@@ -88,6 +86,7 @@ class RAG:
     def _init_llama(self) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
         import os
+
         is_mock = os.getenv("MOCK_MODE", "false").lower() == "true"
 
         if not is_mock:
@@ -125,6 +124,7 @@ class RAG:
         try:
             from llama_index.core import load_index_from_storage
             from llama_index.core.storage.storage_context import StorageContext
+
             storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
             logger.info(f"Loading index from {self.persist_dir}...")
             self.index = load_index_from_storage(storage_context)
@@ -164,12 +164,13 @@ class RAG:
             request.source,
             self.settings.rag_chunk_size,
             self.settings.rag_max_document_length,
-            self._size_tracker_callback
+            self._size_tracker_callback,
         )
         batch_size = self.settings.rag_batch_size
 
         # Generator that yields batches of documents
         from llama_index.core import Document
+
         def batch_generator() -> Iterator[list[Document]]:
             batch: list[Document] = []
             for doc in doc_iterator:
@@ -192,6 +193,7 @@ class RAG:
 
             if self.index is None:
                 from llama_index.core import VectorStoreIndex
+
                 self.index = VectorStoreIndex.from_documents(first_batch)
             else:
                 self.index.insert_nodes(first_batch)
@@ -260,8 +262,5 @@ class RAG:
         timeout = getattr(self.settings, "rag_query_timeout", 30.0)
 
         return execute_query_with_timeout(
-            self.index.as_query_engine(),
-            question,
-            timeout,
-            self.settings.rag_rate_limit_interval
+            self.index.as_query_engine(), question, timeout, self.settings.rag_rate_limit_interval
         )

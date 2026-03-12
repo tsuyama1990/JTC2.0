@@ -34,8 +34,8 @@ class MentalModelJourneyAgent(BaseAgent):
             {
                 "role": "user",
                 "content": f"Persona: {state.target_persona.model_dump_json()}\n"
-                           f"VPC: {state.value_proposition_canvas.model_dump_json()}\n"
-                           "Generate Mental Model Diagram:",
+                f"VPC: {state.value_proposition_canvas.model_dump_json()}\n"
+                "Generate Mental Model Diagram:",
             },
         ]
 
@@ -57,22 +57,76 @@ class MentalModelJourneyAgent(BaseAgent):
             {
                 "role": "user",
                 "content": f"Mental Model: {mm_result.model_dump_json()}\n"
-                           f"Persona: {state.target_persona.model_dump_json()}\n"
-                           "Generate Customer Journey:",
+                f"Persona: {state.target_persona.model_dump_json()}\n"
+                "Generate Customer Journey:",
             },
         ]
 
-        try:
-            journey_llm = self.llm.with_structured_output(CustomerJourney)
-            journey_result = journey_llm.invoke(journey_prompt_messages)
-        except Exception:
-            logger.exception("Failed to generate Customer Journey")
-            return {"mental_model_diagram": mm_result}
+        journey_llm = self.llm.with_structured_output(CustomerJourney)
+        max_retries = 3
+        valid_beliefs = {tower.belief for tower in mm_result.towers}
 
-        if isinstance(journey_result, CustomerJourney):
+        journey_result = self._retry_journey_generation(
+            journey_llm, journey_prompt_messages, valid_beliefs, max_retries
+        )
+
+        if journey_result:
             return {"mental_model_diagram": mm_result, "customer_journey": journey_result}
 
-        return {"mental_model_diagram": mm_result}
+        logger.error("Failed to map Mental Model to Customer Journey after max retries.")
+        # Trigger fallback strategy
+        messages = list(state.messages) if state.messages else []
+        messages.append(
+            "Please simplify the Persona complexity. Failed to logically map mental models to a journey."
+        )
+
+        return {"mental_model_diagram": mm_result, "messages": messages}
+
+    def _retry_journey_generation(
+        self,
+        journey_llm: Any,
+        journey_prompt_messages: list[dict[str, Any]],
+        valid_beliefs: set[str],
+        max_retries: int,
+    ) -> CustomerJourney | None:
+        from pydantic import ValidationError
+        from pydantic_core import InitErrorDetails, PydanticCustomError
+
+        def validate_journey(journey: CustomerJourney) -> None:
+            for phase in journey.phases:
+                if phase.mental_tower_ref not in valid_beliefs:
+                    msg = f"Invalid mental_tower_ref: {phase.mental_tower_ref}. Must be one of {valid_beliefs}"
+                    raise ValidationError.from_exception_data(
+                        title=CustomerJourney.__name__,
+                        line_errors=[
+                            InitErrorDetails(
+                                type=PydanticCustomError("invalid_ref", msg),
+                                loc=("phases", "mental_tower_ref"),
+                                input=phase.mental_tower_ref,
+                            )
+                        ],
+                    )
+
+        for attempt in range(max_retries):
+            try:
+                journey_result = journey_llm.invoke(journey_prompt_messages)
+
+                if not isinstance(journey_result, CustomerJourney):
+                    continue
+
+                validate_journey(journey_result)
+
+            except ValidationError as e:
+                logger.warning(f"Journey validation failed on attempt {attempt + 1}: {e}")
+                error_msg = f"Validation Error: {e}. Ensure mental_tower_ref exactly matches a belief in MentalModelDiagram towers."
+                journey_prompt_messages.append({"role": "user", "content": error_msg})
+            except Exception:
+                logger.exception("Failed to generate Customer Journey")
+                break
+            else:
+                return journey_result
+
+        return None
 
 
 class SitemapWireframeAgent(BaseAgent):
@@ -97,7 +151,7 @@ class SitemapWireframeAgent(BaseAgent):
             {
                 "role": "user",
                 "content": f"Customer Journey: {state.customer_journey.model_dump_json()}\n"
-                           "Generate SitemapAndStory:",
+                "Generate SitemapAndStory:",
             },
         ]
 

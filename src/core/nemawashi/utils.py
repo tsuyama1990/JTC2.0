@@ -37,9 +37,7 @@ class NemawashiUtils:
             raise ValidationError(msg)
 
     @staticmethod
-    def validate_symmetry(
-        matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6
-    ) -> None:
+    def validate_symmetry(matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6) -> None:
         """
         Validate that the influence matrix is symmetric.
         """

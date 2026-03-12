@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 class TavilySearch:
     """Wrapper for Tavily Search API with retry logic."""
 
-    def __init__(self, api_key: str | None = None, search_client: ISearchClient | None = None) -> None:
+    def __init__(
+        self, api_key: str | None = None, search_client: ISearchClient | None = None
+    ) -> None:
         """
         Initialize Tavily Search client.
 
@@ -41,6 +43,7 @@ class TavilySearch:
 
         if search_client is None:
             from tavily import TavilyClient
+
             self.client: Any = TavilyClient(api_key=self.api_key)
         else:
             self.client = search_client
@@ -90,6 +93,7 @@ class TavilySearch:
     def safe_search(self, query: str) -> str:
         """Execute a search safely, catching exceptions."""
         from tavily import InvalidAPIKeyError, MissingAPIKeyError
+
         try:
             return self.search(query)
         except (MissingAPIKeyError, InvalidAPIKeyError, ValueError):

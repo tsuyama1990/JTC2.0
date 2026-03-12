@@ -36,6 +36,7 @@ def test_config_missing_openai_key() -> None:
         get_settings.cache_clear()
 
         from src.core.exceptions import ConfigurationError
+
         with pytest.raises(ConfigurationError, match="OPENAI_API_KEY is required"):
             get_settings()
 

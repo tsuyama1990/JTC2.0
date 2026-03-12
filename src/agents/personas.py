@@ -96,7 +96,7 @@ class PersonaGeneratorAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = Persona.model_validate(result)
-        return result # type: ignore
+        return result  # type: ignore
 
 
 class AlternativeAnalysisAgent(BaseAgent):
@@ -146,7 +146,7 @@ class AlternativeAnalysisAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = AlternativeAnalysis.model_validate(result)
-        return result # type: ignore
+        return result  # type: ignore
 
 
 class ValuePropositionAgent(BaseAgent):
@@ -201,7 +201,7 @@ class ValuePropositionAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = ValuePropositionCanvas.model_validate(result)
-        return result # type: ignore
+        return result  # type: ignore
 
 
 class PersonaAgent(BaseAgent):
@@ -248,10 +248,13 @@ class PersonaAgent(BaseAgent):
         """Generate response using LLM."""
         prompt_messages = [
             ("system", self.system_prompt),
-            ("human", f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:"),
+            (
+                "human",
+                f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:",
+            ),
         ]
         response = self.llm.invoke(prompt_messages)
-        return str(getattr(response, 'content', response))
+        return str(getattr(response, "content", response))
 
     def _cached_research(self, topic: str) -> str:
         """Cache research results to avoid redundant API calls."""
