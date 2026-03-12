@@ -35,7 +35,10 @@ class BuilderAgent(BaseAgent):
     def __init__(self, llm: ChatOpenAI) -> None:
         self.llm = llm
         self.settings = get_settings()
-        if not self.settings.v0_api_key:
+
+        # Backward compatibility with existing mock setups that might provide an empty string
+        v0_key = self.settings.v0_api_key
+        if not v0_key or not v0_key.get_secret_value().strip():
             msg = "Missing required API configuration"
             raise ValueError(msg)
 
