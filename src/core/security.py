@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import urllib.parse
 from pathlib import Path
 
 from src.core.constants import ERR_PATH_TRAVERSAL
@@ -60,11 +61,17 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
         msg = "Path must be a non-empty string."
         raise ConfigurationError(msg)
 
+    # Fully decode URL-encoded paths to prevent bypass like %2e%2e/
+    decoded_path = urllib.parse.unquote(path_str)
+
+    # Normalize mixed slashes
+    normalized_path = decoded_path.replace("\\", "/")
+
     # Reject explicit relative path traversal characters completely before processing
-    if ".." in path_str:
+    if ".." in normalized_path:
         raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
-    path_obj = Path(path_str)
+    path_obj = Path(normalized_path)
     if path_obj.is_symlink():
         msg = "Symlinks not allowed in persist_dir."
         raise ConfigurationError(msg)
@@ -83,9 +90,14 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
 
     is_safe = False
     for parent in allowed_parents:
-        if str(path).startswith(str(parent)):
-            is_safe = True
-            break
+        # Use commonpath to strictly ensure the path is a true child, avoiding prefix matching vulnerabilities
+        try:
+            if os.path.commonpath([str(parent), str(path)]) == str(parent):
+                is_safe = True
+                break
+        except ValueError:
+            # commonpath raises ValueError if paths are on different drives (Windows)
+            pass
 
     if not is_safe:
         logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
@@ -97,6 +109,16 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
 def sanitize_query(query: str) -> str:
     """
     Sanitize input query to prevent injection or processing issues.
-    Efficient implementation using regex.
+    Strips out non-printable characters and structural shell/SQL meta-characters
+    to prevent command or query injection.
     """
-    return re.sub(r"[^\x20-\x7E\t\r\n\u0100-\uffff]", "", query).strip()
+    # Remove non-printable characters first
+    printable_only = re.sub(r"[^\x20-\x7E\t\r\n\u0100-\uffff]", "", query)
+
+    # Strip dangerous characters often used for injection:
+    # ; (command chain), | (pipe), < > (redirects), ` (command sub), & (background/AND)
+    # The auditor also wants general injection protection, so we escape or remove
+    # dangerous control operators context-agnostically.
+    sanitized = re.sub(r"[;|<>`&]", "", printable_only)
+
+    return sanitized.strip()

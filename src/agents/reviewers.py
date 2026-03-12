@@ -24,8 +24,24 @@ class The3HReviewAgent(BaseAgent):
     """
 
     def __init__(self, llm: ILLMClient, settings: Settings | None = None) -> None:
+        from src.core.exceptions import ConfigurationError
+
         self.llm = llm
         self.settings: Settings = settings or get_settings()
+
+        # Explicit validation for required settings fields
+        if not self.settings.prompt_hacker or not self.settings.prompt_hacker.strip():
+            msg = "Missing or invalid prompt_hacker in settings."
+            raise ConfigurationError(msg)
+        if not self.settings.prompt_hipster or not self.settings.prompt_hipster.strip():
+            msg = "Missing or invalid prompt_hipster in settings."
+            raise ConfigurationError(msg)
+        if not self.settings.prompt_hustler or not self.settings.prompt_hustler.strip():
+            msg = "Missing or invalid prompt_hustler in settings."
+            raise ConfigurationError(msg)
+        if not self.settings.simulation or not self.settings.simulation.circuit_breakers:
+            msg = "Missing or invalid circuit_breakers in simulation settings."
+            raise ConfigurationError(msg)
 
     def _invoke_review(self, role: str, other_feedback: str, ctx: ReviewContext) -> str:
         from langchain_core.prompts import ChatPromptTemplate

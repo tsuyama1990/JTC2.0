@@ -362,7 +362,7 @@ class Settings(BaseSettings):
         alias="PROMPT_HACKER",
         default_factory=lambda: os.getenv(
             "PROMPT_HACKER",
-            "【前提とするサイトマップと機能要件を遵守しつつ】技術的負債、スケーラビリティ、セキュリティの観点からワイヤーフレームをレビューせよ。不要に複雑なDB構造やリアルタイム通信を避け、スプレッドシートや既存APIのモックで代替できないか追求せよ。同意できる場合は「[APPROVED]」と出力せよ。",
+            DEFAULT_PROMPT_HACKER,
         ),
         description="System prompt for Hacker Reviewer",
     )
@@ -370,7 +370,7 @@ class Settings(BaseSettings):
         alias="PROMPT_HIPSTER",
         default_factory=lambda: os.getenv(
             "PROMPT_HIPSTER",
-            "【前提とするメンタルモデルとペルソナを遵守しつつ】ユーザーの『Don't make me think（考えさせるな）』の原則に基づきUXをレビューせよ。メンタルモデルに反するオンボーディングの摩擦、タップ回数の多さ、エラー時の不親切さを指摘せよ。同意できる場合は「[APPROVED]」と出力せよ。",
+            DEFAULT_PROMPT_HIPSTER,
         ),
         description="System prompt for Hipster Reviewer",
     )
@@ -378,7 +378,7 @@ class Settings(BaseSettings):
         alias="PROMPT_HUSTLER",
         default_factory=lambda: os.getenv(
             "PROMPT_HUSTLER",
-            "【前提とする代替品分析とVPCを遵守しつつ】ユニットエコノミクス（LTV > 3x CAC）の観点からビジネスモデルをレビューせよ。誰がどうやって見つけるのか、なぜ継続してお金を払うのかを厳しく問いただせ。同意できる場合は「[APPROVED]」と出力せよ。",
+            DEFAULT_PROMPT_HUSTLER,
         ),
         description="System prompt for Hustler Reviewer",
     )
@@ -544,24 +544,25 @@ _settings_lock = threading.Lock()
 
 def get_settings() -> Settings:
     """Load and cache settings using a thread-safe singleton pattern."""
-    if _settings_state["instance"] is None:
-        with _settings_lock:
-            if _settings_state["instance"] is None:
-                settings = Settings()
-                # Strict runtime verification
-                if (
-                    os.getenv("MOCK_MODE", "false").lower() != "true"
-                    and not settings.openai_api_key
-                ):
-                    from src.core.exceptions import ConfigurationError
+    with _settings_lock:
+        if _settings_state["instance"] is None:
+            settings = Settings()
+            # Strict runtime verification
+            if os.getenv("MOCK_MODE", "false").lower() != "true" and not settings.openai_api_key:
+                from src.core.exceptions import ConfigurationError
 
-                    msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
-                    raise ConfigurationError(msg)
-                _settings_state["instance"] = settings
-    return _settings_state["instance"]  # type: ignore[return-value]
+                msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
+                raise ConfigurationError(msg)
+            _settings_state["instance"] = settings
+        return _settings_state["instance"]  # type: ignore[return-value]
 
 
 def clear_settings_cache() -> None:
     """Explicitly clear the settings cache (useful for testing)."""
     with _settings_lock:
         _settings_state["instance"] = None
+
+
+DEFAULT_PROMPT_HACKER = "【前提とするサイトマップと機能要件を遵守しつつ】技術的負債、スケーラビリティ、セキュリティの観点からワイヤーフレームをレビューせよ。不要に複雑なDB構造やリアルタイム通信を避け、スプレッドシートや既存APIのモックで代替できないか追求せよ。同意できる場合は「[APPROVED]」と出力せよ。"
+DEFAULT_PROMPT_HIPSTER = "【前提とするメンタルモデルとペルソナを遵守しつつ】ユーザーの『Don't make me think（考えさせるな）』の原則に基づきUXをレビューせよ。メンタルモデルに反するオンボーディングの摩擦、タップ回数の多さ、エラー時の不親切さを指摘せよ。同意できる場合は「[APPROVED]」と出力せよ。"
+DEFAULT_PROMPT_HUSTLER = "【前提とする代替品分析とVPCを遵守しつつ】ユニットエコノミクス（LTV > 3x CAC）の観点からビジネスモデルをレビューせよ。誰がどうやって見つけるのか、なぜ継続してお金を払うのかを厳しく問いただせ。同意できる場合は「[APPROVED]」と出力せよ。"
