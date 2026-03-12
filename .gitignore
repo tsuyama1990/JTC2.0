@@ -37,3 +37,10 @@ env/
 RINGI_SHO.md
 outputs/
 MagicMock/
+
+# Generated Output Artifacts
+AgentPromptSpec.md
+EXPERIMENT_PLAN.md
+sample_interview.txt
+outputs/
+RINGI_SHO.md

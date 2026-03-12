@@ -10,7 +10,8 @@ class TestFileService:
 
     @pytest.fixture
     def file_service(self) -> FileService:
-        return FileService()
+        from src.core.factory import ServiceFactory
+        return ServiceFactory.get_file_service()
 
     @patch("src.core.services.file_service.FileService._save_text_sync")
     def test_save_text_async_success(

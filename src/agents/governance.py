@@ -25,7 +25,11 @@ class GovernanceAgent(BaseAgent):
     """
 
     def __init__(self, file_service: FileService | None = None) -> None:
-        self.file_service = file_service or FileService()
+        if file_service is None:
+            from src.core.factory import ServiceFactory
+            self.file_service = ServiceFactory.get_file_service()
+        else:
+            self.file_service = file_service
 
     def run(self, state: IStateContext) -> dict[str, Any]:
         """

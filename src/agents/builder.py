@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -7,6 +8,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
 from src.core.interfaces import ILLMClient, IStateContext
+from src.core.services.file_service import FileService
 from src.domain_models.agent_prompt_spec import AgentPromptSpec
 from src.domain_models.experiment_plan import ExperimentPlan
 
@@ -24,17 +26,23 @@ class BuilderAgent(BaseAgent):
     It generates the AgentPromptSpec and ExperimentPlan.
     """
 
-    def __init__(self, llm: ILLMClient) -> None:
+    def __init__(self, llm: ILLMClient, file_service: FileService | None = None) -> None:
         self.llm = llm
         self.settings = get_settings()
+
+        if file_service is None:
+            from src.core.factory import ServiceFactory
+            self.file_service = ServiceFactory.get_file_service()
+        else:
+            self.file_service = file_service
 
     def generate_spec(self, state: IStateContext) -> dict[str, Any]:
         """
         Generate AgentPromptSpec using LLM with structured output.
         """
         if not state.sitemap_and_story:
-            logger.warning("No sitemap available for Spec Generation.")
-            return {}
+            msg = "No sitemap available for Spec Generation."
+            raise ValueError(msg)
 
         sitemap_json = (
             state.sitemap_and_story.model_dump_json() if state.sitemap_and_story else "{}"
@@ -93,9 +101,15 @@ class BuilderAgent(BaseAgent):
 
             result = _invoke()
             if isinstance(result, AgentPromptSpec):
+                # Format to Markdown and save
+                md_content = self._format_agent_prompt_spec_to_md(result)
+                out_path = Path.cwd() / self.settings.canvas_output_dir / "AgentPromptSpec.md"
+                self.file_service.save_text_async(md_content, out_path)
                 return {"agent_prompt_spec": result}
-        except Exception:
+        except Exception as e:
             logger.exception("Failed to create AgentPromptSpec")
+            err_msg = "Failed to generate AgentPromptSpec"
+            raise RuntimeError(err_msg) from e
 
         return {}
 
@@ -104,8 +118,8 @@ class BuilderAgent(BaseAgent):
         Generate ExperimentPlan using LLM with structured output.
         """
         if not state.agent_prompt_spec:
-            logger.warning("No AgentPromptSpec available for Experiment Plan Generation.")
-            return {}
+            msg = "No AgentPromptSpec available for Experiment Plan Generation."
+            raise ValueError(msg)
 
         spec_json = state.agent_prompt_spec.model_dump_json() if state.agent_prompt_spec else "{}"
 
@@ -140,11 +154,67 @@ class BuilderAgent(BaseAgent):
 
             result = _invoke()
             if isinstance(result, ExperimentPlan):
+                # Format to Markdown and save
+                md_content = self._format_experiment_plan_to_md(result)
+                out_path = Path.cwd() / self.settings.canvas_output_dir / "EXPERIMENT_PLAN.md"
+                self.file_service.save_text_async(md_content, out_path)
                 return {"experiment_plan": result}
-        except Exception:
+        except Exception as e:
             logger.exception("Failed to create ExperimentPlan")
+            err_msg = "Failed to generate ExperimentPlan"
+            raise RuntimeError(err_msg) from e
 
         return {}
+
+    def _format_agent_prompt_spec_to_md(self, spec: AgentPromptSpec) -> str:
+        lines = [
+            "# 🤖 System & Context",
+            "- Role: Expert Frontend Engineer & UI/UX Designer",
+            "- Stack: Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui, Lucide-react",
+            "- Principles: One Feature One Value, Mobile First, Accessible (WCAG 2.1)",
+            f"- Routing & Components: {spec.routing_and_constraints}",
+            "",
+            "## Sitemap",
+            f"{spec.sitemap}",
+            "",
+            "## Core User Story",
+            f"**As a:** {spec.core_user_story.as_a}",
+            f"**I want to:** {spec.core_user_story.i_want_to}",
+            f"**So that:** {spec.core_user_story.so_that}",
+            f"**Target Route:** {spec.core_user_story.target_route}",
+            "**Acceptance Criteria:**",
+            "\n".join([f"- {ac}" for ac in spec.core_user_story.acceptance_criteria]),
+            "",
+            "## State Machine",
+            f"- **Success:** {spec.state_machine.success}",
+            f"- **Loading:** {spec.state_machine.loading}",
+            f"- **Error:** {spec.state_machine.error}",
+            f"- **Empty:** {spec.state_machine.empty}",
+            "",
+            "## Validation Rules",
+            f"{spec.validation_rules}",
+            "",
+            "## Mermaid Flowchart",
+            f"```mermaid\n{spec.mermaid_flowchart}\n```"
+        ]
+        return "\n".join(lines)
+
+    def _format_experiment_plan_to_md(self, plan: ExperimentPlan) -> str:
+        lines = [
+            "# MVP Experiment Plan",
+            "",
+            f"**Riskiest Assumption:** {plan.riskiest_assumption}",
+            f"**Experiment Type:** {plan.experiment_type}",
+            f"**Acquisition Channel:** {plan.acquisition_channel}",
+            "",
+            "## AARRR Metrics",
+        ]
+        for metric in plan.aarrr_metrics:
+            lines.append(f"- **{metric.metric_name}**: Target = {metric.target_value} (Measurement: {metric.measurement_method})")
+
+        lines.append("")
+        lines.append(f"## Pivot Condition\n{plan.pivot_condition}")
+        return "\n".join(lines)
 
     def run(self, state: IStateContext) -> dict[str, Any]:
         """

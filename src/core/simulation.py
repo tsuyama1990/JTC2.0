@@ -87,10 +87,13 @@ class SimulationManager:
         self.renderer_factory = renderer_factory
         self.app = create_simulation_graph()
         self._thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
 
     def _background_task(self) -> None:
         try:
             for state_update in self.app.stream(self.initial_state, stream_mode="values"):
+                if self._stop_event.is_set():
+                    break
                 if isinstance(state_update, dict):
                     try:
                         self.shared_state["current"] = GlobalState(**state_update)
@@ -101,23 +104,24 @@ class SimulationManager:
                 else:
                     logger.warning(f"Unknown state update type: {type(state_update)}")
         except Exception:
-            logger.exception("Simulation thread failed")
+            if not self._stop_event.is_set():
+                logger.exception("Simulation thread failed")
 
     def run(self) -> None:
         """Run the simulation graph in the background and start the renderer."""
         import threading
 
-        self._thread = threading.Thread(target=self._background_task, daemon=True)
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._background_task)
         self._thread.start()
 
         try:
             renderer = self.renderer_factory(lambda: self.shared_state["current"])
             renderer.start()
         finally:
+            self._stop_event.set()
             if self._thread and self._thread.is_alive():
-                # Note: Python threads don't have a direct 'kill' mechanism.
-                # They will shut down when daemon=True, but we join for clarity.
-                self._thread.join(timeout=1.0)
+                self._thread.join(timeout=2.0)
 
 
 class SimulationService:
@@ -129,10 +133,28 @@ class SimulationService:
         self.app = create_app()
 
     def run_ideation_to_gate(self, topic: str) -> tuple[Iterator["LeanCanvas"], GlobalState]:
+        import os
         from collections.abc import Iterator
 
         from src.domain_models.lean_canvas import LeanCanvas
         from src.domain_models.state import Phase
+
+        is_mock = os.getenv("MOCK_MODE", "false").lower() == "true"
+        if is_mock:
+            # Full LangGraph bypass for Mock Mode
+            mock_idea = LeanCanvas(
+                id=1,
+                title="Mocked Idea",
+                problem="Mocked Problem",
+                solution="Mocked Solution",
+                customer_segments="Mocked Segments",
+                unique_value_prop="Mocked Value Prop",
+            )
+            mock_state = GlobalState(topic=topic, generated_ideas=[mock_idea])
+
+            def _yield_mock() -> Iterator[LeanCanvas]:
+                yield mock_idea
+            return _yield_mock(), mock_state
 
         initial_state = {"topic": topic, "phase": Phase.IDEATION}
 
@@ -173,6 +195,11 @@ class SimulationService:
         return _yield_items(), state_obj
 
     def resume_after_gate(self, selected_idea: "LeanCanvas") -> None:
+        import os
+        is_mock = os.getenv("MOCK_MODE", "false").lower() == "true"
+        if is_mock:
+            return
+
         from langgraph.types import Command
 
         self.app.invoke(
