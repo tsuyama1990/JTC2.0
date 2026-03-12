@@ -10,7 +10,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.config import get_settings
 from src.core.constants import DESC_METRICS_AARRR, DESC_METRICS_CUSTOM
 
 
@@ -23,28 +22,28 @@ class AARRR(BaseModel):
 
     acquisition: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
+        ge=0.0,
         description="Acquisition metric",
     )
     activation: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
+        ge=0.0,
         description="Activation metric",
     )
     retention: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
-        le=get_settings().validation.max_percentage_value,
+        ge=0.0,
+        le=100.0,
         description="Retention percentage",
     )
     revenue: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
+        ge=0.0,
         description="Revenue metric",
     )
     referral: float = Field(
         0.0,
-        ge=get_settings().validation.min_metric_value,
+        ge=0.0,
         description="Referral metric",
     )
 
@@ -108,17 +107,14 @@ class Metrics(BaseModel):
     @classmethod
     def validate_custom_metrics(cls, v: dict[str, Any]) -> dict[str, float]:
         """Validate custom metrics keys, values, and limit."""
-        settings = get_settings()
 
-        if len(v) > settings.validation.max_custom_metrics:
-            msg = settings.errors.too_many_metrics.format(
-                limit=settings.validation.max_custom_metrics
-            )
+        if len(v) > 50:
+            msg = f"Too many custom metrics defined. Maximum is {50}."
             raise ValueError(msg)
 
         for key, value in v.items():
             if not key.isidentifier():
-                msg = settings.errors.invalid_metric_key.format(key=key)
+                msg = f"Invalid custom metric key: {key}."
                 raise ValueError(msg)
 
             # Explicit type check for values (mypy won't catch runtime dict values if Any)
@@ -127,8 +123,8 @@ class Metrics(BaseModel):
                 raise TypeError(msg)
 
             # Value range validation
-            if value < settings.validation.min_metric_value:
-                msg = f"Metric value for {key} must be >= {settings.validation.min_metric_value}."
+            if value < 0.0:
+                msg = f"Metric value for {key} must be >= 0.0."
                 raise ValueError(msg)
 
         return v

@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Any
 
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.agents.base import SearchTool
 from src.agents.personas import PersonaAgent
@@ -24,9 +24,9 @@ class CPOAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
-        search_tool: SearchTool | None = None,
-        app_settings: Settings | None = None,
+        llm: BaseChatModel,
+        search_tool: SearchTool,
+        app_settings: Settings,
         rag_path: str | None = None,
     ) -> None:
         system_prompt = (
@@ -42,20 +42,48 @@ class CPOAgent(PersonaAgent):
 
         # Use provided path or fallback to settings (not hardcoded string)
         actual_rag_path = rag_path or self.settings.rag_persist_dir
+
+        # Security: Validate RAG path against allowed config securely
+        import os
+        from pathlib import Path
+
+        is_allowed = False
+        # Resolve to absolute path to fully resolve any ../ or symlinks
+        abs_actual = str(Path(actual_rag_path).resolve())
+
+        for allowed_path in self.settings.rag_allowed_paths:
+            abs_allowed = str(Path(allowed_path).resolve())
+            try:
+                # commonpath checks if the target path sits strictly inside the allowed boundary
+                if os.path.commonpath([abs_allowed, abs_actual]) == abs_allowed:
+                    is_allowed = True
+                    break
+            except ValueError:
+                continue
+
+        if not is_allowed:
+            msg = f"Invalid RAG path '{actual_rag_path}'. Must be within allowed paths: {self.settings.rag_allowed_paths}"
+            raise ValueError(msg)
+
         self.rag = RAG(persist_dir=actual_rag_path)
 
-    def _research_impl(self, topic: str) -> str:
+    def _cached_research(self, query: str) -> str:
         """
-        Query the RAG engine for relevant customer insights.
+        Query the RAG engine for relevant customer insights and cache it.
         Overrides the default web search behavior.
         """
+        if query in self._research_cache:
+            return self._research_cache[query]
+
         try:
-            query = f"What do customers say about {topic} or related problems?"
             logger.info(f"CPO querying RAG: {query}")
-            return self.rag.query(query)
+            result: str = self.rag.query(query)
         except Exception:
             logger.exception("Error querying RAG")
             return "No customer insights available due to error."
+        else:
+            self._research_cache[query] = result
+            return result
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
@@ -67,8 +95,17 @@ class CPOAgent(PersonaAgent):
 
             # 2. Get Research Data (RAG)
             research_data = ""
+
+            # If transcripts exist, we use them as context
+            transcript_context = ""
+            if state.transcripts:
+                transcript_context = "against customer interviews"
+            else:
+                transcript_context = "against general knowledge"
+
             if state.selected_idea:
-                research_data = self._cached_research(state.selected_idea.title)
+                base_query = f"Validate assumption: {state.selected_idea.title} {transcript_context}"
+                research_data += self._cached_research(base_query)
 
             # 3. Inject Nemawashi (Influence) Data
             if state.influence_network:
@@ -87,14 +124,30 @@ class CPOAgent(PersonaAgent):
 
                 research_data += "\n".join(stakeholders_info)
 
+            # 4. Inject Value Proposition Canvas and Alternative Analysis
+            if state.vpc:
+                vpc_json = state.vpc.model_dump_json()
+                vpc_query = f"Validate VPC: {vpc_json} against customer needs"
+                vpc_validation = self._cached_research(vpc_query)
+                research_data += f"\n\nVALUE PROPOSITION CANVAS VALIDATION:\n{vpc_validation}"
+
+            if state.alternative_analysis:
+                alt_json = state.alternative_analysis.model_dump_json()
+                alt_query = f"Validate alternative analysis: {alt_json} against customer alternatives"
+                alt_validation = self._cached_research(alt_query)
+                research_data += f"\n\nALTERNATIVE ANALYSIS VALIDATION:\n{alt_validation}"
+
             content = self._generate_response(context, research_data)
 
             # Create message
             message = DialogueMessage(role=self.role, content=content, timestamp=time.time())
 
-        except Exception:
+        except Exception as e:
             logger.exception("Error in CPO Agent Run")
-            return {}
+            return {
+                "error": f"RAG query failed or CPO error: {e}",
+                "debate_history": list(state.debate_history)
+            }
         else:
             # Construct new history
             new_history = [*list(state.debate_history), message]

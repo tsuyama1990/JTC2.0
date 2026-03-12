@@ -8,7 +8,7 @@ class SearchTool(Protocol):
     """Protocol for search tools."""
 
     def search(
-        self, query: str, max_results: int | None = None, search_depth: str | None = None
+        self, query: str, max_results: int | None = None, search_depth: Any | None = None
     ) -> str:
         """Execute a search query."""
         ...

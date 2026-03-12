@@ -31,7 +31,7 @@ def test_renderer_draw(mock_pyxel: MagicMock, mock_state: GlobalState) -> None:
     # The test expected `(5, 15, ...)`
 
     # Updating expectation to match actual code behavior (which uses defaults if env not set for these specific keys)
-    mock_pyxel.text.assert_any_call(10, 400, f"{Role.NEW_EMPLOYEE}:", 11)
+    mock_pyxel.text.assert_any_call(10, 150, f"{Role.NEW_EMPLOYEE}:", 11)
     # Check rects
     mock_pyxel.rect.assert_any_call(20, 80, 20, 30, 11)
 

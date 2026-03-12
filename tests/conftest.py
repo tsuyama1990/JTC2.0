@@ -9,6 +9,9 @@ DUMMY_ENV_VARS = {
     "OPENAI_API_KEY": "sk-dummy-test-key-long-enough-for-validation",
     "TAVILY_API_KEY": "tvly-dummy-test-key-long-enough-for-validation",
     "V0_API_KEY": "v0-dummy-test-key-long-enough-for-validation",
+    "V0_API_URL": "https://api.v0.dev/chat/completions",
+    "RAG_PERSIST_DIR": "./vector_store",
+    "RAG_ALLOWED_PATHS": "data,vector_store,tests,./vector_store",
 }
 
 # Apply dummy env vars immediately for module-level imports during collection
