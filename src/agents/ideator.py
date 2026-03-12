@@ -74,11 +74,9 @@ class IdeaGenerator:
             idea.id = idx
 
         ideas = ideas[:10]
-
         if len(ideas) < 10:
             msg = "LLM failed to generate 10 ideas"
             raise RuntimeError(msg)
-
         return list(ideas)
 
 

@@ -115,12 +115,13 @@ def test_ideator_agent_generator_raises_error_when_less_than_10_ideas(
     mock_get_settings: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
+    import tenacity
+
     from src.agents.ideator import IdeaGenerator
     from src.domain_models.lean_canvas import LeanCanvas
 
     mock_chain = MagicMock()
 
-    # Return 9 items
     class MockResponse:
         def __init__(self) -> None:
             self.ideas = [
@@ -139,8 +140,5 @@ def test_ideator_agent_generator_raises_error_when_less_than_10_ideas(
     mock_llm.with_structured_output.return_value = mock_chain
 
     generator = IdeaGenerator(llm=mock_llm)
-
-    import tenacity
-
     with pytest.raises(tenacity.RetryError):
         generator.generate("Test", "Market Data")
