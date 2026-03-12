@@ -59,11 +59,11 @@ src/agents/ideator.py                              66     23    65%   44-91, 135
 src/agents/mixins.py                               23     23     0%   1-35
 src/agents/personas.py                            161     19    88%   62-63, 97, 112-113, 147, 161-162, 202, 271-273, 278-279, 288-291, 334-335
 src/agents/psf.py                                  79     11    86%   45-47, 50, 115, 123-125, 164-167
-src/agents/reviewers.py                            71      5    93%   52-54, 86-87
+src/agents/reviewers.py                            70      5    93%   51-53, 85-86
 src/agents/virtual_customer.py                     27     18    33%   17-18, 21-61
 src/core/__init__.py                                0      0   100%
-src/core/config.py                                204     14    93%   261-274, 531-534
-src/core/constants.py                             116      0   100%
+src/core/config.py                                207     14    93%   256-269, 556-559
+src/core/constants.py                             105      0   100%
 src/core/exceptions.py                              6      0   100%
 src/core/execution.py                              22      8    64%   26-33
 src/core/factory.py                                57     24    58%   43-44, 47-48, 51-52, 55-56, 59-60, 64, 74-90
@@ -113,5 +113,5 @@ src/tools/__init__.py                               2      0   100%
 src/tools/search.py                                41      6    85%   40, 80, 95-96, 101-102
 src/ui/renderer.py                                 96     10    90%   83, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------------------
-TOTAL                                            2863    536    81%
-============================= 154 passed in 25.46s =============================
+TOTAL                                            2854    536    81%
+============================= 154 passed in 24.11s =============================

@@ -173,38 +173,3 @@ PROMPT_NEW_EMPLOYEE_AGENT: Final[str] = (
     "You are nervous. You try to answer questions but often falter. "
     "You defend the idea passionately but acknowledge weaknesses."
 )
-
-# --- Default Paths & Files ---
-DEFAULT_RINGI_SHO_PATH: Final[str] = "RINGI_SHO.md"
-DEFAULT_CANVAS_OUTPUT_DIR: Final[str] = "./outputs/canvas"
-
-# --- Default JSON configurations ---
-DEFAULT_SIMULATION_TURN_SEQUENCE: Final[str] = (
-    '[{"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"}, {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"}, {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"}, {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"}, {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Defense"}]'
-)
-DEFAULT_HITL_INTERRUPT_NODES: Final[str] = (
-    '["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]'
-)
-DEFAULT_RAG_ALLOWED_PATHS: Final[str] = '["data", "vector_store", "tests"]'
-
-# --- Templates and Queries ---
-DEFAULT_GOV_SEARCH_QUERY_TEMPLATE: Final[str] = (
-    "average CAC churn ARPU LTV for {industry} startups benchmarks"
-)
-DEFAULT_SEARCH_QUERY_TEMPLATE: Final[str] = (
-    "emerging business trends and painful problems in {topic}"
-)
-
-# --- Default Lists ---
-DEFAULT_CIRCUIT_BREAKERS: Final[list[str]] = ["平行線ですね", "同意します"]
-
-# --- 3H Review Prompts ---
-PROMPT_HACKER: Final[str] = (
-    "【前提とするサイトマップと機能要件を遵守しつつ】技術的負債、スケーラビリティ、セキュリティの観点からワイヤーフレームをレビューせよ。不要に複雑なDB構造やリアルタイム通信を避け、スプレッドシートや既存APIのモックで代替できないか追求せよ。同意できる場合は「[APPROVED]」と出力せよ。"
-)
-PROMPT_HIPSTER: Final[str] = (
-    "【前提とするメンタルモデルとペルソナを遵守しつつ】ユーザーの『Don't make me think（考えさせるな）』の原則に基づきUXをレビューせよ。メンタルモデルに反するオンボーディングの摩擦、タップ回数の多さ、エラー時の不親切さを指摘せよ。同意できる場合は「[APPROVED]」と出力せよ。"
-)
-PROMPT_HUSTLER: Final[str] = (
-    "【前提とする代替品分析とVPCを遵守しつつ】ユニットエコノミクス（LTV > 3x CAC）の観点からビジネスモデルをレビューせよ。誰がどうやって見つけるのか、なぜ継続してお金を払うのかを厳しく問いただせ。同意できる場合は「[APPROVED]」と出力せよ。"
-)

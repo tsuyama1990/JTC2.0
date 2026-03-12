@@ -9,20 +9,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.core.constants import (
     DEFAULT_ARPU,
     DEFAULT_CAC,
-    DEFAULT_CANVAS_OUTPUT_DIR,
     DEFAULT_CB_FAIL_MAX,
     DEFAULT_CB_RESET_TIMEOUT,
     DEFAULT_CHARS_PER_LINE,
     DEFAULT_CHURN,
-    DEFAULT_CIRCUIT_BREAKERS,
     DEFAULT_CONSOLE_SLEEP,
     DEFAULT_DIALOGUE_X,
     DEFAULT_DIALOGUE_Y,
     DEFAULT_FEATURE_CHUNK_SIZE,
     DEFAULT_FPS,
-    DEFAULT_GOV_SEARCH_QUERY_TEMPLATE,
     DEFAULT_HEIGHT,
-    DEFAULT_HITL_INTERRUPT_NODES,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
     DEFAULT_MAX_LLM_RESPONSE_SIZE,
@@ -37,15 +33,11 @@ from src.core.constants import (
     DEFAULT_NEMAWASHI_REDUCTION,
     DEFAULT_NEMAWASHI_TOLERANCE,
     DEFAULT_PAGE_SIZE,
-    DEFAULT_RAG_ALLOWED_PATHS,
     DEFAULT_RAG_BATCH_SIZE,
     DEFAULT_RAG_CHUNK_SIZE,
     DEFAULT_RAG_MAX_DOC_LENGTH,
     DEFAULT_RAG_MAX_INDEX_SIZE_MB,
     DEFAULT_RAG_MAX_QUERY_LENGTH,
-    DEFAULT_RINGI_SHO_PATH,
-    DEFAULT_SEARCH_QUERY_TEMPLATE,
-    DEFAULT_SIMULATION_TURN_SEQUENCE,
     DEFAULT_V0_RETRY_BACKOFF,
     DEFAULT_V0_RETRY_MAX,
     DEFAULT_WIDTH,
@@ -240,7 +232,10 @@ class SimulationConfig(BaseModel):
 
     turn_sequence: list[dict[str, str]] = Field(
         default_factory=lambda: json.loads(
-            os.getenv("SIMULATION_TURN_SEQUENCE", DEFAULT_SIMULATION_TURN_SEQUENCE)
+            os.getenv(
+                "SIMULATION_TURN_SEQUENCE",
+                '[{"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"}, {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"}, {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"}, {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"}, {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Defense"}]',
+            )
         ),
         description="List of simulation steps defining the turn sequence.",
     )
@@ -251,7 +246,7 @@ class SimulationConfig(BaseModel):
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
     circuit_breakers: list[str] = Field(
-        default_factory=lambda: DEFAULT_CIRCUIT_BREAKERS,
+        default_factory=lambda: ["平行線ですね", "同意します"],
         description="List of strings that trigger early termination of a debate.",
     )
 
@@ -271,7 +266,7 @@ class SimulationConfig(BaseModel):
                 )
         elif isinstance(v, list) and all(isinstance(item, str) for item in v):
             return v
-        return DEFAULT_CIRCUIT_BREAKERS
+        return ["平行線ですね", "同意します"]
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
@@ -342,13 +337,13 @@ class GovernanceConfig(BaseModel):
         description="Max bytes for LLM JSON response",
     )
     output_path: str = Field(
-        default_factory=lambda: os.getenv("RINGI_SHO_PATH", DEFAULT_RINGI_SHO_PATH),
+        default_factory=lambda: os.getenv("RINGI_SHO_PATH", "RINGI_SHO.md"),
         description="Path for Ringi-sho output",
     )
     search_query_template: str = Field(
         default_factory=lambda: os.getenv(
             "GOV_SEARCH_QUERY_TEMPLATE",
-            DEFAULT_GOV_SEARCH_QUERY_TEMPLATE,
+            "average CAC churn ARPU LTV for {industry} startups benchmarks",
         ),
         description="Template for financial search",
     )
@@ -362,6 +357,31 @@ class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(extra="forbid")
+
+    prompt_hacker: str = Field(
+        alias="PROMPT_HACKER",
+        default_factory=lambda: os.getenv(
+            "PROMPT_HACKER",
+            "【前提とするサイトマップと機能要件を遵守しつつ】技術的負債、スケーラビリティ、セキュリティの観点からワイヤーフレームをレビューせよ。不要に複雑なDB構造やリアルタイム通信を避け、スプレッドシートや既存APIのモックで代替できないか追求せよ。同意できる場合は「[APPROVED]」と出力せよ。",
+        ),
+        description="System prompt for Hacker Reviewer",
+    )
+    prompt_hipster: str = Field(
+        alias="PROMPT_HIPSTER",
+        default_factory=lambda: os.getenv(
+            "PROMPT_HIPSTER",
+            "【前提とするメンタルモデルとペルソナを遵守しつつ】ユーザーの『Don't make me think（考えさせるな）』の原則に基づきUXをレビューせよ。メンタルモデルに反するオンボーディングの摩擦、タップ回数の多さ、エラー時の不親切さを指摘せよ。同意できる場合は「[APPROVED]」と出力せよ。",
+        ),
+        description="System prompt for Hipster Reviewer",
+    )
+    prompt_hustler: str = Field(
+        alias="PROMPT_HUSTLER",
+        default_factory=lambda: os.getenv(
+            "PROMPT_HUSTLER",
+            "【前提とする代替品分析とVPCを遵守しつつ】ユニットエコノミクス（LTV > 3x CAC）の観点からビジネスモデルをレビューせよ。誰がどうやって見つけるのか、なぜ継続してお金を払うのかを厳しく問いただせ。同意できる場合は「[APPROVED]」と出力せよ。",
+        ),
+        description="System prompt for Hustler Reviewer",
+    )
 
     openai_api_key: SecretStr = Field(..., alias="OPENAI_API_KEY", description="OpenAI API Key")
     tavily_api_key: SecretStr | None = Field(
@@ -386,13 +406,16 @@ class Settings(BaseSettings):
     hitl_interrupt_nodes: list[str] = Field(
         alias="HITL_INTERRUPT_NODES",
         default_factory=lambda: json.loads(
-            os.getenv("HITL_INTERRUPT_NODES", DEFAULT_HITL_INTERRUPT_NODES)
+            os.getenv(
+                "HITL_INTERRUPT_NODES",
+                '["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]',
+            )
         ),
         description="Nodes to interrupt after for Human-In-The-Loop feedback",
     )
     canvas_output_dir: str = Field(
         alias="CANVAS_OUTPUT_DIR",
-        default_factory=lambda: os.getenv("CANVAS_OUTPUT_DIR", DEFAULT_CANVAS_OUTPUT_DIR),
+        default_factory=lambda: os.getenv("CANVAS_OUTPUT_DIR", "./outputs/canvas"),
         description="Directory for PDF canvases",
     )
     rag_chunk_size: int = Field(
@@ -415,7 +438,7 @@ class Settings(BaseSettings):
     )
     rag_allowed_paths: list[str] = Field(
         default_factory=lambda: json.loads(
-            os.getenv("RAG_ALLOWED_PATHS", DEFAULT_RAG_ALLOWED_PATHS)
+            os.getenv("RAG_ALLOWED_PATHS", '["data", "vector_store", "tests"]')
         ),
         description="Allowed directories for RAG",
     )
@@ -477,7 +500,9 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default_factory=lambda: os.getenv("SEARCH_QUERY_TEMPLATE", DEFAULT_SEARCH_QUERY_TEMPLATE),
+        default_factory=lambda: os.getenv(
+            "SEARCH_QUERY_TEMPLATE", "emerging business trends and painful problems in {topic}"
+        ),
         description="Template for search queries",
     )
 

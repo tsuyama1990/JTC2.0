@@ -4,7 +4,6 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.core.config import Settings, get_settings
-from src.core.constants import PROMPT_HACKER, PROMPT_HIPSTER, PROMPT_HUSTLER
 from src.core.interfaces import ILLMClient, IStateContext
 
 logger = logging.getLogger(__name__)
@@ -96,9 +95,9 @@ class The3HReviewAgent(BaseAgent):
         vpc_json = state.value_proposition_canvas.model_dump_json()
 
         sys_prompts = {
-            "Hacker": PROMPT_HACKER,
-            "Hipster": PROMPT_HIPSTER,
-            "Hustler": PROMPT_HUSTLER,
+            "Hacker": self.settings.prompt_hacker,
+            "Hipster": self.settings.prompt_hipster,
+            "Hustler": self.settings.prompt_hustler,
         }
         reviews = {"Hacker": "", "Hipster": "", "Hustler": ""}
 
