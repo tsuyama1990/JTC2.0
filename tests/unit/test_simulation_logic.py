@@ -108,9 +108,7 @@ def test_simulation_graph_structure(mock_get_llm: MagicMock) -> None:
     assert graph is not None
 
 
-def test_persona_agent_run(
-    mock_llm: MagicMock, mock_state: GlobalState
-) -> None:
+def test_persona_agent_run(mock_llm: MagicMock, mock_state: GlobalState) -> None:
     """Test PersonaAgent.run logic."""
 
     agent = NewEmployeeAgent(llm=mock_llm, search_tool=MagicMock(), app_settings=get_settings())

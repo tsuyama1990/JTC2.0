@@ -104,7 +104,9 @@ class CPOAgent(PersonaAgent):
                 transcript_context = "against general knowledge"
 
             if state.selected_idea:
-                base_query = f"Validate assumption: {state.selected_idea.title} {transcript_context}"
+                base_query = (
+                    f"Validate assumption: {state.selected_idea.title} {transcript_context}"
+                )
                 research_data += self._cached_research(base_query)
 
             # 3. Inject Nemawashi (Influence) Data
@@ -133,7 +135,9 @@ class CPOAgent(PersonaAgent):
 
             if state.alternative_analysis:
                 alt_json = state.alternative_analysis.model_dump_json()
-                alt_query = f"Validate alternative analysis: {alt_json} against customer alternatives"
+                alt_query = (
+                    f"Validate alternative analysis: {alt_json} against customer alternatives"
+                )
                 alt_validation = self._cached_research(alt_query)
                 research_data += f"\n\nALTERNATIVE ANALYSIS VALIDATION:\n{alt_validation}"
 
@@ -146,7 +150,7 @@ class CPOAgent(PersonaAgent):
             logger.exception("Error in CPO Agent Run")
             return {
                 "error": f"RAG query failed or CPO error: {e}",
-                "debate_history": list(state.debate_history)
+                "debate_history": list(state.debate_history),
             }
         else:
             # Construct new history

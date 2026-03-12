@@ -101,7 +101,11 @@ class GlobalState(BaseModel):
             # Remove null bytes
             sanitized = sanitized.replace("\x00", "")
             # Remove common SQL injection fragments if matched exactly
-            sanitized = re.sub(r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b", "[REDACTED]", sanitized)
+            sanitized = re.sub(
+                r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b",
+                "[REDACTED]",
+                sanitized,
+            )
             sanitized = sanitized.replace("--", "").replace(";", "")
 
             if len(sanitized.strip()) < 10:
@@ -122,7 +126,9 @@ class GlobalState(BaseModel):
             return v
 
         is_allowed = False
-        allowed_paths = os.getenv("RAG_ALLOWED_PATHS", "data,vector_store,tests,./vector_store").split(",")
+        allowed_paths = os.getenv(
+            "RAG_ALLOWED_PATHS", "data,vector_store,tests,./vector_store"
+        ).split(",")
 
         abs_v = str(Path(v).resolve())
         for allowed_path in allowed_paths:

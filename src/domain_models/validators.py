@@ -41,7 +41,11 @@ class StateValidator:
         if state.topic:
             sanitized = re.sub(r"<[^>]*>", "", state.topic)
             sanitized = sanitized.replace("\x00", "")
-            sanitized = re.sub(r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b", "[REDACTED]", sanitized)
+            sanitized = re.sub(
+                r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b",
+                "[REDACTED]",
+                sanitized,
+            )
             sanitized = sanitized.replace("--", "").replace(";", "")
             state.topic = sanitized
 

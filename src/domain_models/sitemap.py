@@ -12,20 +12,14 @@ class Route(BaseModel):
         description="URLパス (例: /, /dashboard, /login)",
         min_length=1,
     )
-    name: str = Field(
-        ..., description="ページ名", min_length=1
-    )
-    purpose: str = Field(
-        ..., description="このページの目的", min_length=3
-    )
+    name: str = Field(..., description="ページ名", min_length=1)
+    purpose: str = Field(..., description="このページの目的", min_length=3)
     is_protected: bool = Field(..., description="認証が必要なページかどうか")
 
 
 class UserStory(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    as_a: str = Field(
-        ..., description="誰として(Persona)", min_length=1
-    )
+    as_a: str = Field(..., description="誰として(Persona)", min_length=1)
     i_want_to: str = Field(
         ...,
         description="何をしたいか(Action)",

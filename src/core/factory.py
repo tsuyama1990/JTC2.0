@@ -45,9 +45,7 @@ class AgentFactory:
 
             llm = get_llm()
             settings = get_settings()
-            search_tool = TavilySearch(
-                api_key=settings.tavily_api_key.get_secret_value()
-            )
+            search_tool = TavilySearch(api_key=settings.tavily_api_key.get_secret_value())
             rag_path = state.rag_index_path if state else settings.rag_persist_dir
             return CPOAgent(llm, search_tool=search_tool, app_settings=settings, rag_path=rag_path)
 
@@ -63,9 +61,7 @@ class AgentFactory:
 
         llm = get_llm()
         settings = get_settings()
-        search_tool = TavilySearch(
-            api_key=settings.tavily_api_key.get_secret_value()
-        )
+        search_tool = TavilySearch(api_key=settings.tavily_api_key.get_secret_value())
 
         if role == Role.NEW_EMPLOYEE:
             return NewEmployeeAgent(llm, search_tool=search_tool, app_settings=settings)

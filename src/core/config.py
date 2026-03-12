@@ -21,12 +21,8 @@ from src.core.validators import ConfigValidators
 class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
-    min_title_length: int = Field(
-        default=3, description="Minimum length for titles"
-    )
-    max_title_length: int = Field(
-        default=100, description="Maximum length for titles"
-    )
+    min_title_length: int = Field(default=3, description="Minimum length for titles")
+    max_title_length: int = Field(default=100, description="Maximum length for titles")
     min_content_length: int = Field(default=3, description="Minimum length for content blocks")
     max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
 
@@ -132,9 +128,7 @@ class NemawashiConfig(BaseSettings):
 class V0Config(BaseSettings):
     """Configuration for v0.dev integration."""
 
-    retry_max: int = Field(
-        alias="V0_RETRY_MAX", default=3, description="Max retries for API calls"
-    )
+    retry_max: int = Field(alias="V0_RETRY_MAX", default=3, description="Max retries for API calls")
     retry_backoff: float = Field(
         alias="V0_RETRY_BACKOFF",
         default=2.0,
@@ -152,9 +146,7 @@ class SimulationConfig(BaseSettings):
     bg_color: int = Field(default=COLOR_BG, description="Background color")
     text_color: int = Field(default=COLOR_TEXT, description="Text color")
 
-    chars_per_line: int = Field(
-        default=32, description="Characters per line in dialogue"
-    )
+    chars_per_line: int = Field(default=32, description="Characters per line in dialogue")
     line_height: int = Field(default=10, description="Line height in pixels")
     dialogue_x: int = Field(default=10, description="Dialogue box X position")
     dialogue_y: int = Field(default=150, description="Dialogue box Y position")
@@ -188,9 +180,7 @@ class SimulationConfig(BaseSettings):
         description="List of simulation steps defining the turn sequence.",
     )
 
-    console_sleep: float = Field(
-        default=1.5, description="Sleep time for console fallback"
-    )
+    console_sleep: float = Field(default=1.5, description="Sleep time for console fallback")
     max_turns: int = Field(default=10, description="Max turns in simulation")
 
     # Explicit fields for individual agents to allow env var overrides
@@ -442,9 +432,7 @@ class Settings(BaseSettings):
     )
 
     log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
-    ui_page_size: int = Field(
-        alias="UI_PAGE_SIZE", default=3, description="Page size for UI"
-    )
+    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=3, description="Page size for UI")
 
     # Nested configurations - Use Field to allow Pydantic to manage them
     validation: ValidationConfig = Field(default_factory=ValidationConfig)

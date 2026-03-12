@@ -17,9 +17,7 @@ class JourneyPhase(BaseModel):
         description="顧客とシステム/環境の接点",
         min_length=1,
     )
-    customer_action: str = Field(
-        ..., description="顧客の具体的な行動", min_length=1
-    )
+    customer_action: str = Field(..., description="顧客の具体的な行動", min_length=1)
     mental_tower_ref: str = Field(
         ...,
         description="この行動を裏付けているMentalTowerの信念",

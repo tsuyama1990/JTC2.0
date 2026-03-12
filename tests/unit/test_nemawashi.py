@@ -1,11 +1,17 @@
 import math
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from src.core.exceptions import ValidationError
+from src.core.config import NemawashiConfig
+from src.core.exceptions import CalculationError, ValidationError
+from src.core.nemawashi.analytics import InfluenceAnalyzer
 from src.core.nemawashi.consensus import ConsensusEngine
+from src.core.nemawashi.engine import NemawashiEngine
+from src.core.nemawashi.nomikai import NomikaiSimulator
+from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry, Stakeholder
 
 
@@ -78,15 +84,6 @@ def test_consensus_calculation() -> None:
     assert result[0] > 0.9  # A should converge to B
     assert result[1] == 1.0
 
-import numpy as np
-
-from src.core.config import NemawashiConfig
-from src.core.exceptions import CalculationError
-from src.core.nemawashi.analytics import InfluenceAnalyzer
-from src.core.nemawashi.engine import NemawashiEngine
-from src.core.nemawashi.nomikai import NomikaiSimulator
-from src.core.nemawashi.utils import NemawashiUtils
-
 
 def test_identify_influencers_empty() -> None:
     """Test identify influencers on an empty network."""
@@ -96,6 +93,7 @@ def test_identify_influencers_empty() -> None:
     analyzer = InfluenceAnalyzer()
     assert analyzer.identify_influencers(network) == ["A"]
 
+
 def test_identify_influencers_dense() -> None:
     """Test identify influencers using a dense matrix."""
     s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
@@ -104,7 +102,8 @@ def test_identify_influencers_dense() -> None:
     analyzer = InfluenceAnalyzer()
 
     influencers = analyzer.identify_influencers(network)
-    assert influencers == ["B", "A"] # B has 0.9 self and 0.2 from A, so B > A
+    assert influencers == ["B", "A"]  # B has 0.9 self and 0.2 from A, so B > A
+
 
 def test_identify_influencers_sparse() -> None:
     """Test identify influencers using a sparse matrix."""
@@ -128,6 +127,7 @@ def test_identify_influencers_sparse() -> None:
     influencers = analyzer.identify_influencers(network)
     assert len(influencers) == 3
 
+
 def test_is_connected_dense() -> None:
     """Test connectivity checker."""
     analyzer = InfluenceAnalyzer()
@@ -136,6 +136,7 @@ def test_is_connected_dense() -> None:
     assert analyzer.is_connected([[1.0, 0.0], [0.0, 1.0]]) is False
     assert analyzer.is_connected([[0.5, 0.5], [0.5, 0.5]]) is True
 
+
 def test_run_nomikai_not_found() -> None:
     """Test nomikai simulator raises ValidationError when target not found."""
     s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
@@ -143,6 +144,7 @@ def test_run_nomikai_not_found() -> None:
     simulator = NomikaiSimulator()
     with pytest.raises(ValidationError, match="Target B not found."):
         simulator.run_nomikai(network, "B")
+
 
 def test_run_nomikai_dense() -> None:
     """Test nomikai simulator on dense matrix."""
@@ -168,6 +170,7 @@ def test_run_nomikai_dense() -> None:
     assert row0[0] == 0.7
     assert math.isclose(row0[1], 0.3, rel_tol=1e-5)
 
+
 def test_run_nomikai_sparse() -> None:
     """Test nomikai simulator on sparse matrix."""
     s1 = Stakeholder(name="A", initial_support=0.2, stubbornness=0.9)
@@ -190,12 +193,17 @@ def test_run_nomikai_sparse() -> None:
 
     new_entries = new_net.matrix
     assert isinstance(new_entries, list)
-    entry_0_0 = next(e for e in new_entries if isinstance(e, SparseMatrixEntry) and e.row == 0 and e.col == 0)
-    entry_0_1 = next(e for e in new_entries if isinstance(e, SparseMatrixEntry) and e.row == 0 and e.col == 1)
+    entry_0_0 = next(
+        e for e in new_entries if isinstance(e, SparseMatrixEntry) and e.row == 0 and e.col == 0
+    )
+    entry_0_1 = next(
+        e for e in new_entries if isinstance(e, SparseMatrixEntry) and e.row == 0 and e.col == 1
+    )
     assert isinstance(entry_0_0, SparseMatrixEntry)
     assert isinstance(entry_0_1, SparseMatrixEntry)
     assert entry_0_0.val == 0.7
     assert math.isclose(entry_0_1.val, 0.3, rel_tol=1e-5)
+
 
 def test_nemawashi_engine_delegation() -> None:
     """Test that NemawashiEngine properly delegates methods."""
@@ -215,15 +223,19 @@ def test_nemawashi_engine_delegation() -> None:
     ops = engine.calculate_consensus(network)
     assert len(ops) == 2
 
+
 def test_nemawashi_utils_stochasticity_bad_dense() -> None:
     with pytest.raises(ValidationError):
         NemawashiUtils.validate_stochasticity([[0.5, 0.4]])
 
+
 def test_nemawashi_utils_stochasticity_bad_sparse() -> None:
     from scipy.sparse import csr_matrix
+
     bad = csr_matrix([[0.5, 0.4]])
     with pytest.raises(ValidationError):
         NemawashiUtils.validate_stochasticity(bad)
+
 
 def test_identify_influencers_bad_matrix() -> None:
     s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
@@ -231,10 +243,19 @@ def test_identify_influencers_bad_matrix() -> None:
     # Give matrix nan
     matrix = [[1.0, 0.2], [0.1, 0.9]]  # Valid values, mock dense matrix return later
     # Temporarily disable validation to test dense calculation failure
-    with patch("src.domain_models.politics.InfluenceNetwork.validate_stochasticity", return_value=None), patch("src.domain_models.politics.InfluenceNetwork.validate_matrix_values", return_value=matrix), patch("src.core.nemawashi.utils.NemawashiUtils.validate_stochasticity"):
-                # Constructing InfluenceNetwork directly skips some validators if mocked
-                network = InfluenceNetwork(stakeholders=[s1, s2], matrix=[[0.8, 0.2], [0.1, 0.9]])
-                network.matrix = [[np.nan, 0.2], [0.1, 0.9]]
-                analyzer = InfluenceAnalyzer()
-                with pytest.raises(CalculationError):
-                    analyzer.identify_influencers(network)
+    with (
+        patch(
+            "src.domain_models.politics.InfluenceNetwork.validate_stochasticity", return_value=None
+        ),
+        patch(
+            "src.domain_models.politics.InfluenceNetwork.validate_matrix_values",
+            return_value=matrix,
+        ),
+        patch("src.core.nemawashi.utils.NemawashiUtils.validate_stochasticity"),
+    ):
+        # Constructing InfluenceNetwork directly skips some validators if mocked
+        network = InfluenceNetwork(stakeholders=[s1, s2], matrix=[[0.8, 0.2], [0.1, 0.9]])
+        network.matrix = [[np.nan, 0.2], [0.1, 0.9]]
+        analyzer = InfluenceAnalyzer()
+        with pytest.raises(CalculationError):
+            analyzer.identify_influencers(network)

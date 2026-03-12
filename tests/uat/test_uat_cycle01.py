@@ -55,9 +55,8 @@ def test_ideation_scalability(
     mock_ideator_instance = mock_ideator_cls.return_value
     # Return wrapped iterator as expected by strict validation
     from collections.abc import Iterator
-    mock_ideator_instance.run.return_value = {
-        "generated_ideas": limited_lean_canvas_generator
-    }
+
+    mock_ideator_instance.run.return_value = {"generated_ideas": limited_lean_canvas_generator}
 
     app = create_app()
     initial_state = GlobalState(topic="AI for Scalability")
@@ -143,7 +142,6 @@ def test_gate_transitions_data_integrity(
     state_ready_for_pmf.phase = Phase.PMF
 
     GlobalState.model_validate(state_ready_for_pmf.model_dump())
-
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
