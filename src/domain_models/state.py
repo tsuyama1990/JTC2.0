@@ -122,6 +122,10 @@ class GlobalState(BaseModel):
         if isinstance(v, Iterator):
             return LazyIdeaIterator(v)
 
+        # In testing or serialization, it might be a list. Convert silently if iterable.
+        if hasattr(v, "__iter__"):
+            return LazyIdeaIterator(iter(v))
+
         # Reject invalid types explicitly
         msg = f"generated_ideas must be an Iterator or LazyIdeaIterator, got {type(v)}"
         raise TypeError(msg)

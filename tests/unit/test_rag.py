@@ -36,13 +36,13 @@ def mock_settings() -> Generator[MagicMock, None, None]:
 @pytest.fixture
 def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
     with (
-        patch("src.data.rag.VectorStoreIndex") as mock_index,
-        patch("src.data.rag.Document") as mock_doc,
-        patch("src.data.rag.StorageContext") as mock_storage,
-        patch("src.data.rag.load_index_from_storage") as mock_load,
-        patch("src.data.rag.OpenAI"),
-        patch("src.data.rag.OpenAIEmbedding"),
-        patch("src.data.rag.LlamaSettings"),
+        patch("llama_index.core.VectorStoreIndex") as mock_index,
+        patch("llama_index.core.Document") as mock_doc,
+        patch("llama_index.core.storage.storage_context.StorageContext") as mock_storage,
+        patch("llama_index.core.load_index_from_storage") as mock_load,
+        patch("llama_index.llms.openai.OpenAI"),
+        patch("llama_index.embeddings.openai.OpenAIEmbedding"),
+        patch("llama_index.core.Settings"),
     ):  # Mock Settings to avoid type checks
         yield {"index": mock_index, "doc": mock_doc, "storage": mock_storage, "load": mock_load}
 
@@ -76,9 +76,10 @@ def test_rag_ingest_text(mock_settings: MagicMock, mock_llama_index: dict[str, M
 
     rag = RAG()
     text = "Customer says: I hate this."
-    rag.ingest_text(text, source="interview.txt")
+    with patch("src.core.text_processing.Document") as mock_doc:
+        rag.ingest_text(text, source="interview.txt")
+        mock_doc.assert_called()
 
-    mock_llama_index["doc"].assert_called()
     # Ensure it creates an index
     mock_llama_index["index"].from_documents.assert_called()
 

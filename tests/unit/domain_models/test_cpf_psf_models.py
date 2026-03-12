@@ -120,6 +120,33 @@ def test_experiment_plan_valid() -> None:
     assert plan.experiment_type == "LP"
 
 
+def test_agent_prompt_spec_schema() -> None:
+    from src.domain_models.agent_prompt_spec import AgentPromptSpec
+
+    # Verify extra fields are forbidden
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        AgentPromptSpec.model_validate({
+            "sitemap": "test",
+            "routing_and_constraints": "test",
+            "core_user_story": {
+                "as_a": "A",
+                "i_want_to": "B",
+                "so_that": "C",
+                "acceptance_criteria": ["D"],
+                "target_route": "E"
+            },
+            "state_machine": {
+                "success": "A",
+                "loading": "B",
+                "error": "C",
+                "empty": "D"
+            },
+            "validation_rules": "test",
+            "mermaid_flowchart": "test",
+            "extra_field": "should_fail"
+        })
+
+
 def test_agent_prompt_spec_valid() -> None:
     sm = StateMachine(success="UI", loading="Spinner", error="Retry", empty="No data")
     story = UserStory(

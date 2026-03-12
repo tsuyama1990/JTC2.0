@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class JourneyPhase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     phase_name: str = Field(..., description="フェーズ名（例：認知、検討、利用中、離脱）")
     touchpoint: str = Field(..., description="顧客とシステム/環境の接点")
     customer_action: str = Field(..., description="顧客の具体的な行動")

@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class MetricTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     metric_name: str = Field(..., description="指標名（例：Day7 Retention）")
     target_value: str = Field(..., description="PMF達成とみなす目標値（例：40%以上）")
     measurement_method: str = Field(..., description="計測方法")

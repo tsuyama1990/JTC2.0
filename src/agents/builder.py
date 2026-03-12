@@ -1,6 +1,8 @@
 import logging
 from typing import Any
 
+from langchain_core.prompts import ChatPromptTemplate
+
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
 from src.core.interfaces import ILLMClient
@@ -28,8 +30,6 @@ class BuilderAgent(BaseAgent):
         if not state.sitemap_and_story:
             logger.warning("No sitemap available for Spec Generation.")
             return {}
-
-        from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -64,8 +64,6 @@ class BuilderAgent(BaseAgent):
         if not state.agent_prompt_spec:
             logger.warning("No AgentPromptSpec available for Experiment Plan Generation.")
             return {}
-
-        from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages(
             [

@@ -309,8 +309,10 @@ def test_sitemap_wireframe_agent_missing_journey() -> None:
     agent = SitemapWireframeAgent(llm=mock_llm)
 
     import pytest
+
     with pytest.raises(ValueError, match="Missing Customer Journey for Sitemap generation."):
         agent.run(state)
+
 
 def test_mental_model_agent_missing_context() -> None:
     """Test MentalModelJourneyAgent raises ValueError when missing context."""
@@ -319,5 +321,8 @@ def test_mental_model_agent_missing_context() -> None:
     agent = MentalModelJourneyAgent(llm=mock_llm)
 
     import pytest
-    with pytest.raises(ValueError, match="Missing required context for Mental Model & Journey Mapping"):
+
+    with pytest.raises(
+        ValueError, match="Missing required context for Mental Model & Journey Mapping"
+    ):
         agent.run(state)

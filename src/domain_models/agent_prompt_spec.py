@@ -4,6 +4,7 @@ from src.domain_models.sitemap_and_story import UserStory
 
 
 class StateMachine(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     success: str = Field(..., description="データ正常時の完全なレイアウト")
     loading: str = Field(..., description="Skeletonコンポーネントを用いた待機UI")
     error: str = Field(..., description="フォールバックUIとRetryボタンの配置")
