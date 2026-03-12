@@ -129,10 +129,28 @@ class SimulationService:
         self.app = create_app()
 
     def run_ideation_to_gate(self, topic: str) -> tuple[Iterator["LeanCanvas"], GlobalState]:
+        import os
         from collections.abc import Iterator
 
         from src.domain_models.lean_canvas import LeanCanvas
         from src.domain_models.state import Phase
+
+        is_mock = os.getenv("MOCK_MODE", "false").lower() == "true"
+        if is_mock:
+            # Full LangGraph bypass for Mock Mode
+            mock_idea = LeanCanvas(
+                id=1,
+                title="Mocked Idea",
+                problem="Mocked Problem",
+                solution="Mocked Solution",
+                customer_segments="Mocked Segments",
+                unique_value_prop="Mocked Value Prop",
+            )
+            mock_state = GlobalState(topic=topic, generated_ideas=[mock_idea])
+
+            def _yield_mock() -> Iterator[LeanCanvas]:
+                yield mock_idea
+            return _yield_mock(), mock_state
 
         initial_state = {"topic": topic, "phase": Phase.IDEATION}
 
@@ -173,6 +191,11 @@ class SimulationService:
         return _yield_items(), state_obj
 
     def resume_after_gate(self, selected_idea: "LeanCanvas") -> None:
+        import os
+        is_mock = os.getenv("MOCK_MODE", "false").lower() == "true"
+        if is_mock:
+            return
+
         from langgraph.types import Command
 
         self.app.invoke(

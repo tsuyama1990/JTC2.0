@@ -50,7 +50,8 @@ class FileService:
                     raise ConfigurationError(msg)
                 current = current.parent
 
-            p = raw_path.resolve(strict=True)
+            # use strict=False because the file itself may not exist yet
+            p = raw_path.resolve(strict=False)
 
             # Always validate against the exact permitted target directory
             base_dir = Path.cwd().resolve(strict=True)
@@ -58,7 +59,7 @@ class FileService:
             output_dir = (base_dir / self.settings.canvas_output_dir).resolve(strict=True)
 
             if not p.is_relative_to(output_dir) and not p.is_relative_to(base_dir):
-                msg = f"Path traversal detected: {path}"
+                msg = f"Invalid path: Path traversal detected: {path}"
                 raise ConfigurationError(msg)
 
             # Double check there are no symlinks introduced during resolving

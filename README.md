@@ -101,13 +101,17 @@ graph TD
 
 ## 🚀 Usage
 
-**The Marimo UAT & Tutorial:**
-The easiest way to understand and verify the system's capabilities is to run the unified User Acceptance Testing (UAT) tutorial using Marimo.
+**The Marimo Tutorial:**
+The easiest way to understand and verify the system's capabilities is to run the tutorial using Marimo.
 
 ```bash
+# Run interactively
 uv run marimo edit tutorials/UAT_AND_TUTORIAL.py
+
+# Or export to HTML for offline viewing
+uv run marimo export html tutorials/UAT_AND_TUTORIAL.py > tutorial.html
 ```
-This interactive notebook will guide you through running the system in both offline "Mock Mode" and full execution.
+This interactive notebook will guide you through running the system in both offline "Mock Mode" and full execution, allowing you to quickly see generated outputs like `AgentPromptSpec.md`.
 
 **CLI Execution:**
 To run the main simulation directly from the command line:
@@ -133,8 +137,6 @@ The project enforces strict code quality standards to maintain the integrity of 
     ```bash
     uv run pytest
     ```
-
-The development of this remastered edition is meticulously planned across **6 implementation cycles**, ensuring incremental, verifiable delivery of the `ALL_SPEC.md` requirements.
 
 ## 📂 Project Structure
 
