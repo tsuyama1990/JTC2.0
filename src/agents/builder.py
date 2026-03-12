@@ -12,9 +12,11 @@ from src.domain_models.experiment_plan import ExperimentPlan
 
 logger = logging.getLogger(__name__)
 
+
 def _raise_invalid_output() -> None:
     msg = "Invalid output"
     raise TypeError(msg)
+
 
 class BuilderAgent(BaseAgent):
     """
@@ -34,10 +36,24 @@ class BuilderAgent(BaseAgent):
             logger.warning("No sitemap available for Spec Generation.")
             return {}
 
-        sitemap_json = state.sitemap_and_story.model_dump_json() if state.sitemap_and_story else "{}"
-        mental_json = state.mental_model_diagram.model_dump_json() if hasattr(state, "mental_model_diagram") and state.mental_model_diagram else "{}"
-        vpc_json = state.value_proposition_canvas.model_dump_json() if hasattr(state, "value_proposition_canvas") and state.value_proposition_canvas else "{}"
-        debate = "\n".join(state.debate_history) if hasattr(state, "debate_history") and state.debate_history else ""
+        sitemap_json = (
+            state.sitemap_and_story.model_dump_json() if state.sitemap_and_story else "{}"
+        )
+        mental_json = (
+            state.mental_model_diagram.model_dump_json()
+            if hasattr(state, "mental_model_diagram") and state.mental_model_diagram
+            else "{}"
+        )
+        vpc_json = (
+            state.value_proposition_canvas.model_dump_json()
+            if hasattr(state, "value_proposition_canvas") and state.value_proposition_canvas
+            else "{}"
+        )
+        debate = (
+            "\n".join(state.debate_history)
+            if hasattr(state, "debate_history") and state.debate_history
+            else ""
+        )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -46,7 +62,7 @@ class BuilderAgent(BaseAgent):
                     "You are an expert product builder. Use the provided context to generate the ultimate AgentPromptSpec.\n"
                     "CRITICAL: Apply strict 'subtraction thinking'. Aggressively strip away ANY unnecessary features "
                     "that do not directly solve the core customer pain points identified in the VPC and Mental Model. "
-                    "The resulting specification must be minimal, lean, and absolutely focused on the core User Story."
+                    "The resulting specification must be minimal, lean, and absolutely focused on the core User Story.",
                 ),
                 (
                     "user",
@@ -61,13 +77,14 @@ class BuilderAgent(BaseAgent):
         try:
             structured_llm = self.llm.with_structured_output(AgentPromptSpec)
             messages = prompt.format_messages(
-                sitemap=sitemap_json,
-                mental=mental_json,
-                vpc=vpc_json,
-                debate=debate
+                sitemap=sitemap_json, mental=mental_json, vpc=vpc_json, debate=debate
             )
 
-            @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
+            @retry(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=2, max=10),
+                reraise=True,
+            )
             def _invoke() -> AgentPromptSpec:
                 res = structured_llm.invoke(messages)
                 if not isinstance(res, AgentPromptSpec):
@@ -98,12 +115,11 @@ class BuilderAgent(BaseAgent):
                     "system",
                     "You are an expert product growth manager. Use the provided context to generate an Experiment Plan.\n"
                     "Focus strictly on validating the absolute core assumptions necessary for PMF using the AARRR framework. "
-                    "Apply 'subtraction thinking' to ensure the plan is actionable and not bloated with vanity metrics."
+                    "Apply 'subtraction thinking' to ensure the plan is actionable and not bloated with vanity metrics.",
                 ),
                 (
                     "user",
-                    "Agent Prompt Spec:\n{spec}\n"
-                    "Generate ExperimentPlan:",
+                    "Agent Prompt Spec:\n{spec}\nGenerate ExperimentPlan:",
                 ),
             ]
         )
@@ -111,7 +127,11 @@ class BuilderAgent(BaseAgent):
             structured_llm = self.llm.with_structured_output(ExperimentPlan)
             messages = prompt.format_messages(spec=spec_json)
 
-            @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
+            @retry(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=2, max=10),
+                reraise=True,
+            )
             def _invoke() -> ExperimentPlan:
                 res = structured_llm.invoke(messages)
                 if not isinstance(res, ExperimentPlan):

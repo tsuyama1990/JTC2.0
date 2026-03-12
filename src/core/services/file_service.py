@@ -99,6 +99,7 @@ class FileService:
         import uuid
 
         attempts = 3
+
         def _raise_symlink_error(m: str) -> None:
             raise ConfigurationError(m)
 
@@ -138,7 +139,9 @@ class FileService:
 
                 # Final TOCTOU verification
                 final_path = path.resolve(strict=True)
-                if not final_path.is_relative_to(base_dir) or final_path != path.resolve(strict=True):
+                if not final_path.is_relative_to(base_dir) or final_path != path.resolve(
+                    strict=True
+                ):
                     _raise_symlink_error(f"Post-write symlink tampering detected: {path}")
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
@@ -167,6 +170,7 @@ class FileService:
         Escapes HTML and Markdown control characters to prevent injection.
         """
         import re
+
         if not text:
             return ""
 
@@ -174,12 +178,12 @@ class FileService:
         escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
         # Escape all Markdown control characters
-        markdown_chars = r'\`*_{}[]()#+-.!|'
+        markdown_chars = r"\`*_{}[]()#+-.!|"
         for char in markdown_chars:
-            escaped = escaped.replace(char, f'\\{char}')
+            escaped = escaped.replace(char, f"\\{char}")
 
         # Remove or escape HTML tags
-        return re.sub(r'<[^>]+>', '', escaped)
+        return re.sub(r"<[^>]+>", "", escaped)
 
     def _validate_and_sanitize_content(self, content: str, max_length: int = 1000) -> str:
         if not isinstance(content, str):
@@ -216,25 +220,29 @@ class FileService:
                 f"- I want to: {self._validate_and_sanitize_content(spec.core_user_story.i_want_to)}",
                 f"- So that: {self._validate_and_sanitize_content(spec.core_user_story.so_that)}",
                 f"- Target Route: {self._validate_and_sanitize_content(spec.core_user_story.target_route)}",
-                "- Acceptance Criteria:"
+                "- Acceptance Criteria:",
             ]
             for ac in spec.core_user_story.acceptance_criteria:
                 content.append(f"  - {self._validate_and_sanitize_content(ac)}")
 
-            content.extend([
-                "\n# 📊 Data Schema & Flow\n",
-                "Validation Rules:",
-                f"{self._validate_and_sanitize_content(spec.validation_rules)}\n",
-                "🔄 State Machine (Mermaid)\n",
-                "```mermaid",
-                self._validate_and_sanitize_content(spec.mermaid_flowchart.replace("```mermaid", "").replace("```", "").strip()),
-                "```\n",
-                "🖥️ UI Structure & States",
-                f"Success State: {self._validate_and_sanitize_content(spec.state_machine.success)}",
-                f"Loading State: {self._validate_and_sanitize_content(spec.state_machine.loading)}",
-                f"Empty State: {self._validate_and_sanitize_content(spec.state_machine.empty)}",
-                f"Error State: {self._validate_and_sanitize_content(spec.state_machine.error)}"
-            ])
+            content.extend(
+                [
+                    "\n# 📊 Data Schema & Flow\n",
+                    "Validation Rules:",
+                    f"{self._validate_and_sanitize_content(spec.validation_rules)}\n",
+                    "🔄 State Machine (Mermaid)\n",
+                    "```mermaid",
+                    self._validate_and_sanitize_content(
+                        spec.mermaid_flowchart.replace("```mermaid", "").replace("```", "").strip()
+                    ),
+                    "```\n",
+                    "🖥️ UI Structure & States",
+                    f"Success State: {self._validate_and_sanitize_content(spec.state_machine.success)}",
+                    f"Loading State: {self._validate_and_sanitize_content(spec.state_machine.loading)}",
+                    f"Empty State: {self._validate_and_sanitize_content(spec.state_machine.empty)}",
+                    f"Error State: {self._validate_and_sanitize_content(spec.state_machine.error)}",
+                ]
+            )
 
             self._save_text_sync("\n".join(content), output_path)
             logger.info(f"AgentPromptSpec MD generated successfully at {output_path}")
@@ -263,12 +271,16 @@ class FileService:
                 f"**Experiment Type:** {self._validate_and_sanitize_content(plan.experiment_type)}",
                 f"**Acquisition Channel:** {self._validate_and_sanitize_content(plan.acquisition_channel)}",
                 f"**Pivot Condition:** {self._validate_and_sanitize_content(plan.pivot_condition)}\n",
-                "## 📈 AARRR Metrics Framework\n"
+                "## 📈 AARRR Metrics Framework\n",
             ]
             for metric in plan.aarrr_metrics:
                 content.append(f"### {self._validate_and_sanitize_content(metric.metric_name)}")
-                content.append(f"- **Target:** {self._validate_and_sanitize_content(metric.target_value)}")
-                content.append(f"- **Method:** {self._validate_and_sanitize_content(metric.measurement_method)}\n")
+                content.append(
+                    f"- **Target:** {self._validate_and_sanitize_content(metric.target_value)}"
+                )
+                content.append(
+                    f"- **Method:** {self._validate_and_sanitize_content(metric.measurement_method)}\n"
+                )
 
             self._save_text_sync("\n".join(content), output_path)
             logger.info(f"EXPERIMENT_PLAN MD generated successfully at {output_path}")
@@ -309,12 +321,15 @@ class FileService:
 
     def _sanitize_for_pdf(self, text: str) -> str:
         import unicodedata
+
         if not isinstance(text, str):
             return ""
 
         # Unicode normalization and strict dropping of unprintables/control characters
         normalized = unicodedata.normalize("NFKC", text)
-        text = "".join(c for c in normalized if unicodedata.category(c)[0] != "C" and c.isprintable())
+        text = "".join(
+            c for c in normalized if unicodedata.category(c)[0] != "C" and c.isprintable()
+        )
 
         # Escape any special characters that could affect PDF rendering
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -327,8 +342,12 @@ class FileService:
         occupation = self._sanitize_for_pdf(self._validate_string(persona.occupation, 100))
         demographics = self._sanitize_for_pdf(self._validate_string(persona.demographics))
         bio = self._sanitize_for_pdf(self._validate_string(persona.bio))
-        goals = ", ".join(self._sanitize_for_pdf(self._validate_string(g, 200)) for g in persona.goals)
-        frustrations = ", ".join(self._sanitize_for_pdf(self._validate_string(f, 200)) for f in persona.frustrations)
+        goals = ", ".join(
+            self._sanitize_for_pdf(self._validate_string(g, 200)) for g in persona.goals
+        )
+        frustrations = ", ".join(
+            self._sanitize_for_pdf(self._validate_string(f, 200)) for f in persona.frustrations
+        )
 
         pdf.multi_cell(w=0, h=10, text=f"Name: {name} | Occupation: {occupation}")
         pdf.multi_cell(w=0, h=10, text=f"Demographics: {demographics}")
@@ -373,9 +392,18 @@ class FileService:
         pdf.set_font("Helvetica", style="B", size=14)
         pdf.cell(w=200, h=10, text="Customer Profile:", new_x="LMARGIN", new_y="NEXT", align="L")
         pdf.set_font("Helvetica", size=12)
-        jobs = ", ".join(self._sanitize_for_pdf(self._validate_string(j, 200)) for j in vpc.customer_profile.customer_jobs)
-        pains = ", ".join(self._sanitize_for_pdf(self._validate_string(p, 200)) for p in vpc.customer_profile.pains)
-        gains = ", ".join(self._sanitize_for_pdf(self._validate_string(g, 200)) for g in vpc.customer_profile.gains)
+        jobs = ", ".join(
+            self._sanitize_for_pdf(self._validate_string(j, 200))
+            for j in vpc.customer_profile.customer_jobs
+        )
+        pains = ", ".join(
+            self._sanitize_for_pdf(self._validate_string(p, 200))
+            for p in vpc.customer_profile.pains
+        )
+        gains = ", ".join(
+            self._sanitize_for_pdf(self._validate_string(g, 200))
+            for g in vpc.customer_profile.gains
+        )
         pdf.multi_cell(w=0, h=10, text=f"Jobs: {jobs}")
         pdf.multi_cell(w=0, h=10, text=f"Pains: {pains}")
         pdf.multi_cell(w=0, h=10, text=f"Gains: {gains}")
@@ -383,9 +411,18 @@ class FileService:
         pdf.set_font("Helvetica", style="B", size=14)
         pdf.cell(w=200, h=10, text="Value Map:", new_x="LMARGIN", new_y="NEXT", align="L")
         pdf.set_font("Helvetica", size=12)
-        products = ", ".join(self._sanitize_for_pdf(self._validate_string(p, 200)) for p in vpc.value_map.products_and_services)
-        pain_relievers = ", ".join(self._sanitize_for_pdf(self._validate_string(p, 200)) for p in vpc.value_map.pain_relievers)
-        gain_creators = ", ".join(self._sanitize_for_pdf(self._validate_string(g, 200)) for g in vpc.value_map.gain_creators)
+        products = ", ".join(
+            self._sanitize_for_pdf(self._validate_string(p, 200))
+            for p in vpc.value_map.products_and_services
+        )
+        pain_relievers = ", ".join(
+            self._sanitize_for_pdf(self._validate_string(p, 200))
+            for p in vpc.value_map.pain_relievers
+        )
+        gain_creators = ", ".join(
+            self._sanitize_for_pdf(self._validate_string(g, 200))
+            for g in vpc.value_map.gain_creators
+        )
         pdf.multi_cell(w=0, h=10, text=f"Products & Services: {products}")
         pdf.multi_cell(w=0, h=10, text=f"Pain Relievers: {pain_relievers}")
         pdf.multi_cell(w=0, h=10, text=f"Gain Creators: {gain_creators}")

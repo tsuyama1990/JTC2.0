@@ -118,8 +118,10 @@ class TestBuilderAgent:
                 riskiest_assumption="RA",
                 experiment_type="ET",
                 acquisition_channel="AC",
-                aarrr_metrics=[MetricTarget(metric_name="M", target_value="T", measurement_method="MM")],
-                pivot_condition="PC"
+                aarrr_metrics=[
+                    MetricTarget(metric_name="M", target_value="T", measurement_method="MM")
+                ],
+                pivot_condition="PC",
             )
             mock_model_runnable.invoke.return_value = plan
 
