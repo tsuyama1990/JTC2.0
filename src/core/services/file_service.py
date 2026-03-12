@@ -6,7 +6,9 @@ from pathlib import Path
 from src.core.config import get_settings
 from src.core.exceptions import ConfigurationError
 from src.core.interfaces import IPDFGenerator
+from src.domain_models.agent_prompt_spec import AgentPromptSpec
 from src.domain_models.alternative_analysis import AlternativeAnalysis
+from src.domain_models.experiment_plan import ExperimentPlan
 from src.domain_models.persona import Persona
 from src.domain_models.value_proposition_canvas import ValuePropositionCanvas
 
@@ -116,6 +118,94 @@ class FileService:
             except (ValueError, TypeError, RuntimeError):
                 logger.exception(f"Unexpected data error writing to {path}")
                 break
+
+    def generate_agent_prompt_spec_md(
+        self,
+        spec: AgentPromptSpec,
+        output_dir: str | Path,
+    ) -> Path:
+        """
+        Generate AgentPromptSpec.md file from the AgentPromptSpec schema.
+        """
+        try:
+            target_dir = self._validate_path(output_dir)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            output_path = target_dir / "AgentPromptSpec.md"
+
+            content = [
+                "# 🤖 System & Context\n",
+                "- Role: Expert Frontend Engineer & UI/UX Designer",
+                "- Stack: Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui, Lucide-react",
+                "- Principles: One Feature One Value, Mobile First, Accessible (WCAG 2.1)",
+                f"- Routing & Components: {spec.routing_and_constraints}\n",
+                "# 🗺️ Sitemap & Information Architecture\n",
+                f"{spec.sitemap}\n",
+                "# 🎯 Core User Story\n",
+                f"- As a: {spec.core_user_story.as_a}",
+                f"- I want to: {spec.core_user_story.i_want_to}",
+                f"- So that: {spec.core_user_story.so_that}",
+                f"- Target Route: {spec.core_user_story.target_route}",
+                "- Acceptance Criteria:"
+            ]
+            for ac in spec.core_user_story.acceptance_criteria:
+                content.append(f"  - {ac}")
+
+            content.extend([
+                "\n# 📊 Data Schema & Flow\n",
+                "Validation Rules:",
+                f"{spec.validation_rules}\n",
+                "🔄 State Machine (Mermaid)\n",
+                "```mermaid",
+                spec.mermaid_flowchart.replace("```mermaid", "").replace("```", "").strip(),
+                "```\n",
+                "🖥️ UI Structure & States",
+                f"Success State: {spec.state_machine.success}",
+                f"Loading State: {spec.state_machine.loading}",
+                f"Empty State: {spec.state_machine.empty}",
+                f"Error State: {spec.state_machine.error}"
+            ])
+
+            self._save_text_sync("\n".join(content), output_path)
+            logger.info(f"AgentPromptSpec MD generated successfully at {output_path}")
+        except Exception:
+            logger.exception("Failed to generate AgentPromptSpec MD")
+            raise
+        else:
+            return output_path
+
+    def generate_experiment_plan_md(
+        self,
+        plan: ExperimentPlan,
+        output_dir: str | Path,
+    ) -> Path:
+        """
+        Generate EXPERIMENT_PLAN.md file from the ExperimentPlan schema.
+        """
+        try:
+            target_dir = self._validate_path(output_dir)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            output_path = target_dir / "EXPERIMENT_PLAN.md"
+
+            content = [
+                "# 🧪 MVP Experiment Plan\n",
+                f"**Riskiest Assumption:** {plan.riskiest_assumption}",
+                f"**Experiment Type:** {plan.experiment_type}",
+                f"**Acquisition Channel:** {plan.acquisition_channel}",
+                f"**Pivot Condition:** {plan.pivot_condition}\n",
+                "## 📈 AARRR Metrics Framework\n"
+            ]
+            for metric in plan.aarrr_metrics:
+                content.append(f"### {metric.metric_name}")
+                content.append(f"- **Target:** {metric.target_value}")
+                content.append(f"- **Method:** {metric.measurement_method}\n")
+
+            self._save_text_sync("\n".join(content), output_path)
+            logger.info(f"EXPERIMENT_PLAN MD generated successfully at {output_path}")
+        except Exception:
+            logger.exception("Failed to generate EXPERIMENT_PLAN MD")
+            raise
+        else:
+            return output_path
 
     def generate_vpc_pdf(
         self,

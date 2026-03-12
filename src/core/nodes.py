@@ -257,6 +257,22 @@ def spec_generation_node(state: GlobalState) -> dict[str, Any]:
     builder = AgentFactory().get_builder_agent()
     updates = builder.generate_spec(state)  # type: ignore[arg-type]
     updates["phase"] = Phase.OUTPUT
+
+    if "agent_prompt_spec" in updates:
+        from src.core.config import get_settings
+        from src.core.services.file_service import FileService
+
+        settings = get_settings()
+        file_service = FileService()
+        try:
+            output_dir = Path.cwd() / settings.canvas_output_dir
+            file_service.generate_agent_prompt_spec_md(
+                spec=updates["agent_prompt_spec"],
+                output_dir=output_dir,
+            )
+        except Exception:
+            logger.exception("Failed to write AgentPromptSpec to disk.")
+
     return updates
 
 
@@ -266,6 +282,21 @@ def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
     logger.info("Generating Experiment Plan...")
     builder = AgentFactory().get_builder_agent()
     updates = builder.generate_experiment_plan(state)  # type: ignore[arg-type]
+
+    if "experiment_plan" in updates:
+        from src.core.config import get_settings
+        from src.core.services.file_service import FileService
+
+        settings = get_settings()
+        file_service = FileService()
+        try:
+            output_dir = Path.cwd() / settings.canvas_output_dir
+            file_service.generate_experiment_plan_md(
+                plan=updates["experiment_plan"],
+                output_dir=output_dir,
+            )
+        except Exception:
+            logger.exception("Failed to write Experiment Plan to disk.")
 
     if "experiment_plan" in updates and state.sitemap_and_story:
         plan = updates["experiment_plan"]

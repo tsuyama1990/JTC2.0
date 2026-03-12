@@ -55,3 +55,31 @@ class TestFileService:
 
         file_service.save_text_async("content", "file.md")
         file_service._executor.shutdown(wait=True)
+
+    def test_path_traversal_prevention(self, file_service: FileService) -> None:
+        """Verify path traversal is prevented."""
+        from src.core.exceptions import ConfigurationError
+        with pytest.raises(ConfigurationError, match="Path traversal detected"):
+            file_service._validate_path("../../../etc/passwd")
+
+    def test_generate_md_path_traversal(self, file_service: FileService) -> None:
+        from src.domain_models.agent_prompt_spec import AgentPromptSpec
+        from src.domain_models.sitemap_and_story import UserStory
+        from src.domain_models.agent_prompt_spec import StateMachine
+        from src.core.exceptions import ConfigurationError
+
+        story = UserStory(
+            as_a="A", i_want_to="B", so_that="C", acceptance_criteria=["D"], target_route="/"
+        )
+        sm = StateMachine(success="A", loading="B", error="C", empty="D")
+        spec = AgentPromptSpec(
+            sitemap="S",
+            routing_and_constraints="R",
+            core_user_story=story,
+            state_machine=sm,
+            validation_rules="V",
+            mermaid_flowchart="M",
+        )
+
+        with pytest.raises(ConfigurationError, match="Path traversal detected"):
+            file_service.generate_agent_prompt_spec_md(spec, "../../../etc/passwd")
