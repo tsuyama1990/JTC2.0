@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Self
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
@@ -144,7 +144,7 @@ class UIConfig(BaseSettings):
 class AgentConfig(BaseModel):
     """Configuration for a single agent in the UI."""
 
-    model_config = SettingsConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True)
 
     role: str = Field(..., description="Role name of the agent")
     label: str = Field(..., description="Short label for UI")
@@ -348,15 +348,24 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(
-        alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
-    )
-    tavily_api_key: SecretStr | None = Field(
-        alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key"
-    )
+    # Explicitly enforce required keys without defaults
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
+    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
     v0_api_key: SecretStr | None = Field(
         alias="V0_API_KEY", default=None, description="V0.dev API Key"
     )
+
+    @field_validator("v0_api_key")
+    @classmethod
+    def validate_v0_api_key(cls, v: SecretStr | None) -> SecretStr | None:
+        """Validate the format of the V0 API Key if provided."""
+        if v is not None:
+            secret = v.get_secret_value()
+            if not secret.strip() or len(secret) < 10:
+                msg = "v0_api_key must be at least 10 characters long if provided."
+                raise ValueError(msg)
+        return v
+
     v0_api_url: str = Field(
         alias="V0_API_URL",
         default="https://api.v0.dev/chat/completions",
@@ -458,11 +467,7 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
-    def model_post_init(self, __context: object) -> None:
-        """Validate API keys on initialization."""
-        super().model_post_init(__context)
-        self.validate_api_keys()
-
+    @model_validator(mode="after")
     def validate_api_keys(self) -> Self:
         """Validate API keys are present and have correct format."""
         if not self.openai_api_key:

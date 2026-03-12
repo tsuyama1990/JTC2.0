@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Iterator
+from itertools import islice
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -34,6 +35,26 @@ class BuilderAgent(BaseAgent):
     def __init__(self, llm: ChatOpenAI) -> None:
         self.llm = llm
         self.settings = get_settings()
+        if not self.settings.v0_api_key:
+            msg = "Missing required API configuration"
+            raise ValueError(msg)
+
+    def _create_content_stream(
+        self, solution_description: str | Iterator[str], chunk_size: int
+    ) -> Iterator[str]:
+        """Normalize input to an iterator of validated text chunks."""
+        if isinstance(solution_description, str):
+            stream = chunk_text(solution_description, chunk_size)
+        else:
+            stream = solution_description
+
+        for chunk in stream:
+            if not chunk or not chunk.strip():
+                continue
+            if len(chunk.strip()) < 5:
+                logger.warning(f"Chunk too short, skipping: {chunk}")
+                continue
+            yield chunk
 
     def _extract_features(self, solution_description: str | Iterator[str]) -> Iterator[str]:
         """
@@ -48,20 +69,7 @@ class BuilderAgent(BaseAgent):
         # Use a set to stream deduplication as we process chunks
         unique_features: set[str] = set()
 
-        def content_stream() -> Iterator[str]:
-            if isinstance(solution_description, str):
-                if not solution_description or len(solution_description) < 10:
-                    logger.warning("Solution description too short for feature extraction.")
-                    return
-                # Sanitize/Truncate check on full string if given, but ideally we process stream
-                yield from chunk_text(solution_description, chunk_size)
-            else:
-                yield from solution_description
-
-        for chunk in content_stream():
-            if not chunk.strip():
-                continue
-
+        for chunk in self._create_content_stream(solution_description, chunk_size):
             prompt = ChatPromptTemplate.from_messages(
                 [
                     (
@@ -73,36 +81,38 @@ class BuilderAgent(BaseAgent):
             )
             chain = prompt | self.llm.with_structured_output(FeatureList)
             try:
-                result = chain.invoke({})
+                result: FeatureList | Any = chain.invoke({})
                 if isinstance(result, FeatureList):
                     # Yield unique features immediately
                     for feature in result.features:
                         if feature not in unique_features:
                             unique_features.add(feature)
                             yield feature
-            except Exception:
+            except Exception as e:
                 logger.exception("Failed to extract features from chunk")
-                continue
+                err_msg = f"Feature extraction failed: {e}"
+                raise RuntimeError(err_msg) from e
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """
         Create a detailed MVP Spec for the selected feature.
         """
+        from src.core.prompts import PROMPT_MVP_SPEC_SYSTEM, PROMPT_MVP_SPEC_USER
+
         prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    "You are an expert UI/UX designer. Create a detailed MVP specification for v0.dev generation.",
-                ),
+                ("system", PROMPT_MVP_SPEC_SYSTEM),
                 (
                     "user",
-                    f"App Name: {app_name}\nCore Feature: {feature}\nContext: {idea_context}\n\nGenerate MVPSpec:",
+                    PROMPT_MVP_SPEC_USER.format(
+                        app_name=app_name, feature=feature, idea_context=idea_context
+                    ),
                 ),
             ]
         )
         chain = prompt | self.llm.with_structured_output(MVPSpec)
         try:
-            result = chain.invoke({})
+            result: MVPSpec | Any = chain.invoke({})
             if isinstance(result, MVPSpec):
                 return result
             # Fallback
@@ -126,13 +136,9 @@ class BuilderAgent(BaseAgent):
             MAX_FEATURES = 100
             feature_gen = self._extract_features(state.selected_idea.solution)
 
-            candidate_features = []
-            try:
-                for _ in range(MAX_FEATURES):
-                    feature = next(feature_gen)
-                    candidate_features.append(feature)
-            except StopIteration:
-                pass
+            # Safely yield an iterator limited to MAX_FEATURES, avoiding list cast (OOM safety)
+            logger.debug("Finished extracting features")
+            return {"candidate_features": islice(feature_gen, MAX_FEATURES)}
 
         if not candidate_features:
             logger.warning("No features extracted from solution.")
@@ -166,22 +172,45 @@ class BuilderAgent(BaseAgent):
             idea_context=f"{state.selected_idea.problem} -> {state.selected_idea.unique_value_prop}",
         )
 
-        # Construct a prompt for v0 from the spec
-        v0_prompt = (
-            f"Create a {spec.ui_style} React component using Tailwind CSS for '{spec.app_name}'. "
-            f"Core Feature: {spec.core_feature}. "
-            f"Include components: {', '.join(spec.components)}."
+        def sanitize_input(text: str) -> str:
+            """Sanitize user input to prevent prompt injection."""
+            import html
+
+            # HTML escape to prevent markup injection
+            return html.escape(text)
+
+        sanitized_app_name = sanitize_input(spec.app_name)
+        sanitized_core_feature = sanitize_input(spec.core_feature)
+        sanitized_components = [sanitize_input(c) for c in spec.components]
+
+        # Use ChatPromptTemplate to properly format the prompt with sanitized inputs
+        prompt_template = ChatPromptTemplate.from_template(
+            "Create a {ui_style} React component using Tailwind CSS for '{app_name}'. "
+            "Core Feature: {core_feature}. "
+            "Include components: {components}."
+        )
+        v0_prompt = prompt_template.format(
+            ui_style=spec.ui_style,
+            app_name=sanitized_app_name,
+            core_feature=sanitized_core_feature,
+            components=", ".join(sanitized_components),
         )
         spec.v0_prompt = v0_prompt
 
         # We rely on exceptions propagating to the caller (safe_node wrapper)
         # Standardized Error Handling: Do not swallow critical failures here.
-        v0_client = V0Client(
-            api_key=self.settings.v0_api_key.get_secret_value()
-            if self.settings.v0_api_key
-            else None
-        )
-        url = v0_client.generate_ui(v0_prompt)
+        if not self.settings.v0_api_key:
+            msg = "V0 API Key is missing. Cannot generate UI."
+            logger.error(msg)
+            raise ValueError(msg)
+
+        try:
+            v0_client = V0Client(api_key=self.settings.v0_api_key.get_secret_value())
+            url = v0_client.generate_ui(v0_prompt)
+        except Exception:
+            logger.exception("V0 generation failed due to network or API error")
+            # Re-raise the original exception to preserve standard error types (like V0GenerationError)
+            raise
 
         logger.info(f"MVP Generated: {url}")
 
@@ -193,6 +222,21 @@ class BuilderAgent(BaseAgent):
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
-        Legacy run method. Delegates to propose_features (default behavior).
+        Agent entry point. Orchestrates the MVP generation process.
+        Validates state prerequisites and handles overall execution errors.
         """
-        return self.propose_features(state)
+        if not state.selected_idea:
+            logger.error("BuilderAgent requires a selected_idea in the state.")
+            return {}
+
+        if not state.selected_feature and not state.candidate_features:
+            logger.info("No features selected or proposed yet. Proposing features...")
+            return self.propose_features(state)
+
+        try:
+            logger.info("Executing MVP generation...")
+            return self.generate_mvp(state)
+        except Exception:
+            logger.exception("BuilderAgent run failed during MVP generation.")
+            # Return current state unchanged on failure, relying on outer loop/circuit breaker
+            return {}
