@@ -3,7 +3,7 @@ import os
 from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
     DEFAULT_ARPU,
@@ -85,7 +85,7 @@ from src.core.validators import ConfigValidators
 class ValidationConfig(BaseModel):
     """Validation constraints for domain models."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = SettingsConfigDict(extra="forbid")
 
     min_title_length: int = Field(
         default=DEFAULT_MIN_TITLE_LENGTH, description="Minimum length for titles"
@@ -338,7 +338,7 @@ class GovernanceConfig(BaseModel):
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = SettingsConfigDict(extra="forbid")
 
     openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY", description="OpenAI API Key")
     tavily_api_key: SecretStr | None = Field(default=None, alias="TAVILY_API_KEY", description="Tavily Search API Key")
