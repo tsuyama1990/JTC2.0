@@ -106,3 +106,41 @@ def test_ideator_agent_research_logic(
 
     assert res == "Results"
     mock_search.safe_search.assert_called_with("Search AI Tech")
+
+
+@patch("src.agents.ideator.get_settings")
+@patch("src.agents.ideator.TavilySearch")
+def test_ideator_agent_generator_raises_error_when_less_than_10_ideas(
+    mock_tavily: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_llm: MagicMock,
+) -> None:
+    from src.agents.ideator import IdeaGenerator
+    from src.domain_models.lean_canvas import LeanCanvas
+
+    mock_chain = MagicMock()
+
+    # Return 9 items
+    class MockResponse:
+        def __init__(self) -> None:
+            self.ideas = [
+                LeanCanvas(
+                    id=i,
+                    title=f"Valid Idea Title {i}",
+                    problem="Problem is valid valid",
+                    customer_segments="Customer Segments are Valid",
+                    unique_value_prop="UVP is valid valid",
+                    solution="Solution is valid valid",
+                )
+                for i in range(9)
+            ]
+
+    mock_chain.invoke.return_value = MockResponse()
+    mock_llm.with_structured_output.return_value = mock_chain
+
+    generator = IdeaGenerator(llm=mock_llm)
+
+    import tenacity
+
+    with pytest.raises(tenacity.RetryError):
+        generator.generate("Test", "Market Data")

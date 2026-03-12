@@ -75,18 +75,9 @@ class IdeaGenerator:
 
         ideas = ideas[:10]
 
-        while len(ideas) < 10:
-            idx = len(ideas)
-            ideas.append(
-                LeanCanvas(
-                    id=idx,
-                    title=f"Fallback Idea {idx}",
-                    problem="Fallback Problem",
-                    customer_segments="Fallback Segments",
-                    unique_value_prop="Fallback UVP",
-                    solution="Fallback Solution",
-                )
-            )
+        if len(ideas) < 10:
+            msg = "LLM failed to generate 10 ideas"
+            raise RuntimeError(msg)
 
         return list(ideas)
 

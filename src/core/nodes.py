@@ -303,8 +303,7 @@ def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
 
         mvp_service = ServiceFactory.get_mvp_service()
         mvp = mvp_service.generate_mvp_definition(
-            plan=updates["experiment_plan"],
-            sitemap_and_story=state.sitemap_and_story
+            plan=updates["experiment_plan"], sitemap_and_story=state.sitemap_and_story
         )
         if mvp:
             updates["mvp_definition"] = mvp
