@@ -27,7 +27,8 @@ class ServiceFactory:
 
     @staticmethod
     def get_file_service() -> FileService:
-        return FileService()
+        from fpdf import FPDF
+        return FileService(pdf_generator=FPDF())  # type: ignore
 
     @staticmethod
     def get_mvp_service() -> MVPService:

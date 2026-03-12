@@ -87,10 +87,13 @@ class SimulationManager:
         self.renderer_factory = renderer_factory
         self.app = create_simulation_graph()
         self._thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
 
     def _background_task(self) -> None:
         try:
             for state_update in self.app.stream(self.initial_state, stream_mode="values"):
+                if self._stop_event.is_set():
+                    break
                 if isinstance(state_update, dict):
                     try:
                         self.shared_state["current"] = GlobalState(**state_update)
@@ -101,23 +104,24 @@ class SimulationManager:
                 else:
                     logger.warning(f"Unknown state update type: {type(state_update)}")
         except Exception:
-            logger.exception("Simulation thread failed")
+            if not self._stop_event.is_set():
+                logger.exception("Simulation thread failed")
 
     def run(self) -> None:
         """Run the simulation graph in the background and start the renderer."""
         import threading
 
-        self._thread = threading.Thread(target=self._background_task, daemon=True)
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._background_task)
         self._thread.start()
 
         try:
             renderer = self.renderer_factory(lambda: self.shared_state["current"])
             renderer.start()
         finally:
+            self._stop_event.set()
             if self._thread and self._thread.is_alive():
-                # Note: Python threads don't have a direct 'kill' mechanism.
-                # They will shut down when daemon=True, but we join for clarity.
-                self._thread.join(timeout=1.0)
+                self._thread.join(timeout=2.0)
 
 
 class SimulationService:

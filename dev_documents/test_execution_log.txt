@@ -52,9 +52,9 @@ Name                                            Stmts   Miss  Cover   Missing
 src/__init__.py                                     3      0   100%
 src/agents/__init__.py                              6      0   100%
 src/agents/base.py                                  9      0   100%
-src/agents/builder.py                              88     19    78%   18-19, 38-39, 93, 104-109, 116-117, 147, 158-163, 219
+src/agents/builder.py                              90     20    78%   19-20, 37, 44-45, 99, 109-114, 121-122, 152, 162-167, 223
 src/agents/cpo.py                                  43     11    74%   54-56, 73-86, 93-95
-src/agents/governance.py                          105      7    93%   98-102, 199, 204
+src/agents/governance.py                          108      7    94%   102-106, 203, 208
 src/agents/ideator.py                              66     10    85%   68-71, 80, 124-126, 147-149
 src/agents/personas.py                            161     19    88%   62-63, 97, 112-113, 147, 161-162, 202, 271-273, 278-279, 288-291, 334-335
 src/agents/psf.py                                  79     11    86%   45-47, 50, 115, 123-125, 164-167
@@ -65,7 +65,7 @@ src/core/config.py                                209     14    93%   256-269, 5
 src/core/constants.py                             105      0   100%
 src/core/exceptions.py                              6      0   100%
 src/core/execution.py                              22      8    64%   26-33
-src/core/factory.py                                66     24    64%   57-58, 61-62, 65-66, 69-70, 73-74, 78, 88-104
+src/core/factory.py                                67     24    64%   58-59, 62-63, 66-67, 70-71, 74-75, 79, 89-105
 src/core/graph.py                                  76      6    92%   19-20, 139-142
 src/core/interfaces.py                             25      0   100%
 src/core/llm.py                                    20      1    95%   14
@@ -80,9 +80,9 @@ src/core/nodes.py                                 195     42    78%   29-31, 53,
 src/core/rate_limit.py                              7      0   100%
 src/core/security.py                               72     29    60%   28-52, 61-62, 72, 76-77, 87-89, 98-100
 src/core/services/__init__.py                       0      0   100%
-src/core/services/file_service.py                 250    136    46%   36, 49-50, 69-70, 74-75, 91-92, 105, 118, 134, 137, 146-158, 165, 176, 191-192, 194-195, 226-249, 254, 278-282, 288-290, 296-321, 324-336, 339-358, 361-380, 383-435, 447-469
+src/core/services/file_service.py                 224    128    43%   66-67, 83-84, 112-126, 137, 152-153, 155-156, 187-210, 215, 239-243, 249-251, 257-282, 285-297, 300-319, 322-341, 344-396, 408-430
 src/core/services/mvp_service.py                   21      4    81%   26, 39-41
-src/core/simulation.py                            116     46    60%   52-55, 85-89, 92-104, 108-120, 141-153, 165, 181, 185-189, 194-201
+src/core/simulation.py                            122     52    57%   52-55, 85-90, 93-108, 112-124, 145-157, 169, 185, 189-193, 198-205
 src/core/text_processing.py                        26      3    88%   31, 35-36
 src/core/theme.py                                  18      0   100%
 src/core/utils.py                                  37      7    81%   10, 38, 46, 52-58
@@ -113,5 +113,5 @@ src/tools/__init__.py                               2      0   100%
 src/tools/search.py                                41      6    85%   40, 80, 95-96, 101-102
 src/ui/renderer.py                                 96     10    90%   83, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------------------
-TOTAL                                            3081    572    81%
-============================= 158 passed in 31.40s =============================
+TOTAL                                            3067    571    81%
+============================= 158 passed in 28.07s =============================

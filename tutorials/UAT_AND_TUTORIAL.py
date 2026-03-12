@@ -67,11 +67,12 @@ def _(mo):
 @app.cell
 def _():
     import os
+    import secrets
 
     # Enable Mock Mode
     os.environ['MOCK_MODE'] = 'true'
-    os.environ['OPENAI_API_KEY'] = 'sk-mock-key-for-tutorial-purposes-only-123456789'
-    os.environ['TAVILY_API_KEY'] = 'tvly-mock-key-for-tutorial'
+    os.environ['OPENAI_API_KEY'] = f"sk-mock-{secrets.token_hex(24)}"
+    os.environ['TAVILY_API_KEY'] = f"tvly-mock-{secrets.token_hex(16)}"
     os.environ['LLM_MODEL'] = 'gpt-4o-mini'
     return os,
 

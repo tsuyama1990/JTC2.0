@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -28,7 +29,12 @@ class BuilderAgent(BaseAgent):
     def __init__(self, llm: ILLMClient, file_service: FileService | None = None) -> None:
         self.llm = llm
         self.settings = get_settings()
-        self.file_service = file_service or FileService()
+
+        if file_service is None:
+            from src.core.factory import ServiceFactory
+            self.file_service = ServiceFactory.get_file_service()
+        else:
+            self.file_service = file_service
 
     def generate_spec(self, state: IStateContext) -> dict[str, Any]:
         """
@@ -95,7 +101,6 @@ class BuilderAgent(BaseAgent):
 
             result = _invoke()
             if isinstance(result, AgentPromptSpec):
-                from pathlib import Path
                 # Format to Markdown and save
                 md_content = self._format_agent_prompt_spec_to_md(result)
                 out_path = Path.cwd() / self.settings.canvas_output_dir / "AgentPromptSpec.md"
@@ -149,7 +154,6 @@ class BuilderAgent(BaseAgent):
 
             result = _invoke()
             if isinstance(result, ExperimentPlan):
-                from pathlib import Path
                 # Format to Markdown and save
                 md_content = self._format_experiment_plan_to_md(result)
                 out_path = Path.cwd() / self.settings.canvas_output_dir / "EXPERIMENT_PLAN.md"

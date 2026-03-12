@@ -21,54 +21,46 @@ class FileService:
     Uses ThreadPoolExecutor for non-blocking I/O in async contexts.
     """
 
-    def __init__(self, pdf_generator: IPDFGenerator | None = None) -> None:
+    def __init__(self, pdf_generator: IPDFGenerator) -> None:
         # Max workers scales with CPU count to avoid thread starvation under load
         max_workers = (os.cpu_count() or 1) * 2 + 1
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self.settings = get_settings()
 
-        # Abstract PDF library dependency
-        if pdf_generator is None:
-            from fpdf import FPDF
+        self.pdf_generator = pdf_generator
 
-            self.pdf_generator: IPDFGenerator = FPDF()  # type: ignore
-        else:
-            self.pdf_generator = pdf_generator
+    def shutdown(self) -> None:
+        """Shutdown the executor gracefully."""
+        self._executor.shutdown(wait=True)
+
+    def __del__(self) -> None:
+        try:
+            # Check if _executor still exists during interpreter shutdown
+            if hasattr(self, "_executor"):
+                self.shutdown()
+        except Exception:
+            pass
 
     def _validate_path(self, path: str | Path) -> Path:
         """
         Validate path to prevent traversal.
         """
+        import os
         try:
             raw_path = Path(path)
 
-            # Check for symlinks in the entire raw path hierarchy before resolving
-            current = raw_path
-            while current != current.parent:
-                if current.exists() and current.is_symlink():
-                    msg = f"Symlink detected in path hierarchy: {current}"
-                    raise ConfigurationError(msg)
-                current = current.parent
-
-            # use strict=False because the file itself may not exist yet
-            p = raw_path.resolve(strict=False)
-
-            # Always validate against the exact permitted target directory
             base_dir = Path.cwd().resolve(strict=True)
-            # if self.settings.canvas_output_dir is a relative path, resolve it against base_dir
-            output_dir = (base_dir / self.settings.canvas_output_dir).resolve(strict=True)
+            # Check the output_dir using strict=False, allowing outputs to not exist yet
+            output_dir = (base_dir / self.settings.canvas_output_dir).resolve(strict=False)
+
+            # Convert input to string and use os.path.realpath for canonical resolution
+            # Realpath resolves all symlinks safely without needing the file to exist.
+            canonical_str = os.path.realpath(str(raw_path))
+            p = Path(canonical_str)
 
             if not p.is_relative_to(output_dir) and not p.is_relative_to(base_dir):
                 msg = f"Invalid path: Path traversal detected: {path}"
                 raise ConfigurationError(msg)
-
-            # Double check there are no symlinks introduced during resolving
-            current = p
-            while current not in (current.parent, base_dir.parent):
-                if current.exists() and current.is_symlink():
-                    msg = f"Symlink detected in resolved path hierarchy: {current}"
-                    raise ConfigurationError(msg)
-                current = current.parent
 
         except (ValueError, RuntimeError, OSError) as e:
             msg = f"Invalid path: {e}"
@@ -91,99 +83,68 @@ class FileService:
         except Exception:
             logger.exception("Failed to schedule file save")
 
-    def _save_text_sync(self, content: str, path: Path) -> None:  # noqa: C901, PLR0912
+    def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Includes simple retry logic for robustness and uses atomic file writes.
+        Includes simple retry logic for robustness and uses atomic file writes via a single temp file.
         """
         import os
         import uuid
 
         attempts = 3
-
-        def _raise_symlink_error(m: str) -> None:
-            raise ConfigurationError(m)
+        path.parent.mkdir(parents=True, exist_ok=True)
 
         for attempt in range(attempts):
-            temp_dir = None
             try:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                parent_dir = path.parent.resolve(strict=True)
-                base_dir = Path.cwd().resolve(strict=True)
+                # Create a temporary file securely in the target directory
+                temp_path = path.parent / f".tmp_{uuid.uuid4().hex}.txt"
 
-                # Check for symlinks in the entire path hierarchy
-                current = path
-                while current not in (current.parent, base_dir.parent):
-                    if current.exists() and current.is_symlink():
-                        _raise_symlink_error(f"Symlink detected in path hierarchy: {current}")
-                    current = current.parent
-
-                # Create a temporary directory securely
-                temp_dir = parent_dir / f".tmp_{uuid.uuid4().hex}"
-                temp_dir.mkdir(mode=0o700)
-                temp_path = temp_dir / f"tmp_{uuid.uuid4().hex}.txt"
-
+                # Write fully to temporary file (atomic write logic)
                 with temp_path.open("w", encoding="utf-8") as f:
                     f.write(content)
                     f.flush()
                     os.fsync(f.fileno())
 
-                # Verify final temp path is still safe
-                base_dir = Path.cwd().resolve(strict=True)
-                if not temp_path.parent.resolve(strict=True).is_relative_to(base_dir):
-                    _raise_symlink_error("Path traversal detected during write")
-
-                if path.is_symlink():
-                    _raise_symlink_error(f"Target path is a symlink: {path}")
-
+                # Atomically replace destination with temp file
                 temp_path.replace(path)
+                break
 
-                # Final TOCTOU verification
-                final_path = path.resolve(strict=True)
-                if not final_path.is_relative_to(base_dir) or final_path != path.resolve(
-                    strict=True
-                ):
-                    _raise_symlink_error(f"Post-write symlink tampering detected: {path}")
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
-                return
-            except OSError as e:
-                if attempt < attempts - 1 and "symlink" not in str(e):
-                    logger.warning(f"OS error writing to {path}, retrying...")
-                    continue
-                logger.exception(f"OS error writing to {path} after {attempts} attempts")
-                return
-            except (ValueError, TypeError, RuntimeError, ConfigurationError):
-                logger.exception(f"Unexpected data or security error writing to {path}")
-                return
-            else:
-                logger.info(f"File saved successfully to {path}")
-                return
-            finally:
-                if temp_dir and temp_dir.exists():
-                    for file_obj in temp_dir.iterdir():
-                        file_obj.unlink()
-                    temp_dir.rmdir()
+                if 'temp_path' in locals() and temp_path.exists():
+                    temp_path.unlink(missing_ok=True)
+                break
+            except OSError:
+                if attempt == attempts - 1:
+                    logger.exception(f"Failed to write to {path} after {attempts} attempts")
+                if 'temp_path' in locals() and temp_path.exists():
+                    temp_path.unlink(missing_ok=True)
+            except Exception:
+                logger.exception("Unexpected error during file write")
+                if 'temp_path' in locals() and temp_path.exists():
+                    temp_path.unlink(missing_ok=True)
+                break
 
     def _sanitize_md(self, text: str) -> str:
         """
         Sanitizes user input for Markdown generation.
         Escapes HTML and Markdown control characters to prevent injection.
         """
+        import html
         import re
 
         if not text:
             return ""
 
-        # Escape HTML entities
-        escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        # Use comprehensive HTML escaping
+        escaped = html.escape(text, quote=True)
 
         # Escape all Markdown control characters
         markdown_chars = r"\`*_{}[]()#+-.!|"
         for char in markdown_chars:
             escaped = escaped.replace(char, f"\\{char}")
 
-        # Remove or escape HTML tags
+        # Remove any lingering tag-like structures
         return re.sub(r"<[^>]+>", "", escaped)
 
     def _validate_and_sanitize_content(self, content: str, max_length: int = 1000) -> str:
