@@ -30,10 +30,43 @@ class StateValidator:
 
         settings = get_settings()
 
-        if state.phase == Phase.VERIFICATION and state.target_persona is None:
-            raise ValueError(settings.errors.missing_persona)
+        # Phase order defining the strict progression.
+        # This mapping is required because Python enum comparison is not strictly ordered by definition.
+        phase_order = {
+            Phase.IDEATION: 1,
+            Phase.CPF: 2,
+            Phase.PSF: 3,
+            Phase.VALIDATION: 4,
+            Phase.OUTPUT: 5,
+            Phase.GOVERNANCE: 6,
+        }
 
-        if state.phase == Phase.SOLUTION and state.mvp_definition is None:
-            raise ValueError(settings.errors.missing_mvp)
+        current_phase_idx = phase_order.get(state.phase, 0)
+
+        # Enforce that if we are at a higher phase, the requirements of the lower phases must have been met
+        # (State progression tracking logic)
+
+        if current_phase_idx >= phase_order[Phase.CPF] and state.selected_idea is None:
+            msg = "Must select an idea before proceeding to CPF Phase."
+            raise ValueError(msg)
+
+        if current_phase_idx >= phase_order[Phase.PSF]:
+            if state.target_persona is None:
+                raise ValueError(settings.errors.missing_persona)
+            if state.value_proposition_canvas is None:
+                msg = "Must have Value Proposition Canvas before proceeding to PSF Phase."
+                raise ValueError(msg)
+
+        if current_phase_idx >= phase_order[Phase.VALIDATION] and (
+            state.mental_model_diagram is None or state.sitemap_and_story is None
+        ):
+            msg = "Must have Mental Model and Sitemap before proceeding to Validation Phase."
+            raise ValueError(msg)
+
+        if current_phase_idx >= phase_order[Phase.GOVERNANCE] and (
+            state.agent_prompt_spec is None or state.experiment_plan is None
+        ):
+            msg = "Must have Agent Prompt Spec and Experiment Plan before proceeding to Governance Phase."
+            raise ValueError(msg)
 
         return state

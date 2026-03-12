@@ -19,6 +19,16 @@ class NemawashiEngine:
 
     def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
         """Run the DeGroot model to calculate final opinion distribution."""
+        # Validate network connectivity before consensus calculation
+        from src.domain_models.politics import SparseMatrixEntry
+        matrix_input: list[list[float]] = network.matrix if not network.matrix or not isinstance(network.matrix[0], SparseMatrixEntry) else self.analytics._sparse_to_dense(network.matrix, len(network.stakeholders)) # type: ignore
+
+        if not self.analytics.is_connected(matrix_input):
+            # Fallback behavior: if network is disconnected, consensus is impossible.
+            # Return current support levels or handle appropriately.
+            import logging
+            logging.getLogger(__name__).warning("Influence network is not fully connected. Consensus may not converge globally.")
+
         return self.consensus.calculate_consensus(network)
 
     def identify_influencers(self, network: InfluenceNetwork) -> list[str]:

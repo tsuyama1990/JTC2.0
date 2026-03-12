@@ -3,10 +3,9 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from fpdf import FPDF
-
 from src.core.config import get_settings
 from src.core.exceptions import ConfigurationError
+from src.core.interfaces import IPDFGenerator
 from src.domain_models.alternative_analysis import AlternativeAnalysis
 from src.domain_models.persona import Persona
 from src.domain_models.value_proposition_canvas import ValuePropositionCanvas
@@ -20,11 +19,18 @@ class FileService:
     Uses ThreadPoolExecutor for non-blocking I/O in async contexts.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, pdf_generator: type[IPDFGenerator] | None = None) -> None:
         # Max workers scales with CPU count to avoid thread starvation under load
         max_workers = (os.cpu_count() or 1) * 2 + 1
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self.settings = get_settings()
+
+        # Abstract PDF library dependency
+        if pdf_generator is None:
+            from fpdf import FPDF
+            self.pdf_generator_class: type[IPDFGenerator] = FPDF # type: ignore
+        else:
+            self.pdf_generator_class = pdf_generator
 
     def _validate_path(self, path: str | Path) -> Path:
         """
@@ -69,14 +75,31 @@ class FileService:
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Includes simple retry logic for robustness.
+        Includes simple retry logic for robustness and uses atomic file writes.
         """
+        import os
+        import tempfile
+
         attempts = 3
         for attempt in range(attempts):
             try:
                 # Ensure parent exists
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(content, encoding="utf-8")
+
+                # Atomic write pattern
+                fd, temp_path_str = tempfile.mkstemp(dir=path.parent, prefix="tmp_", suffix=".txt")
+                try:
+                    with os.fdopen(fd, 'w', encoding="utf-8") as f:
+                        f.write(content)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    Path(temp_path_str).replace(path)
+                except Exception:
+                    temp_path = Path(temp_path_str)
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    raise
+
                 logger.info(f"File saved successfully to {path}")
                 break
             except PermissionError:
@@ -103,7 +126,7 @@ class FileService:
         """
         Generate a PDF containing Persona, Alternative Analysis, and Value Proposition Canvas.
         """
-        pdf = FPDF()
+        pdf = self.pdf_generator_class()
         pdf.add_page()
         pdf.set_font("Helvetica", size=12)
 
@@ -120,7 +143,9 @@ class FileService:
 
         # 2. Alternative Analysis Section
         pdf.set_font("Helvetica", style="B", size=16)
-        pdf.cell(w=200, h=10, text="2. Alternative Analysis", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.cell(
+            w=200, h=10, text="2. Alternative Analysis", new_x="LMARGIN", new_y="NEXT", align="L"
+        )
         pdf.set_font("Helvetica", size=12)
         for alt in analysis.current_alternatives:
             pdf.multi_cell(
@@ -134,7 +159,14 @@ class FileService:
 
         # 3. Value Proposition Canvas Section
         pdf.set_font("Helvetica", style="B", size=16)
-        pdf.cell(w=200, h=10, text="3. Value Proposition Canvas", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.cell(
+            w=200,
+            h=10,
+            text="3. Value Proposition Canvas",
+            new_x="LMARGIN",
+            new_y="NEXT",
+            align="L",
+        )
 
         pdf.set_font("Helvetica", style="B", size=14)
         pdf.cell(w=200, h=10, text="Customer Profile:", new_x="LMARGIN", new_y="NEXT", align="L")
@@ -146,7 +178,9 @@ class FileService:
         pdf.set_font("Helvetica", style="B", size=14)
         pdf.cell(w=200, h=10, text="Value Map:", new_x="LMARGIN", new_y="NEXT", align="L")
         pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(w=0, h=10, text=f"Products & Services: {', '.join(vpc.value_map.products_and_services)}")
+        pdf.multi_cell(
+            w=0, h=10, text=f"Products & Services: {', '.join(vpc.value_map.products_and_services)}"
+        )
         pdf.multi_cell(w=0, h=10, text=f"Pain Relievers: {', '.join(vpc.value_map.pain_relievers)}")
         pdf.multi_cell(w=0, h=10, text=f"Gain Creators: {', '.join(vpc.value_map.gain_creators)}")
 

@@ -2,9 +2,6 @@ import logging
 import time
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic_core import ValidationError as PydanticValidationError
 from tenacity import (
     before_sleep_log,
@@ -24,6 +21,7 @@ from src.core.constants import (
     PROMPT_SALES_AGENT,
     PROMPT_VALUE_PROPOSITION,
 )
+from src.core.interfaces import ILLMClient
 from src.domain_models.alternative_analysis import AlternativeAnalysis
 from src.domain_models.persona import Persona
 from src.domain_models.simulation import DialogueMessage, Role
@@ -36,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 class RateLimiter:
     """Class to manage API rate limiting via composition instead of multiple inheritance."""
+
     def __init__(self, min_request_interval: float = 1.0) -> None:
         self._last_request_time: float = 0.0
         self._min_request_interval: float = min_request_interval
@@ -55,7 +54,7 @@ class PersonaGeneratorAgent(BaseAgent):
     Generates a high-resolution Persona and EmpathyMap based on the selected idea.
     """
 
-    def __init__(self, llm: ChatOpenAI | Any) -> None:
+    def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
 
     def run(self, state: GlobalState) -> dict[str, Any]:
@@ -74,8 +73,8 @@ class PersonaGeneratorAgent(BaseAgent):
         )
 
         messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=human_prompt),
+            ("system", system_prompt),
+            ("human", human_prompt),
         ]
 
         try:
@@ -97,7 +96,7 @@ class PersonaGeneratorAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = Persona.model_validate(result)
-        return result
+        return result # type: ignore
 
 
 class AlternativeAnalysisAgent(BaseAgent):
@@ -106,7 +105,7 @@ class AlternativeAnalysisAgent(BaseAgent):
     Identifies current alternatives and infers the 10x value.
     """
 
-    def __init__(self, llm: ChatOpenAI | Any) -> None:
+    def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
 
     def run(self, state: GlobalState) -> dict[str, Any]:
@@ -124,8 +123,8 @@ class AlternativeAnalysisAgent(BaseAgent):
         )
 
         messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=human_prompt),
+            ("system", system_prompt),
+            ("human", human_prompt),
         ]
 
         try:
@@ -147,7 +146,7 @@ class AlternativeAnalysisAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = AlternativeAnalysis.model_validate(result)
-        return result
+        return result # type: ignore
 
 
 class ValuePropositionAgent(BaseAgent):
@@ -155,7 +154,7 @@ class ValuePropositionAgent(BaseAgent):
     Agent responsible for Phase 2, Step 4: Value Proposition Design.
     """
 
-    def __init__(self, llm: ChatOpenAI | Any) -> None:
+    def __init__(self, llm: ILLMClient) -> None:
         self.llm = llm
 
     def run(self, state: GlobalState) -> dict[str, Any]:
@@ -179,8 +178,8 @@ class ValuePropositionAgent(BaseAgent):
         )
 
         messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=human_prompt),
+            ("system", system_prompt),
+            ("human", human_prompt),
         ]
 
         try:
@@ -202,7 +201,7 @@ class ValuePropositionAgent(BaseAgent):
         result = structured_llm.invoke(messages)
         if isinstance(result, dict):
             result = ValuePropositionCanvas.model_validate(result)
-        return result
+        return result # type: ignore
 
 
 class PersonaAgent(BaseAgent):
@@ -210,7 +209,7 @@ class PersonaAgent(BaseAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: ILLMClient,
         role: Role,
         system_prompt: str,
         search_tool: SearchTool | None = None,
@@ -247,18 +246,12 @@ class PersonaAgent(BaseAgent):
 
     def _generate_response(self, context: str, research_data: str = "") -> str:
         """Generate response using LLM."""
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", self.system_prompt),
-                (
-                    "user",
-                    f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:",
-                ),
-            ]
-        )
-        chain = prompt | self.llm
-        response = chain.invoke({})
-        return str(response.content)
+        prompt_messages = [
+            ("system", self.system_prompt),
+            ("human", f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:"),
+        ]
+        response = self.llm.invoke(prompt_messages)
+        return str(getattr(response, 'content', response))
 
     def _cached_research(self, topic: str) -> str:
         """Cache research results to avoid redundant API calls."""
@@ -314,7 +307,7 @@ class FinanceAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: ILLMClient,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -332,7 +325,7 @@ class SalesAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: ILLMClient,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -345,7 +338,7 @@ class NewEmployeeAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: ILLMClient,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:

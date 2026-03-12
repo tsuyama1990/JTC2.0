@@ -97,10 +97,7 @@ class Metrics(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    aarrr: AARRR = Field(
-        default_factory=AARRR,
-        description=get_settings().desc_metrics_aarrr
-    )
+    aarrr: AARRR = Field(default_factory=AARRR, description=get_settings().desc_metrics_aarrr)
     detailed: DetailedMetrics = Field(
         default_factory=DetailedMetrics, description="Detailed simulation metrics"
     )

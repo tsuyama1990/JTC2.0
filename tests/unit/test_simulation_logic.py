@@ -59,7 +59,9 @@ def test_cached_research_logic(mock_llm: MagicMock) -> None:
     mock_search.safe_search.side_effect = ["Result 1", "Result 2"]
 
     agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
-    agent.rate_limiter._min_request_interval = 0.01  # Minimal delay for test speed but > 0 to test logic path
+    agent.rate_limiter._min_request_interval = (
+        0.01  # Minimal delay for test speed but > 0 to test logic path
+    )
 
     # First call
     res1 = agent._cached_research("Topic A")

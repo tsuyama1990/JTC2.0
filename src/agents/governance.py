@@ -110,7 +110,7 @@ class GovernanceAgent(BaseAgent):
     def _generate_ringi_sho(
         self, state: GlobalState, financials: Financials, status: str
     ) -> RingiSho:
-        mvp_url = state.mvp_url or "N/A"
+        mvp_url = "N/A"
         idea_title = state.selected_idea.title if state.selected_idea else "Untitled Idea"
 
         prompt = (

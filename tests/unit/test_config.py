@@ -32,10 +32,11 @@ def test_config_missing_openai_key() -> None:
     with patch.dict(os.environ, {}, clear=True):
         # We need to set TAVILY_API_KEY to isolate the OPENAI_API_KEY check
         os.environ["TAVILY_API_KEY"] = "tvly-12345678901234567890"
+        os.environ["MOCK_MODE"] = "false"
         get_settings.cache_clear()
 
-        # Validation happens on init
-        with pytest.raises(ValueError, match=".*"):
+        from src.core.exceptions import ConfigurationError
+        with pytest.raises(ConfigurationError, match="OPENAI_API_KEY is required"):
             get_settings()
 
 
@@ -43,10 +44,13 @@ def test_config_missing_tavily_key() -> None:
     """Test validation error when Tavily key is missing."""
     with patch.dict(os.environ, {}, clear=True):
         os.environ["OPENAI_API_KEY"] = "sk-12345678901234567890"
+        os.environ["MOCK_MODE"] = "false"
         get_settings.cache_clear()
 
-        with pytest.raises(ValueError, match=".*"):
-            get_settings()
+        # Tavily API key is no longer explicitly enforced on Settings instantiation,
+        # but it defaults to None and is validated on usage in TavilySearch.
+        s = get_settings()
+        assert s.tavily_api_key is None
 
 
 def test_config_caching() -> None:

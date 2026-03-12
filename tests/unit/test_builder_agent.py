@@ -3,45 +3,39 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.agents.builder import FeatureList
-from src.domain_models.lean_canvas import LeanCanvas
+from src.agents.builder import BuilderAgent
+from src.domain_models.agent_prompt_spec import AgentPromptSpec, StateMachine
+from src.domain_models.sitemap_and_story import Route, SitemapAndStory, UserStory
 from src.domain_models.state import GlobalState
-
-try:
-    from src.agents.builder import BuilderAgent
-except ImportError:
-    BuilderAgent = None  # type: ignore
 
 
 class TestBuilderAgent:
     @pytest.fixture
-    def state_with_idea(self) -> GlobalState:
-        return GlobalState(
-            topic="Test Topic",
-            selected_idea=LeanCanvas(
-                id=1,
-                title="Test App",
-                problem="Problem is strictly big enough.",
-                solution="Feature A long description, Feature B long description, Feature C long description",
-                customer_segments="Users segment is defined.",
-                unique_value_prop="Value proposition is clear.",
+    def state_with_context(self) -> GlobalState:
+        sitemap = SitemapAndStory(
+            sitemap=[Route(path="/", name="Home", purpose="Landing", is_protected=False)],
+            core_story=UserStory(
+                as_a="User",
+                i_want_to="Test feature",
+                so_that="Value",
+                acceptance_criteria=["Criteria 1"],
+                target_route="/",
             ),
         )
+        return GlobalState(topic="Test Topic", sitemap_and_story=sitemap)
 
     @pytest.fixture
     def agent(self) -> BuilderAgent:
-        if BuilderAgent is None:
-            pytest.skip("BuilderAgent not implemented")
         # Mock LLM
         mock_llm = MagicMock()
         return BuilderAgent(llm=mock_llm)
 
-    def test_extract_features_real_call(self, agent: BuilderAgent) -> None:
+    def test_generate_spec_with_context(
+        self, agent: BuilderAgent, state_with_context: GlobalState
+    ) -> None:
         """
-        Test _extract_features with mocked LLM response.
-        Ensures the chain invoke is mocked properly to be deterministic.
+        Test generate_spec reads context from state correctly.
         """
-        # Mock the specific chain construction in the method
         with patch("src.agents.builder.ChatPromptTemplate.from_messages") as mock_prompt:
             mock_prompt_tmpl = MagicMock()
             mock_prompt.return_value = mock_prompt_tmpl
@@ -54,14 +48,25 @@ class TestBuilderAgent:
             mock_prompt_tmpl.__or__.return_value = mock_chain
 
             # Mock the invoke result
-            mock_chain.invoke.return_value = FeatureList(features=["F1", "F2"])
+            story = UserStory(
+                as_a="A", i_want_to="B", so_that="C", acceptance_criteria=["D"], target_route="/"
+            )
+            sm = StateMachine(success="A", loading="B", error="C", empty="D")
+            spec = AgentPromptSpec(
+                sitemap="S",
+                routing_and_constraints="R",
+                core_user_story=story,
+                state_machine=sm,
+                validation_rules="V",
+                mermaid_flowchart="M",
+            )
+            mock_chain.invoke.return_value = spec
 
-            # Execute with input long enough to pass short-check
-            input_text = "solution that is sufficiently long to pass the length validation check"
-            features = list(agent._extract_features(input_text))
+            result = agent.generate_spec(state_with_context)
 
-            assert features == ["F1", "F2"]
-            # Verify invocation happened
-            mock_chain.invoke.assert_called()
-
-    # ... (other existing tests)
+            assert "agent_prompt_spec" in result
+            assert result["agent_prompt_spec"] == spec
+            # Verify context was passed
+            call_args = mock_prompt.call_args[0][0]
+            user_msg = call_args[1][1]
+            assert "Sitemap & Story" in user_msg

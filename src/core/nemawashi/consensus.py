@@ -46,6 +46,7 @@ class ConsensusEngine:
 
         # Validate using shared utility
         NemawashiUtils.validate_stochasticity(matrix_op, self.settings.tolerance)
+        NemawashiUtils.validate_symmetry(matrix_op, self.settings.tolerance)
 
         # Use settings for max_steps, no hardcoded default in logic
         max_steps = self.settings.max_steps
@@ -53,13 +54,14 @@ class ConsensusEngine:
 
         current_ops = opinions
 
-        for _ in range(max_steps):
+        for step in range(max_steps):
             # Sparse Matrix-Vector Multiplication
             next_ops = matrix_op.dot(current_ops)
 
             if np.allclose(current_ops, next_ops, atol=tolerance):
-                logger.info("Consensus converged.")
+                logger.info(f"Consensus converged in {step + 1} steps.")
                 return list(next_ops)
             current_ops = next_ops
 
+        logger.warning(f"Consensus failed to converge within {max_steps} steps.")
         return list(current_ops)

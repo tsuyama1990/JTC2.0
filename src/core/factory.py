@@ -1,4 +1,3 @@
-
 from src.agents.base import BaseAgent
 from src.agents.builder import BuilderAgent
 from src.agents.cpo import CPOAgent
@@ -12,6 +11,9 @@ from src.agents.personas import (
     SalesAgent,
     ValuePropositionAgent,
 )
+from src.agents.psf import MentalModelJourneyAgent, SitemapWireframeAgent
+from src.agents.reviewers import The3HReviewAgent
+from src.agents.virtual_customer import VirtualCustomerAgent
 from src.core.config import get_settings
 from src.core.llm import get_llm
 from src.domain_models.simulation import Role
@@ -40,6 +42,26 @@ class AgentFactory:
     def get_vpc_agent() -> ValuePropositionAgent:
         llm = get_llm()
         return ValuePropositionAgent(llm)
+
+    @staticmethod
+    def get_mental_model_journey_agent() -> MentalModelJourneyAgent:
+        llm = get_llm()
+        return MentalModelJourneyAgent(llm)
+
+    @staticmethod
+    def get_sitemap_wireframe_agent() -> SitemapWireframeAgent:
+        llm = get_llm()
+        return SitemapWireframeAgent(llm)
+
+    @staticmethod
+    def get_virtual_customer_agent() -> VirtualCustomerAgent:
+        llm = get_llm()
+        return VirtualCustomerAgent(llm)
+
+    @staticmethod
+    def get_3h_review_agent() -> The3HReviewAgent:
+        llm = get_llm()
+        return The3HReviewAgent(llm)
 
     @staticmethod
     def get_builder_agent() -> BuilderAgent:
