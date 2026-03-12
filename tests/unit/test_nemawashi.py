@@ -72,7 +72,7 @@ def test_consensus_calculation() -> None:
         SparseMatrixEntry(row=0, col=0, val=0.5),
         SparseMatrixEntry(row=0, col=1, val=0.5),
         SparseMatrixEntry(row=1, col=0, val=0.5),
-        SparseMatrixEntry(row=1, col=1, val=0.5)
+        SparseMatrixEntry(row=1, col=1, val=0.5),
     ]
     network = InfluenceNetwork(stakeholders=[s1, s2], matrix=entries)
 

@@ -6,11 +6,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 def execute_query_with_timeout(
-    query_engine: Any,
-    question: str,
-    timeout: float,
-    rate_limit_interval: float = 0.0
+    query_engine: Any, question: str, timeout: float, rate_limit_interval: float = 0.0
 ) -> str:
     """
     Executes a RAG query with timeout and basic thread pool management.

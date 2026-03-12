@@ -1,5 +1,5 @@
 ============================= test session starts ==============================
-platform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+platform linux -- Python 3.12.13, pytest-9.0.2, pluggy-1.6.0
 rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
@@ -7,103 +7,633 @@ plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
 collected 148 items
 
 tests/integration/test_cpf_psf_workflow.py .                             [  0%]
-tests/integration/test_rag_flow.py ...                                   [  2%]
-tests/uat/test_cycle05_uat.py ...                                        [  4%]
-tests/uat/test_cycle06_uat.py ..                                         [  6%]
-tests/uat/test_memory_safety.py ...                                      [  8%]
-tests/uat/test_nemawashi_uat.py ..                                       [  9%]
-tests/uat/test_uat_cycle01.py ...                                        [ 11%]
-tests/uat/test_uat_cycle02.py .                                          [ 12%]
-tests/uat/test_uat_cycle03.py ..                                         [ 13%]
-tests/unit/domain_models/test_cpf_psf_models.py .........                [ 19%]
-tests/unit/domain_models/test_models.py ............                     [ 27%]
-tests/unit/domain_models/test_mvp.py ....                                [ 30%]
-tests/unit/domain_models/test_politics.py .....                          [ 33%]
-tests/unit/domain_models/test_simulation_models.py .....                 [ 37%]
-tests/unit/domain_models/test_transcript.py ...                          [ 39%]
-tests/unit/test_builder_agent.py .                                       [ 39%]
-tests/unit/test_cli_input.py ...                                         [ 41%]
-tests/unit/test_cli_scalability.py ..                                    [ 43%]
-tests/unit/test_config.py .......                                        [ 47%]
-tests/unit/test_core.py ....                                             [ 50%]
-tests/unit/test_core_graph.py .....                                      [ 54%]
-tests/unit/test_cpo_agent.py ..                                          [ 55%]
-tests/unit/test_domain_models.py .............                           [ 64%]
-tests/unit/test_file_service.py ...                                      [ 66%]
-tests/unit/test_governance_agent.py .                                    [ 66%]
-tests/unit/test_governance_memory.py ..                                  [ 68%]
-tests/unit/test_ideator_agent.py ...                                     [ 70%]
-tests/unit/test_metrics_logic.py .........                               [ 76%]
-tests/unit/test_nemawashi.py ....                                        [ 79%]
-tests/unit/test_rag.py .....                                             [ 82%]
-tests/unit/test_rag_errors.py ....                                       [ 85%]
-tests/unit/test_rag_refactored.py .                                      [ 85%]
-tests/unit/test_simulation_integration.py ..                             [ 87%]
-tests/unit/test_simulation_logic.py ........                             [ 92%]
-tests/unit/test_tools.py ...                                             [ 94%]
-tests/unit/test_ui.py .....                                              [ 97%]
-tests/unit/test_v0_client.py ...                                         [100%]
+tests/integration/test_rag_flow.py FF.                                   [  2%]
+tests/uat/test_cycle06_uat.py ..                                         [  4%]
+tests/uat/test_memory_safety.py ...                                      [  6%]
+tests/uat/test_nemawashi_uat.py .F                                       [  7%]
+tests/uat/test_uat_cycle01.py ...                                        [  9%]
+tests/uat/test_uat_cycle02.py .                                          [ 10%]
+tests/uat/test_uat_cycle03.py ..                                         [ 11%]
+tests/unit/domain_models/test_cpf_psf_models.py .........                [ 17%]
+tests/unit/domain_models/test_models.py .............                    [ 26%]
+tests/unit/domain_models/test_politics.py .....                          [ 29%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 33%]
+tests/unit/domain_models/test_transcript.py ...                          [ 35%]
+tests/unit/test_builder_agent.py F                                       [ 35%]
+tests/unit/test_cli_input.py ...                                         [ 37%]
+tests/unit/test_cli_scalability.py ..                                    [ 39%]
+tests/unit/test_config.py .......                                        [ 43%]
+tests/unit/test_core.py ....                                             [ 46%]
+tests/unit/test_core_graph.py ......                                     [ 50%]
+tests/unit/test_cpo_agent.py ..                                          [ 52%]
+tests/unit/test_domain_models.py ..............                          [ 61%]
+tests/unit/test_file_service.py ...                                      [ 63%]
+tests/unit/test_governance_agent.py .                                    [ 64%]
+tests/unit/test_governance_memory.py ..                                  [ 65%]
+tests/unit/test_ideator_agent.py ...                                     [ 67%]
+tests/unit/test_metrics_logic.py .........                               [ 73%]
+tests/unit/test_nemawashi.py ....                                        [ 76%]
+tests/unit/test_phase_transitions.py ..                                  [ 77%]
+tests/unit/test_psf_agents.py .....                                      [ 81%]
+tests/unit/test_rag.py EEEEE                                             [ 84%]
+tests/unit/test_rag_errors.py ....                                       [ 87%]
+tests/unit/test_rag_refactored.py .                                      [ 87%]
+tests/unit/test_simulation_integration.py ..                             [ 89%]
+tests/unit/test_simulation_logic.py ........                             [ 94%]
+tests/unit/test_tools.py ...                                             [ 96%]
+tests/unit/test_ui.py .....                                              [100%]
 
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_rag_initialization ___________________
+
+    @pytest.fixture
+    def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
+        with (
+>           patch("src.data.rag.VectorStoreIndex") as mock_index,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            patch("src.data.rag.Document") as mock_doc,
+            patch("src.data.rag.StorageContext") as mock_storage,
+            patch("src.data.rag.load_index_from_storage") as mock_load,
+            patch("src.data.rag.OpenAI"),
+            patch("src.data.rag.OpenAIEmbedding"),
+            patch("src.data.rag.LlamaSettings"),
+        ):  # Mock Settings to avoid type checks
+
+tests/unit/test_rag.py:39:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x7f1c237f67b0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+
+        original = DEFAULT
+        local = False
+
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'src.data.rag' from '/app/src/data/rag.py'> does not have the attribute 'VectorStoreIndex'
+
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1437: AttributeError
+____________________ ERROR at setup of test_rag_ingest_text ____________________
+
+    @pytest.fixture
+    def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
+        with (
+>           patch("src.data.rag.VectorStoreIndex") as mock_index,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            patch("src.data.rag.Document") as mock_doc,
+            patch("src.data.rag.StorageContext") as mock_storage,
+            patch("src.data.rag.load_index_from_storage") as mock_load,
+            patch("src.data.rag.OpenAI"),
+            patch("src.data.rag.OpenAIEmbedding"),
+            patch("src.data.rag.LlamaSettings"),
+        ):  # Mock Settings to avoid type checks
+
+tests/unit/test_rag.py:39:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x7f1c237d8b90>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+
+        original = DEFAULT
+        local = False
+
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'src.data.rag' from '/app/src/data/rag.py'> does not have the attribute 'VectorStoreIndex'
+
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1437: AttributeError
+___________________ ERROR at setup of test_rag_persist_index ___________________
+
+    @pytest.fixture
+    def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
+        with (
+>           patch("src.data.rag.VectorStoreIndex") as mock_index,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            patch("src.data.rag.Document") as mock_doc,
+            patch("src.data.rag.StorageContext") as mock_storage,
+            patch("src.data.rag.load_index_from_storage") as mock_load,
+            patch("src.data.rag.OpenAI"),
+            patch("src.data.rag.OpenAIEmbedding"),
+            patch("src.data.rag.LlamaSettings"),
+        ):  # Mock Settings to avoid type checks
+
+tests/unit/test_rag.py:39:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x7f1c237c28a0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+
+        original = DEFAULT
+        local = False
+
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'src.data.rag' from '/app/src/data/rag.py'> does not have the attribute 'VectorStoreIndex'
+
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1437: AttributeError
+_______________________ ERROR at setup of test_rag_query _______________________
+
+    @pytest.fixture
+    def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
+        with (
+>           patch("src.data.rag.VectorStoreIndex") as mock_index,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            patch("src.data.rag.Document") as mock_doc,
+            patch("src.data.rag.StorageContext") as mock_storage,
+            patch("src.data.rag.load_index_from_storage") as mock_load,
+            patch("src.data.rag.OpenAI"),
+            patch("src.data.rag.OpenAIEmbedding"),
+            patch("src.data.rag.LlamaSettings"),
+        ):  # Mock Settings to avoid type checks
+
+tests/unit/test_rag.py:39:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x7f1c23d0bfb0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+
+        original = DEFAULT
+        local = False
+
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'src.data.rag' from '/app/src/data/rag.py'> does not have the attribute 'VectorStoreIndex'
+
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1437: AttributeError
+_________________ ERROR at setup of test_rag_query_validation __________________
+
+    @pytest.fixture
+    def mock_llama_index() -> Generator[dict[str, MagicMock], None, None]:
+        with (
+>           patch("src.data.rag.VectorStoreIndex") as mock_index,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            patch("src.data.rag.Document") as mock_doc,
+            patch("src.data.rag.StorageContext") as mock_storage,
+            patch("src.data.rag.load_index_from_storage") as mock_load,
+            patch("src.data.rag.OpenAI"),
+            patch("src.data.rag.OpenAIEmbedding"),
+            patch("src.data.rag.LlamaSettings"),
+        ):  # Mock Settings to avoid type checks
+
+tests/unit/test_rag.py:39:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x7f1c2374cb60>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+
+        original = DEFAULT
+        local = False
+
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'src.data.rag' from '/app/src/data/rag.py'> does not have the attribute 'VectorStoreIndex'
+
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1437: AttributeError
+=================================== FAILURES ===================================
+__________________________ test_transcript_ingestion ___________________________
+
+temp_vector_store = '/app/tests/temp_rag_data/tmps2ye2583'
+
+    @patch.dict("os.environ", DUMMY_ENV_VARS)
+    def test_transcript_ingestion(temp_vector_store: str) -> None:
+        """Test that ingest_transcript works correctly."""
+        # Using LlamaIndex's MockLLM and MockEmbedding directly injected via Settings
+        # This avoids patching the class definition, allowing RAG to instantiate normally.
+        from llama_index.core import Settings as LlamaSettings
+
+        LlamaSettings.llm = MockLLM()
+        LlamaSettings.embed_model = MockEmbedding(embed_dim=1536)
+
+        # We still patch the constructor call in RAG._init_llama to avoid re-overwriting settings with real OpenAI
+        # However, since we set global LlamaSettings, we can just ensure RAG uses them.
+        # But RAG._init_llama explicitly sets LlamaSettings.llm = OpenAI(...).
+        # We must patch OpenAI class to return our MockLLM instance.
+
+        with (
+>           patch("src.data.rag.OpenAI", return_value=MockLLM()),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+        ):
+
+tests/integration/test_rag_flow.py:70:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x7f1c24b65730>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+
+        original = DEFAULT
+        local = False
+
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'src.data.rag' from '/app/src/data/rag.py'> does not have the attribute 'OpenAI'
+
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1437: AttributeError
+__________________________ test_rag_integration_flow ___________________________
+
+temp_vector_store = '/app/tests/temp_rag_data/tmpadioqqir'
+
+    @patch.dict("os.environ", DUMMY_ENV_VARS)
+    def test_rag_integration_flow(temp_vector_store: str) -> None:
+        """
+        Integration test for RAG: Ingest -> Persist -> Query.
+        Uses real LlamaIndex components (mocked LLM/Embeddings to avoid API calls).
+        """
+        get_settings.cache_clear()
+
+        with (
+>           patch("src.data.rag.OpenAI", return_value=MockLLM()),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            patch("src.data.rag.OpenAIEmbedding", return_value=MockEmbedding(embed_dim=1536)),
+        ):
+
+tests/integration/test_rag_flow.py:101:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x7f1c24c500b0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+
+        original = DEFAULT
+        local = False
+
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'src.data.rag' from '/app/src/data/rag.py'> does not have the attribute 'OpenAI'
+
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1437: AttributeError
+___________________________ test_nomikai_effect_uat ____________________________
+
+    def test_nomikai_effect_uat() -> None:
+        """UAT-C04-02: Verify that simulating a social event changes the outcome."""
+        # Setup: Finance hates it. Group consensus low.
+        s1 = Stakeholder(name="Finance Manager", initial_support=0.1, stubbornness=0.9)
+        s2 = Stakeholder(name="CEO", initial_support=0.4, stubbornness=0.2)
+
+        # Finance listens to self 0.9, CEO 0.1
+        # CEO listens to Finance 0.8, self 0.2
+        matrix = [[0.9, 0.1], [0.8, 0.2]]
+
+        net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
+
+        engine = NemawashiEngine()
+
+        try:
+>           initial_ops = engine.calculate_consensus(net)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/uat/test_nemawashi_uat.py:49:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/core/nemawashi/engine.py:47: in calculate_consensus
+    return self.consensus.calculate_consensus(network)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/core/nemawashi/consensus.py:49: in calculate_consensus
+    NemawashiUtils.validate_symmetry(matrix_op, self.settings.tolerance)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+matrix = <Compressed Sparse Row sparse matrix of dtype 'float64'
+	with 4 stored elements and shape (2, 2)>
+tolerance = 1e-06
+
+    @staticmethod
+    def validate_symmetry(matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6) -> None:
+        """
+        Validate that the influence matrix is symmetric.
+        """
+        is_symmetric = True
+        try:
+            if hasattr(matrix, "transpose"):
+                # Sparse or numpy matrix
+                m = cast(csr_matrix, matrix)
+                if not np.allclose(m.toarray(), m.transpose().toarray(), atol=tolerance):
+                    is_symmetric = False
+            else:
+                # List of lists
+                dense = cast(list[list[float]], matrix)
+                n = len(dense)
+                for i in range(n):
+                    for j in range(n):
+                        if abs(dense[i][j] - dense[j][i]) > tolerance:
+                            is_symmetric = False
+        except Exception as e:
+            msg = f"Symmetry check failed: {e}"
+            raise ValidationError(msg) from e
+
+        if not is_symmetric:
+            msg = "Influence matrix is not symmetric"
+>           raise ValidationError(msg)
+E           src.core.exceptions.ValidationError: Influence matrix is not symmetric
+
+src/core/nemawashi/utils.py:65: ValidationError
+_______________ TestBuilderAgent.test_generate_spec_with_context _______________
+
+self = <test_builder_agent.TestBuilderAgent object at 0x7f1c27e9f080>
+agent = <src.agents.builder.BuilderAgent object at 0x7f1c240bb770>
+state_with_context = GlobalState(phase=<Phase.IDEATION: 'ideation'>, topic='Test Topic', generated_ideas=None, selected_idea=None, messages...ne, agent_prompt_spec=None, virtual_customer_review=None, hacker_review=None, hipster_review=None, hustler_review=None)
+
+    def test_generate_spec_with_context(
+        self, agent: BuilderAgent, state_with_context: GlobalState
+    ) -> None:
+        """
+        Test generate_spec reads context from state correctly.
+        """
+>       with patch("src.agents.builder.ChatPromptTemplate.from_messages") as mock_prompt:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/test_builder_agent.py:39:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:1451: in __enter__
+    self.target = self.getter()
+                  ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+name = 'src.agents.builder.ChatPromptTemplate'
+
+    def resolve_name(name):
+        """
+        Resolve a name to an object.
+
+        It is expected that `name` will be a string in one of the following
+        formats, where W is shorthand for a valid Python identifier and dot stands
+        for a literal period in these pseudo-regexes:
+
+        W(.W)*
+        W(.W)*:(W(.W)*)?
+
+        The first form is intended for backward compatibility only. It assumes that
+        some part of the dotted name is a package, and the rest is an object
+        somewhere within that package, possibly nested inside other objects.
+        Because the place where the package stops and the object hierarchy starts
+        can't be inferred by inspection, repeated attempts to import must be done
+        with this form.
+
+        In the second form, the caller makes the division point clear through the
+        provision of a single colon: the dotted name to the left of the colon is a
+        package to be imported, and the dotted name to the right is the object
+        hierarchy within that package. Only one import is needed in this form. If
+        it ends with the colon, then a module object is returned.
+
+        The function will return an object (which might be a module), or raise one
+        of the following exceptions:
+
+        ValueError - if `name` isn't in a recognised format
+        ImportError - if an import failed when it shouldn't have
+        AttributeError - if a failure occurred when traversing the object hierarchy
+                         within the imported package to get to the desired object.
+        """
+        global _NAME_PATTERN
+        if _NAME_PATTERN is None:
+            # Lazy import to speedup Python startup time
+            import re
+            dotted_words = r'(?!\d)(\w+)(\.(?!\d)(\w+))*'
+            _NAME_PATTERN = re.compile(f'^(?P<pkg>{dotted_words})'
+                                       f'(?P<cln>:(?P<obj>{dotted_words})?)?$',
+                                       re.UNICODE)
+
+        m = _NAME_PATTERN.match(name)
+        if not m:
+            raise ValueError(f'invalid format: {name!r}')
+        gd = m.groupdict()
+        if gd.get('cln'):
+            # there is a colon - a one-step import is all that's needed
+            mod = importlib.import_module(gd['pkg'])
+            parts = gd.get('obj')
+            parts = parts.split('.') if parts else []
+        else:
+            # no colon - have to iterate to find the package boundary
+            parts = name.split('.')
+            modname = parts.pop(0)
+            # first part *must* be a module/package.
+            mod = importlib.import_module(modname)
+            while parts:
+                p = parts[0]
+                s = f'{modname}.{p}'
+                try:
+                    mod = importlib.import_module(s)
+                    parts.pop(0)
+                    modname = s
+                except ImportError:
+                    break
+        # if we reach this point, mod is the module, already imported, and
+        # parts is the list of parts in the object hierarchy to be traversed, or
+        # an empty list if just the module is wanted.
+        result = mod
+        for p in parts:
+>           result = getattr(result, p)
+                     ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'src.agents.builder' has no attribute 'ChatPromptTemplate'
+
+/home/jules/.pyenv/versions/3.12.13/lib/python3.12/pkgutil.py:528: AttributeError
 ================================ tests coverage ================================
-_______________ coverage: platform linux, python 3.12.12-final-0 _______________
+_______________ coverage: platform linux, python 3.12.13-final-0 _______________
 
 Name                                            Stmts   Miss  Cover   Missing
 -----------------------------------------------------------------------------
 src/__init__.py                                     0      0   100%
 src/agents/__init__.py                              6      0   100%
 src/agents/base.py                                  9      0   100%
-src/agents/builder.py                              95     28    71%   54-55, 59, 63, 83-85, 91-112, 119-120, 138-139, 149-150, 155-159, 198
-src/agents/cpo.py                                  44     11    75%   56-58, 75-88, 95-97
+src/agents/builder.py                              45     29    36%   28-58, 64-92, 98
+src/agents/cpo.py                                  44     11    75%   55-57, 74-87, 94-96
 src/agents/governance.py                          105      7    93%   98-102, 199, 204
-src/agents/ideator.py                              67     23    66%   45-92, 134-136, 157-159
+src/agents/ideator.py                              67     23    66%   45-92, 136-138, 159-161
 src/agents/mixins.py                               23     23     0%   1-35
-src/agents/personas.py                            165     19    88%   64-65, 99, 114-115, 149, 163-164, 204, 276-278, 283-284, 293-296, 339-340
+src/agents/personas.py                            162     19    88%   63-64, 98, 113-114, 148, 162-163, 203, 272-274, 279-280, 289-292, 335-336
+src/agents/psf.py                                  78     13    83%   26-27, 45-47, 50, 115, 123-125, 163-166
+src/agents/reviewers.py                            39     29    26%   19-20, 23-82
+src/agents/virtual_customer.py                     28     18    36%   18-19, 22-62
 src/core/__init__.py                                0      0   100%
-src/core/config.py                                160      0   100%
+src/core/config.py                                180      0   100%
 src/core/constants.py                             105      0   100%
 src/core/exceptions.py                              6      0   100%
-src/core/factory.py                                49     16    67%   46-47, 52, 63-79
-src/core/graph.py                                  39      0   100%
-src/core/llm.py                                    10      0   100%
+src/core/execution.py                              22     15    32%   16-33
+src/core/factory.py                                68     24    65%   48-49, 53-54, 58-59, 63-64, 68-69, 74, 85-101
+src/core/graph.py                                  49      4    92%   102-105
+src/core/interfaces.py                             24      0   100%
+src/core/llm.py                                    11      0   100%
 src/core/metrics.py                                17      0   100%
 src/core/nemawashi/__init__.py                      5      0   100%
-src/core/nemawashi/analytics.py                    71     36    49%   28, 41, 46-50, 58-62, 72-73, 91-102, 110-123, 127-132
-src/core/nemawashi/consensus.py                    26      2    92%   37, 65
-src/core/nemawashi/engine.py                       19      1    95%   34
-src/core/nemawashi/nomikai.py                      73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
-src/core/nemawashi/utils.py                        43      6    86%   31-33, 46-47, 50
-src/core/nodes.py                                 165     33    80%   30-32, 54, 104-105, 139-141, 156-157, 175-179, 191-192, 216-217, 235-237, 240, 280-286, 294-300
+src/core/nemawashi/analytics.py                    71     32    55%   28, 41, 46-50, 58-62, 72-73, 91-102, 110-123, 128
+src/core/nemawashi/consensus.py                    28      3    89%   37, 66-67
+src/core/nemawashi/engine.py                       31      6    81%   28, 32, 41-43, 55, 59
+src/core/nemawashi/nomikai.py                      73     58    21%   25-43, 47-50, 53-65, 68-82, 87-96, 100-110
+src/core/nemawashi/utils.py                        63     15    76%   31-33, 53-61, 74-75, 78
+src/core/nodes.py                                 182     41    77%   30-32, 54, 100-101, 136-138, 154-155, 173-177, 189-190, 214-215, 221-225, 231-233, 239-243, 249-251, 285, 308-314
+src/core/rate_limit.py                              7      0   100%
+src/core/security.py                               35      7    80%   16-17, 28-30, 43-44
 src/core/services/__init__.py                       0      0   100%
-src/core/services/file_service.py                 105     67    36%   33-52, 66-67, 92-94, 106-172
+src/core/services/file_service.py                 122     88    28%   34, 44, 51-53, 56-57, 73-74, 81-118, 130-207
 src/core/simulation.py                            103     58    44%   50-53, 85-89, 92-104, 108-120, 127-129, 132-173, 176-178
+src/core/text_processing.py                        26      3    88%   31, 35-36
 src/core/theme.py                                  18      0   100%
-src/core/utils.py                                   4      0   100%
+src/core/utils.py                                  37      9    76%   10, 38, 46, 52-60
+src/core/validation.py                              9      0   100%
 src/core/validators.py                             47     10    79%   46, 49-50, 52-53, 60, 63-64, 66-67
 src/data/__init__.py                                2      0   100%
-src/data/rag.py                                   246     40    84%   64, 72, 78-84, 106-107, 151-152, 164-166, 181-182, 197, 218-220, 227-229, 264, 268-269, 300-301, 312-313, 325, 334, 388, 408-415
+src/data/rag.py                                   152     35    77%   43-44, 94, 120-134, 159-160, 179-180, 192, 195-197, 203, 214, 218-225, 259-264
 src/domain_models/__init__.py                      15      0   100%
 src/domain_models/agent_prompt_spec.py             15      0   100%
 src/domain_models/alternative_analysis.py          11      0   100%
 src/domain_models/common.py                        23      0   100%
 src/domain_models/customer_journey.py              12      0   100%
-src/domain_models/enums.py                         12      0   100%
+src/domain_models/enums.py                         17      0   100%
 src/domain_models/experiment_plan.py               12      0   100%
 src/domain_models/lean_canvas.py                   33      2    94%   32-33
 src/domain_models/mental_model_diagram.py           8      0   100%
-src/domain_models/metrics.py                       60      6    90%   124-125, 129-130, 134-135
-src/domain_models/mvp.py                           57      2    96%   144-145
+src/domain_models/metrics.py                       60      6    90%   121-122, 126-127, 131-132
+src/domain_models/mvp.py                           26      0   100%
 src/domain_models/persona.py                       28      2    93%   124-125
 src/domain_models/politics.py                      59      3    95%   82, 100, 111
 src/domain_models/simulation.py                    16      0   100%
 src/domain_models/sitemap_and_story.py             17      0   100%
-src/domain_models/state.py                         81      8    90%   92-93, 116-124
+src/domain_models/state.py                         83      8    90%   95-96, 119-127
 src/domain_models/transcript.py                    22      2    91%   32-33
-src/domain_models/validators.py                    12      0   100%
+src/domain_models/validators.py                    25      4    84%   63-64, 69-70
 src/domain_models/value_proposition_canvas.py      14      0   100%
-src/tools/__init__.py                               3      0   100%
-src/tools/search.py                                34      4    88%   39, 75, 90-91
-src/tools/v0_client.py                             62     16    74%   58-60, 105-107, 110-117, 130-131
+src/tools/__init__.py                               2      0   100%
+src/tools/search.py                                39      4    90%   42, 83, 100-101
 src/ui/renderer.py                                 96     10    90%   87, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------------------
-TOTAL                                            2529    457    82%
-============================= 148 passed in 27.05s =============================
+TOTAL                                            2732    621    77%
+=========================== short test summary info ============================
+FAILED tests/integration/test_rag_flow.py::test_transcript_ingestion - Attrib...
+FAILED tests/integration/test_rag_flow.py::test_rag_integration_flow - Attrib...
+FAILED tests/uat/test_nemawashi_uat.py::test_nomikai_effect_uat - src.core.ex...
+FAILED tests/unit/test_builder_agent.py::TestBuilderAgent::test_generate_spec_with_context
+ERROR tests/unit/test_rag.py::test_rag_initialization - AttributeError: <modu...
+ERROR tests/unit/test_rag.py::test_rag_ingest_text - AttributeError: <module ...
+ERROR tests/unit/test_rag.py::test_rag_persist_index - AttributeError: <modul...
+ERROR tests/unit/test_rag.py::test_rag_query - AttributeError: <module 'src.d...
+ERROR tests/unit/test_rag.py::test_rag_query_validation - AttributeError: <mo...
+=================== 4 failed, 139 passed, 5 errors in 24.40s ===================

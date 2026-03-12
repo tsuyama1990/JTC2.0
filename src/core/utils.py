@@ -4,9 +4,11 @@ from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
+
 def chunk_text(text: str, chunk_size: int) -> list[str]:
     """Helper to chunk text into smaller parts."""
-    return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+    return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
+
 
 def scan_directory_size(path: str, depth_limit: int = 10) -> int:
     """
@@ -58,6 +60,7 @@ def scan_directory_size(path: str, depth_limit: int = 10) -> int:
             logger.warning(f"Error scanning index directory {current_path}: {e}")
 
     return total
+
 
 @lru_cache(maxsize=1)
 def scan_directory_size_cached(path: str, depth_limit: int = 10, ttl_hash: int = 0) -> int:

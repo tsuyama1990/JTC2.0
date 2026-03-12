@@ -23,6 +23,7 @@ class TestFileService:
 
         # We need to test whatever type save_text_async actually passed in
         from pathlib import Path
+
         mock_save_sync.assert_called_once()
         args, _ = mock_save_sync.call_args
         assert args[0] == "content"

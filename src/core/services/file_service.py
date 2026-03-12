@@ -28,7 +28,8 @@ class FileService:
         # Abstract PDF library dependency
         if pdf_generator is None:
             from fpdf import FPDF
-            self.pdf_generator_class: type[IPDFGenerator] = FPDF # type: ignore
+
+            self.pdf_generator_class: type[IPDFGenerator] = FPDF  # type: ignore
         else:
             self.pdf_generator_class = pdf_generator
 
@@ -89,7 +90,7 @@ class FileService:
                 # Atomic write pattern
                 fd, temp_path_str = tempfile.mkstemp(dir=path.parent, prefix="tmp_", suffix=".txt")
                 try:
-                    with os.fdopen(fd, 'w', encoding="utf-8") as f:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
                         f.write(content)
                         f.flush()
                         os.fsync(f.fileno())

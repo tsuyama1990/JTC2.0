@@ -8,12 +8,13 @@ from src.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
+
 def chunk_text_generator(
     text: str | Iterator[str],
     source: str,
     chunk_size: int,
     max_doc_len: int,
-    size_tracker_callback: Callable[[int], None]
+    size_tracker_callback: Callable[[int], None],
 ) -> Iterator[Document]:
     """
     Yield documents from request content one by one.
@@ -36,8 +37,7 @@ def chunk_text_generator(
 
         if len(content_part) > chunk_size:
             chunks = [
-                content_part[i : i + chunk_size]
-                for i in range(0, len(content_part), chunk_size)
+                content_part[i : i + chunk_size] for i in range(0, len(content_part), chunk_size)
             ]
         else:
             chunks = [content_part]

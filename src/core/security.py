@@ -6,6 +6,7 @@ from src.core.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
+
 def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
     """
     Ensure persist directory is safe and absolute.
@@ -35,9 +36,7 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
             break
 
     if not is_safe:
-        logger.error(
-            f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}"
-        )
+        logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")
         raise ConfigurationError(ERR_PATH_TRAVERSAL)
 
     if is_symlink:
@@ -45,6 +44,7 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
         raise ConfigurationError(msg)
 
     return str(path)
+
 
 def sanitize_query(query: str) -> str:
     """
