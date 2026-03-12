@@ -1,6 +1,7 @@
 import json
 import os
-from functools import lru_cache
+import threading
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -244,6 +245,29 @@ class SimulationConfig(BaseModel):
     )
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
+    circuit_breakers: list[str] = Field(
+        default_factory=lambda: ["平行線ですね", "同意します"],
+        description="List of strings that trigger early termination of a debate.",
+    )
+
+    @field_validator("circuit_breakers", mode="before")
+    @classmethod
+    def parse_circuit_breakers(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list) and all(isinstance(item, str) for item in parsed):
+                    return parsed
+            except Exception:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Invalid JSON in SIMULATION_CIRCUIT_BREAKERS, falling back to defaults."
+                )
+        elif isinstance(v, list) and all(isinstance(item, str) for item in v):
+            return v
+        return ["平行線ですね", "同意します"]
+
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
@@ -333,6 +357,31 @@ class Settings(BaseSettings):
     """Configuration settings for the application."""
 
     model_config = SettingsConfigDict(extra="forbid")
+
+    prompt_hacker: str = Field(
+        alias="PROMPT_HACKER",
+        default_factory=lambda: os.getenv(
+            "PROMPT_HACKER",
+            DEFAULT_PROMPT_HACKER,
+        ),
+        description="System prompt for Hacker Reviewer",
+    )
+    prompt_hipster: str = Field(
+        alias="PROMPT_HIPSTER",
+        default_factory=lambda: os.getenv(
+            "PROMPT_HIPSTER",
+            DEFAULT_PROMPT_HIPSTER,
+        ),
+        description="System prompt for Hipster Reviewer",
+    )
+    prompt_hustler: str = Field(
+        alias="PROMPT_HUSTLER",
+        default_factory=lambda: os.getenv(
+            "PROMPT_HUSTLER",
+            DEFAULT_PROMPT_HUSTLER,
+        ),
+        description="System prompt for Hustler Reviewer",
+    )
 
     openai_api_key: SecretStr = Field(..., alias="OPENAI_API_KEY", description="OpenAI API Key")
     tavily_api_key: SecretStr | None = Field(
@@ -489,14 +538,31 @@ class Settings(BaseSettings):
         """Placeholder for key rotation."""
 
 
-@lru_cache
-def get_settings() -> Settings:
-    """Load and cache settings."""
-    settings = Settings()
-    # Strict runtime verification
-    if os.getenv("MOCK_MODE", "false").lower() != "true" and not settings.openai_api_key:
-        from src.core.exceptions import ConfigurationError
+_settings_state: dict[str, Settings | None] = {"instance": None}
+_settings_lock = threading.Lock()
 
-        msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
-        raise ConfigurationError(msg)
-    return settings
+
+def get_settings() -> Settings:
+    """Load and cache settings using a thread-safe singleton pattern."""
+    with _settings_lock:
+        if _settings_state["instance"] is None:
+            settings = Settings()
+            # Strict runtime verification
+            if os.getenv("MOCK_MODE", "false").lower() != "true" and not settings.openai_api_key:
+                from src.core.exceptions import ConfigurationError
+
+                msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
+                raise ConfigurationError(msg)
+            _settings_state["instance"] = settings
+        return _settings_state["instance"]  # type: ignore[return-value]
+
+
+def clear_settings_cache() -> None:
+    """Explicitly clear the settings cache (useful for testing)."""
+    with _settings_lock:
+        _settings_state["instance"] = None
+
+
+DEFAULT_PROMPT_HACKER = "【前提とするサイトマップと機能要件を遵守しつつ】技術的負債、スケーラビリティ、セキュリティの観点からワイヤーフレームをレビューせよ。不要に複雑なDB構造やリアルタイム通信を避け、スプレッドシートや既存APIのモックで代替できないか追求せよ。同意できる場合は「[APPROVED]」と出力せよ。"
+DEFAULT_PROMPT_HIPSTER = "【前提とするメンタルモデルとペルソナを遵守しつつ】ユーザーの『Don't make me think（考えさせるな）』の原則に基づきUXをレビューせよ。メンタルモデルに反するオンボーディングの摩擦、タップ回数の多さ、エラー時の不親切さを指摘せよ。同意できる場合は「[APPROVED]」と出力せよ。"
+DEFAULT_PROMPT_HUSTLER = "【前提とする代替品分析とVPCを遵守しつつ】ユニットエコノミクス（LTV > 3x CAC）の観点からビジネスモデルをレビューせよ。誰がどうやって見つけるのか、なぜ継続してお金を払うのかを厳しく問いただせ。同意できる場合は「[APPROVED]」と出力せよ。"

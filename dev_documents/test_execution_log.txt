@@ -4,7 +4,7 @@ rootdir: /app
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.0.0, langsmith-0.7.6, anyio-4.12.1
-collected 151 items
+collected 154 items
 
 tests/integration/test_cpf_psf_workflow.py .                             [  0%]
 tests/integration/test_rag_flow.py ...                                   [  2%]
@@ -15,29 +15,30 @@ tests/uat/test_uat_cycle01.py ...                                        [  9%]
 tests/uat/test_uat_cycle02.py .                                          [  9%]
 tests/uat/test_uat_cycle03.py ..                                         [ 11%]
 tests/unit/domain_models/test_cpf_psf_models.py ..........               [ 17%]
-tests/unit/domain_models/test_models.py .............                    [ 26%]
+tests/unit/domain_models/test_models.py .............                    [ 25%]
 tests/unit/domain_models/test_politics.py .....                          [ 29%]
-tests/unit/domain_models/test_simulation_models.py .....                 [ 33%]
-tests/unit/domain_models/test_transcript.py ...                          [ 35%]
+tests/unit/domain_models/test_simulation_models.py .....                 [ 32%]
+tests/unit/domain_models/test_transcript.py ...                          [ 34%]
 tests/unit/test_builder_agent.py .                                       [ 35%]
 tests/unit/test_cli_input.py ...                                         [ 37%]
-tests/unit/test_cli_scalability.py ..                                    [ 39%]
-tests/unit/test_config.py .......                                        [ 43%]
-tests/unit/test_core.py ....                                             [ 46%]
-tests/unit/test_core_graph.py ......                                     [ 50%]
-tests/unit/test_cpo_agent.py ..                                          [ 51%]
-tests/unit/test_domain_models.py ..............                          [ 60%]
-tests/unit/test_file_service.py ...                                      [ 62%]
-tests/unit/test_governance_agent.py .                                    [ 63%]
-tests/unit/test_governance_memory.py ..                                  [ 64%]
-tests/unit/test_ideator_agent.py ...                                     [ 66%]
-tests/unit/test_metrics_logic.py .........                               [ 72%]
-tests/unit/test_nemawashi.py ....                                        [ 75%]
-tests/unit/test_phase_transitions.py ...                                 [ 77%]
-tests/unit/test_psf_agents.py ......                                     [ 81%]
-tests/unit/test_rag.py .....                                             [ 84%]
-tests/unit/test_rag_errors.py ....                                       [ 87%]
-tests/unit/test_rag_refactored.py .                                      [ 88%]
+tests/unit/test_cli_scalability.py ..                                    [ 38%]
+tests/unit/test_config.py .......                                        [ 42%]
+tests/unit/test_core.py ....                                             [ 45%]
+tests/unit/test_core_graph.py ......                                     [ 49%]
+tests/unit/test_cpo_agent.py ..                                          [ 50%]
+tests/unit/test_domain_models.py ..............                          [ 59%]
+tests/unit/test_file_service.py ...                                      [ 61%]
+tests/unit/test_governance_agent.py .                                    [ 62%]
+tests/unit/test_governance_memory.py ..                                  [ 63%]
+tests/unit/test_ideator_agent.py ...                                     [ 65%]
+tests/unit/test_metrics_logic.py .........                               [ 71%]
+tests/unit/test_nemawashi.py ....                                        [ 74%]
+tests/unit/test_phase_transitions.py ...                                 [ 75%]
+tests/unit/test_psf_agents.py ......                                     [ 79%]
+tests/unit/test_rag.py .....                                             [ 83%]
+tests/unit/test_rag_errors.py ....                                       [ 85%]
+tests/unit/test_rag_refactored.py .                                      [ 86%]
+tests/unit/test_reviewers_agent.py ...                                   [ 88%]
 tests/unit/test_simulation_integration.py ..                             [ 89%]
 tests/unit/test_simulation_logic.py ........                             [ 94%]
 tests/unit/test_tools.py ...                                             [ 96%]
@@ -48,47 +49,47 @@ _______________ coverage: platform linux, python 3.12.13-final-0 _______________
 
 Name                                            Stmts   Miss  Cover   Missing
 -----------------------------------------------------------------------------
-src/__init__.py                                     0      0   100%
+src/__init__.py                                     3      0   100%
 src/agents/__init__.py                              6      0   100%
 src/agents/base.py                                  9      0   100%
-src/agents/builder.py                              44     19    57%   31-32, 55-58, 64-90, 96
-src/agents/cpo.py                                  44     11    75%   55-57, 74-87, 94-96
+src/agents/builder.py                              43     19    56%   30-31, 54-57, 63-89, 95
+src/agents/cpo.py                                  43     11    74%   54-56, 73-86, 93-95
 src/agents/governance.py                          105      7    93%   98-102, 199, 204
-src/agents/ideator.py                              67     23    66%   45-92, 136-138, 159-161
+src/agents/ideator.py                              66     23    65%   44-91, 135-137, 158-160
 src/agents/mixins.py                               23     23     0%   1-35
-src/agents/personas.py                            162     19    88%   63-64, 98, 113-114, 148, 162-163, 203, 272-274, 279-280, 289-292, 335-336
-src/agents/psf.py                                  80     11    86%   46-48, 51, 116, 124-126, 165-168
-src/agents/reviewers.py                            39     29    26%   19-20, 23-82
-src/agents/virtual_customer.py                     28     18    36%   18-19, 22-62
+src/agents/personas.py                            161     19    88%   62-63, 97, 112-113, 147, 161-162, 202, 271-273, 278-279, 288-291, 334-335
+src/agents/psf.py                                  79     11    86%   45-47, 50, 115, 123-125, 164-167
+src/agents/reviewers.py                            83     13    84%   34-35, 37-38, 40-41, 43-44, 67-69, 101-102
+src/agents/virtual_customer.py                     27     18    33%   17-18, 21-61
 src/core/__init__.py                                0      0   100%
-src/core/config.py                                180      0   100%
+src/core/config.py                                209     14    93%   256-269, 552-555
 src/core/constants.py                             105      0   100%
 src/core/exceptions.py                              6      0   100%
 src/core/execution.py                              22      8    64%   26-33
-src/core/factory.py                                68     24    65%   48-49, 53-54, 58-59, 63-64, 68-69, 74, 85-101
-src/core/graph.py                                  49      4    92%   102-105
-src/core/interfaces.py                             24      0   100%
-src/core/llm.py                                    11      0   100%
+src/core/factory.py                                57     24    58%   43-44, 47-48, 51-52, 55-56, 59-60, 64, 74-90
+src/core/graph.py                                  76      6    92%   19-20, 139-142
+src/core/interfaces.py                             26      0   100%
+src/core/llm.py                                    20      1    95%   14
 src/core/metrics.py                                17      0   100%
 src/core/nemawashi/__init__.py                      5      0   100%
 src/core/nemawashi/analytics.py                    71     32    55%   28, 41, 46-50, 58-62, 72-73, 91-102, 110-123, 128
 src/core/nemawashi/consensus.py                    27      3    89%   37, 65-66
-src/core/nemawashi/engine.py                       38     11    71%   33-42, 47-49, 65
+src/core/nemawashi/engine.py                       44     14    68%   32-33, 46-55, 60-66, 80
 src/core/nemawashi/nomikai.py                      73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
 src/core/nemawashi/utils.py                        43      6    86%   31-33, 46-47, 50
-src/core/nodes.py                                 182     41    77%   30-32, 54, 100-101, 136-138, 154-155, 173-177, 189-190, 214-215, 221-225, 231-233, 239-243, 249-251, 285, 308-314
+src/core/nodes.py                                 182     41    77%   29-31, 53, 99-100, 135-137, 153-154, 172-176, 188-189, 213-214, 220-224, 230-232, 238-242, 248-250, 284, 307-313
 src/core/rate_limit.py                              7      0   100%
-src/core/security.py                               35      7    80%   16-17, 28-30, 43-44
+src/core/security.py                               72     29    60%   28-52, 61-62, 72, 76-77, 87-89, 98-100
 src/core/services/__init__.py                       0      0   100%
 src/core/services/file_service.py                 122     88    28%   34, 44, 51-53, 56-57, 73-74, 81-118, 130-207
-src/core/simulation.py                            103     37    64%   50-53, 85-89, 92-104, 108-120, 147, 163, 167-171, 176-178
+src/core/simulation.py                            104     37    64%   52-55, 85-89, 92-104, 108-120, 147, 163, 167-171, 176-178
 src/core/text_processing.py                        26      3    88%   31, 35-36
 src/core/theme.py                                  18      0   100%
 src/core/utils.py                                  37      7    81%   10, 38, 46, 52-58
 src/core/validation.py                              9      0   100%
 src/core/validators.py                             47     10    79%   46, 49-50, 52-53, 60, 63-64, 66-67
 src/data/__init__.py                                2      0   100%
-src/data/rag.py                                   152     16    89%   43-44, 94, 120-122, 132-134, 159-160, 179-180, 192, 203, 260
+src/data/rag.py                                   157     17    89%   44-45, 103, 120, 136-138, 148-150, 175-176, 195-196, 208, 219, 276
 src/domain_models/__init__.py                      15      0   100%
 src/domain_models/agent_prompt_spec.py             16      0   100%
 src/domain_models/alternative_analysis.py          12      0   100%
@@ -109,8 +110,8 @@ src/domain_models/transcript.py                    22      2    91%   32-33
 src/domain_models/validators.py                    25      4    84%   63-64, 69-70
 src/domain_models/value_proposition_canvas.py      16      0   100%
 src/tools/__init__.py                               2      0   100%
-src/tools/search.py                                39      4    90%   42, 83, 100-101
-src/ui/renderer.py                                 96     10    90%   87, 90-94, 118, 128-134, 154
+src/tools/search.py                                41      6    85%   40, 80, 95-96, 101-102
+src/ui/renderer.py                                 96     10    90%   83, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------------------
-TOTAL                                            2729    517    81%
-============================= 151 passed in 23.97s =============================
+TOTAL                                            2877    546    81%
+============================= 154 passed in 24.07s =============================
