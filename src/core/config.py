@@ -1,7 +1,6 @@
 from functools import lru_cache
-from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
@@ -331,6 +330,14 @@ class GovernanceConfig(BaseSettings):
         description="Max chars for search result context",
     )
 
+    @field_validator("search_query_template")
+    @classmethod
+    def validate_template(cls, v: str) -> str:
+        if "{industry}" not in v:
+            msg = "search_query_template must contain {industry} placeholder."
+            raise ValueError(msg)
+        return v
+
 
 class Settings(BaseSettings):
     """Configuration settings for the application."""
@@ -340,19 +347,37 @@ class Settings(BaseSettings):
     # Explicitly enforce required keys without defaults
     openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
     tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
-    v0_api_key: SecretStr | None = Field(
-        alias="V0_API_KEY", default=None, description="V0.dev API Key"
-    )
+    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key")
+
+    @field_validator("openai_api_key", "tavily_api_key", "v0_api_key", mode="before")
+    @classmethod
+    def validate_non_empty_key(cls, v: str | SecretStr) -> str | SecretStr:
+        secret = v.get_secret_value() if isinstance(v, SecretStr) else str(v)
+        if not secret or not secret.strip():
+            msg = "API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
+        return v
+
+    @field_validator("openai_api_key")
+    @classmethod
+    def validate_openai_key(cls, v: SecretStr) -> SecretStr:
+        ConfigValidators.validate_openai_key(v)
+        return v
+
+    @field_validator("tavily_api_key")
+    @classmethod
+    def validate_tavily_key(cls, v: SecretStr) -> SecretStr:
+        ConfigValidators.validate_tavily_key(v)
+        return v
 
     @field_validator("v0_api_key")
     @classmethod
-    def validate_v0_api_key(cls, v: SecretStr | None) -> SecretStr | None:
-        """Validate the format of the V0 API Key if provided."""
-        if v is not None:
-            secret = v.get_secret_value()
-            if not secret.strip() or len(secret) < 10:
-                msg = "v0_api_key must be at least 10 characters long if provided."
-                raise ValueError(msg)
+    def validate_v0_api_key(cls, v: SecretStr) -> SecretStr:
+        """Validate the format of the V0 API Key."""
+        secret = v.get_secret_value()
+        if len(secret) < 10:
+            msg = "v0_api_key must be at least 10 characters long."
+            raise ValueError(msg)
         return v
 
     v0_api_url: str = Field(
@@ -385,6 +410,7 @@ class Settings(BaseSettings):
         description="Max index size in MB",
     )
     rag_allowed_paths: list[str] = Field(
+        alias="RAG_ALLOWED_PATHS",
         default_factory=lambda: ["data", "vector_store", "tests"],
         description="Allowed directories for RAG",
     )
@@ -398,6 +424,29 @@ class Settings(BaseSettings):
         default=10,
         description="Max recursion depth for directory scanning",
     )
+
+    @field_validator("rag_allowed_paths", mode="before")
+    @classmethod
+    def parse_allowed_paths(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str):
+            return [p.strip() for p in v.split(",") if p.strip()]
+        return v
+
+    @field_validator("rag_max_index_size_mb")
+    @classmethod
+    def validate_rag_index_size(cls, v: int) -> int:
+        if v <= 0:
+            msg = "rag_max_index_size_mb must be positive."
+            raise ValueError(msg)
+        return v
+
+    @field_validator("rag_scan_depth_limit")
+    @classmethod
+    def validate_scan_depth(cls, v: int) -> int:
+        if v <= 0:
+            msg = "rag_scan_depth_limit must be positive."
+            raise ValueError(msg)
+        return v
     rag_batch_size: int = Field(
         alias="RAG_BATCH_SIZE",
         default=100,
@@ -456,21 +505,6 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
-    @model_validator(mode="after")
-    def validate_api_keys(self) -> Self:
-        """Validate API keys are present and have correct format."""
-        if not self.openai_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-        ConfigValidators.validate_openai_key(self.openai_api_key)
-
-        if not self.tavily_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
-        ConfigValidators.validate_tavily_key(self.tavily_api_key)
-
-        return self
-
-    def rotate_keys(self) -> None:
-        """Placeholder for key rotation."""
 
 
 @lru_cache

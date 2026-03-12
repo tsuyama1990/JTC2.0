@@ -50,14 +50,14 @@ Name                                Stmts   Miss  Cover   Missing
 src/__init__.py                         0      0   100%
 src/agents/__init__.py                  6      0   100%
 src/agents/base.py                      9      0   100%
-src/agents/builder.py                 124     47    62%   49, 53, 55-56, 91-94, 100-122, 129-130, 143-148, 155-156, 161-165, 203-205, 228-242
+src/agents/builder.py                 125     47    62%   52, 56, 58-59, 94-97, 103-125, 132-133, 146-151, 158-159, 164-168, 206-208, 231-245
 src/agents/cpo.py                      44     11    75%   56-58, 75-88, 95-97
 src/agents/governance.py              105      7    93%   98-102, 199, 204
 src/agents/ideator.py                  47     12    74%   31-34, 97-107
 src/agents/mixins.py                   23      6    74%   28, 31-35
 src/agents/personas.py                 77     10    87%   89-91, 96-97, 106-109, 157-162
 src/core/__init__.py                    0      0   100%
-src/core/config.py                    170      4    98%   354-355, 463, 467
+src/core/config.py                    203     11    95%   337-338, 357-358, 379-380, 432, 439-440, 447-448
 src/core/constants.py                  97      0   100%
 src/core/exceptions.py                  6      0   100%
 src/core/factory.py                    42     19    55%   24-25, 30, 43-49, 57-68
@@ -97,7 +97,7 @@ src/tools/search.py                    34      4    88%   39, 75, 90-91
 src/tools/v0_client.py                 61     16    74%   58-60, 103-105, 108-115, 128-129
 src/ui/renderer.py                     98     11    89%   35, 94, 97-101, 125, 135-141, 161
 -----------------------------------------------------------------
-TOTAL                                2151    340    84%
-============================= 131 passed in 19.34s =============================
+TOTAL                                2185    347    84%
+============================= 131 passed in 18.85s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

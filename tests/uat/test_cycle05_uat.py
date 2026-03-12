@@ -39,11 +39,18 @@ class TestCycle05UAT:
         # Using get_settings directly to avoid Settings import errors in tests
         mock_settings = get_settings()
 
-        # Deep copy or store original to restore later
+        # In the new strict configuration, v0_api_key is required and can't be None.
+        # We expect a validation error on construction or when passed an empty string.
+        # For testing builder agent specifically with missing config:
         original_v0 = mock_settings.v0_api_key
-        mock_settings.v0_api_key = None
 
         try:
+            # We mock the setting to return a MagicMock that raises an error or has empty value,
+            # but since SecretStr is strictly typed, it's easier to mock the get_secret_value
+            mock_secret = MagicMock()
+            mock_secret.get_secret_value.return_value = ""
+            mock_settings.v0_api_key = mock_secret
+
             with (
                 patch("src.agents.builder.get_settings", return_value=mock_settings),
                 pytest.raises(ValueError, match="Missing required API configuration"),
