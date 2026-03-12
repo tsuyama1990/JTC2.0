@@ -10,7 +10,7 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms import MockLLM
 
 from src.agents.cpo import CPOAgent
-from src.core.config import get_settings
+from src.core.config import clear_settings_cache
 from src.data.rag import RAG
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
@@ -98,7 +98,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
     Integration test for RAG: Ingest -> Persist -> Query.
     Uses real LlamaIndex components (mocked LLM/Embeddings to avoid API calls).
     """
-    get_settings.cache_clear()
+    clear_settings_cache()
 
     with (
         patch("llama_index.llms.openai.OpenAI", return_value=MockLLM()),
@@ -138,7 +138,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 @patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_cpo_agent_behavior() -> None:
     """Test CPO Agent behavior with mocked RAG."""
-    get_settings.cache_clear()
+    clear_settings_cache()
     llm = MagicMock()
     # Mock chain invoke
     mock_msg = MagicMock()

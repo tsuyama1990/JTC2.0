@@ -1,6 +1,7 @@
 import json
 import os
-from functools import lru_cache
+import threading
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -245,11 +246,25 @@ class SimulationConfig(BaseModel):
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
     circuit_breakers: list[str] = Field(
-        default_factory=lambda: json.loads(
-            os.getenv("SIMULATION_CIRCUIT_BREAKERS", '["平行線ですね", "同意します"]')
-        ),
+        default_factory=lambda: ["平行線ですね", "同意します"],
         description="List of strings that trigger early termination of a debate.",
     )
+
+    @field_validator("circuit_breakers", mode="before")
+    @classmethod
+    def parse_circuit_breakers(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list) and all(isinstance(item, str) for item in parsed):
+                    return parsed
+            except Exception:
+                import logging
+
+                logging.getLogger(__name__).warning("Invalid JSON in SIMULATION_CIRCUIT_BREAKERS, falling back to defaults.")
+        elif isinstance(v, list) and all(isinstance(item, str) for item in v):
+            return v
+        return ["平行線ですね", "同意します"]
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
@@ -496,14 +511,27 @@ class Settings(BaseSettings):
         """Placeholder for key rotation."""
 
 
-@lru_cache
-def get_settings() -> Settings:
-    """Load and cache settings."""
-    settings = Settings()
-    # Strict runtime verification
-    if os.getenv("MOCK_MODE", "false").lower() != "true" and not settings.openai_api_key:
-        from src.core.exceptions import ConfigurationError
+_settings_state: dict[str, Settings | None] = {"instance": None}
+_settings_lock = threading.Lock()
 
-        msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
-        raise ConfigurationError(msg)
-    return settings
+
+def get_settings() -> Settings:
+    """Load and cache settings using a thread-safe singleton pattern."""
+    if _settings_state["instance"] is None:
+        with _settings_lock:
+            if _settings_state["instance"] is None:
+                settings = Settings()
+                # Strict runtime verification
+                if os.getenv("MOCK_MODE", "false").lower() != "true" and not settings.openai_api_key:
+                    from src.core.exceptions import ConfigurationError
+
+                    msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
+                    raise ConfigurationError(msg)
+                _settings_state["instance"] = settings
+    return _settings_state["instance"]  # type: ignore[return-value]
+
+
+def clear_settings_cache() -> None:
+    """Explicitly clear the settings cache (useful for testing)."""
+    with _settings_lock:
+        _settings_state["instance"] = None

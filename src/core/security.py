@@ -1,10 +1,52 @@
 import logging
+import os
 from pathlib import Path
 
 from src.core.constants import ERR_PATH_TRAVERSAL
 from src.core.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
+
+
+class SecretMaskerFilter(logging.Filter):
+    """
+    Globally masks sensitive API keys in all log outputs.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.secrets = []
+        # Add common sensitive env vars to the mask list
+        for key in ["OPENAI_API_KEY", "TAVILY_API_KEY", "V0_API_KEY"]:
+            val = os.getenv(key)
+            if val and len(val) > 4:
+                self.secrets.append(val)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not self.secrets or not isinstance(record.msg, str):
+            return True
+
+        for secret in self.secrets:
+            if secret in record.msg:
+                # Mask secret, keeping first 4 and last 4 characters visible if long enough
+                masked = f"{secret[:4]}***{secret[-4:]}" if len(secret) > 10 else "***"
+                record.msg = record.msg.replace(secret, masked)
+
+        # Also check formatted string if args exist
+        if hasattr(record, "args") and record.args:
+            try:
+                formatted_msg = record.getMessage()
+                for secret in self.secrets:
+                    if secret in formatted_msg:
+                        masked = f"{secret[:4]}***{secret[-4:]}" if len(secret) > 10 else "***"
+                        formatted_msg = formatted_msg.replace(secret, masked)
+                record.msg = formatted_msg
+                record.args = ()  # Clear args since msg is fully formatted
+            except Exception: # noqa: S110
+                # Silently fail string formatting fallback; do not log here to avoid recursive loop
+                pass
+
+        return True
 
 
 def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:

@@ -49,7 +49,7 @@ _______________ coverage: platform linux, python 3.12.13-final-0 _______________
 
 Name                                            Stmts   Miss  Cover   Missing
 -----------------------------------------------------------------------------
-src/__init__.py                                     0      0   100%
+src/__init__.py                                     3      0   100%
 src/agents/__init__.py                              6      0   100%
 src/agents/base.py                                  9      0   100%
 src/agents/builder.py                              43     19    56%   30-31, 54-57, 63-89, 95
@@ -59,10 +59,10 @@ src/agents/ideator.py                              66     23    65%   44-91, 135
 src/agents/mixins.py                               23     23     0%   1-35
 src/agents/personas.py                            161     19    88%   62-63, 97, 112-113, 147, 161-162, 202, 271-273, 278-279, 288-291, 334-335
 src/agents/psf.py                                  79     11    86%   45-47, 50, 115, 123-125, 164-167
-src/agents/reviewers.py                            54      5    91%   44-46, 59-60
+src/agents/reviewers.py                            56      5    91%   56-58, 71-72
 src/agents/virtual_customer.py                     27     18    33%   17-18, 21-61
 src/core/__init__.py                                0      0   100%
-src/core/config.py                                181      3    98%   505-508
+src/core/config.py                                204     14    93%   256-267, 526-529
 src/core/constants.py                             105      0   100%
 src/core/exceptions.py                              6      0   100%
 src/core/execution.py                              22      8    64%   26-33
@@ -79,7 +79,7 @@ src/core/nemawashi/nomikai.py                      73     22    70%   34-35, 68-
 src/core/nemawashi/utils.py                        43      6    86%   31-33, 46-47, 50
 src/core/nodes.py                                 182     41    77%   29-31, 53, 99-100, 135-137, 153-154, 172-176, 188-189, 213-214, 220-224, 230-232, 238-242, 248-250, 284, 307-313
 src/core/rate_limit.py                              7      0   100%
-src/core/security.py                               35      7    80%   16-17, 28-30, 43-44
+src/core/security.py                               63     25    60%   26-49, 58-59, 70-72, 85-86
 src/core/services/__init__.py                       0      0   100%
 src/core/services/file_service.py                 122     88    28%   34, 44, 51-53, 56-57, 73-74, 81-118, 130-207
 src/core/simulation.py                            104     37    64%   52-55, 85-89, 92-104, 108-120, 147, 163, 167-171, 176-178
@@ -113,5 +113,5 @@ src/tools/__init__.py                               2      0   100%
 src/tools/search.py                                41      6    85%   40, 80, 95-96, 101-102
 src/ui/renderer.py                                 96     10    90%   83, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------------------
-TOTAL                                            2780    505    82%
-============================= 154 passed in 26.28s =============================
+TOTAL                                            2836    534    81%
+============================= 154 passed in 24.38s =============================

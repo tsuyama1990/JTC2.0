@@ -22,24 +22,36 @@ class The3HReviewAgent(BaseAgent):
         self,
         reviews: dict[str, str],
         sys_prompts: dict[str, str],
-        context: str,
+        sitemap_json: str,
+        vpc_json: str,
         circuit_breakers: list[str],
     ) -> bool:
         from langchain_core.prompts import ChatPromptTemplate
 
+        # Immutable copy of reviews for the current turn context to prevent race conditions/inconsistencies
+        frozen_reviews = dict(reviews)
+
         for role in ["Hacker", "Hipster", "Hustler"]:
-            other_feedback = "\n".join([f"{k}: {v}" for k, v in reviews.items() if k != role])
+            other_feedback = "\n".join(
+                [f"{k}: {v}" for k, v in frozen_reviews.items() if k != role]
+            )
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", sys_prompts[role]),
                     (
                         "user",
-                        f"Context: {context}\n\nPrevious Feedback:\n{other_feedback}\n\nProvide your review:",
+                        "Context:\nSitemap & Story: {sitemap}\nVPC: {vpc}\n\nPrevious Feedback:\n{other_feedback}\n\nProvide your review:",
                     ),
                 ]
             )
             try:
-                res = self.llm.invoke(prompt.format_messages())
+                res = self.llm.invoke(
+                    prompt.format_messages(
+                        sitemap=sitemap_json,
+                        vpc=vpc_json,
+                        other_feedback=other_feedback,
+                    )
+                )
                 reviews[role] = str(getattr(res, "content", res))
             except Exception:
                 logger.exception(f"Failed {role} review")
@@ -65,10 +77,9 @@ class The3HReviewAgent(BaseAgent):
         consensus_reached = False
         circuit_broken = False
 
-        context = "Sitemap & Story: {}\nVPC: {}".format(
-            state.sitemap_and_story.model_dump_json().replace("{", "{{").replace("}", "}}"),
-            state.value_proposition_canvas.model_dump_json().replace("{", "{{").replace("}", "}}"),
-        )
+        sitemap_json = state.sitemap_and_story.model_dump_json()
+        vpc_json = state.value_proposition_canvas.model_dump_json()
+
         sys_prompts = {
             "Hacker": "【前提とするサイトマップと機能要件を遵守しつつ】技術的負債、スケーラビリティ、セキュリティの観点からワイヤーフレームをレビューせよ。不要に複雑なDB構造やリアルタイム通信を避け、スプレッドシートや既存APIのモックで代替できないか追求せよ。同意できる場合は「[APPROVED]」と出力せよ。",
             "Hipster": "【前提とするメンタルモデルとペルソナを遵守しつつ】ユーザーの『Don't make me think（考えさせるな）』の原則に基づきUXをレビューせよ。メンタルモデルに反するオンボーディングの摩擦、タップ回数の多さ、エラー時の不親切さを指摘せよ。同意できる場合は「[APPROVED]」と出力せよ。",
@@ -79,7 +90,9 @@ class The3HReviewAgent(BaseAgent):
         while turn < max_turns:
             logger.info(f"3H Review Turn {turn + 1}/{max_turns}")
 
-            circuit_broken = self._run_turn(reviews, sys_prompts, context, circuit_breakers)
+            circuit_broken = self._run_turn(
+                reviews, sys_prompts, sitemap_json, vpc_json, circuit_breakers
+            )
 
             if circuit_broken:
                 break
