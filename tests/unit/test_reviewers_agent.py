@@ -45,8 +45,8 @@ def _setup_base_state() -> GlobalState:
 
 def test_3h_review_immediate_consensus() -> None:
     state = _setup_base_state()
-    mock_llm = MagicMock()
-    mock_response = MagicMock()
+    mock_llm: MagicMock = MagicMock()
+    mock_response: MagicMock = MagicMock()
     mock_response.content = "Looks good. [APPROVED]"
     mock_llm.invoke.return_value = mock_response
 
@@ -62,10 +62,10 @@ def test_3h_review_immediate_consensus() -> None:
 
 def test_3h_review_circuit_breaker() -> None:
     state = _setup_base_state()
-    mock_llm = MagicMock()
-    mock_response1 = MagicMock()
+    mock_llm: MagicMock = MagicMock()
+    mock_response1: MagicMock = MagicMock()
     mock_response1.content = "Looks good. [APPROVED]"
-    mock_response2 = MagicMock()
+    mock_response2: MagicMock = MagicMock()
     mock_response2.content = "Wait, 平行線ですね this won't work."
     mock_llm.invoke.side_effect = [mock_response1, mock_response2]
 
@@ -80,8 +80,8 @@ def test_3h_review_circuit_breaker() -> None:
 
 def test_3h_review_max_turns_no_consensus() -> None:
     state = _setup_base_state()
-    mock_llm = MagicMock()
-    mock_response = MagicMock()
+    mock_llm: MagicMock = MagicMock()
+    mock_response: MagicMock = MagicMock()
     mock_response.content = "I disagree."
     mock_llm.invoke.return_value = mock_response
 
