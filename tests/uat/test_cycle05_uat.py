@@ -25,6 +25,7 @@ class TestCycle05UAT:
         """Apply env patching at the fixture level instead of class level."""
         with patch.dict(os.environ, DUMMY_ENV_VARS):
             yield
+
     def test_uat_c05_00_config_loading(self) -> None:
         """
         Verify get_settings() behavior with missing configuration.
@@ -45,7 +46,7 @@ class TestCycle05UAT:
         try:
             with (
                 patch("src.agents.builder.get_settings", return_value=mock_settings),
-                pytest.raises(ValueError, match="Missing required API configuration")
+                pytest.raises(ValueError, match="Missing required API configuration"),
             ):
                 BuilderAgent(llm=MagicMock())
         finally:
@@ -193,7 +194,7 @@ class TestCycle05UAT:
 
                 with (
                     patch("src.tools.v0_client.httpx.Client", return_value=mock_client_ctx),
-                    pytest.raises(V0GenerationError, match="V0 generation failed")
+                    pytest.raises(V0GenerationError, match="V0 generation failed"),
                 ):
                     client.generate_ui("test prompt")
 
@@ -221,7 +222,7 @@ class TestCycle05UAT:
 
                 with pytest.raises(
                     (RuntimeError, V0GenerationError),
-                    match="Feature extraction failed|V0 API generation failed|Mocked failure"
+                    match="Feature extraction failed|V0 API generation failed|Mocked failure",
                 ):
                     agent.generate_mvp(initial_state)
         finally:

@@ -72,7 +72,10 @@ class BuilderAgent(BaseAgent):
         for chunk in self._create_content_stream(solution_description, chunk_size):
             prompt = ChatPromptTemplate.from_messages(
                 [
-                    ("system", "You are a product manager. Extract distinct features from the solution description."),
+                    (
+                        "system",
+                        "You are a product manager. Extract distinct features from the solution description.",
+                    ),
                     ("user", f"Solution Description: {chunk}\n\nList the features:"),
                 ]
             )
@@ -94,14 +97,17 @@ class BuilderAgent(BaseAgent):
         """
         Create a detailed MVP Spec for the selected feature.
         """
+        from src.core.prompts import PROMPT_MVP_SPEC_SYSTEM, PROMPT_MVP_SPEC_USER
+
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.settings.prompts.v0_system),
-                ("user", self.settings.prompts.v0_user.format(
-                    app_name=app_name,
-                    feature=feature,
-                    idea_context=idea_context
-                )),
+                ("system", PROMPT_MVP_SPEC_SYSTEM),
+                (
+                    "user",
+                    PROMPT_MVP_SPEC_USER.format(
+                        app_name=app_name, feature=feature, idea_context=idea_context
+                    ),
+                ),
             ]
         )
         chain = prompt | self.llm.with_structured_output(MVPSpec)
@@ -169,12 +175,9 @@ class BuilderAgent(BaseAgent):
         def sanitize_input(text: str) -> str:
             """Sanitize user input to prevent prompt injection."""
             import html
-            import re
 
             # HTML escape to prevent markup injection
-            text = html.escape(text)
-            # Remove brackets that could be used for template injection
-            return re.sub(r"[{}]", "", text)
+            return html.escape(text)
 
         sanitized_app_name = sanitize_input(spec.app_name)
         sanitized_core_feature = sanitize_input(spec.core_feature)

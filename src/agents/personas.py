@@ -33,8 +33,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         self.settings = app_settings or get_settings()
 
         # Ensure API keys are present if we are initializing default tools
-        if search_tool is None:
-            self.settings.validate_api_keys()
+        # Validation is already done via @model_validator in config on instantiation.
 
         self.search_tool = search_tool or TavilySearch(
             api_key=self.settings.tavily_api_key.get_secret_value()
