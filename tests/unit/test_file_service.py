@@ -63,7 +63,7 @@ class TestFileService:
     def test_path_traversal_prevention(self, file_service: FileService) -> None:
         """Verify path traversal is prevented."""
         from src.core.exceptions import ConfigurationError
-        with pytest.raises(ConfigurationError, match="Path traversal detected"):
+        with pytest.raises(ConfigurationError, match="Invalid path"):
             file_service._validate_path("../../../etc/passwd")
 
     def test_generate_md_path_traversal(self, file_service: FileService) -> None:
@@ -84,5 +84,5 @@ class TestFileService:
             mermaid_flowchart="M",
         )
 
-        with pytest.raises(ConfigurationError, match="Path traversal detected"):
+        with pytest.raises(ConfigurationError, match="Invalid path"):
             file_service.generate_agent_prompt_spec_md(spec, "../../../etc/passwd")

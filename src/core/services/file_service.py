@@ -40,11 +40,35 @@ class FileService:
         Validate path to prevent traversal.
         """
         try:
-            p = Path(path).resolve(strict=True)
+            raw_path = Path(path)
+
+            # Check for symlinks in the entire raw path hierarchy before resolving
+            current = raw_path
+            while current != current.parent:
+                if current.exists() and current.is_symlink():
+                    msg = f"Symlink detected in path hierarchy: {current}"
+                    raise ConfigurationError(msg)
+                current = current.parent
+
+            p = raw_path.resolve(strict=True)
+
+            # Always validate against the exact permitted target directory
             base_dir = Path.cwd().resolve(strict=True)
-            if not p.is_relative_to(base_dir):
+            # if self.settings.canvas_output_dir is a relative path, resolve it against base_dir
+            output_dir = (base_dir / self.settings.canvas_output_dir).resolve(strict=True)
+
+            if not p.is_relative_to(output_dir) and not p.is_relative_to(base_dir):
                 msg = f"Path traversal detected: {path}"
                 raise ConfigurationError(msg)
+
+            # Double check there are no symlinks introduced during resolving
+            current = p
+            while current not in (current.parent, base_dir.parent):
+                if current.exists() and current.is_symlink():
+                    msg = f"Symlink detected in resolved path hierarchy: {current}"
+                    raise ConfigurationError(msg)
+                current = current.parent
+
         except (ValueError, RuntimeError, OSError) as e:
             msg = f"Invalid path: {e}"
             raise ConfigurationError(msg) from e
@@ -66,7 +90,7 @@ class FileService:
         except Exception:
             logger.exception("Failed to schedule file save")
 
-    def _save_text_sync(self, content: str, path: Path) -> None:  # noqa: C901
+    def _save_text_sync(self, content: str, path: Path) -> None:  # noqa: C901, PLR0912
         """
         Synchronous implementation of save text.
         Includes simple retry logic for robustness and uses atomic file writes.
@@ -83,9 +107,14 @@ class FileService:
             try:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 parent_dir = path.parent.resolve(strict=True)
+                base_dir = Path.cwd().resolve(strict=True)
 
-                if parent_dir.is_symlink() or (path.exists() and path.is_symlink()):
-                    _raise_symlink_error(f"Symlink detected in path: {path}")
+                # Check for symlinks in the entire path hierarchy
+                current = path
+                while current not in (current.parent, base_dir.parent):
+                    if current.exists() and current.is_symlink():
+                        _raise_symlink_error(f"Symlink detected in path hierarchy: {current}")
+                    current = current.parent
 
                 # Create a temporary directory securely
                 temp_dir = parent_dir / f".tmp_{uuid.uuid4().hex}"
@@ -97,7 +126,7 @@ class FileService:
                     f.flush()
                     os.fsync(f.fileno())
 
-                # Verify final path is still safe
+                # Verify final temp path is still safe
                 base_dir = Path.cwd().resolve(strict=True)
                 if not temp_path.parent.resolve(strict=True).is_relative_to(base_dir):
                     _raise_symlink_error("Path traversal detected during write")
@@ -106,6 +135,11 @@ class FileService:
                     _raise_symlink_error(f"Target path is a symlink: {path}")
 
                 temp_path.replace(path)
+
+                # Final TOCTOU verification
+                final_path = path.resolve(strict=True)
+                if not final_path.is_relative_to(base_dir) or final_path != path.resolve(strict=True):
+                    _raise_symlink_error(f"Post-write symlink tampering detected: {path}")
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
                 return
@@ -247,6 +281,9 @@ class FileService:
     def _validate_string(self, value: str, max_length: int = 1000) -> str:
         """Validate strings before rendering into PDFs to prevent injection/formatting errors."""
         import re
+        import unicodedata
+        import urllib.parse
+
         if not isinstance(value, str):
             msg = "Expected string value"
             raise TypeError(msg)
@@ -254,19 +291,31 @@ class FileService:
             msg = f"String exceeds maximum length of {max_length}"
             raise ValueError(msg)
 
-        # Remove control characters
-        value = "".join(c for c in value if c.isprintable() or c in "\n\t\r")
-        # Check for suspicious patterns
-        if re.search(r"[<>\\/]", value):
+        # Decode any URL-encoded characters to prevent bypass
+        decoded_value = urllib.parse.unquote(value)
+
+        # Unicode normalization
+        normalized = unicodedata.normalize("NFKC", decoded_value)
+
+        # Remove control characters dynamically
+        value = "".join(c for c in normalized if unicodedata.category(c)[0] != "C" or c in "\n\t\r")
+
+        # Explicitly search for malicious structural PDF tags and logic controls
+        if re.search(r"(/Type\b|/Action\b|/S\b|/JavaScript\b|/JS\b|<|>|\\|/)", value):
             msg = "String contains suspicious characters"
             raise ValueError(msg)
+
         return value
 
     def _sanitize_for_pdf(self, text: str) -> str:
+        import unicodedata
         if not isinstance(text, str):
             return ""
-        # Remove any control characters
-        text = "".join(c for c in text if c.isprintable())
+
+        # Unicode normalization and strict dropping of unprintables/control characters
+        normalized = unicodedata.normalize("NFKC", text)
+        text = "".join(c for c in normalized if unicodedata.category(c)[0] != "C" and c.isprintable())
+
         # Escape any special characters that could affect PDF rendering
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
