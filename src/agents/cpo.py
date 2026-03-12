@@ -25,8 +25,8 @@ class CPOAgent(PersonaAgent):
     def __init__(
         self,
         llm: BaseChatModel,
-        search_tool: SearchTool | None = None,
-        app_settings: Settings | None = None,
+        search_tool: SearchTool,
+        app_settings: Settings,
         rag_path: str | None = None,
     ) -> None:
         system_prompt = (
@@ -44,17 +44,20 @@ class CPOAgent(PersonaAgent):
         actual_rag_path = rag_path or self.settings.rag_persist_dir
 
         # Security: Validate RAG path against allowed config securely
+        import os
         from pathlib import Path
 
         is_allowed = False
-        resolved_actual = Path(actual_rag_path).resolve(strict=False)
+        # Resolve to absolute path to fully resolve any ../ or symlinks
+        abs_actual = str(Path(actual_rag_path).resolve())
 
         for allowed_path in self.settings.rag_allowed_paths:
-            resolved_allowed = Path(allowed_path).resolve(strict=False)
+            abs_allowed = str(Path(allowed_path).resolve())
             try:
-                resolved_actual.relative_to(resolved_allowed)
-                is_allowed = True
-                break
+                # commonpath checks if the target path sits strictly inside the allowed boundary
+                if os.path.commonpath([abs_allowed, abs_actual]) == abs_allowed:
+                    is_allowed = True
+                    break
             except ValueError:
                 continue
 

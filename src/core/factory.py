@@ -41,10 +41,15 @@ class AgentFactory:
         # CPO needs state context, so it's harder to cache globally without state key.
         # But other personas are stateless w.r.t construction.
         if role == Role.CPO:
+            from src.tools.search import TavilySearch
+
             llm = get_llm()
             settings = get_settings()
+            search_tool = TavilySearch(
+                api_key=settings.tavily_api_key.get_secret_value()
+            )
             rag_path = state.rag_index_path if state else settings.rag_persist_dir
-            return CPOAgent(llm, app_settings=settings, rag_path=rag_path)
+            return CPOAgent(llm, search_tool=search_tool, app_settings=settings, rag_path=rag_path)
 
         return AgentFactory._get_cached_persona(role)
 
@@ -54,15 +59,20 @@ class AgentFactory:
         Factory for stateless persona agents.
         No caching to ensure fresh configuration usage (e.g. LLM model changes).
         """
+        from src.tools.search import TavilySearch
+
         llm = get_llm()
         settings = get_settings()
+        search_tool = TavilySearch(
+            api_key=settings.tavily_api_key.get_secret_value()
+        )
 
         if role == Role.NEW_EMPLOYEE:
-            return NewEmployeeAgent(llm, app_settings=settings)
+            return NewEmployeeAgent(llm, search_tool=search_tool, app_settings=settings)
         if role == Role.FINANCE:
-            return FinanceAgent(llm, app_settings=settings)
+            return FinanceAgent(llm, search_tool=search_tool, app_settings=settings)
         if role == Role.SALES:
-            return SalesAgent(llm, app_settings=settings)
+            return SalesAgent(llm, search_tool=search_tool, app_settings=settings)
 
         msg = f"Unknown role: {role}"
         raise ValueError(msg)

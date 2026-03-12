@@ -66,7 +66,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     # If self.llm is a mock, it returns `self.llm()`.
     # We set `return_value` so `self.llm(...)` returns `mock_chain_result`.
 
-    cpo = CPOAgent(mock_llm_instance)
+    cpo = CPOAgent(mock_llm_instance, search_tool=MagicMock(), app_settings=get_settings())
     result = cpo.run(state)
 
     # Verify RAG was consulted
@@ -121,7 +121,7 @@ def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicM
     mock_llm_instance.return_value = mock_chain_result
 
     # Run CPO Agent
-    cpo = CPOAgent(mock_llm_instance)
+    cpo = CPOAgent(mock_llm_instance, search_tool=MagicMock(), app_settings=get_settings())
     result = cpo.run(state)
 
     # Verify

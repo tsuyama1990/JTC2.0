@@ -24,14 +24,40 @@ class StateValidator:
         Raises:
             ValueError: If requirements for the phase are not met.
         """
+        import re
+
         from src.domain_models.enums import Phase
 
-        if state.phase == Phase.VERIFICATION and state.target_persona is None:
-            msg = "Target persona is required for this phase."
-            raise ValueError(msg)
+        if not isinstance(state.phase, Phase):
+            msg = f"Invalid phase enum value: {state.phase}"
+            raise TypeError(msg)
 
-        if state.phase == Phase.SOLUTION and state.mvp_definition is None:
-            msg = "MVP definition is required for this phase."
-            raise ValueError(msg)
+        def _check(field_name: str, phase_name: str) -> None:
+            if getattr(state, field_name, None) is None:
+                msg = f"Missing field '{field_name}' required for the {phase_name} phase."
+                raise ValueError(msg)
+
+        # Basic topic sanitization
+        if state.topic:
+            sanitized = re.sub(r"<[^>]*>", "", state.topic)
+            sanitized = sanitized.replace("\x00", "")
+            sanitized = re.sub(r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b", "[REDACTED]", sanitized)
+            sanitized = sanitized.replace("--", "").replace(";", "")
+            state.topic = sanitized
+
+        if state.phase == Phase.VERIFICATION:
+            _check("target_persona", "VERIFICATION")
+
+        elif state.phase == Phase.SOLUTION:
+            _check("mental_model", "SOLUTION")
+            _check("customer_journey", "SOLUTION")
+            _check("sitemap_and_story", "SOLUTION")
+
+        elif state.phase == Phase.PMF:
+            _check("mvp_definition", "PMF")
+
+        elif state.phase == Phase.GOVERNANCE:
+            _check("experiment_plan", "GOVERNANCE")
+            _check("agent_prompt_spec", "GOVERNANCE")
 
         return state

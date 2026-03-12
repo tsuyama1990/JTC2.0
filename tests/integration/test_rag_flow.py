@@ -142,7 +142,7 @@ def test_cpo_agent_behavior() -> None:
 
     # Init agent with valid path to pass strict validation
     # Uses the default from settings since we validate exact match
-    agent = CPOAgent(llm, rag_path=get_settings().rag_persist_dir)
+    agent = CPOAgent(llm, search_tool=MagicMock(), app_settings=get_settings(), rag_path=get_settings().rag_persist_dir)
 
     # Mock internal RAG
     agent.rag = MagicMock()

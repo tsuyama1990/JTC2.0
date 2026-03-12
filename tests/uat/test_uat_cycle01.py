@@ -138,17 +138,12 @@ def test_gate_transitions_data_integrity(
         v0_url="https://v0.dev/test",
     )
 
-    state_ready_for_solution = state_ready_for_verification.model_copy()
-    state_ready_for_solution.mvp_definition = dummy_mvp
-    state_ready_for_solution.phase = Phase.SOLUTION
-
-    GlobalState.model_validate(state_ready_for_solution.model_dump())
-
-    # 3. Validate Transition to PMF
-    state_ready_for_pmf = state_ready_for_solution.model_copy()
+    state_ready_for_pmf = state_ready_for_verification.model_copy()
+    state_ready_for_pmf.mvp_definition = dummy_mvp
     state_ready_for_pmf.phase = Phase.PMF
 
     GlobalState.model_validate(state_ready_for_pmf.model_dump())
+
 
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)

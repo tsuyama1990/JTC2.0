@@ -138,13 +138,11 @@ def test_global_state_lifecycle_validation() -> None:
     state = GlobalState()
     assert state.phase == Phase.IDEATION
 
-    settings = get_settings()
-
     # Should allow VERIFICATION transition only with persona
     state.phase = Phase.VERIFICATION
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
-    assert settings.errors.missing_persona in str(exc.value)
+    assert "Missing field 'target_persona'" in str(exc.value)
 
     # Correct transition
     state.target_persona = Persona(
@@ -159,11 +157,11 @@ def test_global_state_lifecycle_validation() -> None:
     # Should pass now
     GlobalState.model_validate(state.model_dump())
 
-    # Should allow SOLUTION transition only with MVP
+    # Should allow SOLUTION transition only with mental model, journey, sitemap
     state.phase = Phase.SOLUTION
     with pytest.raises(ValidationError) as exc:
         GlobalState.model_validate(state.model_dump())
-    assert settings.errors.missing_mvp in str(exc.value)
+    assert "Missing field 'mental_model'" in str(exc.value)
 
 
 def test_agent_state_creation() -> None:

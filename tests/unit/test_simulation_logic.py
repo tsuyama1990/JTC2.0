@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.agents.personas import FinanceAgent, NewEmployeeAgent
+from src.core.config import get_settings
 from src.core.simulation import create_simulation_graph
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.metrics import AARRR
@@ -45,7 +46,7 @@ def test_finance_agent_research_logic(mock_llm: MagicMock) -> None:
     mock_search = MagicMock()
     mock_search.safe_search.return_value = "Risks found."
 
-    agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
+    agent = FinanceAgent(llm=mock_llm, search_tool=mock_search, app_settings=get_settings())
 
     res = agent._research_impl("AI")
 
@@ -58,7 +59,7 @@ def test_cached_research_logic(mock_llm: MagicMock) -> None:
     mock_search = MagicMock()
     mock_search.safe_search.side_effect = ["Result 1", "Result 2"]
 
-    agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
+    agent = FinanceAgent(llm=mock_llm, search_tool=mock_search, app_settings=get_settings())
     agent._min_request_interval = 0.01  # Minimal delay for test speed but > 0 to test logic path
 
     # First call
@@ -82,7 +83,7 @@ def test_rate_limit_wait(mock_llm: MagicMock) -> None:
     import time
 
     mock_search = MagicMock()
-    agent = FinanceAgent(llm=mock_llm, search_tool=mock_search)
+    agent = FinanceAgent(llm=mock_llm, search_tool=mock_search, app_settings=get_settings())
     agent._min_request_interval = 0.1
 
     start = time.time()
@@ -98,25 +99,21 @@ def test_rate_limit_wait(mock_llm: MagicMock) -> None:
     assert (end - start) >= 0.1
 
 
-@patch("src.agents.personas.TavilySearch")
 @patch("src.core.factory.get_llm")
-def test_simulation_graph_structure(mock_get_llm: MagicMock, mock_tavily: MagicMock) -> None:
+def test_simulation_graph_structure(mock_get_llm: MagicMock) -> None:
     """Test the structure of the simulation graph."""
     mock_get_llm.return_value = MagicMock()
-    mock_tavily.return_value = MagicMock()
 
     graph = create_simulation_graph()
     assert graph is not None
 
 
-@patch("src.agents.personas.TavilySearch")
 def test_persona_agent_run(
-    mock_tavily: MagicMock, mock_llm: MagicMock, mock_state: GlobalState
+    mock_llm: MagicMock, mock_state: GlobalState
 ) -> None:
     """Test PersonaAgent.run logic."""
-    mock_tavily.return_value = MagicMock()
 
-    agent = NewEmployeeAgent(llm=mock_llm)
+    agent = NewEmployeeAgent(llm=mock_llm, search_tool=MagicMock(), app_settings=get_settings())
 
     with patch.object(agent, "_generate_response", return_value="Defended!"):
         result = agent.run(mock_state)

@@ -7,10 +7,9 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from src.agents.base import BaseAgent, SearchTool
 from src.agents.mixins import RateLimitMixin
-from src.core.config import Settings, get_settings
+from src.core.config import Settings
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
-from src.tools.search import TavilySearch
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +22,20 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
         llm: BaseChatModel,
         role: Role,
         system_prompt: str,
-        search_tool: SearchTool | None = None,
-        app_settings: Settings | None = None,
+        search_tool: SearchTool,
+        app_settings: Settings,
     ) -> None:
         RateLimitMixin.__init__(self)
         self.llm = llm
         self.role = role
         self.system_prompt = system_prompt
-        self.settings = app_settings or get_settings()
 
-        # Ensure API keys are present if we are initializing default tools
-        # Validation is already done via @model_validator in config on instantiation.
+        if search_tool is None or app_settings is None:
+            msg = "search_tool and app_settings are strictly required."
+            raise ValueError(msg)
 
-        self.search_tool = search_tool or TavilySearch(
-            api_key=self.settings.tavily_api_key.get_secret_value()
-            if self.settings.tavily_api_key
-            else None
-        )
+        self.settings = app_settings
+        self.search_tool = search_tool
         self._research_cache: dict[str, str] = {}
 
     def _build_context(self, state: GlobalState) -> str:
@@ -128,8 +124,8 @@ class FinanceAgent(PersonaAgent):
     def __init__(
         self,
         llm: BaseChatModel,
-        search_tool: SearchTool | None = None,
-        app_settings: Settings | None = None,
+        search_tool: SearchTool,
+        app_settings: Settings,
     ) -> None:
         system_prompt = (
             "You are a conservative Finance Manager at a large Japanese traditional company. "
@@ -151,8 +147,8 @@ class SalesAgent(PersonaAgent):
     def __init__(
         self,
         llm: BaseChatModel,
-        search_tool: SearchTool | None = None,
-        app_settings: Settings | None = None,
+        search_tool: SearchTool,
+        app_settings: Settings,
     ) -> None:
         system_prompt = (
             "You are an aggressive Sales Manager. "
@@ -168,8 +164,8 @@ class NewEmployeeAgent(PersonaAgent):
     def __init__(
         self,
         llm: BaseChatModel,
-        search_tool: SearchTool | None = None,
-        app_settings: Settings | None = None,
+        search_tool: SearchTool,
+        app_settings: Settings,
     ) -> None:
         system_prompt = (
             "You are a new employee presenting a startup idea. "

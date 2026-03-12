@@ -96,9 +96,18 @@ class GlobalState(BaseModel):
                 msg = f"Transcript {transcript.source} content is too short."
                 raise ValueError(msg)
 
-            # Basic sanitization: remove potential script tags or null bytes
-            sanitized = re.sub(r"(?i)<script.*?>.*?</script>", "", transcript.content)
+            # Advanced sanitization: strip all HTML tags to prevent XSS
+            sanitized = re.sub(r"<[^>]*>", "", transcript.content)
+            # Remove null bytes
             sanitized = sanitized.replace("\x00", "")
+            # Remove common SQL injection fragments if matched exactly
+            sanitized = re.sub(r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b", "[REDACTED]", sanitized)
+            sanitized = sanitized.replace("--", "").replace(";", "")
+
+            if len(sanitized.strip()) < 10:
+                msg = f"Transcript {transcript.source} content is too short after sanitization."
+                raise ValueError(msg)
+
             transcript.content = sanitized
 
         return v
@@ -109,15 +118,21 @@ class GlobalState(BaseModel):
         import os
         from pathlib import Path
 
-        if not v:
+        if not v or not v.strip():
             return v
 
         is_allowed = False
         allowed_paths = os.getenv("RAG_ALLOWED_PATHS", "data,vector_store,tests,./vector_store").split(",")
+
+        abs_v = str(Path(v).resolve())
         for allowed_path in allowed_paths:
-            if v == allowed_path or v.startswith(allowed_path + "/"):
-                is_allowed = True
-                break
+            abs_allowed = str(Path(allowed_path.strip()).resolve())
+            try:
+                if os.path.commonpath([abs_allowed, abs_v]) == abs_allowed:
+                    is_allowed = True
+                    break
+            except ValueError:
+                continue
 
         if not is_allowed:
             msg = f"Invalid RAG path '{v}'. Must be within allowed paths: {allowed_paths}"
@@ -134,6 +149,9 @@ class GlobalState(BaseModel):
     def validate_agent_states(cls, v: dict[Role, AgentState]) -> dict[Role, AgentState]:
         """Ensure agent_states keys match the AgentState role."""
         for role, state in v.items():
+            if not isinstance(role, Role):
+                msg = f"agent_states keys must be Role enums, got {type(role).__name__}"
+                raise TypeError(msg)
             if role != state.role:
                 msg = f"Key {role} does not match AgentState role {state.role}"
                 raise ValueError(msg)
@@ -152,11 +170,15 @@ class GlobalState(BaseModel):
             return v
 
         # Reject invalid types explicitly
-        msg = f"generated_ideas must be an Iterator, got {type(v)}"
+        msg = f"Invalid type for generated_ideas. Expected an Iterator that yields LeanCanvas objects, but got {type(v).__name__} instead. Ensure you are passing a generator or Iterator."
         raise TypeError(msg)
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:
-        """Apply all state validators."""
-        StateValidator.validate_phase_requirements(self)
+        """Apply all state validators safely returning verbose context."""
+        try:
+            StateValidator.validate_phase_requirements(self)
+        except ValueError as e:
+            msg = f"State Validation Failed: {e}"
+            raise ValueError(msg) from e
         return self
