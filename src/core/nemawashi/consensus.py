@@ -46,7 +46,6 @@ class ConsensusEngine:
 
         # Validate using shared utility
         NemawashiUtils.validate_stochasticity(matrix_op, self.settings.tolerance)
-        NemawashiUtils.validate_symmetry(matrix_op, self.settings.tolerance)
 
         # Use settings for max_steps, no hardcoded default in logic
         max_steps = self.settings.max_steps

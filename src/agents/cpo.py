@@ -5,10 +5,9 @@ from typing import Any
 from src.agents.base import SearchTool
 from src.agents.personas import PersonaAgent
 from src.core.config import Settings
-from src.core.interfaces import ILLMClient
+from src.core.interfaces import ILLMClient, IStateContext
 from src.data.rag import RAG
 from src.domain_models.simulation import DialogueMessage, Role
-from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ class CPOAgent(PersonaAgent):
             logger.exception("Error querying RAG")
             return "No customer insights available due to error."
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         """
         Run the CPO agent logic with Nemawashi context.
         """

@@ -1,12 +1,13 @@
 import logging
 from typing import Any
 
+from langchain_core.prompts import ChatPromptTemplate
+
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
-from src.core.interfaces import ILLMClient
+from src.core.interfaces import ILLMClient, IStateContext
 from src.domain_models.agent_prompt_spec import AgentPromptSpec
 from src.domain_models.experiment_plan import ExperimentPlan
-from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +22,13 @@ class BuilderAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
 
-    def generate_spec(self, state: GlobalState) -> dict[str, Any]:
+    def generate_spec(self, state: IStateContext) -> dict[str, Any]:
         """
         Generate AgentPromptSpec using LLM with structured output.
         """
         if not state.sitemap_and_story:
             logger.warning("No sitemap available for Spec Generation.")
             return {}
-
-        from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -57,15 +56,13 @@ class BuilderAgent(BaseAgent):
 
         return {}
 
-    def generate_experiment_plan(self, state: GlobalState) -> dict[str, Any]:
+    def generate_experiment_plan(self, state: IStateContext) -> dict[str, Any]:
         """
         Generate ExperimentPlan using LLM with structured output.
         """
         if not state.agent_prompt_spec:
             logger.warning("No AgentPromptSpec available for Experiment Plan Generation.")
             return {}
-
-        from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -91,7 +88,7 @@ class BuilderAgent(BaseAgent):
 
         return {}
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         """
         Run method. Delegates to generate_spec (default behavior).
         """

@@ -3,11 +3,10 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
-from src.core.interfaces import ILLMClient
+from src.core.interfaces import ILLMClient, IStateContext
 from src.domain_models.customer_journey import CustomerJourney
 from src.domain_models.mental_model_diagram import MentalModelDiagram
 from src.domain_models.sitemap_and_story import SitemapAndStory
-from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ class MentalModelJourneyAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         if not state.target_persona or not state.value_proposition_canvas:
             msg = "Missing required context for Mental Model & Journey Mapping (target_persona or value_proposition_canvas)."
             logger.error(msg)
@@ -139,7 +138,7 @@ class SitemapWireframeAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         if not state.customer_journey:
             msg = "Missing Customer Journey for Sitemap generation."
             logger.error(msg)

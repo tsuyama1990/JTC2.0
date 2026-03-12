@@ -60,9 +60,9 @@ class TestBuilderAgent:
                 validation_rules="V",
                 mermaid_flowchart="M",
             )
-            mock_chain.invoke.return_value = spec
+            mock_model_runnable.invoke.return_value = spec
 
-            result = agent.generate_spec(state_with_context)
+            result = agent.generate_spec(state_with_context)  # type: ignore[arg-type]
 
             assert "agent_prompt_spec" in result
             assert result["agent_prompt_spec"] == spec

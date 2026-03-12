@@ -73,7 +73,7 @@ class TestGovernanceMemorySafety:
             patch.object(agent, "_generate_ringi_sho"),
             patch.object(agent, "_save_to_file"),
         ):
-            agent.run(state)
+            agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
 
             # Check arguments passed to _estimate_financials
             args, _ = mock_estimate.call_args

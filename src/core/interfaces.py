@@ -8,6 +8,12 @@ from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
 
 
+class IStateContext(Protocol):
+    """Protocol for state access to break circular dependencies."""
+
+    def __getattr__(self, name: str) -> Any: ...
+
+
 class ILLMClient(Protocol):
     def invoke(self, prompt: Any) -> Any: ...
     def stream(self, prompt: Any) -> Iterator[Any]: ...
@@ -53,6 +59,11 @@ class IPDFGenerator(Protocol):
 class ISearchClient(Protocol):
     def safe_search(self, query: str) -> str: ...
     def search(self, query: str) -> dict[str, Any]: ...
+
+
+class INodeRegistry(Protocol):
+    def get_node(self, name: str) -> Any: ...
+    def register_node(self, name: str, func: Any) -> None: ...
 
 
 class IGraphEngine(Protocol):

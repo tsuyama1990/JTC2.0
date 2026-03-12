@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class MentalTower(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     belief: str = Field(
         ..., description="ユーザーの根底にある信念や価値観（例：『時間を無駄にしたくない』）"
     )

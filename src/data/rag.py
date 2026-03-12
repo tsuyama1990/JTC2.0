@@ -3,6 +3,7 @@ import os
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pybreaker
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -47,10 +48,15 @@ class IngestionRequest(BaseModel):
 
 class RAG:
     """
-    Retrieval-Augmented Generation (RAG) engine using LlamaIndex.
+    Retrieval-Augmented Generation (RAG) engine.
     """
 
-    def __init__(self, persist_dir: str | None = None) -> None:
+    def __init__(
+        self,
+        persist_dir: str | None = None,
+        vector_store: IVectorStore | None = None,
+        embedding_service: Any | None = None,  # Used to avoid strict import if custom injected
+    ) -> None:
         self.settings = get_settings()
         # Security: Validate persist_dir path
         raw_path = persist_dir or self.settings.rag_persist_dir
@@ -76,14 +82,17 @@ class RAG:
                 ttl_hash=int(time.time() // 60),  # Refresh every minute
             )
 
-        self.index: IVectorStore | None = None
-        self._init_llama()
+        self.index: IVectorStore | None = vector_store
+
+        # Only initialize default global LlamaIndex instances if no custom vector store is injected
+        if self.index is None:
+            self._init_llama(embedding_service)
 
     def _validate_path(self, path_str: str) -> str:
         """Ensure persist directory is safe."""
         return validate_safe_path(path_str, self.settings.rag_allowed_paths)
 
-    def _init_llama(self) -> None:
+    def _init_llama(self, embedding_service: Any | None = None) -> None:
         """Initialize LlamaIndex settings and load existing index if available."""
         import os
 
@@ -95,13 +104,20 @@ class RAG:
 
             api_key_str = self.settings.openai_api_key.get_secret_value()
 
-            # Local import to prevent architectural hard-coupling at module level
+            # We use dynamic imports as a fallback default when DI is not provided
             from llama_index.core import Settings as LlamaSettings
-            from llama_index.embeddings.openai import OpenAIEmbedding
             from llama_index.llms.openai import OpenAI
 
-            LlamaSettings.llm = OpenAI(model=self.settings.llm_model, api_key=api_key_str)
-            LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
+            # Resolve default model since Settings.llm_model may now be None
+            resolved_model = self.settings.llm_model or "gpt-4o"
+            LlamaSettings.llm = OpenAI(model=resolved_model, api_key=api_key_str)
+
+            if embedding_service is None:
+                from llama_index.embeddings.openai import OpenAIEmbedding
+
+                LlamaSettings.embed_model = OpenAIEmbedding(api_key=api_key_str)
+            else:
+                LlamaSettings.embed_model = embedding_service
 
         if Path(self.persist_dir).exists():
             self._load_existing_index()

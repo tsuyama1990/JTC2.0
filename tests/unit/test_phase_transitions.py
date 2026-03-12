@@ -66,6 +66,43 @@ def test_phase_progression() -> None:
     assert valid_state.phase == Phase.PSF
 
 
+def test_agent_context_inheritance() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from src.core.simulation import SimulationService
+
+    # We patch the graph creation inside the SimulationService
+    with patch("src.core.graph.create_app") as mock_create_app:
+        mock_graph = MagicMock()
+        mock_create_app.return_value = mock_graph
+
+        manager = SimulationService()
+
+        # We simulate what the graph would yield after ideation phase in stream
+        ideation_result_state = GlobalState(
+            topic="test topic",
+            generated_ideas=[
+                LeanCanvas(
+                    id=1,
+                    title="A catchy valid title",
+                    problem="Top 3 problems string longer than 10",
+                    customer_segments="Target customers string longer than 10",
+                    unique_value_prop="Single clear compelling message",
+                    solution="Top 3 features string longer than 10",
+                )
+            ],
+        )
+        mock_graph.stream.return_value = [{"ideator_node": ideation_result_state.model_dump()}]
+
+        # Run first phase
+        ideas_iter, result_state = manager.run_ideation_to_gate("test topic")
+
+        # Verify context is now available
+        ideas_list = list(ideas_iter)
+        assert len(ideas_list) == 1
+        assert ideas_list[0].title == "A catchy valid title"
+
+
 def test_backward_phase_progression_prevented() -> None:
     state = GlobalState(topic="test")
     state.selected_idea = LeanCanvas(

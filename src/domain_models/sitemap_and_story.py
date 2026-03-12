@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class Route(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     path: str = Field(..., description="URLパス (例: /, /dashboard, /login)")
     name: str = Field(..., description="ページ名")
     purpose: str = Field(..., description="このページの目的")

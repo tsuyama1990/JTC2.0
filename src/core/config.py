@@ -334,9 +334,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(
-        default=None, alias="OPENAI_API_KEY", description="OpenAI API Key"
-    )
+    openai_api_key: SecretStr = Field(..., alias="OPENAI_API_KEY", description="OpenAI API Key")
     tavily_api_key: SecretStr | None = Field(
         default=None, alias="TAVILY_API_KEY", description="Tavily Search API Key"
     )
@@ -345,11 +343,11 @@ class Settings(BaseSettings):
     )
     v0_api_url: str | None = Field(
         alias="V0_API_URL",
-        default_factory=lambda: os.getenv("V0_API_URL", "https://api.v0.dev/chat/completions"),
+        default=None,
         description="V0.dev API URL",
     )
 
-    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
+    llm_model: str | None = Field(alias="LLM_MODEL", default=None, description="LLM Model name")
 
     rag_persist_dir: str = Field(
         alias="RAG_PERSIST_DIR",

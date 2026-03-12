@@ -7,11 +7,11 @@ from pydantic import BaseModel
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
 from src.core.constants import ERR_LLM_RESPONSE_TOO_LARGE
+from src.core.interfaces import IStateContext
 from src.core.llm import get_llm
 from src.core.metrics import calculate_ltv, calculate_payback_period, calculate_roi
 from src.core.services.file_service import FileService
 from src.domain_models.metrics import FinancialEstimates, Financials, Metrics, RingiSho
-from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class GovernanceAgent(BaseAgent):
     def __init__(self, file_service: FileService | None = None) -> None:
         self.file_service = file_service or FileService()
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: IStateContext) -> dict[str, Any]:
         """
         Run the governance check logic.
         """
@@ -69,7 +69,7 @@ class GovernanceAgent(BaseAgent):
 
         return {"ringi_sho": ringi_sho, "metrics_data": updated_metrics}
 
-    def _get_industry_context(self, state: GlobalState) -> str:
+    def _get_industry_context(self, state: IStateContext) -> str:
         import re
 
         industry = state.topic
@@ -108,7 +108,7 @@ class GovernanceAgent(BaseAgent):
         return Financials(cac=cac, ltv=ltv, payback_months=payback, roi=roi)
 
     def _generate_ringi_sho(
-        self, state: GlobalState, financials: Financials, status: str
+        self, state: IStateContext, financials: Financials, status: str
     ) -> RingiSho:
         mvp_url = "N/A"
         idea_title = state.selected_idea.title if state.selected_idea else "Untitled Idea"

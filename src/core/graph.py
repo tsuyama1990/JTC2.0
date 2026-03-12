@@ -1,25 +1,68 @@
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from langgraph.graph import END, StateGraph
-from langgraph.graph.state import CompiledStateGraph
 
-from src.core.nodes import (
-    alternative_analysis_node,
-    governance_node,
-    persona_node,
-    safe_ideator_run,
-    safe_simulation_run,
-    transcript_ingestion_node,
-    verification_node,
-    vpc_node,
-)
+from src.core.interfaces import INodeRegistry
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> CompiledStateGraph[Any, Any, Any]:
+class NodeRegistry(INodeRegistry):
+    def __init__(self) -> None:
+        self._nodes: dict[str, Callable[[GlobalState], dict[str, Any]]] = {}
+
+    def get_node(self, name: str) -> Any:
+        if name not in self._nodes:
+            msg = f"Node {name} not registered"
+            raise ValueError(msg)
+        return self._nodes[name]
+
+    def register_node(self, name: str, func: Any) -> None:
+        self._nodes[name] = func
+
+
+def get_default_registry() -> INodeRegistry:
+    """Creates a registry with the default application nodes."""
+    from src.core.nodes import (
+        alternative_analysis_node,
+        experiment_planning_node,
+        governance_node,
+        mental_model_journey_node,
+        persona_node,
+        safe_ideator_run,
+        safe_simulation_run,
+        sitemap_wireframe_node,
+        spec_generation_node,
+        th_review_node,
+        transcript_ingestion_node,
+        verification_node,
+        virtual_customer_node,
+        vpc_node,
+    )
+
+    registry = NodeRegistry()
+    registry.register_node("ideator", safe_ideator_run)
+    registry.register_node("verification", verification_node)
+    registry.register_node("persona", persona_node)
+    registry.register_node("alternative_analysis", alternative_analysis_node)
+    registry.register_node("vpc", vpc_node)
+    registry.register_node("transcript_ingestion", transcript_ingestion_node)
+    registry.register_node("mental_model_journey", mental_model_journey_node)
+    registry.register_node("sitemap_wireframe", sitemap_wireframe_node)
+    registry.register_node("virtual_customer", virtual_customer_node)
+    registry.register_node("simulation_round", safe_simulation_run)
+    registry.register_node("th_review", th_review_node)
+    registry.register_node("spec_generation", spec_generation_node)
+    registry.register_node("experiment_planning", experiment_planning_node)
+    registry.register_node("governance", governance_node)
+
+    return registry
+
+
+def create_app(registry: INodeRegistry | None = None) -> Any:
     """
     Create and compile the LangGraph application.
 
@@ -27,34 +70,28 @@ def create_app() -> CompiledStateGraph[Any, Any, Any]:
     """
     workflow = StateGraph(GlobalState)
 
+    if registry is None:
+        registry = get_default_registry()
+
     # --- NODE DEFINITIONS ---
-    workflow.add_node("ideator", safe_ideator_run)
-    workflow.add_node("verification", verification_node)
-    workflow.add_node("persona", persona_node)
-    workflow.add_node("alternative_analysis", alternative_analysis_node)
-    workflow.add_node("vpc", vpc_node)
-    workflow.add_node("transcript_ingestion", transcript_ingestion_node)
+    workflow.add_node("ideator", registry.get_node("ideator"))
+    workflow.add_node("verification", registry.get_node("verification"))
+    workflow.add_node("persona", registry.get_node("persona"))
+    workflow.add_node("alternative_analysis", registry.get_node("alternative_analysis"))
+    workflow.add_node("vpc", registry.get_node("vpc"))
+    workflow.add_node("transcript_ingestion", registry.get_node("transcript_ingestion"))
 
-    # New Phase 3 Nodes
-    from src.core.nodes import mental_model_journey_node, sitemap_wireframe_node
+    workflow.add_node("mental_model_journey", registry.get_node("mental_model_journey"))
+    workflow.add_node("sitemap_wireframe", registry.get_node("sitemap_wireframe"))
 
-    workflow.add_node("mental_model_journey", mental_model_journey_node)
-    workflow.add_node("sitemap_wireframe", sitemap_wireframe_node)
+    workflow.add_node("virtual_customer", registry.get_node("virtual_customer"))
+    workflow.add_node("simulation_round", registry.get_node("simulation_round"))
+    workflow.add_node("th_review", registry.get_node("th_review"))
 
-    # New Phase 4 Nodes
-    from src.core.nodes import th_review_node, virtual_customer_node
+    workflow.add_node("spec_generation", registry.get_node("spec_generation"))
+    workflow.add_node("experiment_planning", registry.get_node("experiment_planning"))
 
-    workflow.add_node("virtual_customer", virtual_customer_node)
-    workflow.add_node("simulation_round", safe_simulation_run)
-    workflow.add_node("th_review", th_review_node)
-
-    # New Phase 5 & 6 Nodes
-    from src.core.nodes import experiment_planning_node, spec_generation_node
-
-    workflow.add_node("spec_generation", spec_generation_node)
-    workflow.add_node("experiment_planning", experiment_planning_node)
-
-    workflow.add_node("governance", governance_node)
+    workflow.add_node("governance", registry.get_node("governance"))
 
     # --- EDGE DEFINITIONS ---
     workflow.set_entry_point("ideator")

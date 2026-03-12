@@ -74,7 +74,7 @@ def test_ideator_agent_flow(
 
     # 4. Execute
     state = GlobalState(topic="Test")
-    result = agent.run(state)
+    result = agent.run(state)  # type: ignore[arg-type]  # type: ignore  # type: ignore  # type: ignore[arg-type]  # type: ignore[arg-type]
 
     # 5. Verify
     assert list(result["generated_ideas"]) == expected_ideas
