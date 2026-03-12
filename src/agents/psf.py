@@ -23,8 +23,9 @@ class MentalModelJourneyAgent(BaseAgent):
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         if not state.target_persona or not state.value_proposition_canvas:
-            logger.warning("Missing required context for Mental Model & Journey Mapping.")
-            return {}
+            msg = "Missing required context for Mental Model & Journey Mapping (target_persona or value_proposition_canvas)."
+            logger.error(msg)
+            raise ValueError(msg)
 
         prompt_messages = [
             {
@@ -140,8 +141,9 @@ class SitemapWireframeAgent(BaseAgent):
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         if not state.customer_journey:
-            logger.warning("Missing Customer Journey for Sitemap generation.")
-            return {}
+            msg = "Missing Customer Journey for Sitemap generation."
+            logger.error(msg)
+            raise ValueError(msg)
 
         prompt_messages = [
             {

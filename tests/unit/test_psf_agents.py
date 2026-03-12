@@ -302,13 +302,22 @@ def test_sitemap_wireframe_agent_success() -> None:
 
 
 def test_sitemap_wireframe_agent_missing_journey() -> None:
-    """Test SitemapWireframeAgent returns empty dict when missing customer journey."""
+    """Test SitemapWireframeAgent raises ValueError when missing customer journey."""
     state = GlobalState(topic="test")
 
     mock_llm = MagicMock()
     agent = SitemapWireframeAgent(llm=mock_llm)
 
-    result = agent.run(state)
+    import pytest
+    with pytest.raises(ValueError, match="Missing Customer Journey for Sitemap generation."):
+        agent.run(state)
 
-    assert mock_llm.with_structured_output.call_count == 0
-    assert result == {}
+def test_mental_model_agent_missing_context() -> None:
+    """Test MentalModelJourneyAgent raises ValueError when missing context."""
+    state = GlobalState(topic="test")
+    mock_llm = MagicMock()
+    agent = MentalModelJourneyAgent(llm=mock_llm)
+
+    import pytest
+    with pytest.raises(ValueError, match="Missing required context for Mental Model & Journey Mapping"):
+        agent.run(state)
