@@ -4,6 +4,7 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.core.config import Settings, get_settings
+from src.core.constants import PROMPT_HACKER, PROMPT_HIPSTER, PROMPT_HUSTLER
 from src.core.interfaces import ILLMClient, IStateContext
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ class ReviewContext:
     vpc_json: str
     sys_prompts: dict[str, str]
     circuit_breakers: list[str]
+
 
 class The3HReviewAgent(BaseAgent):
     """
@@ -28,6 +30,7 @@ class The3HReviewAgent(BaseAgent):
 
     def _invoke_review(self, role: str, other_feedback: str, ctx: ReviewContext) -> str:
         from langchain_core.prompts import ChatPromptTemplate
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", ctx.sys_prompts[role]),
@@ -93,9 +96,9 @@ class The3HReviewAgent(BaseAgent):
         vpc_json = state.value_proposition_canvas.model_dump_json()
 
         sys_prompts = {
-            "Hacker": "【前提とするサイトマップと機能要件を遵守しつつ】技術的負債、スケーラビリティ、セキュリティの観点からワイヤーフレームをレビューせよ。不要に複雑なDB構造やリアルタイム通信を避け、スプレッドシートや既存APIのモックで代替できないか追求せよ。同意できる場合は「[APPROVED]」と出力せよ。",
-            "Hipster": "【前提とするメンタルモデルとペルソナを遵守しつつ】ユーザーの『Don't make me think（考えさせるな）』の原則に基づきUXをレビューせよ。メンタルモデルに反するオンボーディングの摩擦、タップ回数の多さ、エラー時の不親切さを指摘せよ。同意できる場合は「[APPROVED]」と出力せよ。",
-            "Hustler": "【前提とする代替品分析とVPCを遵守しつつ】ユニットエコノミクス（LTV > 3x CAC）の観点からビジネスモデルをレビューせよ。誰がどうやって見つけるのか、なぜ継続してお金を払うのかを厳しく問いただせ。同意できる場合は「[APPROVED]」と出力せよ。",
+            "Hacker": PROMPT_HACKER,
+            "Hipster": PROMPT_HIPSTER,
+            "Hustler": PROMPT_HUSTLER,
         }
         reviews = {"Hacker": "", "Hipster": "", "Hustler": ""}
 

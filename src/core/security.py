@@ -45,6 +45,7 @@ class SecretMaskerFilter(logging.Filter):
                 record.args = ()  # Clear args since msg is fully formatted
             except (ValueError, TypeError) as e:
                 import sys
+
                 print(f"WARNING: Log mask string formatting failed: {e}", file=sys.stderr)  # noqa: T201
 
         return True
@@ -93,11 +94,9 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
     return str(path)
 
 
-
-
 def sanitize_query(query: str) -> str:
     """
     Sanitize input query to prevent injection or processing issues.
     Efficient implementation using regex.
     """
-    return re.sub(r'[^\x20-\x7E\t\r\n\u0100-\uffff]', '', query).strip()
+    return re.sub(r"[^\x20-\x7E\t\r\n\u0100-\uffff]", "", query).strip()

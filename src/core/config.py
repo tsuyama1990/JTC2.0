@@ -9,16 +9,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.core.constants import (
     DEFAULT_ARPU,
     DEFAULT_CAC,
+    DEFAULT_CANVAS_OUTPUT_DIR,
     DEFAULT_CB_FAIL_MAX,
     DEFAULT_CB_RESET_TIMEOUT,
     DEFAULT_CHARS_PER_LINE,
     DEFAULT_CHURN,
+    DEFAULT_CIRCUIT_BREAKERS,
     DEFAULT_CONSOLE_SLEEP,
     DEFAULT_DIALOGUE_X,
     DEFAULT_DIALOGUE_Y,
     DEFAULT_FEATURE_CHUNK_SIZE,
     DEFAULT_FPS,
+    DEFAULT_GOV_SEARCH_QUERY_TEMPLATE,
     DEFAULT_HEIGHT,
+    DEFAULT_HITL_INTERRUPT_NODES,
     DEFAULT_ITERATOR_SAFETY_LIMIT,
     DEFAULT_LINE_HEIGHT,
     DEFAULT_MAX_LLM_RESPONSE_SIZE,
@@ -33,11 +37,15 @@ from src.core.constants import (
     DEFAULT_NEMAWASHI_REDUCTION,
     DEFAULT_NEMAWASHI_TOLERANCE,
     DEFAULT_PAGE_SIZE,
+    DEFAULT_RAG_ALLOWED_PATHS,
     DEFAULT_RAG_BATCH_SIZE,
     DEFAULT_RAG_CHUNK_SIZE,
     DEFAULT_RAG_MAX_DOC_LENGTH,
     DEFAULT_RAG_MAX_INDEX_SIZE_MB,
     DEFAULT_RAG_MAX_QUERY_LENGTH,
+    DEFAULT_RINGI_SHO_PATH,
+    DEFAULT_SEARCH_QUERY_TEMPLATE,
+    DEFAULT_SIMULATION_TURN_SEQUENCE,
     DEFAULT_V0_RETRY_BACKOFF,
     DEFAULT_V0_RETRY_MAX,
     DEFAULT_WIDTH,
@@ -232,10 +240,7 @@ class SimulationConfig(BaseModel):
 
     turn_sequence: list[dict[str, str]] = Field(
         default_factory=lambda: json.loads(
-            os.getenv(
-                "SIMULATION_TURN_SEQUENCE",
-                '[{"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"}, {"node_name": "finance_critique", "role": "Finance Manager", "description": "Finance Critique"}, {"node_name": "defense_1", "role": "New Employee", "description": "New Employee Defense"}, {"node_name": "sales_critique", "role": "Sales Manager", "description": "Sales Critique"}, {"node_name": "defense_2", "role": "New Employee", "description": "New Employee Defense"}]',
-            )
+            os.getenv("SIMULATION_TURN_SEQUENCE", DEFAULT_SIMULATION_TURN_SEQUENCE)
         ),
         description="List of simulation steps defining the turn sequence.",
     )
@@ -246,7 +251,7 @@ class SimulationConfig(BaseModel):
     max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
 
     circuit_breakers: list[str] = Field(
-        default_factory=lambda: ["平行線ですね", "同意します"],
+        default_factory=lambda: DEFAULT_CIRCUIT_BREAKERS,
         description="List of strings that trigger early termination of a debate.",
     )
 
@@ -261,10 +266,12 @@ class SimulationConfig(BaseModel):
             except Exception:
                 import logging
 
-                logging.getLogger(__name__).warning("Invalid JSON in SIMULATION_CIRCUIT_BREAKERS, falling back to defaults.")
+                logging.getLogger(__name__).warning(
+                    "Invalid JSON in SIMULATION_CIRCUIT_BREAKERS, falling back to defaults."
+                )
         elif isinstance(v, list) and all(isinstance(item, str) for item in v):
             return v
-        return ["平行線ですね", "同意します"]
+        return DEFAULT_CIRCUIT_BREAKERS
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
@@ -335,13 +342,13 @@ class GovernanceConfig(BaseModel):
         description="Max bytes for LLM JSON response",
     )
     output_path: str = Field(
-        default_factory=lambda: os.getenv("RINGI_SHO_PATH", "RINGI_SHO.md"),
+        default_factory=lambda: os.getenv("RINGI_SHO_PATH", DEFAULT_RINGI_SHO_PATH),
         description="Path for Ringi-sho output",
     )
     search_query_template: str = Field(
         default_factory=lambda: os.getenv(
             "GOV_SEARCH_QUERY_TEMPLATE",
-            "average CAC churn ARPU LTV for {industry} startups benchmarks",
+            DEFAULT_GOV_SEARCH_QUERY_TEMPLATE,
         ),
         description="Template for financial search",
     )
@@ -379,16 +386,13 @@ class Settings(BaseSettings):
     hitl_interrupt_nodes: list[str] = Field(
         alias="HITL_INTERRUPT_NODES",
         default_factory=lambda: json.loads(
-            os.getenv(
-                "HITL_INTERRUPT_NODES",
-                '["ideator", "vpc", "sitemap_wireframe", "virtual_customer", "experiment_planning"]',
-            )
+            os.getenv("HITL_INTERRUPT_NODES", DEFAULT_HITL_INTERRUPT_NODES)
         ),
         description="Nodes to interrupt after for Human-In-The-Loop feedback",
     )
     canvas_output_dir: str = Field(
         alias="CANVAS_OUTPUT_DIR",
-        default_factory=lambda: os.getenv("CANVAS_OUTPUT_DIR", "./outputs/canvas"),
+        default_factory=lambda: os.getenv("CANVAS_OUTPUT_DIR", DEFAULT_CANVAS_OUTPUT_DIR),
         description="Directory for PDF canvases",
     )
     rag_chunk_size: int = Field(
@@ -411,7 +415,7 @@ class Settings(BaseSettings):
     )
     rag_allowed_paths: list[str] = Field(
         default_factory=lambda: json.loads(
-            os.getenv("RAG_ALLOWED_PATHS", '["data", "vector_store", "tests"]')
+            os.getenv("RAG_ALLOWED_PATHS", DEFAULT_RAG_ALLOWED_PATHS)
         ),
         description="Allowed directories for RAG",
     )
@@ -473,9 +477,7 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default_factory=lambda: os.getenv(
-            "SEARCH_QUERY_TEMPLATE", "emerging business trends and painful problems in {topic}"
-        ),
+        default_factory=lambda: os.getenv("SEARCH_QUERY_TEMPLATE", DEFAULT_SEARCH_QUERY_TEMPLATE),
         description="Template for search queries",
     )
 
@@ -522,7 +524,10 @@ def get_settings() -> Settings:
             if _settings_state["instance"] is None:
                 settings = Settings()
                 # Strict runtime verification
-                if os.getenv("MOCK_MODE", "false").lower() != "true" and not settings.openai_api_key:
+                if (
+                    os.getenv("MOCK_MODE", "false").lower() != "true"
+                    and not settings.openai_api_key
+                ):
                     from src.core.exceptions import ConfigurationError
 
                     msg = "OPENAI_API_KEY is required unless MOCK_MODE=true"
