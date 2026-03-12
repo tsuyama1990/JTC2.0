@@ -50,7 +50,7 @@ Name                                Stmts   Miss  Cover   Missing
 src/__init__.py                         0      0   100%
 src/agents/__init__.py                  6      0   100%
 src/agents/base.py                      9      0   100%
-src/agents/builder.py                  99     31    69%   55-56, 60, 64, 84-86, 92-113, 120-121, 135-136, 146-147, 152-156, 177-179, 202
+src/agents/builder.py                 103     37    64%   39-40, 58-59, 63, 67, 87-90, 96-117, 124-125, 138-143, 150-151, 156-160, 181-183, 206
 src/agents/cpo.py                      44     11    75%   56-58, 75-88, 95-97
 src/agents/governance.py              105      7    93%   98-102, 199, 204
 src/agents/ideator.py                  47     12    74%   31-34, 97-107
@@ -96,7 +96,7 @@ src/tools/search.py                    34      4    88%   39, 75, 90-91
 src/tools/v0_client.py                 61     16    74%   58-60, 103-105, 108-115, 128-129
 src/ui/renderer.py                     96     10    90%   87, 90-94, 118, 128-134, 154
 -----------------------------------------------------------------
-TOTAL                                2119    316    85%
-============================= 130 passed in 18.84s =============================
+TOTAL                                2123    322    85%
+============================= 130 passed in 18.73s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

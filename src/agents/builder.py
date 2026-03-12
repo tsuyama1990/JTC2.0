@@ -35,6 +35,9 @@ class BuilderAgent(BaseAgent):
     def __init__(self, llm: ChatOpenAI) -> None:
         self.llm = llm
         self.settings = get_settings()
+        if not self.settings.v0_api_key:
+            msg = "V0 API Key is missing"
+            raise ValueError(msg)
 
     def _extract_features(self, solution_description: str | Iterator[str]) -> Iterator[str]:
         """
@@ -74,16 +77,17 @@ class BuilderAgent(BaseAgent):
             )
             chain = prompt | self.llm.with_structured_output(FeatureList)
             try:
-                result = chain.invoke({})
+                result: FeatureList | Any = chain.invoke({})
                 if isinstance(result, FeatureList):
                     # Yield unique features immediately
                     for feature in result.features:
                         if feature not in unique_features:
                             unique_features.add(feature)
                             yield feature
-            except Exception:
+            except Exception as e:
                 logger.exception("Failed to extract features from chunk")
-                continue
+                err_msg = f"Feature extraction failed: {e}"
+                raise RuntimeError(err_msg) from e
 
     def _create_mvp_spec(self, app_name: str, feature: str, idea_context: str) -> MVPSpec:
         """
@@ -103,7 +107,7 @@ class BuilderAgent(BaseAgent):
         )
         chain = prompt | self.llm.with_structured_output(MVPSpec)
         try:
-            result = chain.invoke({})
+            result: MVPSpec | Any = chain.invoke({})
             if isinstance(result, MVPSpec):
                 return result
             # Fallback
@@ -127,9 +131,9 @@ class BuilderAgent(BaseAgent):
             MAX_FEATURES = 100
             feature_gen = self._extract_features(state.selected_idea.solution)
 
-            # Safely consume up to MAX_FEATURES without manual loop overhead
-            candidate_features = list(islice(feature_gen, MAX_FEATURES))
+            # Safely yield an iterator limited to MAX_FEATURES, avoiding list cast (OOM safety)
             logger.debug("Finished extracting features")
+            return {"candidate_features": islice(feature_gen, MAX_FEATURES)}
 
         if not candidate_features:
             logger.warning("No features extracted from solution.")

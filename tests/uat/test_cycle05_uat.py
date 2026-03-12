@@ -58,7 +58,8 @@ class TestCycle05UAT:
             result = agent.propose_features(initial_state)
 
             assert "candidate_features" in result
-            assert len(result["candidate_features"]) == 3
+            features = list(result["candidate_features"])
+            assert len(features) == 3
             assert "mvp_url" not in result  # Should NOT generate yet
 
     def test_uat_c05_02_mvp_generation_integration(self, initial_state: GlobalState) -> None:
