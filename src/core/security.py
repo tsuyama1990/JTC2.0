@@ -97,7 +97,7 @@ def validate_safe_path(path_str: str, allowed_rel_paths: list[str]) -> str:
                 break
         except ValueError:
             # commonpath raises ValueError if paths are on different drives (Windows)
-            pass
+            continue
 
     if not is_safe:
         logger.error(f"Path Traversal Attempt: {path} is not in allowed parents {allowed_parents}")

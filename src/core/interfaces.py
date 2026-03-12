@@ -74,7 +74,7 @@ class IGraphEngine(Protocol):
 
 
 class IEmbeddingService(Protocol):
-    pass
+    def get_text_embedding(self, text: str) -> list[float]: ...
 
 
 class IVectorStore(Protocol):
