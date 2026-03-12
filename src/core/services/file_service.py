@@ -39,31 +39,26 @@ class FileService:
         """
         Validate path to prevent traversal.
         """
-        def _raise_path_error(m: str) -> None:
-            raise ConfigurationError(m)
-
         try:
             p = Path(path)
 
-            if ".." in p.parts:
-                _raise_path_error(f"Path traversal detected (contains '..'): {path}")
+            # To handle files that might not exist yet while still strictly resolving parents
+            if not p.exists():
+                parent = p.parent.resolve(strict=True)
+                resolved_path = parent / p.name
+            else:
+                resolved_path = p.resolve(strict=True)
 
-            if p.is_absolute():
-                _raise_path_error(f"Absolute paths are not allowed: {path}")
+            base_dir = Path.cwd().resolve(strict=True)
 
-            # Resolve the path strictly within the current working directory
-            cwd = Path.cwd().resolve(strict=True)
-            target_path = (cwd / p).resolve()
-
-        except Exception as e:
+            if not resolved_path.is_relative_to(base_dir):
+                msg = f"Path traversal detected: {path}"
+                raise ConfigurationError(msg)
+        except (ValueError, RuntimeError, OSError) as e:
             msg = f"Invalid path: {e}"
             raise ConfigurationError(msg) from e
-
-        if not target_path.is_relative_to(cwd):
-            msg = f"Path traversal detected: {target_path}"
-            raise ConfigurationError(msg)
-
-        return target_path
+        else:
+            return resolved_path
 
     def save_text_async(self, content: str, path: str | Path) -> None:
         """
@@ -80,63 +75,76 @@ class FileService:
         except Exception:
             logger.exception("Failed to schedule file save")
 
-    def _save_text_sync(self, content: str, path: Path) -> None:
+    def _save_text_sync(self, content: str, path: Path) -> None:  # noqa: C901
         """
         Synchronous implementation of save text.
         Includes simple retry logic for robustness and uses atomic file writes.
         """
         import os
-        import tempfile
+        import uuid
 
         attempts = 3
         def _raise_symlink_error(m: str) -> None:
-            raise OSError(m)
+            raise ConfigurationError(m)
 
         for attempt in range(attempts):
             try:
-                # Ensure parent exists
                 path.parent.mkdir(parents=True, exist_ok=True)
+                parent_dir = path.parent.resolve(strict=True)
 
-                if path.exists() and path.is_symlink():
-                    _raise_symlink_error(f"Target path is a symlink: {path}")
+                if parent_dir.is_symlink() or (path.exists() and path.is_symlink()):
+                    _raise_symlink_error(f"Symlink detected in path: {path}")
 
-                # Atomic write pattern in the exact same directory
-                fd, temp_path_str = tempfile.mkstemp(dir=path.parent, prefix="tmp_", suffix=".txt")
+                temp_path_str = str(parent_dir / f"tmp_{uuid.uuid4().hex}.txt")
+                fd = os.open(temp_path_str, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
                 temp_path = Path(temp_path_str)
+
                 try:
                     with os.fdopen(fd, "w", encoding="utf-8") as f:
                         f.write(content)
                         f.flush()
                         os.fsync(f.fileno())
+
+                    if path.is_symlink():
+                        _raise_symlink_error(f"Target path is a symlink: {path}")
+
                     temp_path.replace(path)
                 except Exception:
                     if temp_path.exists():
                         temp_path.unlink()
                     raise
 
-                logger.info(f"File saved successfully to {path}")
-                break
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
-                break  # No point retrying permission error
+                return
             except OSError as e:
                 if attempt < attempts - 1 and "symlink" not in str(e):
-                    logger.warning(
-                        f"OS error writing to {path}, retrying... ({attempt + 1}/{attempts})"
-                    )
+                    logger.warning(f"OS error writing to {path}, retrying...")
                     continue
                 logger.exception(f"OS error writing to {path} after {attempts} attempts")
-                break
+                return
             except (ValueError, TypeError, RuntimeError):
                 logger.exception(f"Unexpected data error writing to {path}")
-                break
+                return
+            else:
+                logger.info(f"File saved successfully to {path}")
+                return
 
     def _sanitize_md(self, text: str) -> str:
         """
         Sanitizes user input for Markdown generation.
-        Escapes simple HTML tags to prevent execution in markdown parsers.
+        Escapes HTML and Markdown control characters to prevent injection.
         """
-        return text.replace("<", "&lt;").replace(">", "&gt;")
+        if not text:
+            return ""
+        # Escape HTML entities
+        escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        # Escape Markdown special characters
+        escaped = escaped.replace("[", "\\[").replace("]", "\\]")
+        escaped = escaped.replace("(", "\\(").replace(")", "\\)")
+        escaped = escaped.replace("*", "\\*").replace("_", "\\_")
+        escaped = escaped.replace("~", "\\~").replace("`", "\\`")
+        return escaped.replace("#", "\\#").replace("-", "\\-")
 
     def generate_agent_prompt_spec_md(
         self,
@@ -226,6 +234,93 @@ class FileService:
         else:
             return output_path
 
+    def _validate_string(self, value: str, max_length: int = 1000) -> str:
+        """Validate strings before rendering into PDFs to prevent injection/formatting errors."""
+        if not isinstance(value, str):
+            msg = "Expected string value"
+            raise TypeError(msg)
+        if len(value) > max_length:
+            msg = f"String exceeds maximum length of {max_length}"
+            raise ValueError(msg)
+        return value
+
+    def _render_persona_section(self, pdf: IPDFGenerator, persona: Persona) -> None:
+        pdf.set_font("Helvetica", style="B", size=16)
+        pdf.cell(w=200, h=10, text="1. Target Persona", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.set_font("Helvetica", size=12)
+        name = self._validate_string(persona.name, 100)
+        occupation = self._validate_string(persona.occupation, 100)
+        demographics = self._validate_string(persona.demographics)
+        bio = self._validate_string(persona.bio)
+        goals = ", ".join(self._validate_string(g, 200) for g in persona.goals)
+        frustrations = ", ".join(self._validate_string(f, 200) for f in persona.frustrations)
+
+        pdf.multi_cell(w=0, h=10, text=f"Name: {name} | Occupation: {occupation}")
+        pdf.multi_cell(w=0, h=10, text=f"Demographics: {demographics}")
+        pdf.multi_cell(w=0, h=10, text=f"Bio: {bio}")
+        pdf.multi_cell(w=0, h=10, text=f"Goals: {goals}")
+        pdf.multi_cell(w=0, h=10, text=f"Frustrations: {frustrations}")
+        pdf.ln(5)
+
+    def _render_analysis_section(self, pdf: IPDFGenerator, analysis: AlternativeAnalysis) -> None:
+        pdf.set_font("Helvetica", style="B", size=16)
+        pdf.cell(
+            w=200, h=10, text="2. Alternative Analysis", new_x="LMARGIN", new_y="NEXT", align="L"
+        )
+        pdf.set_font("Helvetica", size=12)
+        for alt in analysis.current_alternatives:
+            t_name = self._validate_string(alt.name, 100)
+            t_cost = self._validate_string(alt.financial_cost, 200)
+            t_time = self._validate_string(alt.time_cost, 200)
+            t_ux = self._validate_string(alt.ux_friction, 200)
+            pdf.multi_cell(
+                w=0,
+                h=10,
+                text=f"- Tool: {t_name} | Cost: {t_cost} | Time: {t_time} | UX Friction: {t_ux}",
+            )
+        switching_cost = self._validate_string(analysis.switching_cost)
+        ten_x_value = self._validate_string(analysis.ten_x_value)
+        pdf.multi_cell(w=0, h=10, text=f"Switching Cost: {switching_cost}")
+        pdf.multi_cell(w=0, h=10, text=f"10x Value: {ten_x_value}")
+        pdf.ln(5)
+
+    def _render_vpc_section(self, pdf: IPDFGenerator, vpc: ValuePropositionCanvas) -> None:
+        pdf.set_font("Helvetica", style="B", size=16)
+        pdf.cell(
+            w=200,
+            h=10,
+            text="3. Value Proposition Canvas",
+            new_x="LMARGIN",
+            new_y="NEXT",
+            align="L",
+        )
+
+        pdf.set_font("Helvetica", style="B", size=14)
+        pdf.cell(w=200, h=10, text="Customer Profile:", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.set_font("Helvetica", size=12)
+        jobs = ", ".join(self._validate_string(j, 200) for j in vpc.customer_profile.customer_jobs)
+        pains = ", ".join(self._validate_string(p, 200) for p in vpc.customer_profile.pains)
+        gains = ", ".join(self._validate_string(g, 200) for g in vpc.customer_profile.gains)
+        pdf.multi_cell(w=0, h=10, text=f"Jobs: {jobs}")
+        pdf.multi_cell(w=0, h=10, text=f"Pains: {pains}")
+        pdf.multi_cell(w=0, h=10, text=f"Gains: {gains}")
+
+        pdf.set_font("Helvetica", style="B", size=14)
+        pdf.cell(w=200, h=10, text="Value Map:", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.set_font("Helvetica", size=12)
+        products = ", ".join(self._validate_string(p, 200) for p in vpc.value_map.products_and_services)
+        pain_relievers = ", ".join(self._validate_string(p, 200) for p in vpc.value_map.pain_relievers)
+        gain_creators = ", ".join(self._validate_string(g, 200) for g in vpc.value_map.gain_creators)
+        pdf.multi_cell(w=0, h=10, text=f"Products & Services: {products}")
+        pdf.multi_cell(w=0, h=10, text=f"Pain Relievers: {pain_relievers}")
+        pdf.multi_cell(w=0, h=10, text=f"Gain Creators: {gain_creators}")
+
+        pdf.set_font("Helvetica", style="B", size=14)
+        pdf.cell(w=200, h=10, text="Fit Evaluation:", new_x="LMARGIN", new_y="NEXT", align="L")
+        pdf.set_font("Helvetica", size=12)
+        fit_evaluation = self._validate_string(vpc.fit_evaluation)
+        pdf.multi_cell(w=0, h=10, text=fit_evaluation)
+
     def generate_vpc_pdf(
         self,
         persona: Persona,
@@ -240,64 +335,9 @@ class FileService:
         pdf.add_page()
         pdf.set_font("Helvetica", size=12)
 
-        # 1. Persona Section
-        pdf.set_font("Helvetica", style="B", size=16)
-        pdf.cell(w=200, h=10, text="1. Target Persona", new_x="LMARGIN", new_y="NEXT", align="L")
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(w=0, h=10, text=f"Name: {persona.name} | Occupation: {persona.occupation}")
-        pdf.multi_cell(w=0, h=10, text=f"Demographics: {persona.demographics}")
-        pdf.multi_cell(w=0, h=10, text=f"Bio: {persona.bio}")
-        pdf.multi_cell(w=0, h=10, text=f"Goals: {', '.join(persona.goals)}")
-        pdf.multi_cell(w=0, h=10, text=f"Frustrations: {', '.join(persona.frustrations)}")
-        pdf.ln(5)
-
-        # 2. Alternative Analysis Section
-        pdf.set_font("Helvetica", style="B", size=16)
-        pdf.cell(
-            w=200, h=10, text="2. Alternative Analysis", new_x="LMARGIN", new_y="NEXT", align="L"
-        )
-        pdf.set_font("Helvetica", size=12)
-        for alt in analysis.current_alternatives:
-            pdf.multi_cell(
-                w=0,
-                h=10,
-                text=f"- Tool: {alt.name} | Cost: {alt.financial_cost} | Time: {alt.time_cost} | UX Friction: {alt.ux_friction}",
-            )
-        pdf.multi_cell(w=0, h=10, text=f"Switching Cost: {analysis.switching_cost}")
-        pdf.multi_cell(w=0, h=10, text=f"10x Value: {analysis.ten_x_value}")
-        pdf.ln(5)
-
-        # 3. Value Proposition Canvas Section
-        pdf.set_font("Helvetica", style="B", size=16)
-        pdf.cell(
-            w=200,
-            h=10,
-            text="3. Value Proposition Canvas",
-            new_x="LMARGIN",
-            new_y="NEXT",
-            align="L",
-        )
-
-        pdf.set_font("Helvetica", style="B", size=14)
-        pdf.cell(w=200, h=10, text="Customer Profile:", new_x="LMARGIN", new_y="NEXT", align="L")
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(w=0, h=10, text=f"Jobs: {', '.join(vpc.customer_profile.customer_jobs)}")
-        pdf.multi_cell(w=0, h=10, text=f"Pains: {', '.join(vpc.customer_profile.pains)}")
-        pdf.multi_cell(w=0, h=10, text=f"Gains: {', '.join(vpc.customer_profile.gains)}")
-
-        pdf.set_font("Helvetica", style="B", size=14)
-        pdf.cell(w=200, h=10, text="Value Map:", new_x="LMARGIN", new_y="NEXT", align="L")
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(
-            w=0, h=10, text=f"Products & Services: {', '.join(vpc.value_map.products_and_services)}"
-        )
-        pdf.multi_cell(w=0, h=10, text=f"Pain Relievers: {', '.join(vpc.value_map.pain_relievers)}")
-        pdf.multi_cell(w=0, h=10, text=f"Gain Creators: {', '.join(vpc.value_map.gain_creators)}")
-
-        pdf.set_font("Helvetica", style="B", size=14)
-        pdf.cell(w=200, h=10, text="Fit Evaluation:", new_x="LMARGIN", new_y="NEXT", align="L")
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(w=0, h=10, text=vpc.fit_evaluation)
+        self._render_persona_section(pdf, persona)
+        self._render_analysis_section(pdf, analysis)
+        self._render_vpc_section(pdf, vpc)
 
         # Resolve path safely
         try:

@@ -63,10 +63,9 @@ class TestFileService:
             file_service._validate_path("../../../etc/passwd")
 
     def test_generate_md_path_traversal(self, file_service: FileService) -> None:
-        from src.domain_models.agent_prompt_spec import AgentPromptSpec
-        from src.domain_models.sitemap_and_story import UserStory
-        from src.domain_models.agent_prompt_spec import StateMachine
         from src.core.exceptions import ConfigurationError
+        from src.domain_models.agent_prompt_spec import AgentPromptSpec, StateMachine
+        from src.domain_models.sitemap_and_story import UserStory
 
         story = UserStory(
             as_a="A", i_want_to="B", so_that="C", acceptance_criteria=["D"], target_route="/"
