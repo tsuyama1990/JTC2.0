@@ -10,7 +10,9 @@ from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.state import GlobalState
 
 
-@patch.dict(os.environ, {"OPENAI_API_KEY": "sk-dummy", "TAVILY_API_KEY": "tv-dummy"})
+from tests.conftest import DUMMY_ENV_VARS
+
+@patch.dict(os.environ, DUMMY_ENV_VARS)
 class TestCycle06UAT:
     @pytest.fixture
     def initial_state(self) -> GlobalState:
