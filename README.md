@@ -15,12 +15,13 @@
 *   **JTC Meeting Simulation:** Run realistic multi-agent "Gekizume" (harsh feedback) debates with specialized Persona Agents (Finance Manager, Sales Manager, etc.).
 *   **Gamified Retro UI:** Review the ongoing debates visually via a Pyxel-based Retro RPG interface, providing a psychological buffer through the Proxy Agent.
 *   **Reality Injection via RAG and CPO Agent:** Ingests raw customer interview transcripts into a LlamaIndex Vector Database to ground the debate. The CPO agent uses this factual data to validate or invalidate assumptions directly against the Value Proposition Canvas and Alternative Analysis models.
+*   **MVP Code Generation & v0.dev Integration:** Automatically analyzes generated product features, prunes them to avoid feature creep, and passes validated specs via the Builder Agent to dynamically generate real frontend React/Tailwind code using the v0.dev API.
 
 ## 📋 Prerequisites
 
 -   **Python 3.12+**
 -   **uv** package manager
--   **API Keys**: `OPENAI_API_KEY`, `TAVILY_API_KEY` configured in your `.env`.
+-   **API Keys**: `OPENAI_API_KEY`, `TAVILY_API_KEY`, `V0_API_KEY` configured in your `.env`.
 
 ## 🛠 Installation & Setup
 
@@ -50,6 +51,12 @@ Launch the ideation process by entering your core business topic. The orchestrat
 uv run main.py "AI solutions for independent plumbers"
 ```
 *You'll be prompted to verify and choose a Plan A directly within the CLI.*
+
+You can also use Marimo notebooks to run through the full "Fitness Journey Workflow" visually in your browser.
+
+```bash
+uv run marimo edit tutorials/UAT_AND_TUTORIAL.py
+```
 
 ## 📂 Project Structure
 

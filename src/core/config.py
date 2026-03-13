@@ -1,3 +1,4 @@
+import typing
 from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
@@ -8,12 +9,10 @@ from src.core.theme import (
     AGENT_POS_FINANCE,
     AGENT_POS_NEW_EMP,
     AGENT_POS_SALES,
-    COLOR_BG,
     COLOR_CPO,
     COLOR_FINANCE,
     COLOR_NEW_EMP,
     COLOR_SALES,
-    COLOR_TEXT,
 )
 from src.core.validators import ConfigValidators
 
@@ -55,7 +54,6 @@ class UIConfig(BaseSettings):
 
     page_size: int = Field(
         alias="UI_PAGE_SIZE",
-        default=3,
         description="Number of items per page in UI",
     )
 
@@ -139,75 +137,107 @@ class V0Config(BaseSettings):
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
-    width: int = Field(default=256, description="Window width")
-    height: int = Field(default=256, description="Window height")
-    fps: int = Field(default=30, description="Frames per second")
-    title: str = Field(default="JTC Simulation: The Meeting", description="Window title")
-    bg_color: int = Field(default=COLOR_BG, description="Background color")
-    text_color: int = Field(default=COLOR_TEXT, description="Text color")
+    width: int = Field(alias="SIMULATION_WIDTH", description="Window width")
+    height: int = Field(alias="SIMULATION_HEIGHT", description="Window height")
+    fps: int = Field(alias="SIMULATION_FPS", description="Frames per second")
+    title: str = Field(alias="SIMULATION_TITLE", description="Window title")
+    bg_color: int = Field(alias="COLOR_BG", description="Background color")
+    text_color: int = Field(alias="COLOR_TEXT", description="Text color")
 
-    chars_per_line: int = Field(default=32, description="Characters per line in dialogue")
-    line_height: int = Field(default=10, description="Line height in pixels")
-    dialogue_x: int = Field(default=10, description="Dialogue box X position")
-    dialogue_y: int = Field(default=150, description="Dialogue box Y position")
-    max_y: int = Field(default=500, description="Max Y for scrolling")
-    waiting_msg: str = Field(default="Waiting for debate...", description="Message when waiting")
+    chars_per_line: int = Field(
+        alias="SIMULATION_CHARS_PER_LINE", description="Characters per line in dialogue"
+    )
+    line_height: int = Field(alias="SIMULATION_LINE_HEIGHT", description="Line height in pixels")
+    dialogue_x: int = Field(alias="SIMULATION_DIALOGUE_X", description="Dialogue box X position")
+    dialogue_y: int = Field(alias="SIMULATION_DIALOGUE_Y", description="Dialogue box Y position")
+    max_y: int = Field(alias="SIMULATION_MAX_Y", description="Max Y for scrolling")
+    waiting_msg: str = Field(alias="SIMULATION_WAITING_MSG", description="Message when waiting")
 
-    turn_sequence: list[dict[str, str]] = Field(
-        default_factory=lambda: [
-            {"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"},
-            {
-                "node_name": "finance_critique",
-                "role": "Finance Manager",
-                "description": "Finance Critique",
-            },
-            {
-                "node_name": "defense_1",
-                "role": "New Employee",
-                "description": "New Employee Defense",
-            },
-            {
-                "node_name": "sales_critique",
-                "role": "Sales Manager",
-                "description": "Sales Critique",
-            },
-            {
-                "node_name": "defense_2",
-                "role": "New Employee",
-                "description": "New Employee Final Defense",
-            },
-        ],
-        description="List of simulation steps defining the turn sequence.",
+    turn_sequence_str: str = Field(
+        alias="SIMULATION_TURN_SEQUENCE",
+        description="List of simulation steps defining the turn sequence as a JSON string.",
     )
 
-    console_sleep: float = Field(default=1.5, description="Sleep time for console fallback")
-    max_turns: int = Field(default=10, description="Max turns in simulation")
+    @property
+    def turn_sequence(self) -> list[dict[str, str]]:
+        import json
+
+        return json.loads(self.turn_sequence_str)  # type: ignore[no-any-return]
+
+    console_sleep: float = Field(
+        alias="SIMULATION_CONSOLE_SLEEP", description="Sleep time for console fallback"
+    )
+    max_turns: int = Field(alias="SIMULATION_MAX_TURNS", description="Max turns in simulation")
 
     # Explicit fields for individual agents to allow env var overrides
-    agent_new_emp: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP
-        ),
-        description="Configuration for New Employee Agent",
+    agent_new_emp_pos: dict[str, int] = Field(
+        alias="AGENT_POS_NEW_EMP",
+        default_factory=lambda: AGENT_POS_NEW_EMP,
+        description="New Employee Agent layout settings",
     )
-    agent_finance: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE
-        ),
-        description="Configuration for Finance Agent",
+    agent_new_emp_color: int = Field(
+        alias="COLOR_NEW_EMP", default=COLOR_NEW_EMP, description="New Employee Agent Color"
     )
-    agent_sales: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES
-        ),
-        description="Configuration for Sales Agent",
+
+    agent_finance_pos: dict[str, int] = Field(
+        alias="AGENT_POS_FINANCE",
+        default_factory=lambda: AGENT_POS_FINANCE,
+        description="Finance Agent layout settings",
     )
-    agent_cpo: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO
-        ),
-        description="Configuration for CPO Agent",
+    agent_finance_color: int = Field(
+        alias="COLOR_FINANCE", default=COLOR_FINANCE, description="Finance Agent Color"
     )
+
+    agent_sales_pos: dict[str, int] = Field(
+        alias="AGENT_POS_SALES",
+        default_factory=lambda: AGENT_POS_SALES,
+        description="Sales Agent layout settings",
+    )
+    agent_sales_color: int = Field(
+        alias="COLOR_SALES", default=COLOR_SALES, description="Sales Agent Color"
+    )
+
+    agent_cpo_pos: dict[str, int] = Field(
+        alias="AGENT_POS_CPO",
+        default_factory=lambda: AGENT_POS_CPO,
+        description="CPO Agent layout settings",
+    )
+    agent_cpo_color: int = Field(
+        alias="COLOR_CPO", default=COLOR_CPO, description="CPO Agent Color"
+    )
+
+    @property
+    def agent_new_emp(self) -> AgentConfig:
+        return AgentConfig(
+            role="New Employee",
+            label="NewEmp",
+            color=self.agent_new_emp_color,
+            **self.agent_new_emp_pos,
+        )
+
+    @property
+    def agent_finance(self) -> AgentConfig:
+        return AgentConfig(
+            role="Finance Manager",
+            label="Finance",
+            color=self.agent_finance_color,
+            **self.agent_finance_pos,
+        )
+
+    @property
+    def agent_sales(self) -> AgentConfig:
+        return AgentConfig(
+            role="Sales Manager",
+            label="Sales",
+            color=self.agent_sales_color,
+            **self.agent_sales_pos,
+        )
+
+    @property
+    def agent_cpo(self) -> AgentConfig:
+        return AgentConfig(
+            role="CPO", label="CPO", color=self.agent_cpo_color, **self.agent_cpo_pos
+        )
 
     @property
     def agents(self) -> dict[str, AgentConfig]:
@@ -240,25 +270,19 @@ class GovernanceConfig(BaseSettings):
 
     min_roi_threshold: float = Field(
         alias="MIN_ROI_THRESHOLD",
-        default=3.0,
         description="Minimum ROI for approval",
     )
-    default_cac: float = Field(alias="DEFAULT_CAC", default=500.0, description="Fallback CAC")
-    default_arpu: float = Field(alias="DEFAULT_ARPU", default=50.0, description="Fallback ARPU")
-    default_churn: float = Field(
-        alias="DEFAULT_CHURN", default=0.05, description="Fallback Churn Rate"
-    )
+    default_cac: float = Field(alias="DEFAULT_CAC", description="Fallback CAC")
+    default_arpu: float = Field(alias="DEFAULT_ARPU", description="Fallback ARPU")
+    default_churn: float = Field(alias="DEFAULT_CHURN", description="Fallback Churn Rate")
     max_llm_response_size: int = Field(
         alias="MAX_LLM_RESPONSE_SIZE",
         default=10_000,
         description="Max bytes for LLM JSON response",
     )
-    output_path: str = Field(
-        alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output"
-    )
+    output_path: str = Field(alias="RINGI_SHO_PATH", description="Path for Ringi-sho output")
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
-        default="average CAC churn ARPU LTV for {industry} startups benchmarks",
         description="Template for financial search",
     )
     max_search_result_size: int = Field(
@@ -286,49 +310,61 @@ class Settings(BaseSettings):
     tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
     v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key")
 
-    @field_validator("openai_api_key", "tavily_api_key", "v0_api_key", mode="before")
+    @field_validator("openai_api_key", mode="before")
     @classmethod
-    def validate_non_empty_key(cls, v: str | SecretStr) -> str | SecretStr:
-        secret = v.get_secret_value() if isinstance(v, SecretStr) else str(v)
+    def validate_openai_key_before(cls, v: str | SecretStr) -> SecretStr:
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        secret = secret_str.get_secret_value()
         if not secret or not secret.strip():
             msg = "API key cannot be empty or whitespace-only."
             raise ValueError(msg)
-        return v
+        try:
+            ConfigValidators.validate_openai_key(secret_str)
+        except Exception as e:
+            msg = f"Invalid OpenAI API key format: {e}"
+            raise ValueError(msg) from e
+        return secret_str
 
-    @field_validator("openai_api_key")
+    @field_validator("tavily_api_key", mode="before")
     @classmethod
-    def validate_openai_key(cls, v: SecretStr) -> SecretStr:
-        ConfigValidators.validate_openai_key(v)
-        return v
+    def validate_tavily_key_before(cls, v: str | SecretStr) -> SecretStr:
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        secret = secret_str.get_secret_value()
+        if not secret or not secret.strip():
+            msg = "API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
+        try:
+            ConfigValidators.validate_tavily_key(secret_str)
+        except Exception as e:
+            msg = f"Invalid Tavily API key format: {e}"
+            raise ValueError(msg) from e
+        return secret_str
 
-    @field_validator("tavily_api_key")
+    @field_validator("v0_api_key", mode="before")
     @classmethod
-    def validate_tavily_key(cls, v: SecretStr) -> SecretStr:
-        ConfigValidators.validate_tavily_key(v)
-        return v
-
-    @field_validator("v0_api_key")
-    @classmethod
-    def validate_v0_api_key(cls, v: SecretStr) -> SecretStr:
+    def validate_v0_api_key_before(cls, v: str | SecretStr) -> SecretStr:
         """Validate the format of the V0 API Key."""
         import re
 
-        secret = v.get_secret_value()
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        secret = secret_str.get_secret_value()
+        if not secret or not secret.strip():
+            msg = "API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
         if len(secret) < 10:
             msg = "v0_api_key must be at least 10 characters long."
             raise ValueError(msg)
-        if not re.match(r"^[\w\-]+$", secret):
+        if not re.match(r"^[\w\-\.\+]+$", secret):
             msg = "v0_api_key contains invalid characters."
             raise ValueError(msg)
-        return v
+        return secret_str
 
     v0_api_url: str = Field(
         alias="V0_API_URL",
         description="V0.dev API URL",
-        pattern=r"^https://api\.v0\.dev/.*$",
     )
 
-    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
+    llm_model: str = Field(alias="LLM_MODEL", description="LLM Model name")
 
     rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", description="Directory for RAG index")
     rag_chunk_size: int = Field(
@@ -427,12 +463,11 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}",
         description="Template for search queries",
     )
 
-    log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
-    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=3, description="Page size for UI")
+    log_level: str = Field(alias="LOG_LEVEL", description="Logging level")
+    ui_page_size: int = Field(alias="UI_PAGE_SIZE", description="Page size for UI")
 
     # Nested configurations - Use Field to allow Pydantic to manage them
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
@@ -444,9 +479,8 @@ class Settings(BaseSettings):
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
 
-from typing import Any
-
-_settings_override_state: dict[str, Any] = {"override": None}
+# Global settings state override
+_settings_override_state: dict[str, "typing.Any"] = {"override": None}
 
 
 def set_settings_override(settings: Settings | None) -> None:
@@ -455,7 +489,36 @@ def set_settings_override(settings: Settings | None) -> None:
 
 @lru_cache
 def get_settings() -> Settings:
-    """Load and cache settings."""
+    """
+    Load and cache settings with a robust startup pre-validation fallback.
+    Prevents ungraceful crashes by catching Pydantic ValidationErrors for missing
+    required environment variables and outputting a clean summary before exit.
+    """
     if _settings_override_state["override"]:
         return _settings_override_state["override"]  # type: ignore[no-any-return]
-    return Settings()
+
+    import sys
+
+    from pydantic import ValidationError
+
+    try:
+        return Settings()
+    except ValidationError as e:
+        # Don't use standard logger yet as it might not be configured
+        print("\n" + "=" * 60)  # noqa: T201
+        print("CRITICAL CONFIGURATION ERROR: Missing or Invalid Environment Variables")  # noqa: T201
+        print("=" * 60)  # noqa: T201
+        for err in e.errors():
+            field_path = ".".join([str(loc) for loc in err["loc"]])
+            msg = err["msg"]
+            print(f"- {field_path}: {msg}")  # noqa: T201
+        print("\nPlease check your .env file and ensure all required variables are set.")  # noqa: T201
+        print("=" * 60 + "\n")  # noqa: T201
+
+        # Allow tests to catch this by strictly throwing it when pytest is running
+        import os
+
+        if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
+            raise
+
+        sys.exit(1)

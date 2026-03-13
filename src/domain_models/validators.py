@@ -38,7 +38,7 @@ class StateValidator:
 
         # Basic topic sanitization
         if state.topic:
-            import bleach  # type: ignore[import-untyped]
+            import bleach
 
             # Use comprehensive HTML sanitization
             sanitized = bleach.clean(state.topic, tags=[], attributes={}, strip=True)

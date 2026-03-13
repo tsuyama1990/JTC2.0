@@ -1,40 +1,5 @@
 from typing import Final
 
-# --- Global Defaults ---
-DEFAULT_FPS: Final[int] = 30
-DEFAULT_WIDTH: Final[int] = 800
-DEFAULT_HEIGHT: Final[int] = 600
-DEFAULT_LINE_HEIGHT: Final[int] = 20
-DEFAULT_CHARS_PER_LINE: Final[int] = 50
-DEFAULT_PAGE_SIZE: Final[int] = 5
-DEFAULT_DIALOGUE_X: Final[int] = 10
-DEFAULT_DIALOGUE_Y: Final[int] = 400
-DEFAULT_MAX_Y: Final[int] = 1000
-DEFAULT_CONSOLE_SLEEP: Final[float] = 0.05
-DEFAULT_MAX_TURNS: Final[int] = 10
-
-# --- Validation Defaults ---
-DEFAULT_MIN_TITLE_LENGTH: Final[int] = 5
-DEFAULT_MAX_TITLE_LENGTH: Final[int] = 100
-DEFAULT_ITERATOR_SAFETY_LIMIT: Final[int] = 10000
-
-# --- Feature Extraction Defaults ---
-DEFAULT_FEATURE_CHUNK_SIZE: Final[int] = 2000
-
-# --- Circuit Breaker Defaults ---
-DEFAULT_CB_FAIL_MAX: Final[int] = 5
-DEFAULT_CB_RESET_TIMEOUT: Final[int] = 60
-
-# --- Nemawashi Defaults ---
-DEFAULT_NEMAWASHI_MAX_STEPS: Final[int] = 100
-DEFAULT_NEMAWASHI_TOLERANCE: Final[float] = 1e-6
-DEFAULT_NEMAWASHI_BOOST: Final[float] = 0.2
-DEFAULT_NEMAWASHI_REDUCTION: Final[float] = 0.1
-
-# --- V0 Defaults ---
-DEFAULT_V0_RETRY_MAX: Final[int] = 3
-DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
-
 # --- Error Messages ---
 ERR_UNIQUE_ID_VIOLATION: Final[str] = "Duplicate ID detected."
 ERR_CONFIG_MISSING_OPENAI_KEY: Final[str] = "OPENAI_API_KEY missing in environment."

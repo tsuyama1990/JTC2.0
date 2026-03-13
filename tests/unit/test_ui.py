@@ -31,9 +31,10 @@ def test_renderer_draw(mock_pyxel: MagicMock, mock_state: GlobalState) -> None:
     # The test expected `(5, 15, ...)`
 
     # Updating expectation to match actual code behavior (which uses defaults if env not set for these specific keys)
-    mock_pyxel.text.assert_any_call(10, 150, f"{Role.NEW_EMPLOYEE}:", 11)
-    # Check rects
-    mock_pyxel.rect.assert_any_call(20, 80, 20, 30, 11)
+    # The dummy environment maps New Employee agent color to "8"
+    mock_pyxel.text.assert_any_call(10, 150, f"{Role.NEW_EMPLOYEE}:", 8)
+    # Check rects (based on dummy env var AGENT_POS_CPO)
+    mock_pyxel.rect.assert_any_call(130, 20, 10, 10, 11)
 
 
 @patch("src.ui.renderer.pyxel")
