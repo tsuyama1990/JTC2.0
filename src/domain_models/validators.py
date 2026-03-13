@@ -1,7 +1,4 @@
-import re
 from typing import TYPE_CHECKING
-
-from src.domain_models.enums import Phase
 
 if TYPE_CHECKING:
     from src.domain_models.state import GlobalState
@@ -28,6 +25,8 @@ class StateValidator:
             ValueError: If requirements for the phase are not met.
         """
 
+        from src.domain_models.enums import Phase
+
         if not isinstance(state.phase, Phase):
             msg = f"Invalid phase enum value: {state.phase}"
             raise TypeError(msg)
@@ -39,14 +38,18 @@ class StateValidator:
 
         # Basic topic sanitization
         if state.topic:
-            sanitized = re.sub(r"<[^>]*>", "", state.topic)
+            import bleach  # type: ignore[import-untyped]
+
+            # Use comprehensive HTML sanitization
+            sanitized = bleach.clean(state.topic, tags=[], attributes={}, strip=True)
+            # Remove null bytes
             sanitized = sanitized.replace("\x00", "")
-            sanitized = re.sub(
-                r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b",
-                "[REDACTED]",
-                sanitized,
-            )
-            sanitized = sanitized.replace("--", "").replace(";", "")
+            # Prevent control character injections
+            sanitized = "".join(ch for ch in sanitized if ord(ch) >= 32 or ch in "\n\r\t")
+
+            # Note: We removed the naive SQL keyword string replacement as per security audit.
+            # State topic is used strictly as an LLM context parameter, not directly within DB queries.
+            # If database persistence is added, parameterized queries (e.g. SQLAlchemy) must be used.
             state.topic = sanitized
 
         if state.phase == Phase.VERIFICATION:

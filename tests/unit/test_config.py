@@ -14,7 +14,7 @@ def test_config_loading_success() -> None:
         {
             "OPENAI_API_KEY": "sk-12345678901234567890",
             "TAVILY_API_KEY": "tvly-12345678901234567890",
-            "V0_API_KEY": "v0_1234567890123456789012345678901234567890",
+            "V0_API_KEY": "v0-12345678901234567890",
         },
     ):
         get_settings.cache_clear()
@@ -24,9 +24,7 @@ def test_config_loading_success() -> None:
         assert settings.tavily_api_key is not None
         assert settings.tavily_api_key.get_secret_value() == "tvly-12345678901234567890"
         assert settings.v0_api_key is not None
-        assert (
-            settings.v0_api_key.get_secret_value() == "v0_1234567890123456789012345678901234567890"
-        )
+        assert settings.v0_api_key.get_secret_value() == "v0-12345678901234567890"
 
 
 def test_config_missing_openai_key() -> None:

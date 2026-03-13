@@ -42,27 +42,26 @@ class ConfigValidators:
     @staticmethod
     def validate_openai_key(v: SecretStr | None) -> SecretStr | None:
         """Validate OpenAI API Key format."""
+        import re
+
         if v is None:
             return None
         secret = v.get_secret_value()
-        if not secret.startswith("sk-"):
-            msg = "OpenAI API Key must start with 'sk-'."
-            raise ValueError(msg)
-        if len(secret) < 20:
-            msg = "OpenAI API Key is too short."
+        # OpenAI keys can be `sk-[a-zA-Z0-9]{32,100}` or `sk-proj-[a-zA-Z0-9_-]+`
+        if not re.match(r"^sk-[a-zA-Z0-9_\\-]{20,128}$", secret):
+            msg = "OpenAI API Key must start with 'sk-' and be 20-128 valid characters."
             raise ValueError(msg)
         return v
 
     @staticmethod
     def validate_tavily_key(v: SecretStr | None) -> SecretStr | None:
         """Validate Tavily API Key format."""
+        import re
+
         if v is None:
             return None
         secret = v.get_secret_value()
-        if not secret.startswith("tvly-"):
-            msg = "Tavily API Key must start with 'tvly-'."
-            raise ValueError(msg)
-        if len(secret) < 20:
-            msg = "Tavily API Key is too short."
+        if not re.match(r"^tvly-[a-zA-Z0-9_\\-]{20,128}$", secret):
+            msg = "Tavily API Key must start with 'tvly-' and be 20-128 valid characters."
             raise ValueError(msg)
         return v

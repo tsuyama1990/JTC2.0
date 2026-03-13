@@ -12,8 +12,8 @@ class AlternativeTool(BaseModel):
         description="代替品の名前(例: Excel、手作業、既存SaaS)",
         min_length=1,
     )
-    financial_cost: str = Field(..., description="金銭的コスト", min_length=1)
-    time_cost: str = Field(..., description="時間的コスト", min_length=1)
+    financial_cost: float = Field(..., description="金銭的コスト", ge=0.0)
+    time_cost: float = Field(..., description="時間的コスト", ge=0.0)
     ux_friction: str = Field(
         ...,
         description="ユーザーが感じる最大のストレス・摩擦",
