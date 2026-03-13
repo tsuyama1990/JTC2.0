@@ -44,12 +44,28 @@ class ConfigValidators:
         """Validate OpenAI API Key format."""
         import re
 
+        from src.core.config import ErrorMessages
+
         if v is None:
             return None
         secret = v.get_secret_value()
+        errors = ErrorMessages()
+        name = "OpenAI API Key"
+        if not secret or not secret.strip():
+            msg = errors.api_key_empty.format(key_name=name)
+            raise ValueError(msg)
+        if len(secret) < 23:
+            msg = errors.api_key_too_short.format(key_name=name)
+            raise ValueError(msg)
+        if len(secret) > 131:
+            msg = errors.api_key_too_long.format(key_name=name)
+            raise ValueError(msg)
+        if not secret.startswith("sk-"):
+            msg = errors.api_key_invalid_prefix.format(key_name=name, prefix="sk-")
+            raise ValueError(msg)
         # OpenAI keys can be `sk-[a-zA-Z0-9]{32,100}` or `sk-proj-[a-zA-Z0-9_-]+`
-        if not re.match(r"^sk-[a-zA-Z0-9_\\-]{20,128}$", secret):
-            msg = "OpenAI API Key must start with 'sk-' and be 20-128 valid characters."
+        if not re.match(r"^sk-[a-zA-Z0-9_\-]{20,128}$", secret):
+            msg = errors.api_key_invalid_chars.format(key_name=name)
             raise ValueError(msg)
         return v
 
@@ -58,10 +74,55 @@ class ConfigValidators:
         """Validate Tavily API Key format."""
         import re
 
+        from src.core.config import ErrorMessages
+
         if v is None:
             return None
         secret = v.get_secret_value()
-        if not re.match(r"^tvly-[a-zA-Z0-9_\\-]{20,128}$", secret):
-            msg = "Tavily API Key must start with 'tvly-' and be 20-128 valid characters."
+        errors = ErrorMessages()
+        name = "Tavily API Key"
+        if not secret or not secret.strip():
+            msg = errors.api_key_empty.format(key_name=name)
+            raise ValueError(msg)
+        if len(secret) < 25:
+            msg = errors.api_key_too_short.format(key_name=name)
+            raise ValueError(msg)
+        if len(secret) > 133:
+            msg = errors.api_key_too_long.format(key_name=name)
+            raise ValueError(msg)
+        if not secret.startswith("tvly-"):
+            msg = errors.api_key_invalid_prefix.format(key_name=name, prefix="tvly-")
+            raise ValueError(msg)
+        if not re.match(r"^tvly-[a-zA-Z0-9_\-]{20,128}$", secret):
+            msg = errors.api_key_invalid_chars.format(key_name=name)
+            raise ValueError(msg)
+        return v
+
+    @staticmethod
+    def validate_v0_api_key(v: SecretStr | None) -> SecretStr | None:
+        """Validate the format of the V0 API Key."""
+        import re
+
+        from src.core.config import ErrorMessages
+
+        if v is None:
+            return None
+        secret = v.get_secret_value()
+        errors = ErrorMessages()
+        name = "V0 API Key"
+        if not secret or not secret.strip():
+            msg = errors.api_key_empty.format(key_name=name)
+            raise ValueError(msg)
+        if len(secret) < 23:
+            msg = errors.api_key_too_short.format(key_name=name)
+            raise ValueError(msg)
+        if len(secret) > 131:
+            msg = errors.api_key_too_long.format(key_name=name)
+            raise ValueError(msg)
+        if not secret.startswith("v0_"):
+            msg = errors.api_key_invalid_prefix.format(key_name=name, prefix="v0_")
+            raise ValueError(msg)
+        if not re.match(r"^v0_[A-Za-z0-9_\-]{20,128}$", secret):
+            msg = errors.api_key_invalid_chars.format(key_name=name)
             raise ValueError(msg)
         return v

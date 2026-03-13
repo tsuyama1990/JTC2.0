@@ -23,7 +23,7 @@ from src.domain_models.state import GlobalState
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> CompiledStateGraph[Any, Any, Any]:
+def create_app() -> CompiledStateGraph[GlobalState, Any, Any]:
     """
     Create and compile the LangGraph application.
 
@@ -83,4 +83,4 @@ def create_app() -> CompiledStateGraph[Any, Any, Any]:
     settings = get_settings()
 
     # Compile with Interrupts for HITL Gates
-    return workflow.compile(interrupt_after=settings.graph.interrupt_points)
+    return workflow.compile(interrupt_after=settings.graph.interrupt_points)  # type: ignore[return-value]

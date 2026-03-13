@@ -266,9 +266,7 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
             write_markdown("AgentPromptSpec.md", content)
 
         if state.experiment_plan:
-            content = (
-                f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
-            )
+            content = f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
             write_markdown("ExperimentPlan.md", content)
 
         # Note: RingiSho is already saved by GovernanceAgent, but we'll export a duplicate

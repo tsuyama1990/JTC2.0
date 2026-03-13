@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -32,9 +31,8 @@ class GlobalState(BaseModel):
     phase: Phase = Phase.IDEATION
     topic: str = ""
 
-    # Critical: Wrapper for memory efficiency.
-    # We use a standard Iterator. Set arbitrary_types_allowed=True to support it.
-    generated_ideas: Iterator[LeanCanvas] | None = None
+    # Critical: Use List to ensure safe state serialization in LangGraph.
+    generated_ideas: list[LeanCanvas] | None = None
 
     selected_idea: LeanCanvas | None = None
     messages: list[str] = Field(default_factory=list)
@@ -165,9 +163,14 @@ class GlobalState(BaseModel):
     @classmethod
     def validate_iterator(cls, v: object) -> object:
         """
-        Converts Iterable input to Iterator securely and validates yielded items.
+        Converts Iterable input to a strict list to avoid consuming stateful iterators
+        and to ensure safe serialization inside LangGraph state checkpointing.
+        Enforces a safety limit to prevent OOM vulnerabilities.
         """
         from collections.abc import Iterable
+        from itertools import islice
+
+        from src.core.config import get_settings
 
         if v is None:
             return None
@@ -176,14 +179,17 @@ class GlobalState(BaseModel):
             msg = f"Invalid type for generated_ideas. Expected an Iterable yielding LeanCanvas objects, but got {type(v).__name__} instead."
             raise TypeError(msg)
 
-        def _validate_items(iterator: Iterator[object]) -> Iterator[LeanCanvas]:
-            for item in iterator:
-                if not isinstance(item, LeanCanvas):
-                    msg = f"generated_ideas Iterator yielded {type(item).__name__}, expected LeanCanvas"
-                    raise TypeError(msg)
-                yield item
+        limit = get_settings().iterator_safety_limit
+        items = list(islice(v, limit))
 
-        return _validate_items(iter(v))
+        for item in items:
+            if not isinstance(item, LeanCanvas):
+                msg = (
+                    f"generated_ideas Iterable contained {type(item).__name__}, expected LeanCanvas"
+                )
+                raise TypeError(msg)
+
+        return items
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:

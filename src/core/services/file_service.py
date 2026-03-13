@@ -32,7 +32,8 @@ class FileService:
     def _validate_path(self, path: str | Path) -> Path:
         """
         Validate path to prevent traversal.
-        Uses Path.resolve(strict=True) or (strict=False if creating new) to strictly evaluate actual file locations and resolves symlinks.
+        Strictly resolves the parent directory (which must exist) and checks using is_relative_to().
+        Never uses strict=False for security-critical path validation.
         """
         path_str = str(path)
         if "\x00" in path_str:
@@ -40,17 +41,25 @@ class FileService:
             raise ConfigurationError(msg)
 
         try:
-            # We use strict=False because the target file might not exist yet when saving.
-            # But we resolve the parent directory strictly to ensure the directory structure exists and is valid.
-            target_path = Path(path).resolve(strict=False)
             cwd = Path.cwd().resolve(strict=True)
+            p = Path(path)
+
+            # Resolve parent strictly (must exist)
+            parent = p.parent.resolve(strict=True)
+
+            # Reconstruct the target path
+            target_path = parent / p.name
+
+            # Atomic path validation check
+            if not target_path.is_relative_to(cwd):
+                msg = f"Path traversal detected: {target_path}"
+                raise ConfigurationError(msg)  # noqa: TRY301
+
+        except ConfigurationError:
+            raise
         except Exception as e:
             msg = f"Invalid path: {e}"
             raise ConfigurationError(msg) from e
-
-        if not str(target_path).startswith(str(cwd)):
-            msg = f"Path traversal detected: {target_path}"
-            raise ConfigurationError(msg)
 
         return target_path
 

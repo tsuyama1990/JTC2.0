@@ -73,16 +73,17 @@ class GovernanceAgent(BaseAgent):
         return {"ringi_sho": ringi_sho, "metrics_data": updated_metrics}
 
     def _get_industry_context(self, state: GlobalState) -> str:
-        import re
-
         industry = state.topic
         if state.selected_idea:
             industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
-        # Security: Whitelist characters to prevent injection attacks (alphanumeric and spaces only)
-        # As per audit requirement to remove dangerous chars like . and ,
-        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", industry)
-        return sanitized.strip()
+        industry = industry.strip()
+
+        # Security: Impose strict length limits to prevent search string injection payload overflows
+        if len(industry) > 100:
+            industry = industry[:100]
+
+        return industry
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
         settings = get_settings()
