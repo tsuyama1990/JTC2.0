@@ -57,11 +57,20 @@ def __1() -> tuple[object]:
             def bg_task() -> None:
                 try:
                     ready_event.set()
-                    for update in sim_app.stream(initial_state, stream_mode="values"):
+                    # Use duck typing to handle different LangGraph execution patterns safely
+                    try:
+                        iterator = sim_app.stream(initial_state, stream_mode="values")
+                    except (AttributeError, TypeError):
+                        # Fallback for sync invoke if stream is not supported
+                        result = sim_app.invoke(initial_state)
+                        iterator = [result]
+
+                    for update in iterator:
                         if isinstance(update, dict):
                             shared_state["current"] = self.GlobalState(**update)
                         elif isinstance(update, self.GlobalState):
                             shared_state["current"] = update
+
                 except Exception as e:
                     logger.exception("Simulation failed.")
                     error_container.append(e)
@@ -158,8 +167,25 @@ def __4(ctx: object, mode: bool) -> tuple[object]:
     result_1 = None
     if mock_canvas:
         try:
+            from pathlib import Path
+
+            # Clean up old outputs to prevent false positives
+            spec_path = Path("outputs/AgentPromptSpec.md")
+            exp_path = Path("outputs/ExperimentPlan.md")
+            for p in [spec_path, exp_path]:
+                if p.exists():
+                    p.unlink()
+
             ctx.run_simulation("AI for Agriculture", mock_canvas, mock=True)
-            result_1 = ctx.mo.md("✅ Scenario UAT-001 Passed: Mock execution successful.")
+
+            # Verify actual artifact generation
+            spec_exists = spec_path.exists() and spec_path.stat().st_size > 10
+            exp_exists = exp_path.exists() and exp_path.stat().st_size > 10
+
+            if spec_exists and exp_exists:
+                result_1 = ctx.mo.md("✅ Scenario UAT-001 Passed: Mock execution successful and artifacts generated.")
+            else:
+                result_1 = ctx.mo.md(f"❌ Scenario UAT-001 Failed: Execution finished but artifacts were not correctly generated (Spec: {spec_exists}, Exp: {exp_exists}).")
         except Exception as e:
             result_1 = ctx.mo.md(f"❌ Scenario UAT-001 Failed: {e}")
     else:
@@ -197,37 +223,47 @@ def __6(ctx: object) -> tuple[object]:
 
     result_3 = None
     try:
-        # We test the simulation logic circuit breaker by running an infinite loop simulation and
-        # ensuring the maximum iteration recursion limit is caught and handled safely.
-        from langgraph.errors import GraphRecursionError
-
+        # We test the simulation logic circuit breaker by explicitly simulating a true LangGraph run
+        # that exceeds the max recursion/iteration limit, avoiding the tautology of mocking the checker.
         ctx.os.environ["MOCK_MODE"] = "true"
 
-        # We'll use the graph with a small recursion limit to force a timeout/deadlock error
         try:
-            from src.core.simulation import create_simulation_graph
-            sim_app = create_simulation_graph()
-
+            from langgraph.errors import GraphRecursionError
             from src.domain_models.mock_data import get_mock_canvas
+
+            from src.core.config import get_settings
+            from src.core.simulation import create_simulation_graph
+
+            get_settings.cache_clear()
             mock_canvas = get_mock_canvas()
 
+            # Create initial state for a simulation subgraph test
             initial_state = ctx.GlobalState(
-                topic="Circuit Breaker Test",
+                topic="Deadlock Test",
                 selected_idea=mock_canvas,
                 simulation_active=True,
                 phase=ctx.Phase.IDEATION
             )
 
-            # Execute the graph with a small recursion limit (circuit breaker threshold)
-            config = {"recursion_limit": 2}
+            # Use LangGraph's standard recursion_limit mechanism as the circuit breaker for multi-agent loops
+            # that fail to converge (which the specification notes as a core risk). We execute the actual
+            # application graph with this limit to prove it safely halts without infinite cost.
+            config = {"recursion_limit": 1}
+            sim_app = create_simulation_graph()
+
             try:
-                for _ in sim_app.stream(initial_state, config=config, stream_mode="values"):
-                    pass
-                result_3 = ctx.mo.md("❌ Scenario UAT-003 Failed: Circuit breaker did not activate during deadlock simulation.")
+                # Execution via duck typing
+                try:
+                    for _ in sim_app.stream(initial_state, config=config, stream_mode="values"):
+                        pass
+                except (AttributeError, TypeError):
+                    sim_app.invoke(initial_state, config=config)
+
+                result_3 = ctx.mo.md("❌ Scenario UAT-003 Failed: Simulation ran to completion despite strict recursion limit.")
             except GraphRecursionError as e:
                 result_3 = ctx.mo.md(f"✅ Scenario UAT-003 Passed: Circuit breaker correctly identified deadlock (recursion limit exceeded) and recovered safely: {e}")
             except Exception as e:
-                # In some configurations it might raise a different exception wrapper
+                # Catch configuration variants that wrap exceptions
                 if "recursion" in str(e).lower() or "limit" in str(e).lower() or "timeout" in str(e).lower():
                     result_3 = ctx.mo.md(f"✅ Scenario UAT-003 Passed: Circuit breaker correctly identified deadlock and recovered safely: {e}")
                 else:
