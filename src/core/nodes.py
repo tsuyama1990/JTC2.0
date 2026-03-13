@@ -230,3 +230,105 @@ def governance_node(state: GlobalState) -> dict[str, Any]:
 
     updates["phase"] = Phase.GOVERNANCE
     return updates
+
+
+def _generate_master_pdf(state: GlobalState, base_dir: "Path") -> None:  # type: ignore[name-defined] # noqa: F821, C901
+    from fpdf import FPDF
+
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.cell(0, 10, "The JTC 2.0 - Final Artifacts", new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.ln(10)
+
+        def add_section(title: str, content: str) -> None:
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 10)
+
+            # Use multi_cell for text wrapping. Ensure utf-8 strings are handled.
+            # fpdf2 natively handles utf-8, but replacing unsupported chars can be safe.
+            safe_content = content.encode("latin-1", "replace").decode("latin-1")
+            pdf.multi_cell(0, 8, safe_content)
+            pdf.ln(5)
+
+        if state.selected_idea:
+            add_section("1. Lean Canvas", state.selected_idea.model_dump_json(indent=2))
+
+        if state.vpc:
+            add_section("2. Value Proposition Canvas", state.vpc.model_dump_json(indent=2))
+
+        if state.alternative_analysis:
+            add_section("3. Alternative Analysis", state.alternative_analysis.model_dump_json(indent=2))
+
+        if state.mental_model:
+            pdf.add_page()
+            add_section("4. Mental Model", state.mental_model.model_dump_json(indent=2))
+
+        if state.customer_journey:
+            add_section("5. Customer Journey", state.customer_journey.model_dump_json(indent=2))
+
+        if state.sitemap_and_story:
+            add_section("6. Sitemap and Story", state.sitemap_and_story.model_dump_json(indent=2))
+
+        pdf_path = base_dir / "Final_Artifacts_Canvas.pdf"
+
+        def _check_path(path: "Path", base: "Path") -> None:  # type: ignore[name-defined] # noqa: F821
+            if not str(path.resolve()).startswith(str(base.resolve())):
+                raise ValueError("Invalid PDF path.") # noqa: TRY301, EM101
+
+        def _validate_and_output_pdf() -> None:
+            _check_path(pdf_path, base_dir)
+            pdf.output(str(pdf_path))
+
+        _validate_and_output_pdf()
+        logger.info(f"PDF generated successfully at {pdf_path}")
+
+    except Exception:
+        logger.exception("Failed to generate PDF artifact.")
+
+
+@safe_node("Error in Final Artifact Generation")
+def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
+    """
+    Finalize artifacts by generating a comprehensive PDF of all Canvas and Models,
+    and outputting the AgentPromptSpec and ExperimentPlan as Markdown files.
+    """
+    from pathlib import Path
+
+    from src.core.services.file_service import FileService
+
+    logger.info("Generating Final Artifacts...")
+    file_service = FileService()
+
+    # Securely resolve output path, preventing path traversal
+    # Ensure it's inside the current working directory
+    base_dir = Path.cwd() / "outputs"
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    def write_markdown(filename: str, content: str) -> None:
+        try:
+            path = base_dir / filename
+            file_service.save_text_async(content, str(path))
+        except Exception:
+            logger.exception(f"Failed to write markdown artifact: {filename}")
+
+    # Write Markdown specs if they exist in state
+    if state.agent_prompt_spec:
+        content = f"# Agent Prompt Spec\n\n```json\n{state.agent_prompt_spec.model_dump_json(indent=2)}\n```"
+        write_markdown("AgentPromptSpec.md", content)
+
+    if state.experiment_plan:
+        content = f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
+        write_markdown("ExperimentPlan.md", content)
+
+    # Note: RingiSho is already saved by GovernanceAgent, but we'll export a duplicate
+    # to the unified outputs directory for completeness.
+    if state.ringi_sho:
+        content = f"# Ringi-Sho\n\n```json\n{state.ringi_sho.model_dump_json(indent=2)}\n```"
+        write_markdown("RingiSho.md", content)
+
+    _generate_master_pdf(state, base_dir)
+
+    return {}

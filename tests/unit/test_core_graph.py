@@ -5,15 +5,20 @@ from langgraph.graph.state import CompiledStateGraph
 
 from src.core.graph import create_app
 from src.core.nodes import (
+    final_artifact_generation_node,
     mvp_generation_node,
     nemawashi_analysis_node,
     solution_proposal_node,
     transcript_ingestion_node,
 )
+from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
+from src.domain_models.experiment import ExperimentPlan, MetricTarget
 from src.domain_models.lean_canvas import LeanCanvas
+from src.domain_models.metrics import Financials, RingiSho
 from src.domain_models.mvp import MVPSpec
 from src.domain_models.persona import Persona
 from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.domain_models.sitemap import UserStory
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.transcript import Transcript
 
@@ -121,3 +126,73 @@ def test_mvp_generation_node(mock_get_builder: MagicMock, mock_state: GlobalStat
     assert "mvp_definition" in result
     assert str(result["mvp_definition"].v0_url).rstrip("/") == "https://v0.dev/123"
     assert result["mvp_definition"].core_features[0].name == "Feature is long enough"
+
+
+@patch("src.core.services.file_service.FileService")
+@patch("fpdf.FPDF")
+@patch("os.makedirs")
+def test_final_artifact_generation_node(
+    mock_makedirs: MagicMock,
+    mock_fpdf_cls: MagicMock,
+    mock_fs_cls: MagicMock,
+    mock_state: GlobalState,
+) -> None:
+    """Test the generation of final artifacts (Markdown and PDF)."""
+    mock_fs = mock_fs_cls.return_value
+    mock_pdf = mock_fpdf_cls.return_value
+
+    story = UserStory(
+        as_a="User",
+        i_want_to="do something",
+        so_that="I get value",
+        acceptance_criteria=["Criterion 1"],
+        target_route="/home",
+    )
+    # Add dummy spec and experiment to state
+    mock_state.agent_prompt_spec = AgentPromptSpec(
+        sitemap="Test Sitemap",
+        routing_and_constraints="Test Constraints",
+        core_user_story=story,
+        state_machine=StateMachine(
+            success="Success State",
+            loading="Loading State",
+            error="Error State",
+            empty="Empty State",
+        ),
+        validation_rules="Validation rules here",
+        mermaid_flowchart="graph TD;",
+    )
+    mock_state.experiment_plan = ExperimentPlan(
+        riskiest_assumption="Test assumption",
+        experiment_type="LP",
+        acquisition_channel="Ads",
+        aarrr_metrics=[
+            MetricTarget(metric_name="Metric 1", target_value="10%", measurement_method="Logs")
+        ],
+        pivot_condition="If failure happens",
+    )
+    mock_state.ringi_sho = RingiSho(
+        title="Test Proposal",
+        executive_summary="Summary is long enough for the check.",
+        financial_projection=Financials(cac=10, ltv=100, payback_months=1, roi=10),
+        risks=["Risk 1"],
+        approval_status="Approved",
+    )
+
+    result = final_artifact_generation_node(mock_state)
+
+    # Verify it completes without error
+    assert result == {}
+
+    # Verify FileService is used to write Markdown files
+    assert mock_fs.save_text_async.call_count == 3
+    # Check that it attempted to write AgentPromptSpec, ExperimentPlan, and RingiSho
+    call_args = [call[0][1] for call in mock_fs.save_text_async.call_args_list]
+    assert any("AgentPromptSpec.md" in str(arg) for arg in call_args)
+    assert any("ExperimentPlan.md" in str(arg) for arg in call_args)
+    assert any("RingiSho.md" in str(arg) for arg in call_args)
+
+    # Verify PDF generation logic is called
+    mock_fpdf_cls.assert_called_once()
+    mock_pdf.output.assert_called_once()
+    assert "Final_Artifacts_Canvas.pdf" in mock_pdf.output.call_args[0][0]

@@ -15,7 +15,9 @@
 *   **JTC Meeting Simulation:** Run realistic multi-agent "Gekizume" (harsh feedback) debates with specialized Persona Agents (Finance Manager, Sales Manager, etc.).
 *   **Gamified Retro UI:** Review the ongoing debates visually via a Pyxel-based Retro RPG interface, providing a psychological buffer through the Proxy Agent.
 *   **Reality Injection via RAG and CPO Agent:** Ingests raw customer interview transcripts into a LlamaIndex Vector Database to ground the debate. The CPO agent uses this factual data to validate or invalidate assumptions directly against the Value Proposition Canvas and Alternative Analysis models.
-*   **MVP Code Generation & v0.dev Integration:** Automatically analyzes generated product features, prunes them to avoid feature creep, and passes validated specs via the Builder Agent to dynamically generate real frontend React/Tailwind code using the v0.dev API.
+*   **Automated Specification Generation:** Transforms validated concepts into flawless, universally compatible `AgentPromptSpec.md` markdown specifications for AI coding tools.
+*   **Experiment Planning:** Rigorously generates `ExperimentPlan.md` outlining the MVP execution, AARRR metric targets, and pivot conditions based on your generated idea.
+*   **Governance & Financial Approval:** Mathematically simulates influence consensus building and financial viability (LTV, CAC, ROI) to automatically construct a Japanese-style corporate approval document ("Ringi-sho").
 
 ## 📋 Prerequisites
 

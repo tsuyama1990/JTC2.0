@@ -1,4 +1,5 @@
 import os
+import secrets
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,7 +11,14 @@ from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.state import GlobalState
 
 
-@patch.dict(os.environ, {"OPENAI_API_KEY": "sk-dummy", "TAVILY_API_KEY": "tv-dummy"})
+@patch.dict(
+    os.environ,
+    {
+        "OPENAI_API_KEY": f"sk-{secrets.token_hex(24)}",
+        "TAVILY_API_KEY": f"tvly-{secrets.token_hex(24)}",
+        "V0_API_KEY": "v0-dummy-test-key-long",
+    },
+)
 class TestCycle06UAT:
     @pytest.fixture
     def initial_state(self) -> GlobalState:

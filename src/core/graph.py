@@ -4,6 +4,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.core.nodes import (
+    final_artifact_generation_node,
     governance_node,
     mvp_generation_node,
     nemawashi_analysis_node,
@@ -39,6 +40,7 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     workflow.add_node("mvp_generation", mvp_generation_node)
     workflow.add_node("pmf", pmf_node)
     workflow.add_node("governance", governance_node)
+    workflow.add_node("final_artifact_generation", final_artifact_generation_node)
 
     # --- EDGE DEFINITIONS ---
     workflow.set_entry_point("ideator")
@@ -72,8 +74,9 @@ def create_app() -> CompiledStateGraph:  # type: ignore[type-arg]
     # User validates PMF, then we proceed to Governance.
     workflow.add_edge("pmf", "governance")
 
-    # Governance -> End (Report generated)
-    workflow.add_edge("governance", END)
+    # Governance -> Final Artifact Generation -> End
+    workflow.add_edge("governance", "final_artifact_generation")
+    workflow.add_edge("final_artifact_generation", END)
 
     # Compile with Interrupts for HITL Gates
     return workflow.compile(interrupt_after=["ideator", "verification", "solution_proposal", "pmf"])
