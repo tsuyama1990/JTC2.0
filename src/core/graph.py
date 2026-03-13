@@ -6,15 +6,16 @@ from langgraph.graph.state import CompiledStateGraph
 
 from src.core.config import get_settings
 from src.core.nodes import (
+    experiment_planning_node,
     final_artifact_generation_node,
     governance_node,
-    mvp_generation_node,
     nemawashi_analysis_node,
     pmf_node,
     safe_cpo_run,
     safe_ideator_run,
     safe_simulation_run,
     solution_proposal_node,
+    spec_generation_node,
     transcript_ingestion_node,
     verification_node,
 )
@@ -39,7 +40,8 @@ def create_app() -> CompiledStateGraph[GlobalState, Any, Any]:
     workflow.add_node("nemawashi_analysis", nemawashi_analysis_node)
     workflow.add_node("cpo_mentoring", safe_cpo_run)
     workflow.add_node("solution_proposal", solution_proposal_node)
-    workflow.add_node("mvp_generation", mvp_generation_node)
+    workflow.add_node("spec_generation", spec_generation_node)
+    workflow.add_node("experiment_planning", experiment_planning_node)
     workflow.add_node("pmf", pmf_node)
     workflow.add_node("governance", governance_node)
     workflow.add_node("final_artifact_generation", final_artifact_generation_node)
@@ -66,10 +68,11 @@ def create_app() -> CompiledStateGraph[GlobalState, Any, Any]:
     # Gate 3: Problem-Solution Fit (MVP Scope)
     # CPO advises -> Solution proposed (Features extracted) -> Interrupt for selection
     workflow.add_edge("cpo_mentoring", "solution_proposal")
-    workflow.add_edge("solution_proposal", "mvp_generation")
+    workflow.add_edge("solution_proposal", "spec_generation")
+    workflow.add_edge("spec_generation", "experiment_planning")
 
     # MVP Generated -> PMF Check
-    workflow.add_edge("mvp_generation", "pmf")
+    workflow.add_edge("experiment_planning", "pmf")
 
     # Gate 4: Product-Market Fit (Pivot Decision)
     # Interrupt happens after 'pmf' returns.

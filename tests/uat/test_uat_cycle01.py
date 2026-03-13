@@ -1,3 +1,6 @@
+from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
+from src.domain_models.sitemap import UserStory
+from src.domain_models.experiment import ExperimentPlan, MetricTarget
 import itertools
 import os
 from collections.abc import Iterator
@@ -8,9 +11,10 @@ import pytest
 # We import create_app but we will mock the LLM and Tools inside it
 from src.core.config import get_settings
 from src.core.graph import create_app
+from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.persona import EmpathyMap, Persona
+from src.domain_models.sitemap import UserStory
 from src.domain_models.state import GlobalState, Phase
 from tests.conftest import DUMMY_ENV_VARS
 
@@ -128,17 +132,22 @@ def test_gate_transitions_data_integrity(
     GlobalState.model_validate(state_ready_for_verification.model_dump())
 
     # 2. Validate Transition to Solution
-    dummy_mvp = MVP(
-        type=MVPType.LANDING_PAGE,
-        core_features=[
-            Feature(name="Feature1", description="Description", priority=Priority.MUST_HAVE)
-        ],
-        success_criteria="Criteria",
-        v0_url="https://v0.dev/test",
-    )
+    dummy_spec = AgentPromptSpec(sitemap="a", routing_and_constraints="b", core_user_story=UserStory(as_a="c", i_want_to="d", so_that="e", acceptance_criteria=["f"], target_route="/g"), state_machine=StateMachine(success="h", loading="i", error="j", empty="k"), validation_rules="l", mermaid_flowchart="m")
+    dummy_plan = ExperimentPlan(riskiest_assumption="Assumption A", experiment_type="Type B", acquisition_channel="Channel C", aarrr_metrics=[MetricTarget(metric_name="M", target_value="V", measurement_method="Meth")], pivot_condition="Pivot Cond P")
+
 
     state_ready_for_pmf = state_ready_for_verification.model_copy()
-    state_ready_for_pmf.mvp_definition = dummy_mvp
+    state_ready_for_pmf.agent_prompt_spec = AgentPromptSpec(
+        sitemap="a",
+        routing_and_constraints="b",
+        core_user_story=UserStory(
+            as_a="c", i_want_to="d", so_that="e", acceptance_criteria=["f"], target_route="/g"
+        ),
+        state_machine=StateMachine(success="h", loading="i", error="j", empty="k"),
+        validation_rules="l",
+        mermaid_flowchart="m",
+    )
+    state_ready_for_pmf.experiment_plan = dummy_plan
     state_ready_for_pmf.phase = Phase.PMF
 
     GlobalState.model_validate(state_ready_for_pmf.model_dump())
@@ -174,12 +183,12 @@ def test_large_dataset_iterator_safety() -> None:
     def bounded_generator() -> Iterator[LeanCanvas]:
         for i in range(5):
             yield LeanCanvas(
-                    id=i,
-                    title=f"Idea {i}",
-                    problem="Problem text is long enough",
-                    solution="Solution text is long enough",
-                    customer_segments="Segments text is long enough",
-                    unique_value_prop="UVP text is long enough"
+                id=i,
+                title=f"Idea {i}",
+                problem="Problem text is long enough",
+                solution="Solution text is long enough",
+                customer_segments="Segments text is long enough",
+                unique_value_prop="UVP text is long enough",
             )
 
     state = GlobalState(topic="Test", generated_ideas=bounded_generator())

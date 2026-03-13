@@ -14,7 +14,6 @@ from .journey import CustomerJourney
 from .lean_canvas import LeanCanvas
 from .mental_model import MentalModelDiagram
 from .metrics import Metrics, RingiSho
-from .mvp import MVP, MVPSpec
 from .persona import Persona
 from .politics import InfluenceNetwork
 from .simulation import AgentState, DialogueMessage
@@ -38,16 +37,7 @@ class GlobalState(BaseModel):
     messages: list[str] = Field(default_factory=list)
 
     target_persona: Persona | None = None
-    mvp_definition: MVP | None = None
     metrics_data: Metrics | None = None
-
-    # Cycle 5: MVP Generation (v0.dev)
-    mvp_spec: MVPSpec | None = None
-    mvp_url: str | None = None
-    candidate_features: list[str] = Field(
-        default_factory=list, description="List of extracted features for selection"
-    )
-    selected_feature: str | None = None
 
     debate_history: list[DialogueMessage] = Field(default_factory=list)
     simulation_active: bool = False

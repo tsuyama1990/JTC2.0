@@ -6,7 +6,6 @@ from langgraph.graph.state import CompiledStateGraph
 from src.core.graph import create_app
 from src.core.nodes import (
     final_artifact_generation_node,
-    mvp_generation_node,
     nemawashi_analysis_node,
     solution_proposal_node,
     transcript_ingestion_node,
@@ -15,7 +14,6 @@ from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
 from src.domain_models.experiment import ExperimentPlan, MetricTarget
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.metrics import Financials, RingiSho
-from src.domain_models.mvp import MVPSpec
 from src.domain_models.persona import Persona
 from src.domain_models.politics import InfluenceNetwork, Stakeholder
 from src.domain_models.sitemap import UserStory
@@ -56,7 +54,8 @@ def test_create_app_structure() -> None:
         "nemawashi_analysis",
         "cpo_mentoring",
         "solution_proposal",
-        "mvp_generation",
+        "spec_generation",
+        "experiment_planning",
         "pmf",
         "governance",
         "final_artifact_generation",
@@ -130,26 +129,6 @@ def test_solution_proposal_node(mock_get_builder: MagicMock, mock_state: GlobalS
 
     # Note: solution_proposal_node now returns result of _solution_proposal_impl which sets phase
     assert result["phase"] == Phase.SOLUTION
-    assert result["candidate_features"] == ["F1", "F2"]
-
-
-@patch("src.core.nodes.AgentFactory.get_builder_agent")
-def test_mvp_generation_node(mock_get_builder: MagicMock, mock_state: GlobalState) -> None:
-    """Test MVP generation."""
-    mock_builder = mock_get_builder.return_value
-
-    spec = MVPSpec(app_name="App", core_feature="Feature is long enough", v0_prompt="Prompt")
-    mock_builder.generate_mvp.return_value = {
-        "mvp_spec": spec,
-        "mvp_url": "https://v0.dev/123",
-        "selected_feature": "Feature is long enough",
-    }
-
-    result = mvp_generation_node(mock_state)
-
-    assert "mvp_definition" in result
-    assert str(result["mvp_definition"].v0_url).rstrip("/") == "https://v0.dev/123"
-    assert result["mvp_definition"].core_features[0].name == "Feature is long enough"
 
 
 @patch("src.core.services.file_service.FileService")
