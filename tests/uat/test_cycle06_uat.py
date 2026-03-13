@@ -1,3 +1,6 @@
+from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
+from src.domain_models.sitemap import UserStory
+from src.domain_models.experiment import ExperimentPlan, MetricTarget
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -5,7 +8,6 @@ import pytest
 from src.agents.governance import GovernanceAgent
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.metrics import Metrics, RingiSho
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.state import GlobalState
 
 
@@ -15,17 +17,37 @@ class TestCycle06UAT:
         return GlobalState(
             topic="UAT Cycle 6",
             metrics_data=Metrics(),
-            mvp_definition=MVP(
-                type=MVPType.SINGLE_FEATURE,
-                core_features=[
-                    Feature(
-                        name="AI Summarizer",
-                        description="Summarizes text",
-                        priority=Priority.MUST_HAVE,
+            agent_prompt_spec=AgentPromptSpec(
+                sitemap="a",
+                routing_and_constraints="b",
+                core_user_story=UserStory(
+                    as_a="c",
+                    i_want_to="d",
+                    so_that="e",
+                    acceptance_criteria=["f"],
+                    target_route="/g"
+                ),
+                state_machine=StateMachine(
+                    success="h",
+                    loading="i",
+                    error="j",
+                    empty="k"
+                ),
+                validation_rules="l",
+                mermaid_flowchart="m"
+            ),
+            experiment_plan=ExperimentPlan(
+                riskiest_assumption="Assumption A",
+                experiment_type="Type B",
+                acquisition_channel="Channel C",
+                aarrr_metrics=[
+                    MetricTarget(
+                        metric_name="M",
+                        target_value="V",
+                        measurement_method="Meth"
                     )
                 ],
-                success_criteria="User saves time",
-                v0_url="https://v0.dev/uat-result",
+                pivot_condition="Pivot Cond P"
             ),
             selected_idea=LeanCanvas(
                 id=1,

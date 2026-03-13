@@ -153,11 +153,11 @@ def test_state_validator_missing_requirements_solution() -> None:
 
 
 def test_state_validator_missing_requirements_pmf() -> None:
-    """Test StateValidator PMF phase missing mvp_definition."""
-    state = GlobalState.model_construct(phase=Phase.PMF, mvp_definition=None)
+    """Test StateValidator PMF phase missing agent_prompt_spec."""
+    state = GlobalState.model_construct(phase=Phase.PMF, agent_prompt_spec=None)
 
     with pytest.raises(
-        ValueError, match="Missing field 'mvp_definition' required for the PMF phase"
+        ValueError, match="Missing field 'agent_prompt_spec' required for the PMF phase"
     ):
         StateValidator.validate_phase_requirements(state)
 

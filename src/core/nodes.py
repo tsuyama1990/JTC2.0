@@ -7,7 +7,6 @@ from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.validators import StateValidator
@@ -151,10 +150,7 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
 
 @safe_node("Error in Solution Proposal")
 def _solution_proposal_impl(state: GlobalState) -> dict[str, Any]:
-    builder = AgentFactory.get_builder_agent()
-    updates = builder.propose_features(state)
-    updates["phase"] = Phase.SOLUTION
-    return updates
+    return {"phase": Phase.SOLUTION}
 
 
 def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
@@ -176,43 +172,34 @@ def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
     return _solution_proposal_impl(state)
 
 
-@safe_node("Error in MVP Generation")
-def mvp_generation_node(state: GlobalState) -> dict[str, Any]:
+@safe_node("Error in PMF Node")
+@safe_node("Error in Spec Generation")
+def spec_generation_node(state: GlobalState) -> dict[str, Any]:
     """
-    Generate MVP after user selection (Gate 3).
+    Generate AgentPromptSpec and ExperimentPlan (Cycle 5).
     """
-    logger.info("Generating MVP (Cycle 5)...")
+    logger.info("Generating Agent Prompt Spec and Experiment Plan (Cycle 5)...")
 
     builder = AgentFactory.get_builder_agent()
-    updates = builder.generate_mvp(state)
-
-    # If MVP Spec is generated, ensure MVP Definition exists for validation
-    if updates.get("mvp_spec"):
-        spec = updates["mvp_spec"]
-        mvp = MVP(
-            type=MVPType.SINGLE_FEATURE,
-            core_features=[
-                Feature(
-                    name=spec.core_feature,
-                    description=f"Core feature: {spec.core_feature}",
-                    priority=Priority.MUST_HAVE,
-                )
-            ],
-            success_criteria="User engagement and feedback.",
-            v0_url=updates.get("mvp_url"),  # Map URL if present
-        )
-        updates["mvp_definition"] = mvp
-
-    return updates
+    return builder.run(state)
 
 
-@safe_node("Error in PMF Node")
+@safe_node("Error in Experiment Planning")
+def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
+    """
+    Placeholder node if we want to split generation.
+    Currently BuilderAgent handles both in spec_generation_node for atomicity.
+    """
+    logger.info("Experiment Planning Node: Passing through to PMF...")
+    return {}
+
+
 def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
     StateValidator.validate_phase_requirements(state)
 
-    if not state.mvp_definition:
-        logger.warning("Entering PMF Phase without an MVP definition.")
+    if not state.agent_prompt_spec:
+        logger.warning("Entering PMF Phase without an AgentPromptSpec.")
 
     logger.info(f"Transitioning to Phase: {Phase.PMF}")
     return {"phase": Phase.PMF}

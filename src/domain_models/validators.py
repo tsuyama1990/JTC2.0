@@ -61,7 +61,8 @@ class StateValidator:
             _check("sitemap_and_story", "SOLUTION")
 
         elif state.phase == Phase.PMF:
-            _check("mvp_definition", "PMF")
+            _check("agent_prompt_spec", "PMF")
+            _check("experiment_plan", "PMF")
 
         elif state.phase == Phase.GOVERNANCE:
             _check("experiment_plan", "GOVERNANCE")
