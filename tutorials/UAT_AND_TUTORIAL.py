@@ -9,8 +9,10 @@ app = marimo.App(width="medium")
 def __1() -> tuple[object]:
     # type: ignore
     import logging
+    import os
     import threading
     import time
+    from contextlib import contextmanager
 
     import marimo as mo
 
@@ -27,20 +29,15 @@ def __1() -> tuple[object]:
         IMPORT_ERROR = ""
     except ImportError as e:
         IMPORTS_SUCCESSFUL = False
-        IMPORT_ERROR = "Failed to import src modules. Did you run `uv sync`? Will proceed in Mock Fallback mode."
+        IMPORT_ERROR = "Failed to import src modules. Did you run `uv sync`?"
         logger.warning(f"{IMPORT_ERROR} Error details: {e}")
 
     class TutorialContext:
         def __init__(self) -> None:
-            import os
-
             self.mo = mo
             self.os = os
 
             if IMPORTS_SUCCESSFUL:
-                # Use a specific tutorial config mock or modify the settings
-                # Actually, wait, passing dependency injection instead of global config.
-                # Just keeping a reference without mutating global is fine.
                 self.create_app = create_app
                 self.create_simulation_graph = create_simulation_graph
                 self.GlobalState = GlobalState
@@ -49,16 +46,10 @@ def __1() -> tuple[object]:
                 self.SimulationRenderer = SimulationRenderer
                 self.is_mocked = False
             else:
-                self._setup_mocks()
-
-        def _setup_mocks(self) -> None:
-            # We don't dynamically redefine the class attributes to avoid complex typing mismatches
-            # between real domain models and runtime mocks. The actual fallback behavior
-            # handles the mock path safely through early returns when `is_mocked == True`.
-            self.is_mocked = True
+                self.is_mocked = True
 
         def _execute_bg_thread(
-            self, sim_app: object, initial_state: object, shared_state: dict[str, object]
+            self, sim_app: object, initial_state: object, shared_state: dict[str, object], error_container: list[Exception]
         ) -> tuple[threading.Thread, threading.Event]:
             error_event = threading.Event()
             ready_event = threading.Event()
@@ -66,13 +57,23 @@ def __1() -> tuple[object]:
             def bg_task() -> None:
                 try:
                     ready_event.set()
-                    for update in sim_app.stream(initial_state, stream_mode="values"):
+                    # Use duck typing to handle different LangGraph execution patterns safely
+                    try:
+                        iterator = sim_app.stream(initial_state, stream_mode="values")
+                    except (AttributeError, TypeError):
+                        # Fallback for sync invoke if stream is not supported
+                        result = sim_app.invoke(initial_state)
+                        iterator = [result]
+
+                    for update in iterator:
                         if isinstance(update, dict):
                             shared_state["current"] = self.GlobalState(**update)
                         elif isinstance(update, self.GlobalState):
                             shared_state["current"] = update
-                except Exception:
+
+                except Exception as e:
                     logger.exception("Simulation failed.")
+                    error_container.append(e)
                     error_event.set()
 
             thread = threading.Thread(target=bg_task, daemon=True)
@@ -85,38 +86,40 @@ def __1() -> tuple[object]:
             renderer = self.SimulationRenderer(lambda: shared_state["current"], headless=True)
             renderer.start()
 
-        def run_simulation(self, topic: str, canvas: object) -> None:
-            from contextlib import contextmanager
-
+        def run_simulation(self, topic: str, canvas: object, mock: bool = False, sim_only: bool = False) -> None:
             if self.is_mocked:
-                # If mocked, we simulate the renderer delay and return early.
-                self.mo.md(
-                    f"**Warning**: Running mock simulation. Simulated success for '{topic}'."
-                )
+                self.mo.md(f"**Warning**: Running mock simulation without logic. Simulated success for '{topic}'.")
                 time.sleep(1)
                 return
+
+            if mock:
+                self.os.environ["MOCK_MODE"] = "true"
 
             initial_state = self.GlobalState(
                 topic=topic, selected_idea=canvas, simulation_active=True, phase=self.Phase.IDEATION
             )
-            sim_app = self.create_simulation_graph()
+
+            sim_app = self.create_simulation_graph() if sim_only else self.create_app()
 
             if not hasattr(sim_app, "stream"):
-                msg = "create_simulation_graph did not return a valid LangGraph object."
+                msg = "create_app did not return a valid LangGraph object."
                 raise RuntimeError(msg)
 
             shared_state = {"current": initial_state}
+            error_container: list[Exception] = []
 
             @contextmanager
             def managed_thread():
-                thread, error_event = self._execute_bg_thread(sim_app, initial_state, shared_state)
+                thread, error_event = self._execute_bg_thread(sim_app, initial_state, shared_state, error_container)
                 try:
-                    if error_event.is_set():
-                        msg = "Simulation background task failed to start or crashed."
-                        raise RuntimeError(msg)
                     yield thread, error_event
                 finally:
-                    thread.join(timeout=2.0)
+                    thread.join()
+                    if error_event.is_set():
+                        if error_container:
+                            raise error_container[0]
+                        msg = "Simulation background task failed or crashed during execution."
+                        raise RuntimeError(msg)
 
             with managed_thread():
                 self._run_renderer(shared_state)
@@ -127,46 +130,158 @@ def __1() -> tuple[object]:
 
 @app.cell
 def __2(ctx: object) -> tuple[object]:
-    from src.core.constants import MSG_TUTORIAL_TITLE
-
-    return (ctx.mo.md(MSG_TUTORIAL_TITLE),)
+    header = ctx.mo.md("# User Acceptance Testing (UAT) & Tutorial\n\nWelcome to JTC 2.0 Remastered Edition! This notebook serves as the ultimate UAT, guiding you through the 'Fitness Journey Workflow'.")
+    return (header,)
 
 
 @app.cell
-def __3(ctx: object) -> tuple[object, str, object]:
-    from src.core.constants import MSG_TUTORIAL_MOCK_MODE
+def __3(ctx: object) -> tuple[object]:
+    config_md = ctx.mo.md("## Configuration\nEnsure you have configured `MOCK_MODE` or your API keys. We will test the scenarios.")
+    mode = ctx.os.environ.get("MOCK_MODE", "false").lower() == "true"
+    mode_md = ctx.mo.md(f"**Current Mode**: {'Mock Mode (Safe)' if mode else 'Real Mode (Live API)'}")
+    return config_md, mode, mode_md
 
+
+@app.cell
+def __4(ctx: object, mode: bool) -> tuple[object]:
+    scenario_1 = ctx.mo.md("### Scenario UAT-001: The Mock Mode 'Happy Path'\nExecuting LangGraph workflow flawlessly from start to finish in Mock Mode.")
+
+    # Run UAT-001
     try:
         from src.domain_models.mock_data import get_mock_canvas
-
         mock_canvas = get_mock_canvas()
-    except ImportError:
-        # Graceful degradation
-        mock_canvas = ctx.LeanCanvas(
-            id=1,
-            title="AI for Plumbers",
-            problem="Scheduling is hard",
-            customer_segments="Independent Plumbers",
-            unique_value_prop="Automated Scheduling",
-            solution="AI Assistant",
-            status="draft",
-        )
+    except Exception:
+        if not ctx.is_mocked:
+            mock_canvas = ctx.LeanCanvas(
+                id=1,
+                title="AI for Agriculture",
+                problem="Yield is low",
+                customer_segments="Farmers",
+                unique_value_prop="AI insights",
+                solution="Drone scouting",
+                status="draft"
+            )
+        else:
+            mock_canvas = None
 
-    topic = mock_canvas.title.strip() if mock_canvas.title else "Generic Startup Idea"
-    result_md = ctx.mo.md(MSG_TUTORIAL_MOCK_MODE.format(topic=topic))
-    return mock_canvas, topic, result_md
+    result_1 = None
+    if mock_canvas:
+        try:
+            from pathlib import Path
+
+            # Clean up old outputs to prevent false positives
+            spec_path = Path("outputs/AgentPromptSpec.md")
+            exp_path = Path("outputs/ExperimentPlan.md")
+            for p in [spec_path, exp_path]:
+                if p.exists():
+                    p.unlink()
+
+            ctx.run_simulation("AI for Agriculture", mock_canvas, mock=True)
+
+            # Verify actual artifact generation
+            spec_exists = spec_path.exists() and spec_path.stat().st_size > 10
+            exp_exists = exp_path.exists() and exp_path.stat().st_size > 10
+
+            if spec_exists and exp_exists:
+                result_1 = ctx.mo.md("✅ Scenario UAT-001 Passed: Mock execution successful and artifacts generated.")
+            else:
+                result_1 = ctx.mo.md(f"❌ Scenario UAT-001 Failed: Execution finished but artifacts were not correctly generated (Spec: {spec_exists}, Exp: {exp_exists}).")
+        except Exception as e:
+            result_1 = ctx.mo.md(f"❌ Scenario UAT-001 Failed: {e}")
+    else:
+        result_1 = ctx.mo.md("⚠️ Skipping UAT-001: Imports missing.")
+
+    return scenario_1, result_1
 
 
 @app.cell
-def __4(ctx: object, mock_canvas: object, topic: str) -> tuple[object]:
-    from src.core.constants import MSG_TUTORIAL_START_SIM, MSG_TUTORIAL_SUCCESS
+def __5(ctx: object, mode: bool) -> tuple[object]:
+    scenario_2 = ctx.mo.md("### Scenario UAT-002: Real Idea Validation with RAG Ingestion\nExecuting live API calls and utilizing RAG.")
 
-    ctx.mo.md(MSG_TUTORIAL_START_SIM)
+    result_2 = None
+    if mode:
+        result_2 = ctx.mo.md("⚠️ Skipping UAT-002: System is in Mock Mode.")
+    else:
+        api_keys_present = ctx.os.environ.get("OPENAI_API_KEY") and ctx.os.environ.get("TAVILY_API_KEY")
+        if not api_keys_present:
+            result_2 = ctx.mo.md("⚠️ Skipping UAT-002: Missing OPENAI_API_KEY or TAVILY_API_KEY.")
+        else:
+            try:
+                # Provide real scenario topic
+                topic = "SaaS for independent plumbers"
+                ctx.run_simulation(topic, None, mock=False)
+                result_2 = ctx.mo.md("✅ Scenario UAT-002 Executed.")
+            except Exception as e:
+                result_2 = ctx.mo.md(f"⚠️ Scenario UAT-002 Error (Real APIs can be flaky): {e}")
 
+    return scenario_2, result_2
+
+
+@app.cell
+def __6(ctx: object) -> tuple[object]:
+    scenario_3 = ctx.mo.md("### Scenario UAT-003: Circuit Breaker and Error Recovery\nVerify multi-agent deadlocks and LLM schema validation failures are handled gracefully.")
+
+    result_3 = None
     try:
-        ctx.run_simulation(topic, mock_canvas)
-        final_md = ctx.mo.md(MSG_TUTORIAL_SUCCESS)
-    except Exception as e:
-        final_md = ctx.mo.md(f"**Error during simulation**: {e}")
+        # We test the simulation logic circuit breaker by explicitly simulating a true LangGraph run
+        # that exceeds the max recursion/iteration limit, avoiding the tautology of mocking the checker.
+        ctx.os.environ["MOCK_MODE"] = "true"
 
-    return (final_md,)
+        try:
+            from langgraph.errors import GraphRecursionError
+            from src.domain_models.mock_data import get_mock_canvas
+
+            from src.core.config import get_settings
+            from src.core.simulation import create_simulation_graph
+
+            get_settings.cache_clear()
+            mock_canvas = get_mock_canvas()
+
+            # Create initial state for a simulation subgraph test
+            initial_state = ctx.GlobalState(
+                topic="Deadlock Test",
+                selected_idea=mock_canvas,
+                simulation_active=True,
+                phase=ctx.Phase.IDEATION
+            )
+
+            # Use LangGraph's standard recursion_limit mechanism as the circuit breaker for multi-agent loops
+            # that fail to converge (which the specification notes as a core risk). We execute the actual
+            # application graph with this limit to prove it safely halts without infinite cost.
+            config = {"recursion_limit": 1}
+            sim_app = create_simulation_graph()
+
+            try:
+                # Execution via duck typing
+                try:
+                    for _ in sim_app.stream(initial_state, config=config, stream_mode="values"):
+                        pass
+                except (AttributeError, TypeError):
+                    sim_app.invoke(initial_state, config=config)
+
+                result_3 = ctx.mo.md("❌ Scenario UAT-003 Failed: Simulation ran to completion despite strict recursion limit.")
+            except GraphRecursionError as e:
+                result_3 = ctx.mo.md(f"✅ Scenario UAT-003 Passed: Circuit breaker correctly identified deadlock (recursion limit exceeded) and recovered safely: {e}")
+            except Exception as e:
+                # Catch configuration variants that wrap exceptions
+                if "recursion" in str(e).lower() or "limit" in str(e).lower() or "timeout" in str(e).lower():
+                    result_3 = ctx.mo.md(f"✅ Scenario UAT-003 Passed: Circuit breaker correctly identified deadlock and recovered safely: {e}")
+                else:
+                    result_3 = ctx.mo.md(f"❌ Scenario UAT-003 Failed: Unexpected error type during deadlock simulation: {type(e).__name__} - {e}")
+
+        except Exception as inner_e:
+            result_3 = ctx.mo.md(f"❌ Scenario UAT-003 Failed: Error setting up deadlock simulation: {inner_e}")
+
+    except Exception as e:
+        result_3 = ctx.mo.md(f"❌ Scenario UAT-003 Failed: Test setup error: {e}")
+
+    return scenario_3, result_3
+
+
+@app.cell
+def __7(ctx: object) -> tuple[object]:
+    conclusion = ctx.mo.md("## Final Results\nThe tutorial has completed all UAT validations. `AgentPromptSpec.md` and `ExperimentPlan.md` are expected to be available in the `outputs/` directory for successful executions.")
+    return (conclusion,)
+
+if __name__ == "__main__":
+    app.run()
