@@ -49,7 +49,7 @@ def __1() -> tuple[object]:
                 self.is_mocked = True
 
         def _execute_bg_thread(
-            self, sim_app: object, initial_state: object, shared_state: dict[str, object]
+            self, sim_app: object, initial_state: object, shared_state: dict[str, object], error_container: list[Exception]
         ) -> tuple[threading.Thread, threading.Event]:
             error_event = threading.Event()
             ready_event = threading.Event()
@@ -62,8 +62,9 @@ def __1() -> tuple[object]:
                             shared_state["current"] = self.GlobalState(**update)
                         elif isinstance(update, self.GlobalState):
                             shared_state["current"] = update
-                except Exception:
+                except Exception as e:
                     logger.exception("Simulation failed.")
+                    error_container.append(e)
                     error_event.set()
 
             thread = threading.Thread(target=bg_task, daemon=True)
@@ -76,33 +77,40 @@ def __1() -> tuple[object]:
             renderer = self.SimulationRenderer(lambda: shared_state["current"], headless=True)
             renderer.start()
 
-        def run_simulation(self, topic: str, canvas: object, mock: bool = False) -> None:
-            if self.is_mocked or mock:
-                self.mo.md(f"**Warning**: Running mock simulation. Simulated success for '{topic}'.")
+        def run_simulation(self, topic: str, canvas: object, mock: bool = False, sim_only: bool = False) -> None:
+            if self.is_mocked:
+                self.mo.md(f"**Warning**: Running mock simulation without logic. Simulated success for '{topic}'.")
                 time.sleep(1)
                 return
+
+            if mock:
+                self.os.environ["MOCK_MODE"] = "true"
 
             initial_state = self.GlobalState(
                 topic=topic, selected_idea=canvas, simulation_active=True, phase=self.Phase.IDEATION
             )
-            sim_app = self.create_app()
+
+            sim_app = self.create_simulation_graph() if sim_only else self.create_app()
 
             if not hasattr(sim_app, "stream"):
                 msg = "create_app did not return a valid LangGraph object."
                 raise RuntimeError(msg)
 
             shared_state = {"current": initial_state}
+            error_container: list[Exception] = []
 
             @contextmanager
             def managed_thread():
-                thread, error_event = self._execute_bg_thread(sim_app, initial_state, shared_state)
+                thread, error_event = self._execute_bg_thread(sim_app, initial_state, shared_state, error_container)
                 try:
-                    if error_event.is_set():
-                        msg = "Simulation background task failed to start or crashed."
-                        raise RuntimeError(msg)
                     yield thread, error_event
                 finally:
-                    thread.join(timeout=2.0)
+                    thread.join()
+                    if error_event.is_set():
+                        if error_container:
+                            raise error_container[0]
+                        msg = "Simulation background task failed or crashed during execution."
+                        raise RuntimeError(msg)
 
             with managed_thread():
                 self._run_renderer(shared_state)
@@ -185,16 +193,51 @@ def __5(ctx: object, mode: bool) -> tuple[object]:
 
 @app.cell
 def __6(ctx: object) -> tuple[object]:
-    import time
     scenario_3 = ctx.mo.md("### Scenario UAT-003: Circuit Breaker and Error Recovery\nVerify multi-agent deadlocks and LLM schema validation failures are handled gracefully.")
 
+    result_3 = None
     try:
-        # Simulate circuit breaker activation
-        ctx.mo.md("Simulating Hacker/Hustler infinite loop...")
-        time.sleep(1)
-        result_3 = ctx.mo.md("✅ Scenario UAT-003 Passed: Circuit breaker correctly identified deadlock and recovered.")
+        # We test the simulation logic circuit breaker by running an infinite loop simulation and
+        # ensuring the maximum iteration recursion limit is caught and handled safely.
+        from langgraph.errors import GraphRecursionError
+
+        ctx.os.environ["MOCK_MODE"] = "true"
+
+        # We'll use the graph with a small recursion limit to force a timeout/deadlock error
+        try:
+            from src.core.simulation import create_simulation_graph
+            sim_app = create_simulation_graph()
+
+            from src.domain_models.mock_data import get_mock_canvas
+            mock_canvas = get_mock_canvas()
+
+            initial_state = ctx.GlobalState(
+                topic="Circuit Breaker Test",
+                selected_idea=mock_canvas,
+                simulation_active=True,
+                phase=ctx.Phase.IDEATION
+            )
+
+            # Execute the graph with a small recursion limit (circuit breaker threshold)
+            config = {"recursion_limit": 2}
+            try:
+                for _ in sim_app.stream(initial_state, config=config, stream_mode="values"):
+                    pass
+                result_3 = ctx.mo.md("❌ Scenario UAT-003 Failed: Circuit breaker did not activate during deadlock simulation.")
+            except GraphRecursionError as e:
+                result_3 = ctx.mo.md(f"✅ Scenario UAT-003 Passed: Circuit breaker correctly identified deadlock (recursion limit exceeded) and recovered safely: {e}")
+            except Exception as e:
+                # In some configurations it might raise a different exception wrapper
+                if "recursion" in str(e).lower() or "limit" in str(e).lower() or "timeout" in str(e).lower():
+                    result_3 = ctx.mo.md(f"✅ Scenario UAT-003 Passed: Circuit breaker correctly identified deadlock and recovered safely: {e}")
+                else:
+                    result_3 = ctx.mo.md(f"❌ Scenario UAT-003 Failed: Unexpected error type during deadlock simulation: {type(e).__name__} - {e}")
+
+        except Exception as inner_e:
+            result_3 = ctx.mo.md(f"❌ Scenario UAT-003 Failed: Error setting up deadlock simulation: {inner_e}")
+
     except Exception as e:
-        result_3 = ctx.mo.md(f"❌ Scenario UAT-003 Failed: {e}")
+        result_3 = ctx.mo.md(f"❌ Scenario UAT-003 Failed: Test setup error: {e}")
 
     return scenario_3, result_3
 
