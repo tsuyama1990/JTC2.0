@@ -54,7 +54,7 @@ uv run main.py "AI solutions for independent plumbers"
 ```
 *You'll be prompted to verify and choose a Plan A directly within the CLI.*
 
-You can also use Marimo notebooks to run through the full "Fitness Journey Workflow" visually in your browser.
+You can also use Marimo notebooks to run through the full "Fitness Journey Workflow" visually in your browser. This notebook acts as the ultimate User Acceptance Test (UAT), guiding you through scenarios such as Mock Mode, Real Mode, and Circuit Breaker testing.
 
 ```bash
 uv run marimo edit tutorials/UAT_AND_TUTORIAL.py
