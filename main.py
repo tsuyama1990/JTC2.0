@@ -1,6 +1,5 @@
 import argparse
 import logging
-import re
 import sys
 import threading
 from collections.abc import Iterator
@@ -10,6 +9,9 @@ from pathlib import Path
 # Add src to path if running from root
 sys.path.append(".")
 
+# Configure logging
+import os
+
 from src.core.config import UIConfig, get_settings
 from src.core.graph import create_app
 from src.core.simulation import create_simulation_graph
@@ -18,10 +20,11 @@ from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
 from src.ui.renderer import SimulationRenderer
 
-# Configure logging
-settings = get_settings()
-logging.basicConfig(level=settings.log_level)
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
+
+# We instantiate settings lazily inside main() or explicitly when needed
+# to avoid side-effects during test collection where main.py is imported
 
 
 def echo(msg: str) -> None:
@@ -60,11 +63,25 @@ def validate_topic(topic: str) -> str:
         msg = "Topic is too long (max 200 chars)."
         raise ValueError(msg)
 
-    # Allow alphanumeric, spaces, - _ . : ,
-    if not re.match(r"^[a-zA-Z0-9\s\-_\.,:]+$", topic):
-        logger.warning(f"Topic contains special characters: {topic}")
-        # STRICT sanitization: Remove anything not in allowlist
-        topic = re.sub(r"[^a-zA-Z0-9\s\-_\.,:]", "", topic)
+    import unicodedata
+
+    import bleach
+
+    # Use comprehensive HTML sanitization
+    topic = bleach.clean(topic, tags=[], attributes={}, strip=True)
+
+    # Remove null bytes explicitly
+    topic = topic.replace("\x00", "")
+
+    # Comprehensive Unicode and control character validation (Whitelist approach)
+    sanitized_chars = []
+    for ch in topic:
+        # Whitelist categories: Letters (L), Numbers (N), Punctuation (P), Space (Z)
+        cat = unicodedata.category(ch)
+        if cat.startswith(("L", "N", "P", "Z")):
+            sanitized_chars.append(ch)
+
+    topic = "".join(sanitized_chars)
 
     if not topic.strip():
         msg = "Topic is empty after sanitization."
@@ -76,21 +93,41 @@ def validate_topic(topic: str) -> str:
 def validate_filepath(filepath: str) -> Path:
     """
     Validate filepath to prevent traversal attacks.
-    Ensures path is within the current working directory.
+    Ensures path is within the allowed workspace directories.
     """
-    path = Path(filepath).resolve()
-    cwd = Path.cwd().resolve()
+    if "\x00" in filepath:
+        msg = "File path contains null bytes."
+        raise ValueError(msg)
 
-    # Strict path traversal check
-    if not path.is_relative_to(cwd):
-        msg = "File path must be within the project directory."
+    import os
+
+    # Resolve symlinks and convert to absolute path
+    real_path_str = os.path.realpath(filepath)
+    path = Path(real_path_str)
+
+    cwd = Path.cwd().resolve()
+    allowed_dirs = [
+        cwd / "data",
+        cwd / "sample_data",
+        cwd / "tests",
+    ]
+
+    is_allowed = False
+    for allowed in allowed_dirs:
+        if path.is_relative_to(allowed):
+            is_allowed = True
+            break
+
+    if not is_allowed:
+        msg = "File path must be within allowed project directories (data, sample_data, tests)."
         raise ValueError(msg)
 
     if not path.exists():
         msg = f"File not found: {filepath}"
         raise ValueError(msg)
 
-    return path
+    # Use strict resolution to ensure the file exists and is accessible
+    return path.resolve(strict=True)
 
 
 def _process_page_selection(
@@ -200,15 +237,18 @@ def _process_execution(topic: str) -> Iterator[LeanCanvas]:
     # Normalize to iterator and STRICTLY enforce iterator type
     # We strictly expect an iterator or convert to one without loading into list first
     if isinstance(generated_ideas_raw, list):
-        logger.warning(
-            "generated_ideas was materialized as a list. Memory usage optimization missed."
-        )
-        iterator = iter(generated_ideas_raw)
+        # Enforce memory safety architecture (Anti-Hallucination/OOM)
+        msg = "OOM Risk: generated_ideas must be an Iterator, not a fully materialized list."
+        logger.error(msg)
+        raise TypeError(msg)
     elif isinstance(generated_ideas_raw, Iterator):
         iterator = generated_ideas_raw
     else:
-        # Fallback for other iterables
-        iterator = iter(generated_ideas_raw)
+        msg = (
+            f"OOM Risk: Expected an Iterator for generated_ideas, got {type(generated_ideas_raw)}."
+        )
+        logger.error(msg)
+        raise TypeError(msg)
 
     # We yield items one by one to ensure this function remains a generator
     for item in iterator:

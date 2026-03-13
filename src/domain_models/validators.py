@@ -11,7 +11,25 @@ class StateValidator:
     """
 
     @staticmethod
-    def validate_phase_requirements(state: "GlobalState") -> "GlobalState":
+    def _sanitize_topic(topic: str) -> str:
+        """Apply strict whitelisting and HTML sanitization to topic string."""
+        import unicodedata
+
+        import bleach
+
+        sanitized = bleach.clean(topic, tags=[], attributes={}, strip=True)
+        sanitized = sanitized.replace("\x00", "")
+
+        sanitized_chars = []
+        for ch in sanitized:
+            cat = unicodedata.category(ch)
+            if cat.startswith(("L", "N", "P", "Z")):
+                sanitized_chars.append(ch)
+
+        return "".join(sanitized_chars)
+
+    @staticmethod
+    def validate_phase_requirements(state: "GlobalState") -> "GlobalState":  # noqa: C901
         """
         Validate that required fields are present for the current phase.
 
@@ -38,14 +56,24 @@ class StateValidator:
 
         # Basic topic sanitization
         if state.topic:
-            import bleach  # type: ignore[import-untyped]
+            import unicodedata
+
+            import bleach
 
             # Use comprehensive HTML sanitization
             sanitized = bleach.clean(state.topic, tags=[], attributes={}, strip=True)
             # Remove null bytes
             sanitized = sanitized.replace("\x00", "")
-            # Prevent control character injections
-            sanitized = "".join(ch for ch in sanitized if ord(ch) >= 32 or ch in "\n\r\t")
+
+            # Comprehensive Unicode and control character validation (Whitelist approach)
+            sanitized_chars = []
+            for ch in sanitized:
+                # Whitelist categories: Letters (L), Numbers (N), Punctuation (P), Space (Z)
+                cat = unicodedata.category(ch)
+                if cat.startswith(("L", "N", "P", "Z")):
+                    sanitized_chars.append(ch)
+
+            sanitized = "".join(sanitized_chars)
 
             # Note: We removed the naive SQL keyword string replacement as per security audit.
             # State topic is used strictly as an LLM context parameter, not directly within DB queries.
