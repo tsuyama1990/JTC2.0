@@ -4,17 +4,18 @@ from functools import lru_cache
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.core.constants import (
+    DEFAULT_PAGE_SIZE,
+)
 from src.core.theme import (
     AGENT_POS_CPO,
     AGENT_POS_FINANCE,
     AGENT_POS_NEW_EMP,
     AGENT_POS_SALES,
-    COLOR_BG,
     COLOR_CPO,
     COLOR_FINANCE,
     COLOR_NEW_EMP,
     COLOR_SALES,
-    COLOR_TEXT,
 )
 from src.core.validators import ConfigValidators
 
@@ -56,7 +57,7 @@ class UIConfig(BaseSettings):
 
     page_size: int = Field(
         alias="UI_PAGE_SIZE",
-        default=3,
+        default=DEFAULT_PAGE_SIZE,
         description="Number of items per page in UI",
     )
 
@@ -143,12 +144,14 @@ class SimulationConfig(BaseSettings):
     width: int = Field(default=256, description="Window width")
     height: int = Field(default=256, description="Window height")
     fps: int = Field(default=30, description="Frames per second")
-    title: str = Field(default="JTC Simulation: The Meeting", description="Window title")
-    bg_color: int = Field(default=COLOR_BG, description="Background color")
-    text_color: int = Field(default=COLOR_TEXT, description="Text color")
+    title: str = Field(alias="SIMULATION_TITLE", description="Window title")
+    bg_color: int = Field(alias="COLOR_BG", description="Background color")
+    text_color: int = Field(alias="COLOR_TEXT", description="Text color")
 
-    chars_per_line: int = Field(default=32, description="Characters per line in dialogue")
-    line_height: int = Field(default=10, description="Line height in pixels")
+    chars_per_line: int = Field(
+        alias="SIMULATION_CHARS_PER_LINE", description="Characters per line in dialogue"
+    )
+    line_height: int = Field(alias="SIMULATION_LINE_HEIGHT", description="Line height in pixels")
     dialogue_x: int = Field(default=10, description="Dialogue box X position")
     dialogue_y: int = Field(default=150, description="Dialogue box Y position")
     max_y: int = Field(default=500, description="Max Y for scrolling")
@@ -185,30 +188,74 @@ class SimulationConfig(BaseSettings):
     max_turns: int = Field(default=10, description="Max turns in simulation")
 
     # Explicit fields for individual agents to allow env var overrides
-    agent_new_emp: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP
-        ),
-        description="Configuration for New Employee Agent",
+    agent_new_emp_pos: dict[str, int] = Field(
+        alias="AGENT_POS_NEW_EMP",
+        default_factory=lambda: AGENT_POS_NEW_EMP,
+        description="New Employee Agent layout settings",
     )
-    agent_finance: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE
-        ),
-        description="Configuration for Finance Agent",
+    agent_new_emp_color: int = Field(
+        alias="COLOR_NEW_EMP", default=COLOR_NEW_EMP, description="New Employee Agent Color"
     )
-    agent_sales: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES
-        ),
-        description="Configuration for Sales Agent",
+
+    agent_finance_pos: dict[str, int] = Field(
+        alias="AGENT_POS_FINANCE",
+        default_factory=lambda: AGENT_POS_FINANCE,
+        description="Finance Agent layout settings",
     )
-    agent_cpo: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO
-        ),
-        description="Configuration for CPO Agent",
+    agent_finance_color: int = Field(
+        alias="COLOR_FINANCE", default=COLOR_FINANCE, description="Finance Agent Color"
     )
+
+    agent_sales_pos: dict[str, int] = Field(
+        alias="AGENT_POS_SALES",
+        default_factory=lambda: AGENT_POS_SALES,
+        description="Sales Agent layout settings",
+    )
+    agent_sales_color: int = Field(
+        alias="COLOR_SALES", default=COLOR_SALES, description="Sales Agent Color"
+    )
+
+    agent_cpo_pos: dict[str, int] = Field(
+        alias="AGENT_POS_CPO",
+        default_factory=lambda: AGENT_POS_CPO,
+        description="CPO Agent layout settings",
+    )
+    agent_cpo_color: int = Field(
+        alias="COLOR_CPO", default=COLOR_CPO, description="CPO Agent Color"
+    )
+
+    @property
+    def agent_new_emp(self) -> AgentConfig:
+        return AgentConfig(
+            role="New Employee",
+            label="NewEmp",
+            color=self.agent_new_emp_color,
+            **self.agent_new_emp_pos,
+        )
+
+    @property
+    def agent_finance(self) -> AgentConfig:
+        return AgentConfig(
+            role="Finance Manager",
+            label="Finance",
+            color=self.agent_finance_color,
+            **self.agent_finance_pos,
+        )
+
+    @property
+    def agent_sales(self) -> AgentConfig:
+        return AgentConfig(
+            role="Sales Manager",
+            label="Sales",
+            color=self.agent_sales_color,
+            **self.agent_sales_pos,
+        )
+
+    @property
+    def agent_cpo(self) -> AgentConfig:
+        return AgentConfig(
+            role="CPO", label="CPO", color=self.agent_cpo_color, **self.agent_cpo_pos
+        )
 
     @property
     def agents(self) -> dict[str, AgentConfig]:
@@ -254,12 +301,9 @@ class GovernanceConfig(BaseSettings):
         default=10_000,
         description="Max bytes for LLM JSON response",
     )
-    output_path: str = Field(
-        alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output"
-    )
+    output_path: str = Field(alias="RINGI_SHO_PATH", description="Path for Ringi-sho output")
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
-        default="average CAC churn ARPU LTV for {industry} startups benchmarks",
         description="Template for financial search",
     )
     max_search_result_size: int = Field(
@@ -331,10 +375,9 @@ class Settings(BaseSettings):
     v0_api_url: str = Field(
         alias="V0_API_URL",
         description="V0.dev API URL",
-        pattern=r"^https://(?:[a-zA-Z0-9-]+\.)*v0\.dev(?:/.*)?$",
     )
 
-    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
+    llm_model: str = Field(alias="LLM_MODEL", description="LLM Model name")
 
     rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", description="Directory for RAG index")
     rag_chunk_size: int = Field(
@@ -433,12 +476,11 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}",
         description="Template for search queries",
     )
 
-    log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
-    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=3, description="Page size for UI")
+    log_level: str = Field(alias="LOG_LEVEL", description="Logging level")
+    ui_page_size: int = Field(alias="UI_PAGE_SIZE", description="Page size for UI")
 
     # Nested configurations - Use Field to allow Pydantic to manage them
     validation: ValidationConfig = Field(default_factory=ValidationConfig)

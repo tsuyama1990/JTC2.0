@@ -31,9 +31,23 @@ DEFAULT_NEMAWASHI_TOLERANCE: Final[float] = 1e-6
 DEFAULT_NEMAWASHI_BOOST: Final[float] = 0.2
 DEFAULT_NEMAWASHI_REDUCTION: Final[float] = 0.1
 
+# --- Model Defaults ---
+DEFAULT_LLM_MODEL: Final[str] = "gpt-4o"
+DEFAULT_LOG_LEVEL: Final[str] = "INFO"
+
 # --- V0 Defaults ---
+DEFAULT_V0_API_URL: Final[str] = "https://api.v0.dev"
 DEFAULT_V0_RETRY_MAX: Final[int] = 3
 DEFAULT_V0_RETRY_BACKOFF: Final[float] = 2.0
+
+# --- File & Template Defaults ---
+DEFAULT_RINGI_SHO_PATH: Final[str] = "RINGI_SHO.md"
+DEFAULT_SEARCH_QUERY_TEMPLATE: Final[str] = (
+    "emerging business trends and painful problems in {topic}"
+)
+DEFAULT_GOV_SEARCH_QUERY_TEMPLATE: Final[str] = (
+    "average CAC churn ARPU LTV for {industry} startups benchmarks"
+)
 
 # --- Error Messages ---
 ERR_UNIQUE_ID_VIOLATION: Final[str] = "Duplicate ID detected."

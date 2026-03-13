@@ -100,13 +100,48 @@ def test_agent_config_validation() -> None:
 def test_simulation_config_validation() -> None:
     """Test validation for SimulationConfig."""
     # Valid
-    config = SimulationConfig(width=160, height=120, fps=30, bg_color=0, text_color=7)
+    config = SimulationConfig(
+        width=160,
+        height=120,
+        fps=30,
+        COLOR_BG=0,
+        COLOR_TEXT=7,
+        SIMULATION_TITLE="test",
+        SIMULATION_CHARS_PER_LINE=10,
+        SIMULATION_LINE_HEIGHT=10,
+        AGENT_POS_NEW_EMP={"x": 10, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+        AGENT_POS_FINANCE={"x": 50, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+        AGENT_POS_SALES={"x": 90, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+        AGENT_POS_CPO={"x": 130, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+    )
     assert "CPO" in config.agents
 
     # Invalid FPS
     with pytest.raises(ValidationError):
-        SimulationConfig(fps=0)
+        SimulationConfig(
+            fps=0,
+            COLOR_BG=0,
+            COLOR_TEXT=7,
+            SIMULATION_TITLE="test",
+            SIMULATION_CHARS_PER_LINE=10,
+            SIMULATION_LINE_HEIGHT=10,
+            AGENT_POS_NEW_EMP={"x": 10, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+            AGENT_POS_FINANCE={"x": 50, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+            AGENT_POS_SALES={"x": 90, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+            AGENT_POS_CPO={"x": 130, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+        )
 
     # Invalid Resolution
     with pytest.raises(ValidationError):
-        SimulationConfig(width=-100)
+        SimulationConfig(
+            width=-100,
+            COLOR_BG=0,
+            COLOR_TEXT=7,
+            SIMULATION_TITLE="test",
+            SIMULATION_CHARS_PER_LINE=10,
+            SIMULATION_LINE_HEIGHT=10,
+            AGENT_POS_NEW_EMP={"x": 10, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+            AGENT_POS_FINANCE={"x": 50, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+            AGENT_POS_SALES={"x": 90, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+            AGENT_POS_CPO={"x": 130, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
+        )
