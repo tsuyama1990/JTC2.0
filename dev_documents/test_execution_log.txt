@@ -53,16 +53,16 @@ src/agents/__init__.py                       6      0   100%
 src/agents/base.py                           9      0   100%
 src/agents/builder.py                      125      5    96%   52, 56, 147-148, 165
 src/agents/cpo.py                           77     24    69%   61-62, 65-66, 76, 81-83, 114-127, 131-134, 137-142, 149-151
-src/agents/governance.py                   105      7    93%   98-102, 199, 204
+src/agents/governance.py                   106      7    93%   101-105, 202, 207
 src/agents/ideator.py                       47     12    74%   31-34, 97-107
 src/agents/mixins.py                        23      6    74%   28, 31-35
 src/agents/personas.py                      79     12    85%   34-35, 85-87, 92-93, 102-105, 153-158
 src/core/__init__.py                         0      0   100%
-src/core/config.py                         267     26    90%   312-313, 333-334, 337-339, 348-349, 352-354, 366-367, 369-370, 372-373, 422, 428-429, 436-437, 502, 513, 539
+src/core/config.py                         270     26    90%   322-323, 343-344, 347-349, 358-359, 362-364, 376-377, 379-380, 382-383, 432, 438-439, 446-447, 513, 524, 550
 src/core/constants.py                       74      0   100%
 src/core/exceptions.py                       6      0   100%
 src/core/factory.py                         46     23    50%   24-25, 30, 43-52, 60-74
-src/core/graph.py                           33      0   100%
+src/core/graph.py                           35      0   100%
 src/core/llm.py                             10      0   100%
 src/core/metrics.py                         17      0   100%
 src/core/nemawashi/__init__.py               5      0   100%
@@ -71,9 +71,9 @@ src/core/nemawashi/consensus.py             26      2    92%   37, 65
 src/core/nemawashi/engine.py                19      1    95%   34
 src/core/nemawashi/nomikai.py               73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
 src/core/nemawashi/utils.py                 43      6    86%   31-33, 46-47, 50
-src/core/nodes.py                          150     34    77%   28-30, 51-57, 88-89, 107-111, 123-124, 148-149, 167-169, 172, 212-218, 226-232, 259-260
+src/core/nodes.py                          152     34    78%   28-30, 51-57, 88-89, 107-111, 123-124, 148-149, 167-169, 172, 212-218, 226-232, 259-260
 src/core/services/__init__.py                0      0   100%
-src/core/services/file_service.py           87     54    38%   31-49, 59-112, 126-127, 152-154
+src/core/services/file_service.py           93     58    38%   37-55, 62-123, 137-138, 163-165
 src/core/simulation.py                      34      4    88%   45-49, 66
 src/core/theme.py                           18      0   100%
 src/core/utils.py                            4      0   100%
@@ -96,7 +96,7 @@ src/domain_models/persona.py                27      2    93%   123-124
 src/domain_models/politics.py               59      3    95%   82, 100, 111
 src/domain_models/simulation.py             16      0   100%
 src/domain_models/sitemap.py                18      0   100%
-src/domain_models/state.py                 130     30    77%   88-89, 93-94, 96-97, 112-113, 128-148, 156-157, 175-176, 181-182
+src/domain_models/state.py                 131     30    77%   89-90, 94-95, 97-98, 113-114, 129-149, 157-158, 176-177, 182-183
 src/domain_models/transcript.py             22      2    91%   32-33
 src/domain_models/validators.py             30      0   100%
 src/domain_models/value_proposition.py      16      0   100%
@@ -105,7 +105,7 @@ src/tools/search.py                         34      5    85%   35, 39, 75, 90-91
 src/tools/v0_client.py                      61      2    97%   128-129
 src/ui/renderer.py                          98     11    89%   35, 94, 97-101, 125, 135-141, 161
 ----------------------------------------------------------------------
-TOTAL                                     2520    387    85%
-============================= 169 passed in 21.65s =============================
+TOTAL                                     2535    391    85%
+============================= 169 passed in 21.77s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")
