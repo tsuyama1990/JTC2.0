@@ -232,65 +232,6 @@ def governance_node(state: GlobalState) -> dict[str, Any]:
     return updates
 
 
-def _generate_master_pdf(state: GlobalState, base_dir: "Path") -> None:  # type: ignore[name-defined] # noqa: F821, C901
-    from fpdf import FPDF
-
-    try:
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Helvetica", "B", 16)
-        pdf.cell(0, 10, "The JTC 2.0 - Final Artifacts", new_x="LMARGIN", new_y="NEXT", align="C")
-        pdf.ln(10)
-
-        def add_section(title: str, content: str) -> None:
-            pdf.set_font("Helvetica", "B", 14)
-            pdf.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Helvetica", "", 10)
-
-            # Use multi_cell for text wrapping. Ensure utf-8 strings are handled.
-            # fpdf2 natively handles utf-8, but replacing unsupported chars can be safe.
-            safe_content = content.encode("latin-1", "replace").decode("latin-1")
-            pdf.multi_cell(0, 8, safe_content)
-            pdf.ln(5)
-
-        if state.selected_idea:
-            add_section("1. Lean Canvas", state.selected_idea.model_dump_json(indent=2))
-
-        if state.vpc:
-            add_section("2. Value Proposition Canvas", state.vpc.model_dump_json(indent=2))
-
-        if state.alternative_analysis:
-            add_section(
-                "3. Alternative Analysis", state.alternative_analysis.model_dump_json(indent=2)
-            )
-
-        if state.mental_model:
-            pdf.add_page()
-            add_section("4. Mental Model", state.mental_model.model_dump_json(indent=2))
-
-        if state.customer_journey:
-            add_section("5. Customer Journey", state.customer_journey.model_dump_json(indent=2))
-
-        if state.sitemap_and_story:
-            add_section("6. Sitemap and Story", state.sitemap_and_story.model_dump_json(indent=2))
-
-        pdf_path = base_dir / "Final_Artifacts_Canvas.pdf"
-
-        def _check_path(path: "Path", base: "Path") -> None:  # type: ignore[name-defined] # noqa: F821
-            if not str(path.resolve()).startswith(str(base.resolve())):
-                raise ValueError("Invalid PDF path.")  # noqa: TRY301, EM101
-
-        def _validate_and_output_pdf() -> None:
-            _check_path(pdf_path, base_dir)
-            pdf.output(str(pdf_path))
-
-        _validate_and_output_pdf()
-        logger.info(f"PDF generated successfully at {pdf_path}")
-
-    except Exception:
-        logger.exception("Failed to generate PDF artifact.")
-
-
 @safe_node("Error in Final Artifact Generation")
 def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
     """
@@ -333,6 +274,6 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
         content = f"# Ringi-Sho\n\n```json\n{state.ringi_sho.model_dump_json(indent=2)}\n```"
         write_markdown("RingiSho.md", content)
 
-    _generate_master_pdf(state, base_dir)
+    file_service.save_pdf_sync(state, base_dir)
 
     return {}

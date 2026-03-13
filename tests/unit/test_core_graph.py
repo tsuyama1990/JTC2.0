@@ -139,7 +139,6 @@ def test_final_artifact_generation_node(
 ) -> None:
     """Test the generation of final artifacts (Markdown and PDF)."""
     mock_fs = mock_fs_cls.return_value
-    mock_pdf = mock_fpdf_cls.return_value
 
     story = UserStory(
         as_a="User",
@@ -192,7 +191,6 @@ def test_final_artifact_generation_node(
     assert any("ExperimentPlan.md" in str(arg) for arg in call_args)
     assert any("RingiSho.md" in str(arg) for arg in call_args)
 
-    # Verify PDF generation logic is called
-    mock_fpdf_cls.assert_called_once()
-    mock_pdf.output.assert_called_once()
-    assert "Final_Artifacts_Canvas.pdf" in mock_pdf.output.call_args[0][0]
+    # Verify PDF generation logic is called via FileService
+    mock_fs.save_pdf_sync.assert_called_once()
+    assert "outputs" in str(mock_fs.save_pdf_sync.call_args[0][1])
