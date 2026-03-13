@@ -47,6 +47,12 @@ class ErrorMessages(BaseSettings):
     invalid_metric_key: str = "Invalid custom metric key: {key}."
     missing_persona: str = "Target persona is required for this phase."
     missing_mvp: str = "MVP definition is required for this phase."
+    invalid_api_key_format: str = "Invalid API key format: {key_name}."
+    api_key_empty: str = "{key_name} cannot be empty or whitespace-only."
+    api_key_too_short: str = "{key_name} is too short."
+    api_key_too_long: str = "{key_name} is too long."
+    api_key_invalid_prefix: str = "{key_name} must start with '{prefix}'."
+    api_key_invalid_chars: str = "{key_name} contains invalid characters."
 
 
 class UIConfig(BaseSettings):
@@ -120,6 +126,29 @@ class NemawashiConfig(BaseSettings):
         alias="NEMAWASHI_NOMIKAI_REDUCTION",
         default=0.1,
         description="Stubbornness reduction from Nomikai",
+    )
+
+
+class FileConfig(BaseSettings):
+    """Configuration for FileService operations."""
+
+    max_workers: int = Field(
+        alias="FILE_MAX_WORKERS",
+        default=5,
+        description="Max thread pool workers for async file operations",
+    )
+    output_directory: str = Field(
+        alias="OUTPUT_DIR", default="outputs", description="Directory to save final artifacts"
+    )
+
+
+class GraphConfig(BaseSettings):
+    """Configuration for LangGraph workflow execution."""
+
+    interrupt_points: list[str] = Field(
+        alias="GRAPH_INTERRUPT_POINTS",
+        default=["ideator", "verification", "solution_proposal", "pmf"],
+        description="List of node names where the graph should interrupt execution for HITL",
     )
 
 
@@ -306,22 +335,23 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file_encoding="utf-8", extra="forbid")
 
     # Explicitly enforce required keys without defaults
-    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
-    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
-    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key")
+    openai_api_key: SecretStr = Field(
+        alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=1
+    )
+    tavily_api_key: SecretStr = Field(
+        alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=1
+    )
+    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key", min_length=1)
 
     @field_validator("openai_api_key", mode="before")
     @classmethod
     def validate_openai_key_before(cls, v: str | SecretStr) -> SecretStr:
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
-        secret = secret_str.get_secret_value()
-        if not secret or not secret.strip():
-            msg = "API key cannot be empty or whitespace-only."
-            raise ValueError(msg)
         try:
             ConfigValidators.validate_openai_key(secret_str)
         except Exception as e:
-            msg = f"Invalid OpenAI API key format: {e}"
+            base_msg = ErrorMessages().invalid_api_key_format.format(key_name="OpenAI API Key")
+            msg = f"{base_msg} {e}"
             raise ValueError(msg) from e
         return secret_str
 
@@ -329,14 +359,11 @@ class Settings(BaseSettings):
     @classmethod
     def validate_tavily_key_before(cls, v: str | SecretStr) -> SecretStr:
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
-        secret = secret_str.get_secret_value()
-        if not secret or not secret.strip():
-            msg = "API key cannot be empty or whitespace-only."
-            raise ValueError(msg)
         try:
             ConfigValidators.validate_tavily_key(secret_str)
         except Exception as e:
-            msg = f"Invalid Tavily API key format: {e}"
+            base_msg = ErrorMessages().invalid_api_key_format.format(key_name="Tavily API Key")
+            msg = f"{base_msg} {e}"
             raise ValueError(msg) from e
         return secret_str
 
@@ -354,8 +381,8 @@ class Settings(BaseSettings):
         if len(secret) < 10:
             msg = "v0_api_key must be at least 10 characters long."
             raise ValueError(msg)
-        if not re.match(r"^[\w\-\.\+]+$", secret):
-            msg = "v0_api_key contains invalid characters."
+        if not re.match(r"^v0-[a-zA-Z0-9_\\-]{20,128}$", secret):
+            msg = "v0_api_key must start with 'v0-' and be 20-128 valid characters."
             raise ValueError(msg)
         return secret_str
 
@@ -477,6 +504,8 @@ class Settings(BaseSettings):
     nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
+    file_service: FileConfig = Field(default_factory=FileConfig)
+    graph: GraphConfig = Field(default_factory=GraphConfig)
 
 
 # Global settings state override

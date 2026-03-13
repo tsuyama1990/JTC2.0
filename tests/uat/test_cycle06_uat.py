@@ -1,4 +1,3 @@
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,7 +9,6 @@ from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.state import GlobalState
 
 
-@patch.dict(os.environ, {"OPENAI_API_KEY": "sk-dummy", "TAVILY_API_KEY": "tv-dummy"})
 class TestCycle06UAT:
     @pytest.fixture
     def initial_state(self) -> GlobalState:
@@ -81,6 +79,12 @@ class TestCycle06UAT:
                 # Run agent
                 result = agent.run(initial_state)
 
+                # Verify search query formation is safe and matches industry context
+                mock_search.safe_search.assert_called_once()
+                called_query = mock_search.safe_search.call_args[0][0]
+                assert "UAT Cycle 6" in called_query or "B2B Enterprise" in called_query
+                assert "average CAC" in called_query
+
                 # Verify RingiSho created
                 if "ringi_sho" in result:
                     ringi_sho = result["ringi_sho"]
@@ -133,6 +137,8 @@ class TestCycle06UAT:
                 mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
 
                 result = agent.run(initial_state)
+
+                mock_search.safe_search.assert_called_once()
 
                 if "ringi_sho" in result:
                     ringi_sho = result["ringi_sho"]

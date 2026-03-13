@@ -25,9 +25,9 @@ def safe_node(
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             try:
                 return func(*args, **kwargs)  # type: ignore[no-any-return]
-            except Exception:
-                logger.exception(error_msg)
-                return {}
+            except Exception as e:
+                logger.exception(error_msg, exc_info=True)
+                return {"error": str(e)}
 
         return wrapper
 
@@ -230,3 +230,54 @@ def governance_node(state: GlobalState) -> dict[str, Any]:
 
     updates["phase"] = Phase.GOVERNANCE
     return updates
+
+
+@safe_node("Error in Final Artifact Generation")
+def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
+    """
+    Finalize artifacts by generating a comprehensive PDF of all Canvas and Models,
+    and outputting the AgentPromptSpec and ExperimentPlan as Markdown files.
+    """
+    from pathlib import Path
+
+    from src.core.config import get_settings
+    from src.core.services.file_service import FileService
+
+    logger.info("Generating Final Artifacts...")
+    file_service = FileService()
+    settings = get_settings()
+
+    # Securely resolve output path, preventing path traversal
+    # Ensure it's inside the current working directory
+    base_dir = Path.cwd() / settings.file_service.output_directory
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    def write_markdown(filename: str, content: str) -> None:
+        try:
+            path = base_dir / filename
+            file_service.save_text_async(content, str(path))
+        except Exception:
+            logger.exception(f"Failed to write markdown artifact: {filename}")
+
+    try:
+        # Write Markdown specs if they exist in state
+        if state.agent_prompt_spec:
+            content = f"# Agent Prompt Spec\n\n```json\n{state.agent_prompt_spec.model_dump_json(indent=2)}\n```"
+            write_markdown("AgentPromptSpec.md", content)
+
+        if state.experiment_plan:
+            content = f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
+            write_markdown("ExperimentPlan.md", content)
+
+        # Note: RingiSho is already saved by GovernanceAgent, but we'll export a duplicate
+        # to the unified outputs directory for completeness.
+        if state.ringi_sho:
+            content = f"# Ringi-Sho\n\n```json\n{state.ringi_sho.model_dump_json(indent=2)}\n```"
+            write_markdown("RingiSho.md", content)
+
+        file_service.save_pdf_sync(state, base_dir)
+    finally:
+        # Ensure thread pool is shut down cleanly to prevent resource leaks
+        file_service.shutdown()
+
+    return {}
