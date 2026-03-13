@@ -240,14 +240,16 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
     """
     from pathlib import Path
 
+    from src.core.config import get_settings
     from src.core.services.file_service import FileService
 
     logger.info("Generating Final Artifacts...")
     file_service = FileService()
+    settings = get_settings()
 
     # Securely resolve output path, preventing path traversal
     # Ensure it's inside the current working directory
-    base_dir = Path.cwd() / "outputs"
+    base_dir = Path.cwd() / settings.file_service.output_directory
     base_dir.mkdir(parents=True, exist_ok=True)
 
     def write_markdown(filename: str, content: str) -> None:

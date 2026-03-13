@@ -123,6 +123,20 @@ class NemawashiConfig(BaseSettings):
     )
 
 
+class FileConfig(BaseSettings):
+    """Configuration for FileService operations."""
+
+    max_workers: int = Field(
+        alias="FILE_MAX_WORKERS",
+        default=5,
+        description="Max thread pool workers for async file operations"
+    )
+    output_directory: str = Field(
+        alias="OUTPUT_DIR",
+        default="outputs",
+        description="Directory to save final artifacts"
+    )
+
 class V0Config(BaseSettings):
     """Configuration for v0.dev integration."""
 
@@ -477,6 +491,7 @@ class Settings(BaseSettings):
     nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
+    file_service: FileConfig = Field(default_factory=FileConfig)
 
 
 # Global settings state override

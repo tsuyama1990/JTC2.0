@@ -1,10 +1,13 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from src.core.config import get_settings
 from src.core.exceptions import ConfigurationError
+
+if TYPE_CHECKING:
+    from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +19,9 @@ class FileService:
     """
 
     def __init__(self) -> None:
-        # Max workers limited to avoid thread exhaustion
-        self._executor = ThreadPoolExecutor(max_workers=5)
         self.settings = get_settings()
+        # Max workers limited to avoid thread exhaustion
+        self._executor = ThreadPoolExecutor(max_workers=self.settings.file_service.max_workers)
 
     def _validate_path(self, path: str | Path) -> Path:
         """
@@ -46,7 +49,7 @@ class FileService:
         return target_path
 
     def save_pdf_sync(
-        self, state: Any, base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf"
+        self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf"
     ) -> None:
         """
         Generates the Final Artifact Canvas PDF from GlobalState.
@@ -72,9 +75,8 @@ class FileService:
                 pdf.set_font("Helvetica", "", 10)
 
                 # Use multi_cell for text wrapping. Ensure utf-8 strings are handled.
-                # fpdf2 natively handles utf-8, but replacing unsupported chars can be safe.
-                safe_content = content.encode("latin-1", "replace").decode("latin-1")
-                pdf.multi_cell(0, 8, safe_content)
+                # fpdf2 natively handles utf-8.
+                pdf.multi_cell(0, 8, content)
                 pdf.ln(5)
 
             if state.selected_idea:
