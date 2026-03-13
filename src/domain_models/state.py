@@ -8,20 +8,20 @@ from src.domain_models.validators import StateValidator
 
 __all__ = ["GlobalState", "Phase"]
 
-from .agent_spec import AgentPromptSpec
-from .alternative import AlternativeAnalysis
-from .experiment import ExperimentPlan
-from .journey import CustomerJourney
-from .lean_canvas import LeanCanvas
-from .mental_model import MentalModelDiagram
-from .metrics import Metrics, RingiSho
-from .mvp import MVP, MVPSpec
-from .persona import Persona
-from .politics import InfluenceNetwork
-from .simulation import AgentState, DialogueMessage
-from .sitemap import SitemapAndStory
-from .transcript import Transcript
-from .value_proposition import ValuePropositionCanvas
+from src.domain_models.agent_spec import AgentPromptSpec
+from src.domain_models.alternative import AlternativeAnalysis
+from src.domain_models.experiment import ExperimentPlan
+from src.domain_models.journey import CustomerJourney
+from src.domain_models.lean_canvas import LeanCanvas
+from src.domain_models.mental_model import MentalModelDiagram
+from src.domain_models.metrics import Metrics, RingiSho
+from src.domain_models.mvp import MVP, MVPSpec
+from src.domain_models.persona import Persona
+from src.domain_models.politics import InfluenceNetwork
+from src.domain_models.simulation import AgentState, DialogueMessage
+from src.domain_models.sitemap import SitemapAndStory
+from src.domain_models.transcript import Transcript
+from src.domain_models.value_proposition import ValuePropositionCanvas
 
 
 class GlobalState(BaseModel):
@@ -130,15 +130,12 @@ class GlobalState(BaseModel):
             "RAG_ALLOWED_PATHS", "data,vector_store,tests,./vector_store"
         ).split(",")
 
-        abs_v = str(Path(v).resolve())
+        abs_v = Path(v).resolve()
         for allowed_path in allowed_paths:
-            abs_allowed = str(Path(allowed_path.strip()).resolve())
-            try:
-                if os.path.commonpath([abs_allowed, abs_v]) == abs_allowed:
-                    is_allowed = True
-                    break
-            except ValueError:
-                continue
+            abs_allowed = Path(allowed_path.strip()).resolve()
+            if abs_v.is_relative_to(abs_allowed):
+                is_allowed = True
+                break
 
         if not is_allowed:
             msg = f"Invalid RAG path '{v}'. Must be within allowed paths: {allowed_paths}"

@@ -44,22 +44,19 @@ class CPOAgent(PersonaAgent):
         actual_rag_path = rag_path or self.settings.rag_persist_dir
 
         # Security: Validate RAG path against allowed config securely
-        import os
         from pathlib import Path
 
         is_allowed = False
         # Resolve to absolute path to fully resolve any ../ or symlinks
-        abs_actual = str(Path(actual_rag_path).resolve())
+        # Use strict=False since the directory might not exist yet, but we must resolve symlinks
+        # Note: In Python 3.12, resolve(strict=False) resolves symlinks and standardizes the path
+        abs_actual = Path(actual_rag_path).resolve()
 
         for allowed_path in self.settings.rag_allowed_paths:
-            abs_allowed = str(Path(allowed_path).resolve())
-            try:
-                # commonpath checks if the target path sits strictly inside the allowed boundary
-                if os.path.commonpath([abs_allowed, abs_actual]) == abs_allowed:
-                    is_allowed = True
-                    break
-            except ValueError:
-                continue
+            abs_allowed = Path(allowed_path).resolve()
+            if abs_actual.is_relative_to(abs_allowed):
+                is_allowed = True
+                break
 
         if not is_allowed:
             msg = f"Invalid RAG path '{actual_rag_path}'. Must be within allowed paths: {self.settings.rag_allowed_paths}"

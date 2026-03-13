@@ -1,4 +1,7 @@
+import re
 from typing import TYPE_CHECKING
+
+from src.domain_models.enums import Phase
 
 if TYPE_CHECKING:
     from src.domain_models.state import GlobalState
@@ -24,9 +27,6 @@ class StateValidator:
         Raises:
             ValueError: If requirements for the phase are not met.
         """
-        import re
-
-        from src.domain_models.enums import Phase
 
         if not isinstance(state.phase, Phase):
             msg = f"Invalid phase enum value: {state.phase}"

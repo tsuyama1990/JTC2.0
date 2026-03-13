@@ -15,13 +15,15 @@ class AgentFactory:
     """Factory for creating agents with dependencies injected."""
 
     @staticmethod
-    def get_ideator_agent() -> IdeatorAgent:
-        llm = get_llm()
+    def get_ideator_agent(llm_override: Any | None = None) -> IdeatorAgent:
+        # Dependency Injection via parameter to avoid hardcoded LLM coupling
+        llm = llm_override or get_llm()
         return IdeatorAgent(llm)
 
     @staticmethod
-    def get_builder_agent() -> BuilderAgent:
-        llm = get_llm()
+    def get_builder_agent(llm_override: Any | None = None) -> BuilderAgent:
+        # Dependency Injection via parameter to avoid hardcoded LLM coupling
+        llm = llm_override or get_llm()
         return BuilderAgent(llm)
 
     @staticmethod
@@ -43,8 +45,8 @@ class AgentFactory:
         if role == Role.CPO:
             from src.tools.search import TavilySearch
 
-            llm = get_llm()
             settings = get_settings()
+            llm = get_llm(model=settings.llm_model)
             search_tool = TavilySearch(api_key=settings.tavily_api_key.get_secret_value())
             rag_path = state.rag_index_path if state else settings.rag_persist_dir
             return CPOAgent(llm, search_tool=search_tool, app_settings=settings, rag_path=rag_path)
@@ -59,8 +61,8 @@ class AgentFactory:
         """
         from src.tools.search import TavilySearch
 
-        llm = get_llm()
         settings = get_settings()
+        llm = get_llm(model=settings.llm_model)
         search_tool = TavilySearch(api_key=settings.tavily_api_key.get_secret_value())
 
         if role == Role.NEW_EMPLOYEE:
