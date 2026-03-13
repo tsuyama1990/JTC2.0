@@ -1,3 +1,4 @@
+import typing
 from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
@@ -444,9 +445,8 @@ class Settings(BaseSettings):
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
 
-from typing import Any
-
-_settings_override_state: dict[str, Any] = {"override": None}
+# Global settings state override
+_settings_override_state: dict[str, "typing.Any"] = {"override": None}
 
 
 def set_settings_override(settings: Settings | None) -> None:

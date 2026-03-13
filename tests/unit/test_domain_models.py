@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.persona import EmpathyMap, Persona
 from src.domain_models.state import GlobalState, Phase
+from src.domain_models.validators import StateValidator
 
 
 def test_lean_canvas_valid() -> None:
@@ -97,3 +98,96 @@ def test_global_state_phase_enum() -> None:
     state = GlobalState(phase=Phase.VERIFICATION, target_persona=persona)
     assert state.phase == "verification"
     assert isinstance(state.phase, Phase)
+
+
+def test_state_validator_invalid_phase() -> None:
+    """Test StateValidator handling invalid phase type."""
+    state = GlobalState()
+    # Mypy strictly enforces phase types, so we bypass to test the internal runtime validation check
+    state.__dict__["phase"] = "INVALID_PHASE"
+
+    with pytest.raises(TypeError, match="Invalid phase enum value"):
+        StateValidator.validate_phase_requirements(state)
+
+
+def test_state_validator_missing_requirements_verification() -> None:
+    """Test StateValidator VERIFICATION phase missing target_persona."""
+    # Bypass GlobalState constructor validation
+    state = GlobalState.model_construct(phase=Phase.VERIFICATION, target_persona=None)
+
+    with pytest.raises(
+        ValueError, match="Missing field 'target_persona' required for the VERIFICATION phase"
+    ):
+        StateValidator.validate_phase_requirements(state)
+
+
+def test_state_validator_missing_requirements_solution() -> None:
+    """Test StateValidator SOLUTION phase missing requirements."""
+    state = GlobalState.model_construct(phase=Phase.SOLUTION, mental_model=None)
+
+    with pytest.raises(
+        ValueError, match="Missing field 'mental_model' required for the SOLUTION phase"
+    ):
+        StateValidator.validate_phase_requirements(state)
+
+    state = GlobalState.model_construct(
+        phase=Phase.SOLUTION,
+        mental_model="exists",  # type: ignore[arg-type]
+        customer_journey=None,
+    )
+    with pytest.raises(
+        ValueError, match="Missing field 'customer_journey' required for the SOLUTION phase"
+    ):
+        StateValidator.validate_phase_requirements(state)
+
+    state = GlobalState.model_construct(
+        phase=Phase.SOLUTION,
+        mental_model="exists",  # type: ignore[arg-type]
+        customer_journey="exists",  # type: ignore[arg-type]
+        sitemap_and_story=None,
+    )
+    with pytest.raises(
+        ValueError, match="Missing field 'sitemap_and_story' required for the SOLUTION phase"
+    ):
+        StateValidator.validate_phase_requirements(state)
+
+
+def test_state_validator_missing_requirements_pmf() -> None:
+    """Test StateValidator PMF phase missing mvp_definition."""
+    state = GlobalState.model_construct(phase=Phase.PMF, mvp_definition=None)
+
+    with pytest.raises(
+        ValueError, match="Missing field 'mvp_definition' required for the PMF phase"
+    ):
+        StateValidator.validate_phase_requirements(state)
+
+
+def test_state_validator_missing_requirements_governance() -> None:
+    """Test StateValidator GOVERNANCE phase missing experiment_plan."""
+    state = GlobalState.model_construct(phase=Phase.GOVERNANCE, experiment_plan=None)
+
+    with pytest.raises(
+        ValueError, match="Missing field 'experiment_plan' required for the GOVERNANCE phase"
+    ):
+        StateValidator.validate_phase_requirements(state)
+
+    state = GlobalState.model_construct(
+        phase=Phase.GOVERNANCE,
+        experiment_plan="exists",  # type: ignore[arg-type]
+        agent_prompt_spec=None,
+    )
+    with pytest.raises(
+        ValueError, match="Missing field 'agent_prompt_spec' required for the GOVERNANCE phase"
+    ):
+        StateValidator.validate_phase_requirements(state)
+
+
+def test_state_validator_sanitization() -> None:
+    """Test StateValidator topic sanitization."""
+    # Inject dirty topic
+    state = GlobalState.model_construct(
+        phase=Phase.IDEATION, topic="Clean <script>alert(1)</script> \x00 Topic\n"
+    )
+
+    validated = StateValidator.validate_phase_requirements(state)
+    assert validated.topic == "Clean alert(1)  Topic\n"
