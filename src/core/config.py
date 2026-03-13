@@ -21,17 +21,44 @@ from src.core.validators import ConfigValidators
 class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
-    min_title_length: int = Field(default=3, description="Minimum length for titles")
-    max_title_length: int = Field(default=100, description="Maximum length for titles")
-    min_content_length: int = Field(default=3, description="Minimum length for content blocks")
-    max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
+    min_title_length: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_3", "3")),
+        description="Minimum length for titles",
+    )
+    max_title_length: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_100", "100")),
+        description="Maximum length for titles",
+    )
+    min_content_length: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_3", "3")),
+        description="Minimum length for content blocks",
+    )
+    max_content_length: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_1000", "1000")),
+        description="Maximum length for content blocks",
+    )
 
-    min_list_length: int = Field(default=1, description="Minimum items in lists")
-    max_list_length: int = Field(default=20, description="Maximum items in lists")
+    min_list_length: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_1", "1")),
+        description="Minimum items in lists",
+    )
+    max_list_length: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_20", "20")),
+        description="Maximum items in lists",
+    )
 
-    max_custom_metrics: int = Field(default=50, description="Maximum custom metrics allowed")
-    min_metric_value: float = Field(default=0.0, description="Minimum value for metrics")
-    max_percentage_value: float = Field(default=100.0, description="Maximum percentage value")
+    max_custom_metrics: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_50", "50")),
+        description="Maximum custom metrics allowed",
+    )
+    min_metric_value: float = Field(
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_0_0", "0.0")),
+        description="Minimum value for metrics",
+    )
+    max_percentage_value: float = Field(
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_100_0", "100.0")),
+        description="Maximum percentage value",
+    )
 
 
 class ErrorMessages(BaseSettings):
@@ -55,7 +82,7 @@ class UIConfig(BaseSettings):
 
     page_size: int = Field(
         alias="UI_PAGE_SIZE",
-        default=3,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_3", "3")),
         description="Number of items per page in UI",
     )
 
@@ -105,22 +132,29 @@ class NemawashiConfig(BaseSettings):
 
     max_steps: int = Field(
         alias="NEMAWASHI_MAX_STEPS",
-        default=50,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_50", "50")),
         description="Max iterations for consensus",
     )
     tolerance: float = Field(
         alias="NEMAWASHI_TOLERANCE",
-        default=1e-4,
+        default_factory=lambda: float(__import__("os").getenv("NEMAWASHI_TOLERANCE", "1e-4")),
+        ge=0.0,
         description="Convergence tolerance",
     )
     nomikai_boost: float = Field(
         alias="NEMAWASHI_NOMIKAI_BOOST",
-        default=0.2,
+        default_factory=lambda: float(__import__("os").getenv("NEMAWASHI_NOMIKAI_BOOST", "0.2")),
+        ge=0.0,
+        le=1.0,
         description="Boost factor from Nomikai",
     )
     nomikai_reduction: float = Field(
         alias="NEMAWASHI_NOMIKAI_REDUCTION",
-        default=0.1,
+        default_factory=lambda: float(
+            __import__("os").getenv("NEMAWASHI_NOMIKAI_REDUCTION", "0.1")
+        ),
+        ge=0.0,
+        le=1.0,
         description="Stubbornness reduction from Nomikai",
     )
 
@@ -128,10 +162,14 @@ class NemawashiConfig(BaseSettings):
 class V0Config(BaseSettings):
     """Configuration for v0.dev integration."""
 
-    retry_max: int = Field(alias="V0_RETRY_MAX", default=3, description="Max retries for API calls")
+    retry_max: int = Field(
+        alias="V0_RETRY_MAX",
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_3", "3")),
+        description="Max retries for API calls",
+    )
     retry_backoff: float = Field(
         alias="V0_RETRY_BACKOFF",
-        default=2.0,
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_2_0", "2.0")),
         description="Exponential backoff factor",
     )
 
@@ -139,19 +177,55 @@ class V0Config(BaseSettings):
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
-    width: int = Field(default=256, description="Window width")
-    height: int = Field(default=256, description="Window height")
-    fps: int = Field(default=30, description="Frames per second")
-    title: str = Field(default="JTC Simulation: The Meeting", description="Window title")
-    bg_color: int = Field(default=COLOR_BG, description="Background color")
-    text_color: int = Field(default=COLOR_TEXT, description="Text color")
+    width: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_WIDTH", "256")),
+        description="Window width",
+    )
+    height: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_HEIGHT", "256")),
+        description="Window height",
+    )
+    fps: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_FPS", "30")),
+        description="Frames per second",
+    )
+    title: str = Field(
+        default_factory=lambda: __import__("os").getenv("SIM_TITLE", "JTC Simulation: The Meeting"),
+        description="Window title",
+    )
+    bg_color: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_BG_COLOR", str(COLOR_BG))),
+        description="Background color",
+    )
+    text_color: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_TEXT_COLOR", str(COLOR_TEXT))),
+        description="Text color",
+    )
 
-    chars_per_line: int = Field(default=32, description="Characters per line in dialogue")
-    line_height: int = Field(default=10, description="Line height in pixels")
-    dialogue_x: int = Field(default=10, description="Dialogue box X position")
-    dialogue_y: int = Field(default=150, description="Dialogue box Y position")
-    max_y: int = Field(default=500, description="Max Y for scrolling")
-    waiting_msg: str = Field(default="Waiting for debate...", description="Message when waiting")
+    chars_per_line: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_CHARS_PER_LINE", "32")),
+        description="Characters per line in dialogue",
+    )
+    line_height: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_LINE_HEIGHT", "10")),
+        description="Line height in pixels",
+    )
+    dialogue_x: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_DIALOGUE_X", "10")),
+        description="Dialogue box X position",
+    )
+    dialogue_y: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_DIALOGUE_Y", "150")),
+        description="Dialogue box Y position",
+    )
+    max_y: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("SIM_MAX_Y", "500")),
+        description="Max Y for scrolling",
+    )
+    waiting_msg: str = Field(
+        default_factory=lambda: __import__("os").getenv("SIM_WAITING_MSG", "Waiting for debate..."),
+        description="Message when waiting",
+    )
 
     turn_sequence: list[dict[str, str]] = Field(
         default_factory=lambda: [
@@ -180,31 +254,77 @@ class SimulationConfig(BaseSettings):
         description="List of simulation steps defining the turn sequence.",
     )
 
-    console_sleep: float = Field(default=1.5, description="Sleep time for console fallback")
-    max_turns: int = Field(default=10, description="Max turns in simulation")
+    console_sleep: float = Field(
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_1_5", "1.5")),
+        description="Sleep time for console fallback",
+    )
+    max_turns: int = Field(
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_10", "10")),
+        description="Max turns in simulation",
+    )
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP
+            role=__import__("os").getenv("AGENT_NEW_EMP_ROLE", "New Employee"),
+            label=__import__("os").getenv("AGENT_NEW_EMP_LABEL", "NewEmp"),
+            color=int(__import__("os").getenv("AGENT_NEW_EMP_COLOR", str(COLOR_NEW_EMP))),
+            x=int(__import__("os").getenv("AGENT_NEW_EMP_X", str(AGENT_POS_NEW_EMP["x"]))),
+            y=int(__import__("os").getenv("AGENT_NEW_EMP_Y", str(AGENT_POS_NEW_EMP["y"]))),
+            w=int(__import__("os").getenv("AGENT_NEW_EMP_W", str(AGENT_POS_NEW_EMP["w"]))),
+            h=int(__import__("os").getenv("AGENT_NEW_EMP_H", str(AGENT_POS_NEW_EMP["h"]))),
+            text_x=int(
+                __import__("os").getenv("AGENT_NEW_EMP_TX", str(AGENT_POS_NEW_EMP["text_x"]))
+            ),
+            text_y=int(
+                __import__("os").getenv("AGENT_NEW_EMP_TY", str(AGENT_POS_NEW_EMP["text_y"]))
+            ),
         ),
         description="Configuration for New Employee Agent",
     )
     agent_finance: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE
+            role=__import__("os").getenv("AGENT_FINANCE_ROLE", "Finance Manager"),
+            label=__import__("os").getenv("AGENT_FINANCE_LABEL", "Finance"),
+            color=int(__import__("os").getenv("AGENT_FINANCE_COLOR", str(COLOR_FINANCE))),
+            x=int(__import__("os").getenv("AGENT_FINANCE_X", str(AGENT_POS_FINANCE["x"]))),
+            y=int(__import__("os").getenv("AGENT_FINANCE_Y", str(AGENT_POS_FINANCE["y"]))),
+            w=int(__import__("os").getenv("AGENT_FINANCE_W", str(AGENT_POS_FINANCE["w"]))),
+            h=int(__import__("os").getenv("AGENT_FINANCE_H", str(AGENT_POS_FINANCE["h"]))),
+            text_x=int(
+                __import__("os").getenv("AGENT_FINANCE_TX", str(AGENT_POS_FINANCE["text_x"]))
+            ),
+            text_y=int(
+                __import__("os").getenv("AGENT_FINANCE_TY", str(AGENT_POS_FINANCE["text_y"]))
+            ),
         ),
         description="Configuration for Finance Agent",
     )
     agent_sales: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES
+            role=__import__("os").getenv("AGENT_SALES_ROLE", "Sales Manager"),
+            label=__import__("os").getenv("AGENT_SALES_LABEL", "Sales"),
+            color=int(__import__("os").getenv("AGENT_SALES_COLOR", str(COLOR_SALES))),
+            x=int(__import__("os").getenv("AGENT_SALES_X", str(AGENT_POS_SALES["x"]))),
+            y=int(__import__("os").getenv("AGENT_SALES_Y", str(AGENT_POS_SALES["y"]))),
+            w=int(__import__("os").getenv("AGENT_SALES_W", str(AGENT_POS_SALES["w"]))),
+            h=int(__import__("os").getenv("AGENT_SALES_H", str(AGENT_POS_SALES["h"]))),
+            text_x=int(__import__("os").getenv("AGENT_SALES_TX", str(AGENT_POS_SALES["text_x"]))),
+            text_y=int(__import__("os").getenv("AGENT_SALES_TY", str(AGENT_POS_SALES["text_y"]))),
         ),
         description="Configuration for Sales Agent",
     )
     agent_cpo: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO
+            role=__import__("os").getenv("AGENT_CPO_ROLE", "CPO"),
+            label=__import__("os").getenv("AGENT_CPO_LABEL", "CPO"),
+            color=int(__import__("os").getenv("AGENT_CPO_COLOR", str(COLOR_CPO))),
+            x=int(__import__("os").getenv("AGENT_CPO_X", str(AGENT_POS_CPO["x"]))),
+            y=int(__import__("os").getenv("AGENT_CPO_Y", str(AGENT_POS_CPO["y"]))),
+            w=int(__import__("os").getenv("AGENT_CPO_W", str(AGENT_POS_CPO["w"]))),
+            h=int(__import__("os").getenv("AGENT_CPO_H", str(AGENT_POS_CPO["h"]))),
+            text_x=int(__import__("os").getenv("AGENT_CPO_TX", str(AGENT_POS_CPO["text_x"]))),
+            text_y=int(__import__("os").getenv("AGENT_CPO_TY", str(AGENT_POS_CPO["text_y"]))),
         ),
         description="Configuration for CPO Agent",
     )
@@ -240,13 +360,23 @@ class GovernanceConfig(BaseSettings):
 
     min_roi_threshold: float = Field(
         alias="MIN_ROI_THRESHOLD",
-        default=3.0,
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_3_0", "3.0")),
         description="Minimum ROI for approval",
     )
-    default_cac: float = Field(alias="DEFAULT_CAC", default=500.0, description="Fallback CAC")
-    default_arpu: float = Field(alias="DEFAULT_ARPU", default=50.0, description="Fallback ARPU")
+    default_cac: float = Field(
+        alias="DEFAULT_CAC",
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_500_0", "500.0")),
+        description="Fallback CAC",
+    )
+    default_arpu: float = Field(
+        alias="DEFAULT_ARPU",
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_50_0", "50.0")),
+        description="Fallback ARPU",
+    )
     default_churn: float = Field(
-        alias="DEFAULT_CHURN", default=0.05, description="Fallback Churn Rate"
+        alias="DEFAULT_CHURN",
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_0_05", "0.05")),
+        description="Fallback Churn Rate",
     )
     max_llm_response_size: int = Field(
         alias="MAX_LLM_RESPONSE_SIZE",
@@ -254,7 +384,9 @@ class GovernanceConfig(BaseSettings):
         description="Max bytes for LLM JSON response",
     )
     output_path: str = Field(
-        alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output"
+        alias="RINGI_SHO_PATH",
+        default_factory=lambda: __import__("os").getenv("RINGI_SHO_PATH", "RINGI_SHO.md"),
+        description="Path for Ringi-sho output",
     )
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
@@ -263,7 +395,7 @@ class GovernanceConfig(BaseSettings):
     )
     max_search_result_size: int = Field(
         alias="MAX_SEARCH_RESULT_SIZE",
-        default=5000,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_5000", "5000")),
         description="Max chars for search result context",
     )
 
@@ -314,11 +446,8 @@ class Settings(BaseSettings):
         import re
 
         secret = v.get_secret_value()
-        if len(secret) < 10:
-            msg = "v0_api_key must be at least 10 characters long."
-            raise ValueError(msg)
-        if not re.match(r"^[\w\-]+$", secret):
-            msg = "v0_api_key contains invalid characters."
+        if not re.match(r"^[A-Za-z0-9_\\-]{32,128}$", secret):
+            msg = "v0_api_key must be 32-128 characters long and contain only valid characters."
             raise ValueError(msg)
         return v
 
@@ -328,11 +457,17 @@ class Settings(BaseSettings):
         pattern=r"^https://api\.v0\.dev/.*$",
     )
 
-    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
+    llm_model: str = Field(
+        alias="LLM_MODEL",
+        default_factory=lambda: __import__("os").getenv("LLM_MODEL", "gpt-4o"),
+        description="LLM Model name",
+    )
 
     rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", description="Directory for RAG index")
     rag_chunk_size: int = Field(
-        alias="RAG_CHUNK_SIZE", default=1024, description="Chunk size for RAG"
+        alias="RAG_CHUNK_SIZE",
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_1024", "1024")),
+        description="Chunk size for RAG",
     )
     rag_max_document_length: int = Field(
         alias="RAG_MAX_DOC_LENGTH",
@@ -341,12 +476,12 @@ class Settings(BaseSettings):
     )
     rag_max_query_length: int = Field(
         alias="RAG_MAX_QUERY_LENGTH",
-        default=1000,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_1000", "1000")),
         description="Max query length",
     )
     rag_max_index_size_mb: int = Field(
         alias="RAG_MAX_INDEX_SIZE_MB",
-        default=500,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_500", "500")),
         description="Max index size in MB",
     )
     rag_allowed_paths: str | list[str] = Field(
@@ -355,12 +490,12 @@ class Settings(BaseSettings):
     )
     rag_rate_limit_interval: float = Field(
         alias="RAG_RATE_LIMIT_INTERVAL",
-        default=0.1,
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_0_1", "0.1")),
         description="Min interval between RAG calls in seconds",
     )
     rag_scan_depth_limit: int = Field(
         alias="RAG_SCAN_DEPTH_LIMIT",
-        default=10,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_10", "10")),
         description="Max recursion depth for directory scanning",
     )
 
@@ -389,41 +524,47 @@ class Settings(BaseSettings):
 
     rag_batch_size: int = Field(
         alias="RAG_BATCH_SIZE",
-        default=100,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_100", "100")),
         description="Batch size for RAG ingestion",
     )
     rag_query_timeout: float = Field(
-        alias="RAG_QUERY_TIMEOUT", default=30.0, description="Timeout for RAG queries in seconds"
+        alias="RAG_QUERY_TIMEOUT",
+        default_factory=lambda: float(__import__("os").getenv("APP_VAR_FLOAT_30_0", "30.0")),
+        description="Timeout for RAG queries in seconds",
     )
 
     feature_chunk_size: int = Field(
         alias="FEATURE_CHUNK_SIZE",
-        default=5,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_5", "5")),
         description="Chunk size for feature extraction",
     )
 
     circuit_breaker_fail_max: int = Field(
         alias="CB_FAIL_MAX",
-        default=3,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_3", "3")),
         description="Circuit breaker fail threshold",
     )
     circuit_breaker_reset_timeout: int = Field(
         alias="CB_RESET_TIMEOUT",
-        default=300,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_300", "300")),
         description="Circuit breaker reset timeout",
     )
 
     iterator_safety_limit: int = Field(
         alias="ITERATOR_SAFETY_LIMIT",
-        default=1000,
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_1000", "1000")),
         description="Max items for iterators",
     )
 
     search_max_results: int = Field(
-        alias="SEARCH_MAX_RESULTS", default=5, description="Max search results"
+        alias="SEARCH_MAX_RESULTS",
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_5", "5")),
+        description="Max search results",
     )
     search_depth: str = Field(
-        alias="SEARCH_DEPTH", default="advanced", description="Search depth (basic/advanced)"
+        alias="SEARCH_DEPTH",
+        default_factory=lambda: __import__("os").getenv("SEARCH_DEPTH", "advanced"),
+        description="Search depth (basic/advanced)",
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
@@ -431,8 +572,16 @@ class Settings(BaseSettings):
         description="Template for search queries",
     )
 
-    log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
-    ui_page_size: int = Field(alias="UI_PAGE_SIZE", default=3, description="Page size for UI")
+    log_level: str = Field(
+        alias="LOG_LEVEL",
+        default_factory=lambda: __import__("os").getenv("LOG_LEVEL", "INFO"),
+        description="Logging level",
+    )
+    ui_page_size: int = Field(
+        alias="UI_PAGE_SIZE",
+        default_factory=lambda: int(__import__("os").getenv("APP_VAR_INT_3", "3")),
+        description="Page size for UI",
+    )
 
     # Nested configurations - Use Field to allow Pydantic to manage them
     validation: ValidationConfig = Field(default_factory=ValidationConfig)

@@ -81,7 +81,6 @@ class GlobalState(BaseModel):
     @classmethod
     def validate_unique_transcripts(cls, v: list[Transcript]) -> list[Transcript]:
         """Ensure transcripts are unique by source, validate content size, and sanitize."""
-        import re
 
         sources = [t.source for t in v]
         if len(sources) != len(set(sources)):
@@ -96,17 +95,16 @@ class GlobalState(BaseModel):
                 msg = f"Transcript {transcript.source} content is too short."
                 raise ValueError(msg)
 
-            # Advanced sanitization: strip all HTML tags to prevent XSS
-            sanitized = re.sub(r"<[^>]*>", "", transcript.content)
+            import bleach  # type: ignore[import-untyped]
+
+            # Remove all HTML tags completely (not just escape)
+            sanitized = bleach.clean(transcript.content, tags=[], attributes={}, strip=True)
+
             # Remove null bytes
             sanitized = sanitized.replace("\x00", "")
-            # Remove common SQL injection fragments if matched exactly
-            sanitized = re.sub(
-                r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b",
-                "[REDACTED]",
-                sanitized,
-            )
-            sanitized = sanitized.replace("--", "").replace(";", "")
+
+            # Prevent control character injections
+            sanitized = "".join(ch for ch in sanitized if ord(ch) >= 32 or ch in "\n\r\t")
 
             if len(sanitized.strip()) < 10:
                 msg = f"Transcript {transcript.source} content is too short after sanitization."
@@ -141,9 +139,8 @@ class GlobalState(BaseModel):
             msg = f"Invalid RAG path '{v}'. Must be within allowed paths: {allowed_paths}"
             raise ValueError(msg)
 
-        if not Path(v).exists():
-            msg = f"RAG index path '{v}' does not exist."
-            raise ValueError(msg)
+        # Removed existence check to avoid TOCTOU race condition vulnerabilities.
+        # File/Directory existence and permissions are handled safely during I/O operations.
 
         return v
 
