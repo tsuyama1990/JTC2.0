@@ -25,29 +25,20 @@ class TestCycle06UAT:
                     i_want_to="d",
                     so_that="e",
                     acceptance_criteria=["f"],
-                    target_route="/g"
+                    target_route="/g",
                 ),
-                state_machine=StateMachine(
-                    success="h",
-                    loading="i",
-                    error="j",
-                    empty="k"
-                ),
+                state_machine=StateMachine(success="h", loading="i", error="j", empty="k"),
                 validation_rules="l",
-                mermaid_flowchart="m"
+                mermaid_flowchart="m",
             ),
             experiment_plan=ExperimentPlan(
                 riskiest_assumption="Assumption A",
                 experiment_type="Type B",
                 acquisition_channel="Channel C",
                 aarrr_metrics=[
-                    MetricTarget(
-                        metric_name="M",
-                        target_value="V",
-                        measurement_method="Meth"
-                    )
+                    MetricTarget(metric_name="M", target_value="V", measurement_method="Meth")
                 ],
-                pivot_condition="Pivot Cond P"
+                pivot_condition="Pivot Cond P",
             ),
             selected_idea=LeanCanvas(
                 id=1,
@@ -93,7 +84,7 @@ class TestCycle06UAT:
                 )
 
                 chunk_ringi = MagicMock()
-                chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea.", "risks": ["High churn"]}'
+                chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea that is very bad.", "risks": ["High churn"]}'
 
                 # stream returns iterator
                 mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
@@ -152,9 +143,7 @@ class TestCycle06UAT:
                 )
 
                 chunk_ringi = MagicMock()
-                chunk_ringi.content = (
-                    '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
-                )
+                chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Great idea that is very good.", "risks": ["None"]}'
 
                 mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
 

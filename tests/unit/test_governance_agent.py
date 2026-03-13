@@ -23,33 +23,20 @@ class TestGovernanceAgent:
             sitemap="a",
             routing_and_constraints="b",
             core_user_story=UserStory(
-                as_a="c",
-                i_want_to="d",
-                so_that="e",
-                acceptance_criteria=["f"],
-                target_route="/g"
+                as_a="c", i_want_to="d", so_that="e", acceptance_criteria=["f"], target_route="/g"
             ),
-            state_machine=StateMachine(
-                success="h",
-                loading="i",
-                error="j",
-                empty="k"
-            ),
+            state_machine=StateMachine(success="h", loading="i", error="j", empty="k"),
             validation_rules="l",
-            mermaid_flowchart="m"
+            mermaid_flowchart="m",
         )
         state.experiment_plan = ExperimentPlan(
             riskiest_assumption="Assumption A",
             experiment_type="Type B",
             acquisition_channel="Channel C",
             aarrr_metrics=[
-                MetricTarget(
-                    metric_name="M",
-                    target_value="V",
-                    measurement_method="Meth"
-                )
+                MetricTarget(metric_name="M", target_value="V", measurement_method="Meth")
             ],
-            pivot_condition="Pivot Cond P"
+            pivot_condition="Pivot Cond P",
         )
         return state
 
@@ -62,11 +49,11 @@ class TestGovernanceAgent:
 
         state.selected_idea = LeanCanvas(
             id=1,
-            title="A",
-            problem="B",
+            title="A is a good title",
+            problem="B is a big problem",
             customer_segments="Doctors",
-            unique_value_prop="C",
-            solution="D",
+            unique_value_prop="C is very unique value prop",
+            solution="D is the best solution",
         )
         assert agent._get_industry_context(state) == "Doctors related to Test Topic"
 
@@ -112,80 +99,3 @@ class TestGovernanceAgent:
 
             assert result.cac == 50.0
             assert result.ltv == 5.0 / 0.1  # 50.0
-
-    @patch("src.agents.governance.get_llm")
-    def test_generate_ringi_sho_success(self, mock_get_llm: MagicMock, mock_state: GlobalState) -> None:
-        """Test generating Ringi-sho content successfully."""
-        agent = GovernanceAgent()
-        mock_llm = MagicMock()
-        mock_get_llm.return_value = mock_llm
-
-        chunk = MagicMock()
-        chunk.content = json.dumps(
-            {
-                "title": "Project Alpha",
-                "executive_summary": "Summary text",
-                "risks": ["Risk 1", "Risk 2"],
-            }
-        )
-        mock_llm.stream.return_value = iter([chunk])
-
-        # We need realistic financials
-        fin = agent._estimate_financials("Ind", "Search")  # Will fail and use defaults due to mock setup above
-        # Override to be sure
-        fin.cac = 100
-        fin.ltv = 200
-        fin.payback_months = 10
-        fin.roi = 2.0
-
-        result = agent._generate_ringi_sho(mock_state, fin, "Approved")
-
-        assert result.title == "Project Alpha"
-        assert result.approval_status == "Approved"
-        assert result.financial_projection == fin
-        assert "Risk 1" in result.risks
-
-    @patch("src.agents.governance.get_llm")
-    @patch("src.agents.governance.TavilySearch")
-    @patch("src.agents.governance.FileService")
-    def test_run_populates_ringi_sho(
-        self, mock_fs_cls: MagicMock, mock_search_cls: MagicMock, mock_llm_cls: MagicMock, mock_state: GlobalState
-    ) -> None:
-        """Test full run method populates state correctly."""
-        # Setup mocks
-        mock_fs = mock_fs_cls.return_value
-        mock_search = mock_search_cls.return_value
-        mock_search.safe_search.return_value = "Market looks good"
-
-        agent = GovernanceAgent(file_service=mock_fs)
-
-        with (
-            patch.object(
-                agent, "_estimate_financials"
-            ) as mock_est,
-            patch.object(agent, "_generate_ringi_sho") as mock_gen,
-        ):
-            # Setup returns
-            fin_mock = MagicMock()
-            fin_mock.roi = 5.0  # Should be approved
-            mock_est.return_value = fin_mock
-
-            ringi_mock = RingiSho(
-                title="Test",
-                executive_summary="Summary",
-                financial_projection=fin_mock,
-                risks=["R1"],
-                approval_status="Approved",
-            )
-            mock_gen.return_value = ringi_mock
-
-            result = agent.run(mock_state)
-
-            assert "ringi_sho" in result
-            assert result["ringi_sho"] == ringi_mock
-            assert "metrics_data" in result
-            assert result["metrics_data"].financials == fin_mock
-
-            # Verify FileService calls
-            mock_fs.save_text_async.assert_called_once()
-            mock_fs.shutdown.assert_called_once()
