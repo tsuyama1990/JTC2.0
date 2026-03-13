@@ -5,15 +5,19 @@ from langgraph.graph.state import CompiledStateGraph
 
 from src.core.graph import create_app
 from src.core.nodes import (
+    governance_node,
     mvp_generation_node,
     nemawashi_analysis_node,
     solution_proposal_node,
     transcript_ingestion_node,
 )
+from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
+from src.domain_models.experiment import ExperimentPlan, MetricTarget
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.mvp import MVPSpec
 from src.domain_models.persona import Persona
 from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.domain_models.sitemap import UserStory
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.transcript import Transcript
 
@@ -121,3 +125,54 @@ def test_mvp_generation_node(mock_get_builder: MagicMock, mock_state: GlobalStat
     assert "mvp_definition" in result
     assert str(result["mvp_definition"].v0_url).rstrip("/") == "https://v0.dev/123"
     assert result["mvp_definition"].core_features[0].name == "Feature is long enough"
+
+
+@patch("src.core.nodes.FileService")
+@patch("src.core.nodes.get_settings")
+@patch("src.core.nodes.AgentFactory.get_governance_agent")
+def test_governance_node_saves_artifacts(
+    mock_get_gov: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_fs_class: MagicMock,
+    mock_state: GlobalState,
+) -> None:
+    """Test governance node saving artifacts."""
+    mock_gov = mock_get_gov.return_value
+    mock_gov.run.return_value = {"ringi_sho": MagicMock()}
+
+    mock_fs = mock_fs_class.return_value
+
+    # We only set experiment_plan, we need to assert based on what is available
+
+    mock_state.agent_prompt_spec = AgentPromptSpec(
+        sitemap="Sitemap description here.",
+        routing_and_constraints="SSR constraints here.",
+        core_user_story=UserStory(
+            as_a="User",
+            i_want_to="Action",
+            so_that="Value",
+            acceptance_criteria=["Criteria"],
+            target_route="/home",
+        ),
+        state_machine=StateMachine(
+            success="Success", loading="Loading", error="Error", empty="Empty"
+        ),
+        validation_rules="Rules here",
+        mermaid_flowchart="Flowchart here",
+    )
+
+    mock_state.experiment_plan = ExperimentPlan(
+        riskiest_assumption="Assumption",
+        experiment_type="Type",
+        acquisition_channel="Channel",
+        aarrr_metrics=[
+            MetricTarget(metric_name="Metric", target_value="Value", measurement_method="Method")
+        ],
+        pivot_condition="Condition",
+    )
+
+    result = governance_node(mock_state)
+    assert result["phase"] == Phase.GOVERNANCE
+    assert mock_fs.save_text_sync.call_count == 2
+
+    assert mock_fs.save_pdf_sync.call_count == 1

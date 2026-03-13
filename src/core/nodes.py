@@ -1,10 +1,13 @@
 import functools
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
+from src.core.config import get_settings
 from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
+from src.core.services.file_service import FileService
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
 from src.domain_models.mvp import MVP, Feature, MVPType, Priority
@@ -221,12 +224,50 @@ def pmf_node(state: GlobalState) -> dict[str, Any]:
 @safe_node("Error in Governance Check")
 def governance_node(state: GlobalState) -> dict[str, Any]:
     """
-    Run Governance Agent for Cycle 6 (Ringi-sho).
+    Run Governance Agent for Cycle 6 (Ringi-sho) and Final Artifact Generation.
     """
+
     logger.info("Running Governance Check...")
 
     agent = AgentFactory.get_governance_agent()
     updates = agent.run(state)
 
     updates["phase"] = Phase.GOVERNANCE
+
+    # Save Final Artifacts
+    settings = get_settings()
+    file_service = FileService()
+
+    out_dir = Path(settings.governance.output_dir)
+    pdf_dir = Path(settings.governance.pdf_output_dir)
+
+    # Text artifacts - using sync to guarantee completion
+    if state.agent_prompt_spec:
+        # Wrap JSON dump inside a Markdown code block
+        md_content = f"# Agent Prompt Specification\n\n```json\n{state.agent_prompt_spec.model_dump_json(indent=2)}\n```\n"
+        file_service.save_text_sync(md_content, out_dir / "AgentPromptSpec.md")
+
+    if state.experiment_plan:
+        # Wrap JSON dump inside a Markdown code block
+        md_content = f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```\n"
+        file_service.save_text_sync(md_content, out_dir / "ExperimentPlan.md")
+
+    # Canvas PDF artifacts - using sync to guarantee completion
+    canvases = [
+        ("ValuePropositionCanvas", state.vpc),
+        ("MentalModelDiagram", state.mental_model),
+        ("AlternativeAnalysis", state.alternative_analysis),
+        ("CustomerJourney", state.customer_journey),
+        ("SitemapAndStory", state.sitemap_and_story),
+        ("ExperimentPlan", state.experiment_plan),
+    ]
+
+    for name, canvas in canvases:
+        if canvas:
+            file_service.save_pdf_sync(
+                content=canvas.model_dump_json(indent=2),
+                path=str(pdf_dir / f"{name}.pdf"),
+                title=name,
+            )
+
     return updates
