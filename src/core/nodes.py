@@ -260,7 +260,9 @@ def _generate_master_pdf(state: GlobalState, base_dir: "Path") -> None:  # type:
             add_section("2. Value Proposition Canvas", state.vpc.model_dump_json(indent=2))
 
         if state.alternative_analysis:
-            add_section("3. Alternative Analysis", state.alternative_analysis.model_dump_json(indent=2))
+            add_section(
+                "3. Alternative Analysis", state.alternative_analysis.model_dump_json(indent=2)
+            )
 
         if state.mental_model:
             pdf.add_page()
@@ -276,7 +278,7 @@ def _generate_master_pdf(state: GlobalState, base_dir: "Path") -> None:  # type:
 
         def _check_path(path: "Path", base: "Path") -> None:  # type: ignore[name-defined] # noqa: F821
             if not str(path.resolve()).startswith(str(base.resolve())):
-                raise ValueError("Invalid PDF path.") # noqa: TRY301, EM101
+                raise ValueError("Invalid PDF path.")  # noqa: TRY301, EM101
 
         def _validate_and_output_pdf() -> None:
             _check_path(pdf_path, base_dir)
@@ -320,7 +322,9 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
         write_markdown("AgentPromptSpec.md", content)
 
     if state.experiment_plan:
-        content = f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
+        content = (
+            f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
+        )
         write_markdown("ExperimentPlan.md", content)
 
     # Note: RingiSho is already saved by GovernanceAgent, but we'll export a duplicate
