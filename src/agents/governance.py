@@ -63,6 +63,9 @@ class GovernanceAgent(BaseAgent):
         # 5. Save to Disk (Async wrapper)
         self._save_to_file(ringi_sho)
 
+        # Shut down FileService executor to prevent resource leaks
+        self.file_service.shutdown()
+
         # 6. Update State
         updated_metrics = state.metrics_data.model_copy() if state.metrics_data else Metrics()
         updated_metrics.financials = financials

@@ -43,8 +43,23 @@ def test_create_app_structure() -> None:
     """Test that the main application graph is created correctly."""
     app = create_app()
     assert isinstance(app, CompiledStateGraph)
-    # detailed graph structure assertions are hard with compiled graph,
-    # but we can check if it compiles without error.
+
+    # Extract underlying builder graph structure
+    graph = app.builder
+
+    # Assert all expected nodes exist
+    expected_nodes = [
+        "ideator", "verification", "transcript_ingestion",
+        "simulation_round", "nemawashi_analysis", "cpo_mentoring",
+        "solution_proposal", "mvp_generation", "pmf",
+        "governance", "final_artifact_generation"
+    ]
+    for node in expected_nodes:
+        assert node in graph.nodes, f"Node {node} missing from graph"
+
+    # Check key edge configurations via the builder's edges list
+    edges = list(graph.edges)
+    assert any(e[0] == "governance" and e[1] == "final_artifact_generation" for e in edges), "Missing edge: governance -> final_artifact_generation"
 
 
 @patch("src.core.nodes.RAG")

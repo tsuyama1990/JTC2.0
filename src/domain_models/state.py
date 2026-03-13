@@ -76,6 +76,7 @@ class GlobalState(BaseModel):
     )
     influence_network: InfluenceNetwork | None = None
     ringi_sho: RingiSho | None = None
+    error: str | None = None
 
     @field_validator("transcripts")
     @classmethod

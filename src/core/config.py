@@ -137,6 +137,16 @@ class FileConfig(BaseSettings):
         description="Directory to save final artifacts"
     )
 
+
+class GraphConfig(BaseSettings):
+    """Configuration for LangGraph workflow execution."""
+
+    interrupt_points: list[str] = Field(
+        alias="GRAPH_INTERRUPT_POINTS",
+        default=["ideator", "verification", "solution_proposal", "pmf"],
+        description="List of node names where the graph should interrupt execution for HITL"
+    )
+
 class V0Config(BaseSettings):
     """Configuration for v0.dev integration."""
 
@@ -320,9 +330,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file_encoding="utf-8", extra="forbid")
 
     # Explicitly enforce required keys without defaults
-    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
-    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
-    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key")
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=1)
+    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=1)
+    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key", min_length=1)
 
     @field_validator("openai_api_key", mode="before")
     @classmethod
@@ -368,8 +378,8 @@ class Settings(BaseSettings):
         if len(secret) < 10:
             msg = "v0_api_key must be at least 10 characters long."
             raise ValueError(msg)
-        if not re.match(r"^[\w\-\.\+]+$", secret):
-            msg = "v0_api_key contains invalid characters."
+        if not re.match(r"^v0-[a-zA-Z0-9_\\-]{20,128}$", secret):
+            msg = "v0_api_key must start with 'v0-' and be 20-128 valid characters."
             raise ValueError(msg)
         return secret_str
 
@@ -492,6 +502,7 @@ class Settings(BaseSettings):
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
     file_service: FileConfig = Field(default_factory=FileConfig)
+    graph: GraphConfig = Field(default_factory=GraphConfig)
 
 
 # Global settings state override

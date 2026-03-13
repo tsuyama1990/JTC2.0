@@ -25,9 +25,9 @@ def safe_node(
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             try:
                 return func(*args, **kwargs)  # type: ignore[no-any-return]
-            except Exception:
-                logger.exception(error_msg)
-                return {}
+            except Exception as e:
+                logger.exception(error_msg, exc_info=True)
+                return {"error": str(e)}
 
         return wrapper
 
@@ -259,23 +259,27 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
         except Exception:
             logger.exception(f"Failed to write markdown artifact: {filename}")
 
-    # Write Markdown specs if they exist in state
-    if state.agent_prompt_spec:
-        content = f"# Agent Prompt Spec\n\n```json\n{state.agent_prompt_spec.model_dump_json(indent=2)}\n```"
-        write_markdown("AgentPromptSpec.md", content)
+    try:
+        # Write Markdown specs if they exist in state
+        if state.agent_prompt_spec:
+            content = f"# Agent Prompt Spec\n\n```json\n{state.agent_prompt_spec.model_dump_json(indent=2)}\n```"
+            write_markdown("AgentPromptSpec.md", content)
 
-    if state.experiment_plan:
-        content = (
-            f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
-        )
-        write_markdown("ExperimentPlan.md", content)
+        if state.experiment_plan:
+            content = (
+                f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
+            )
+            write_markdown("ExperimentPlan.md", content)
 
-    # Note: RingiSho is already saved by GovernanceAgent, but we'll export a duplicate
-    # to the unified outputs directory for completeness.
-    if state.ringi_sho:
-        content = f"# Ringi-Sho\n\n```json\n{state.ringi_sho.model_dump_json(indent=2)}\n```"
-        write_markdown("RingiSho.md", content)
+        # Note: RingiSho is already saved by GovernanceAgent, but we'll export a duplicate
+        # to the unified outputs directory for completeness.
+        if state.ringi_sho:
+            content = f"# Ringi-Sho\n\n```json\n{state.ringi_sho.model_dump_json(indent=2)}\n```"
+            write_markdown("RingiSho.md", content)
 
-    file_service.save_pdf_sync(state, base_dir)
+        file_service.save_pdf_sync(state, base_dir)
+    finally:
+        # Ensure thread pool is shut down cleanly to prevent resource leaks
+        file_service.shutdown()
 
     return {}

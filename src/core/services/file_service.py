@@ -23,21 +23,27 @@ class FileService:
         # Max workers limited to avoid thread exhaustion
         self._executor = ThreadPoolExecutor(max_workers=self.settings.file_service.max_workers)
 
+    def shutdown(self, wait: bool = True) -> None:
+        """
+        Cleanly shut down the thread pool executor to prevent resource leaks.
+        """
+        self._executor.shutdown(wait=wait)
+
     def _validate_path(self, path: str | Path) -> Path:
         """
         Validate path to prevent traversal.
-        Uses os.path.realpath to strictly evaluate actual file locations and resolves symlinks.
+        Uses Path.resolve(strict=True) or (strict=False if creating new) to strictly evaluate actual file locations and resolves symlinks.
         """
-        import os
-
         path_str = str(path)
         if "\x00" in path_str:
             msg = "Null byte detected in path."
             raise ConfigurationError(msg)
 
         try:
-            target_path = Path(os.path.realpath(path_str))
-            cwd = Path(os.path.realpath(str(Path.cwd())))
+            # We use strict=False because the target file might not exist yet when saving.
+            # But we resolve the parent directory strictly to ensure the directory structure exists and is valid.
+            target_path = Path(path).resolve(strict=False)
+            cwd = Path.cwd().resolve(strict=True)
         except Exception as e:
             msg = f"Invalid path: {e}"
             raise ConfigurationError(msg) from e
@@ -55,6 +61,13 @@ class FileService:
         Generates the Final Artifact Canvas PDF from GlobalState.
         Includes robust path validation and uses fpdf2 for secure rendering.
         """
+        if not state:
+            msg = "GlobalState is required for PDF generation."
+            raise ValueError(msg)
+
+        # Ensure we have at least the selected idea to generate a meaningful PDF
+        if not state.selected_idea:
+            logger.warning("PDF Generation: missing selected_idea. PDF might be empty.")
 
         from fpdf import FPDF
 

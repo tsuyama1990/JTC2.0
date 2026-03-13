@@ -4,6 +4,7 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from src.core.config import get_settings
 from src.core.nodes import (
     final_artifact_generation_node,
     governance_node,
@@ -79,5 +80,7 @@ def create_app() -> CompiledStateGraph[Any, Any, Any]:
     workflow.add_edge("governance", "final_artifact_generation")
     workflow.add_edge("final_artifact_generation", END)
 
+    settings = get_settings()
+
     # Compile with Interrupts for HITL Gates
-    return workflow.compile(interrupt_after=["ideator", "verification", "solution_proposal", "pmf"])
+    return workflow.compile(interrupt_after=settings.graph.interrupt_points)
