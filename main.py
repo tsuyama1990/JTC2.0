@@ -10,6 +10,9 @@ from pathlib import Path
 # Add src to path if running from root
 sys.path.append(".")
 
+# Configure logging
+import os
+
 from src.core.config import UIConfig, get_settings
 from src.core.graph import create_app
 from src.core.simulation import create_simulation_graph
@@ -18,10 +21,11 @@ from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
 from src.ui.renderer import SimulationRenderer
 
-# Configure logging
-settings = get_settings()
-logging.basicConfig(level=settings.log_level)
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
+
+# We instantiate settings lazily inside main() or explicitly when needed
+# to avoid side-effects during test collection where main.py is imported
 
 
 def echo(msg: str) -> None:

@@ -4,9 +4,6 @@ from functools import lru_cache
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.core.constants import (
-    DEFAULT_PAGE_SIZE,
-)
 from src.core.theme import (
     AGENT_POS_CPO,
     AGENT_POS_FINANCE,
@@ -57,7 +54,6 @@ class UIConfig(BaseSettings):
 
     page_size: int = Field(
         alias="UI_PAGE_SIZE",
-        default=DEFAULT_PAGE_SIZE,
         description="Number of items per page in UI",
     )
 
@@ -141,9 +137,9 @@ class V0Config(BaseSettings):
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
-    width: int = Field(default=256, description="Window width")
-    height: int = Field(default=256, description="Window height")
-    fps: int = Field(default=30, description="Frames per second")
+    width: int = Field(alias="SIMULATION_WIDTH", description="Window width")
+    height: int = Field(alias="SIMULATION_HEIGHT", description="Window height")
+    fps: int = Field(alias="SIMULATION_FPS", description="Frames per second")
     title: str = Field(alias="SIMULATION_TITLE", description="Window title")
     bg_color: int = Field(alias="COLOR_BG", description="Background color")
     text_color: int = Field(alias="COLOR_TEXT", description="Text color")
@@ -152,40 +148,26 @@ class SimulationConfig(BaseSettings):
         alias="SIMULATION_CHARS_PER_LINE", description="Characters per line in dialogue"
     )
     line_height: int = Field(alias="SIMULATION_LINE_HEIGHT", description="Line height in pixels")
-    dialogue_x: int = Field(default=10, description="Dialogue box X position")
-    dialogue_y: int = Field(default=150, description="Dialogue box Y position")
-    max_y: int = Field(default=500, description="Max Y for scrolling")
-    waiting_msg: str = Field(default="Waiting for debate...", description="Message when waiting")
+    dialogue_x: int = Field(alias="SIMULATION_DIALOGUE_X", description="Dialogue box X position")
+    dialogue_y: int = Field(alias="SIMULATION_DIALOGUE_Y", description="Dialogue box Y position")
+    max_y: int = Field(alias="SIMULATION_MAX_Y", description="Max Y for scrolling")
+    waiting_msg: str = Field(alias="SIMULATION_WAITING_MSG", description="Message when waiting")
 
-    turn_sequence: list[dict[str, str]] = Field(
-        default_factory=lambda: [
-            {"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"},
-            {
-                "node_name": "finance_critique",
-                "role": "Finance Manager",
-                "description": "Finance Critique",
-            },
-            {
-                "node_name": "defense_1",
-                "role": "New Employee",
-                "description": "New Employee Defense",
-            },
-            {
-                "node_name": "sales_critique",
-                "role": "Sales Manager",
-                "description": "Sales Critique",
-            },
-            {
-                "node_name": "defense_2",
-                "role": "New Employee",
-                "description": "New Employee Final Defense",
-            },
-        ],
-        description="List of simulation steps defining the turn sequence.",
+    turn_sequence_str: str = Field(
+        alias="SIMULATION_TURN_SEQUENCE",
+        description="List of simulation steps defining the turn sequence as a JSON string.",
     )
 
-    console_sleep: float = Field(default=1.5, description="Sleep time for console fallback")
-    max_turns: int = Field(default=10, description="Max turns in simulation")
+    @property
+    def turn_sequence(self) -> list[dict[str, str]]:
+        import json
+
+        return json.loads(self.turn_sequence_str)  # type: ignore[no-any-return]
+
+    console_sleep: float = Field(
+        alias="SIMULATION_CONSOLE_SLEEP", description="Sleep time for console fallback"
+    )
+    max_turns: int = Field(alias="SIMULATION_MAX_TURNS", description="Max turns in simulation")
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp_pos: dict[str, int] = Field(
@@ -288,14 +270,11 @@ class GovernanceConfig(BaseSettings):
 
     min_roi_threshold: float = Field(
         alias="MIN_ROI_THRESHOLD",
-        default=3.0,
         description="Minimum ROI for approval",
     )
-    default_cac: float = Field(alias="DEFAULT_CAC", default=500.0, description="Fallback CAC")
-    default_arpu: float = Field(alias="DEFAULT_ARPU", default=50.0, description="Fallback ARPU")
-    default_churn: float = Field(
-        alias="DEFAULT_CHURN", default=0.05, description="Fallback Churn Rate"
-    )
+    default_cac: float = Field(alias="DEFAULT_CAC", description="Fallback CAC")
+    default_arpu: float = Field(alias="DEFAULT_ARPU", description="Fallback ARPU")
+    default_churn: float = Field(alias="DEFAULT_CHURN", description="Fallback Churn Rate")
     max_llm_response_size: int = Field(
         alias="MAX_LLM_RESPONSE_SIZE",
         default=10_000,
@@ -339,7 +318,11 @@ class Settings(BaseSettings):
         if not secret or not secret.strip():
             msg = "API key cannot be empty or whitespace-only."
             raise ValueError(msg)
-        ConfigValidators.validate_openai_key(secret_str)
+        try:
+            ConfigValidators.validate_openai_key(secret_str)
+        except Exception as e:
+            msg = f"Invalid OpenAI API key format: {e}"
+            raise ValueError(msg) from e
         return secret_str
 
     @field_validator("tavily_api_key", mode="before")
@@ -350,7 +333,11 @@ class Settings(BaseSettings):
         if not secret or not secret.strip():
             msg = "API key cannot be empty or whitespace-only."
             raise ValueError(msg)
-        ConfigValidators.validate_tavily_key(secret_str)
+        try:
+            ConfigValidators.validate_tavily_key(secret_str)
+        except Exception as e:
+            msg = f"Invalid Tavily API key format: {e}"
+            raise ValueError(msg) from e
         return secret_str
 
     @field_validator("v0_api_key", mode="before")
@@ -367,7 +354,7 @@ class Settings(BaseSettings):
         if len(secret) < 10:
             msg = "v0_api_key must be at least 10 characters long."
             raise ValueError(msg)
-        if not re.match(r"^[\w\-]+$", secret):
+        if not re.match(r"^[\w\-\.\+]+$", secret):
             msg = "v0_api_key contains invalid characters."
             raise ValueError(msg)
         return secret_str
@@ -502,7 +489,36 @@ def set_settings_override(settings: Settings | None) -> None:
 
 @lru_cache
 def get_settings() -> Settings:
-    """Load and cache settings."""
+    """
+    Load and cache settings with a robust startup pre-validation fallback.
+    Prevents ungraceful crashes by catching Pydantic ValidationErrors for missing
+    required environment variables and outputting a clean summary before exit.
+    """
     if _settings_override_state["override"]:
         return _settings_override_state["override"]  # type: ignore[no-any-return]
-    return Settings()
+
+    import sys
+
+    from pydantic import ValidationError
+
+    try:
+        return Settings()
+    except ValidationError as e:
+        # Don't use standard logger yet as it might not be configured
+        print("\n" + "=" * 60)  # noqa: T201
+        print("CRITICAL CONFIGURATION ERROR: Missing or Invalid Environment Variables")  # noqa: T201
+        print("=" * 60)  # noqa: T201
+        for err in e.errors():
+            field_path = ".".join([str(loc) for loc in err["loc"]])
+            msg = err["msg"]
+            print(f"- {field_path}: {msg}")  # noqa: T201
+        print("\nPlease check your .env file and ensure all required variables are set.")  # noqa: T201
+        print("=" * 60 + "\n")  # noqa: T201
+
+        # Allow tests to catch this by strictly throwing it when pytest is running
+        import os
+
+        if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
+            raise
+
+        sys.exit(1)

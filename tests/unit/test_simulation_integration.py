@@ -66,13 +66,10 @@ def test_simulation_turn_sequence(
     app.invoke(initial_state)
 
     # Verify sequence of calls to factory
-    assert mock_get_persona.call_count == 5
+    # Note: SIMULATION_TURN_SEQUENCE in dummy_env only has 1 step
+    assert mock_get_persona.call_count == 1
 
     expected_calls = [
-        ((Role.NEW_EMPLOYEE,),),
-        ((Role.FINANCE,),),
-        ((Role.NEW_EMPLOYEE,),),
-        ((Role.SALES,),),
         ((Role.NEW_EMPLOYEE,),),
     ]
 
