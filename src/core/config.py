@@ -287,46 +287,51 @@ class Settings(BaseSettings):
     tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
     v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key")
 
-    @field_validator("openai_api_key", "tavily_api_key", "v0_api_key", mode="before")
+    @field_validator("openai_api_key", mode="before")
     @classmethod
-    def validate_non_empty_key(cls, v: str | SecretStr) -> str | SecretStr:
-        secret = v.get_secret_value() if isinstance(v, SecretStr) else str(v)
+    def validate_openai_key_before(cls, v: str | SecretStr) -> SecretStr:
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        secret = secret_str.get_secret_value()
         if not secret or not secret.strip():
             msg = "API key cannot be empty or whitespace-only."
             raise ValueError(msg)
-        return v
+        ConfigValidators.validate_openai_key(secret_str)
+        return secret_str
 
-    @field_validator("openai_api_key")
+    @field_validator("tavily_api_key", mode="before")
     @classmethod
-    def validate_openai_key(cls, v: SecretStr) -> SecretStr:
-        ConfigValidators.validate_openai_key(v)
-        return v
+    def validate_tavily_key_before(cls, v: str | SecretStr) -> SecretStr:
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        secret = secret_str.get_secret_value()
+        if not secret or not secret.strip():
+            msg = "API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
+        ConfigValidators.validate_tavily_key(secret_str)
+        return secret_str
 
-    @field_validator("tavily_api_key")
+    @field_validator("v0_api_key", mode="before")
     @classmethod
-    def validate_tavily_key(cls, v: SecretStr) -> SecretStr:
-        ConfigValidators.validate_tavily_key(v)
-        return v
-
-    @field_validator("v0_api_key")
-    @classmethod
-    def validate_v0_api_key(cls, v: SecretStr) -> SecretStr:
+    def validate_v0_api_key_before(cls, v: str | SecretStr) -> SecretStr:
         """Validate the format of the V0 API Key."""
         import re
 
-        secret = v.get_secret_value()
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        secret = secret_str.get_secret_value()
+        if not secret or not secret.strip():
+            msg = "API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
         if len(secret) < 10:
             msg = "v0_api_key must be at least 10 characters long."
             raise ValueError(msg)
         if not re.match(r"^[\w\-]+$", secret):
             msg = "v0_api_key contains invalid characters."
             raise ValueError(msg)
-        return v
+        return secret_str
 
     v0_api_url: str = Field(
         alias="V0_API_URL",
         description="V0.dev API URL",
-        pattern=r"^https://api\.v0\.dev/.*$",
+        pattern=r"^https://(?:[a-zA-Z0-9-]+\.)*v0\.dev(?:/.*)?$",
     )
 
     llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")

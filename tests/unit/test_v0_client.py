@@ -24,7 +24,7 @@ class TestV0Client:
     @patch("src.tools.v0_client.pybreaker.CircuitBreaker")
     def test_generate_ui_success(self, mock_breaker: MagicMock, mock_settings: MagicMock) -> None:
         """Test successful UI generation."""
-        mock_settings.v0_api_key = SecretStr("valid-key")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
         mock_settings.v0_api_url = "https://api.v0.dev"
 
         client = V0Client()
@@ -46,7 +46,7 @@ class TestV0Client:
         self, mock_breaker: MagicMock, mock_settings: MagicMock
     ) -> None:
         """Test network failure handling (Timeout/ConnectionError)."""
-        mock_settings.v0_api_key = SecretStr("valid-key")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
         client = V0Client()
         client.breaker.call = lambda func, *args: func(*args)  # type: ignore
 
@@ -64,7 +64,7 @@ class TestV0Client:
     def test_missing_api_key(self, mock_settings: MagicMock) -> None:
         """Test missing API key."""
         mock_settings.v0_api_key = None
-        client = V0Client(api_key=None)
+        client = V0Client(api_key="")
 
         with pytest.raises(V0GenerationError, match="V0 API Key missing"):
             client.generate_ui("prompt")
@@ -74,8 +74,9 @@ class TestV0Client:
         self, mock_breaker: MagicMock, mock_settings: MagicMock
     ) -> None:
         """Test invalid API key format."""
-        mock_settings.v0_api_key = SecretStr("invalid key\nwithnewline")
-        client = V0Client(api_key="invalid key\nwithnewline")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
+        client = V0Client()
+        client.api_key = "invalid key"
 
         with pytest.raises(V0GenerationError, match="Invalid API key format"):
             client.generate_ui("prompt")
@@ -83,16 +84,21 @@ class TestV0Client:
     @patch("src.tools.v0_client.pybreaker.CircuitBreaker")
     def test_header_sanitization(self, mock_breaker: MagicMock, mock_settings: MagicMock) -> None:
         """Test that _sanitize_header works directly."""
-        client = V0Client(api_key="valid-key")
-        sanitized = client._sanitize_header("valid-key\r\n")
-        assert sanitized == "valid-key"
+        client = V0Client(api_key="valid-key-format-123")
+        sanitized = client._sanitize_header("valid-key-format-123\r\n")
+        assert sanitized == "valid-key-format-123"
 
     @patch("src.tools.v0_client.pybreaker.CircuitBreaker")
     def test_generate_ui_no_url_in_response(
         self, mock_breaker: MagicMock, mock_settings: MagicMock
     ) -> None:
         """Test when API returns 200 but lacks url field."""
-        mock_settings.v0_api_key = SecretStr("valid-key")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
         mock_settings.v0_api_url = "https://api.v0.dev"
 
         client = V0Client()
@@ -114,7 +120,7 @@ class TestV0Client:
         self, mock_breaker: MagicMock, mock_settings: MagicMock
     ) -> None:
         """Test successful retry after 429."""
-        mock_settings.v0_api_key = SecretStr("valid-key")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
         mock_settings.v0_api_url = "https://api.v0.dev"
         mock_settings.v0.retry_max = 1
         mock_settings.v0.retry_backoff = 0.0
@@ -144,7 +150,7 @@ class TestV0Client:
         self, mock_breaker: MagicMock, mock_settings: MagicMock
     ) -> None:
         """Test exhaustion of retries on 429."""
-        mock_settings.v0_api_key = SecretStr("valid-key")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
         mock_settings.v0_api_url = "https://api.v0.dev"
         mock_settings.v0.retry_max = 1
         mock_settings.v0.retry_backoff = 0.0
@@ -169,7 +175,7 @@ class TestV0Client:
     @patch("src.tools.v0_client.pybreaker.CircuitBreaker")
     def test_generate_ui_500_error(self, mock_breaker: MagicMock, mock_settings: MagicMock) -> None:
         """Test API returning a 500 error."""
-        mock_settings.v0_api_key = SecretStr("valid-key")
+        mock_settings.v0_api_key = SecretStr("valid-v0-dev-key-1234")
         mock_settings.v0_api_url = "https://api.v0.dev"
 
         client = V0Client()
