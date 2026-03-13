@@ -444,16 +444,18 @@ class Settings(BaseSettings):
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
 
 
-_settings_state = {"override": None}
+from typing import Any
+
+_settings_override_state: dict[str, Any] = {"override": None}
 
 
 def set_settings_override(settings: Settings | None) -> None:
-    _settings_state["override"] = settings
+    _settings_override_state["override"] = settings
 
 
 @lru_cache
 def get_settings() -> Settings:
     """Load and cache settings."""
-    if _settings_state["override"]:
-        return _settings_state["override"]  # type: ignore
+    if _settings_override_state["override"]:
+        return _settings_override_state["override"]  # type: ignore[no-any-return]
     return Settings()
