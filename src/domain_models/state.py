@@ -101,7 +101,11 @@ class GlobalState(BaseModel):
             # Remove null bytes
             sanitized = sanitized.replace("\x00", "")
             # Remove common SQL injection fragments if matched exactly
-            sanitized = re.sub(r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b", "[REDACTED]", sanitized)
+            sanitized = re.sub(
+                r"(?i)\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC)\b",
+                "[REDACTED]",
+                sanitized,
+            )
             sanitized = sanitized.replace("--", "").replace(";", "")
 
             if len(sanitized.strip()) < 10:
@@ -122,24 +126,23 @@ class GlobalState(BaseModel):
             return v
 
         is_allowed = False
-        allowed_paths = os.getenv("RAG_ALLOWED_PATHS", "data,vector_store,tests,./vector_store").split(",")
+        allowed_paths = os.getenv(
+            "RAG_ALLOWED_PATHS", "data,vector_store,tests,./vector_store"
+        ).split(",")
 
-        abs_v = str(Path(v).resolve())
-        for allowed_path in allowed_paths:
-            abs_allowed = str(Path(allowed_path.strip()).resolve())
-            try:
-                if os.path.commonpath([abs_allowed, abs_v]) == abs_allowed:
+        try:
+            abs_v = Path(v).resolve(strict=True)
+            for allowed_path in allowed_paths:
+                abs_allowed = Path(allowed_path.strip()).resolve(strict=False)
+                if abs_v.is_relative_to(abs_allowed):
                     is_allowed = True
                     break
-            except ValueError:
-                continue
+        except FileNotFoundError as e:
+            msg = f"RAG index path '{v}' does not exist or is invalid."
+            raise ValueError(msg) from e
 
         if not is_allowed:
             msg = f"Invalid RAG path '{v}'. Must be within allowed paths: {allowed_paths}"
-            raise ValueError(msg)
-
-        if not Path(v).exists():
-            msg = f"RAG index path '{v}' does not exist."
             raise ValueError(msg)
 
         return v
@@ -161,17 +164,25 @@ class GlobalState(BaseModel):
     @classmethod
     def validate_iterator(cls, v: object) -> object:
         """
-        Strictly enforces that the input is a valid Iterator.
+        Converts Iterable input to Iterator securely and validates yielded items.
         """
+        from collections.abc import Iterable
+
         if v is None:
             return None
 
-        if isinstance(v, Iterator):
-            return v
+        if not isinstance(v, Iterable):
+            msg = f"Invalid type for generated_ideas. Expected an Iterable yielding LeanCanvas objects, but got {type(v).__name__} instead."
+            raise TypeError(msg)
 
-        # Reject invalid types explicitly
-        msg = f"Invalid type for generated_ideas. Expected an Iterator that yields LeanCanvas objects, but got {type(v).__name__} instead. Ensure you are passing a generator or Iterator."
-        raise TypeError(msg)
+        def _validate_items(iterator: Iterator[object]) -> Iterator[LeanCanvas]:
+            for item in iterator:
+                if not isinstance(item, LeanCanvas):
+                    msg = f"generated_ideas Iterator yielded {type(item).__name__}, expected LeanCanvas"
+                    raise TypeError(msg)
+                yield item
+
+        return _validate_items(iter(v))
 
     @model_validator(mode="after")
     def validate_state(self) -> Self:

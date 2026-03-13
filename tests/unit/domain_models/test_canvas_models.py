@@ -88,9 +88,7 @@ def test_mental_model_diagram_valid() -> None:
 
 
 def test_alternative_analysis_valid() -> None:
-    tool = AlternativeTool(
-        name="Excel", financial_cost="Low", time_cost="High", ux_friction="Manual"
-    )
+    tool = AlternativeTool(name="Excel", financial_cost=10.0, time_cost=100.0, ux_friction="Manual")
     aa = AlternativeAnalysis(
         current_alternatives=[tool],
         switching_cost="Data migration",
@@ -101,7 +99,7 @@ def test_alternative_analysis_valid() -> None:
 
 def test_customer_journey_valid() -> None:
     phase1 = JourneyPhase(
-        phase_name="Discovery",
+        phase_name="認知",
         touchpoint="Ad",
         customer_action="Clicks",
         mental_tower_ref="Needs better tool",
@@ -109,7 +107,7 @@ def test_customer_journey_valid() -> None:
         emotion_score=-1,
     )
     phase2 = JourneyPhase(
-        phase_name="Signup",
+        phase_name="検討",
         touchpoint="Website",
         customer_action="Fills form",
         mental_tower_ref="Hopeful",
@@ -117,20 +115,20 @@ def test_customer_journey_valid() -> None:
         emotion_score=0,
     )
     phase3 = JourneyPhase(
-        phase_name="Usage",
+        phase_name="利用中",
         touchpoint="App",
         customer_action="Uses feature",
         mental_tower_ref="Wants results",
         pain_points=["None"],
         emotion_score=5,
     )
-    cj = CustomerJourney(phases=[phase1, phase2, phase3], worst_pain_phase="Discovery")
+    cj = CustomerJourney(phases=[phase1, phase2, phase3], worst_pain_phase="認知")
     assert len(cj.phases) == 3
 
 
 def test_customer_journey_invalid() -> None:
     phase = JourneyPhase(
-        phase_name="Discovery",
+        phase_name="認知",
         touchpoint="Ad",
         customer_action="Clicks",
         mental_tower_ref="Needs better tool",
@@ -139,7 +137,7 @@ def test_customer_journey_invalid() -> None:
     )
     with pytest.raises(ValidationError):
         # min length is 3
-        CustomerJourney(phases=[phase], worst_pain_phase="Discovery")
+        CustomerJourney(phases=[phase], worst_pain_phase="認知")
 
 
 def test_sitemap_and_story_valid() -> None:

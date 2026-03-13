@@ -17,9 +17,7 @@ class MetricTarget(BaseModel):
         description="PMF達成とみなす目標値(例: 40%以上)",
         min_length=1,
     )
-    measurement_method: str = Field(
-        ..., description="計測方法", min_length=1
-    )
+    measurement_method: str = Field(..., description="計測方法", min_length=1)
 
 
 class ExperimentPlan(BaseModel):
