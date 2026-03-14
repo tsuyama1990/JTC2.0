@@ -6,7 +6,7 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-def __1() -> tuple[object]:
+def __1() -> tuple[object]:  # noqa: C901
     # type: ignore
     import logging
     import threading
