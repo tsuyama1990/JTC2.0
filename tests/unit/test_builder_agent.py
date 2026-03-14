@@ -19,7 +19,7 @@ def mock_llm() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def agent(mock_llm: MagicMock) -> BuilderAgent:
-    with patch("src.agents.builder.get_settings") as mock_settings:
+    with patch("src.agents.builder.get_settings"):
         return BuilderAgent(llm=mock_llm)
 
 
@@ -78,7 +78,10 @@ class TestBuilderAgent:
         mock_chain.invoke.return_value = expected_spec
         mock_prompt_tmpl.__or__.return_value = mock_chain
 
-        agent.llm.with_structured_output.return_value = mock_chain
+        # Create a mock object, not mocking the method itself which type checkers dislike
+        mock_llm_structured = MagicMock()
+        mock_llm_structured.return_value = mock_chain
+        agent.llm.with_structured_output = mock_llm_structured  # type: ignore
 
         result = agent._generate_agent_prompt_spec("Context")
         assert result == expected_spec
@@ -105,7 +108,9 @@ class TestBuilderAgent:
         mock_chain.invoke.return_value = expected_plan
         mock_prompt_tmpl.__or__.return_value = mock_chain
 
-        agent.llm.with_structured_output.return_value = mock_chain
+        mock_llm_structured = MagicMock()
+        mock_llm_structured.return_value = mock_chain
+        agent.llm.with_structured_output = mock_llm_structured  # type: ignore
 
         result = agent._generate_experiment_plan("Context")
         assert result == expected_plan
