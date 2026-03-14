@@ -6,7 +6,11 @@ app = marimo.App(width="medium")
 
 
 @app.cell
+<<<<<<< HEAD
 def __1() -> tuple[object]:  # noqa: C901
+=======
+def __1() -> tuple[object]:
+>>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
     # type: ignore
     import logging
     import threading

@@ -74,8 +74,12 @@ class BuilderAgent(BaseAgent):
             result = chain.invoke({"context": context})
             if isinstance(result, AgentPromptSpec):
                 return result
+<<<<<<< HEAD
             msg = f"Expected AgentPromptSpec, got {type(result)}"
             raise ValueError(msg)
+=======
+            raise ValueError(f"Expected AgentPromptSpec, got {type(result)}")
+>>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
         except ValidationError as e:
             logger.warning(f"Validation error generating AgentPromptSpec. Retrying... Details: {e}")
             raise
@@ -104,8 +108,12 @@ class BuilderAgent(BaseAgent):
             result = chain.invoke({"context": context})
             if isinstance(result, ExperimentPlan):
                 return result
+<<<<<<< HEAD
             msg = f"Expected ExperimentPlan, got {type(result)}"
             raise ValueError(msg)
+=======
+            raise ValueError(f"Expected ExperimentPlan, got {type(result)}")
+>>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
         except ValidationError as e:
             logger.warning(f"Validation error generating ExperimentPlan. Retrying... Details: {e}")
             raise
@@ -124,9 +132,18 @@ class BuilderAgent(BaseAgent):
         try:
             agent_prompt_spec = self._generate_agent_prompt_spec(context)
             experiment_plan = self._generate_experiment_plan(context)
+<<<<<<< HEAD
         except Exception:
             logger.exception("BuilderAgent run failed during spec generation.")
             return {}
         else:
             logger.info("Successfully generated AgentPromptSpec and ExperimentPlan.")
             return {"agent_prompt_spec": agent_prompt_spec, "experiment_plan": experiment_plan}
+=======
+
+            logger.info("Successfully generated AgentPromptSpec and ExperimentPlan.")
+            return {"agent_prompt_spec": agent_prompt_spec, "experiment_plan": experiment_plan}
+        except Exception:
+            logger.exception("BuilderAgent run failed during spec generation.")
+            return {}
+>>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e

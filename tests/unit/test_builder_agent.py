@@ -19,7 +19,11 @@ def mock_llm() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def agent(mock_llm: MagicMock) -> BuilderAgent:
+<<<<<<< HEAD
     with patch("src.agents.builder.get_settings"):
+=======
+    with patch("src.agents.builder.get_settings") as mock_settings:
+>>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
         return BuilderAgent(llm=mock_llm)
 
 
@@ -78,10 +82,14 @@ class TestBuilderAgent:
         mock_chain.invoke.return_value = expected_spec
         mock_prompt_tmpl.__or__.return_value = mock_chain
 
+<<<<<<< HEAD
         # Create a mock object, not mocking the method itself which type checkers dislike
         mock_llm_structured = MagicMock()
         mock_llm_structured.return_value = mock_chain
         agent.llm.with_structured_output = mock_llm_structured  # type: ignore
+=======
+        agent.llm.with_structured_output.return_value = mock_chain
+>>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
 
         result = agent._generate_agent_prompt_spec("Context")
         assert result == expected_spec
@@ -108,9 +116,13 @@ class TestBuilderAgent:
         mock_chain.invoke.return_value = expected_plan
         mock_prompt_tmpl.__or__.return_value = mock_chain
 
+<<<<<<< HEAD
         mock_llm_structured = MagicMock()
         mock_llm_structured.return_value = mock_chain
         agent.llm.with_structured_output = mock_llm_structured  # type: ignore
+=======
+        agent.llm.with_structured_output.return_value = mock_chain
+>>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
 
         result = agent._generate_experiment_plan("Context")
         assert result == expected_plan
