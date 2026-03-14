@@ -1,91 +1,101 @@
+from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
+from src.domain_models.sitemap import UserStory
+from src.domain_models.experiment import ExperimentPlan, MetricTarget
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.agents.governance import GovernanceAgent
-from src.core.services.file_service import FileService
-from src.domain_models.metrics import Metrics
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
-from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.domain_models.lean_canvas import LeanCanvas
+from src.domain_models.metrics import Metrics, RingiSho
 from src.domain_models.state import GlobalState
 
 
 class TestGovernanceAgent:
-    """Test suite for Governance Agent."""
-
     @pytest.fixture
     def mock_state(self) -> GlobalState:
         """Create a mock GlobalState."""
         state = GlobalState()
         state.topic = "AI Productivity Tool"
         state.metrics_data = Metrics()
-        state.mvp_definition = MVP(
-            type=MVPType.SINGLE_FEATURE,
-            core_features=[
-                Feature(
-                    name="AI Summarizer", description="Summarizes text", priority=Priority.MUST_HAVE
-                )
-            ],
-            success_criteria="User saves time",
+        state.agent_prompt_spec = AgentPromptSpec(
+            sitemap="a",
+            routing_and_constraints="b",
+            core_user_story=UserStory(
+                as_a="c", i_want_to="d", so_that="e", acceptance_criteria=["f"], target_route="/g"
+            ),
+            state_machine=StateMachine(success="h", loading="i", error="j", empty="k"),
+            validation_rules="l",
+            mermaid_flowchart="m",
         )
-        state.influence_network = InfluenceNetwork(
-            stakeholders=[Stakeholder(name="CEO", initial_support=0.8, stubbornness=0.1)],
-            matrix=[[1.0]],
+        state.experiment_plan = ExperimentPlan(
+            riskiest_assumption="Assumption A",
+            experiment_type="Type B",
+            acquisition_channel="Channel C",
+            aarrr_metrics=[
+                MetricTarget(metric_name="M", target_value="V", measurement_method="Meth")
+            ],
+            pivot_condition="Pivot Cond P",
         )
         return state
 
-    @patch("src.agents.governance.TavilySearch")
-    @patch("src.core.metrics.calculate_ltv")
-    @patch("src.core.metrics.calculate_payback_period")
-    @patch("src.core.metrics.calculate_roi")
-    def test_run_populates_ringi_sho(
-        self,
-        mock_roi: MagicMock,
-        mock_payback: MagicMock,
-        mock_ltv: MagicMock,
-        mock_search_cls: MagicMock,
-        mock_state: GlobalState,
-    ) -> None:
-        """Test that run method populates RingiSho in the returned dictionary."""
-        # Setup mocks
-        mock_search_instance = mock_search_cls.return_value
-        mock_search_instance.safe_search.return_value = "CAC: $500\nChurn: 5%\nARPU: $100"
+    def test_get_industry_context(self) -> None:
+        """Test industry context extraction."""
+        agent = GovernanceAgent()
 
-        mock_ltv.return_value = 2000.0
-        mock_payback.return_value = 5.0
-        mock_roi.return_value = 4.0
+        state = GlobalState(topic="Test Topic")
+        assert agent._get_industry_context(state) == "Test Topic"
 
-        # Mock File Service
-        mock_file_service = MagicMock(spec=FileService)
+        state.selected_idea = LeanCanvas(
+            id=1,
+            title="A is a good title",
+            problem="B is a big problem",
+            customer_segments="Doctors",
+            unique_value_prop="C is very unique value prop",
+            solution="D is the best solution",
+        )
+        assert agent._get_industry_context(state) == "Doctors related to Test Topic"
 
-        agent = GovernanceAgent(file_service=mock_file_service)
+    @patch("src.agents.governance.get_llm")
+    def test_estimate_financials_success(self, mock_get_llm: MagicMock) -> None:
+        """Test successful financial estimation."""
+        agent = GovernanceAgent()
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = mock_llm
 
-        # Check `src/core/llm.py` later. For now, let's assume it runs.
+        # stream returns an iterator of chunks
+        chunk = MagicMock()
+        chunk.content = '```json\n{"cac": 100.0, "arpu": 10.0, "churn_rate": 0.05}\n```'
+        mock_llm.stream.return_value = iter([chunk])
 
-        with patch("src.agents.governance.get_llm") as mock_llm_factory:
-            mock_llm = mock_llm_factory.return_value
+        result = agent._estimate_financials("Health", "Search data")
 
-            # Mock LLM responses (called twice: financials, then ringi-sho)
-            # Use stream instead of invoke because the agent uses stream for memory safety
-            mock_chunk_fin = MagicMock()
-            mock_chunk_fin.content = '{"cac": 500.0, "arpu": 100.0, "churn_rate": 0.05}'
+        assert result.cac == 100.0
+        assert result.ltv == 10.0 / 0.05  # 200.0
+        assert result.payback_months == 100.0 / 10.0  # 10.0
+        assert result.roi == 200.0 / 100.0  # 2.0
 
-            mock_chunk_ringi = MagicMock()
-            mock_chunk_ringi.content = (
-                '{"title": "AI Tool", "executive_summary": "Great tool.", "risks": ["Risk 1"]}'
-            )
+    @patch("src.agents.governance.get_llm")
+    def test_estimate_financials_fallback(self, mock_get_llm: MagicMock) -> None:
+        """Test fallback to defaults if estimation fails."""
+        agent = GovernanceAgent()
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = mock_llm
 
-            # stream returns an iterator. We simulate it with a list.
-            mock_llm.stream.side_effect = [[mock_chunk_fin], [mock_chunk_ringi]]
+        # Trigger JSONDecodeError
+        chunk = MagicMock()
+        chunk.content = "Invalid JSON"
+        mock_llm.stream.return_value = iter([chunk])
 
-            result = agent.run(mock_state)
+        with patch("src.agents.governance.get_settings") as mock_settings_func:
+            mock_settings = mock_settings_func.return_value
+            mock_settings.governance.default_cac = 50.0
+            mock_settings.governance.default_arpu = 5.0
+            mock_settings.governance.default_churn = 0.1
+            mock_settings.governance.max_llm_response_size = 1000
 
-            # Expectation: RingiSho and metrics populated
-            assert isinstance(result, dict)
-            assert "ringi_sho" in result
-            assert "metrics_data" in result
+            result = agent._estimate_financials("Health", "Search data")
 
-            # Verify FileService call
-            mock_file_service.save_text_async.assert_called_once()
-            args, _ = mock_file_service.save_text_async.call_args
-            assert "# AI Tool" in args[0]  # Verify content
+            assert result.cac == 50.0
+            assert result.ltv == 5.0 / 0.1  # 50.0

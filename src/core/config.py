@@ -1,82 +1,18 @@
+import typing
 from functools import lru_cache
-from typing import Self
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.core.constants import (
-    DEFAULT_ARPU,
-    DEFAULT_CAC,
-    DEFAULT_CB_FAIL_MAX,
-    DEFAULT_CB_RESET_TIMEOUT,
-    DEFAULT_CHARS_PER_LINE,
-    DEFAULT_CHURN,
-    DEFAULT_CONSOLE_SLEEP,
-    DEFAULT_DIALOGUE_X,
-    DEFAULT_DIALOGUE_Y,
-    DEFAULT_FEATURE_CHUNK_SIZE,
-    DEFAULT_FPS,
-    DEFAULT_HEIGHT,
-    DEFAULT_ITERATOR_SAFETY_LIMIT,
-    DEFAULT_LINE_HEIGHT,
-    DEFAULT_MAX_LLM_RESPONSE_SIZE,
-    DEFAULT_MAX_SEARCH_RESULT_SIZE,
-    DEFAULT_MAX_TITLE_LENGTH,
-    DEFAULT_MAX_TURNS,
-    DEFAULT_MAX_Y,
-    DEFAULT_MIN_ROI_THRESHOLD,
-    DEFAULT_MIN_TITLE_LENGTH,
-    DEFAULT_NEMAWASHI_BOOST,
-    DEFAULT_NEMAWASHI_MAX_STEPS,
-    DEFAULT_NEMAWASHI_REDUCTION,
-    DEFAULT_NEMAWASHI_TOLERANCE,
-    DEFAULT_PAGE_SIZE,
-    DEFAULT_RAG_BATCH_SIZE,
-    DEFAULT_RAG_CHUNK_SIZE,
-    DEFAULT_RAG_MAX_DOC_LENGTH,
-    DEFAULT_RAG_MAX_INDEX_SIZE_MB,
-    DEFAULT_RAG_MAX_QUERY_LENGTH,
-    DEFAULT_V0_RETRY_BACKOFF,
-    DEFAULT_V0_RETRY_MAX,
-    DEFAULT_WIDTH,
-    ERR_CONFIG_MISSING_OPENAI_KEY,
-    ERR_CONFIG_MISSING_TAVILY_KEY,
-    ERR_INVALID_METRIC_KEY,
-    ERR_LLM_CONFIG_MISSING,
-    ERR_LLM_FAILURE,
-    ERR_MISSING_MVP,
-    ERR_MISSING_PERSONA,
-    ERR_SEARCH_CONFIG_MISSING,
-    ERR_SEARCH_FAILED,
-    ERR_TOO_MANY_METRICS,
-    ERR_UNIQUE_ID_VIOLATION,
-    MSG_CYCLE_COMPLETE,
-    MSG_EXECUTION_ERROR,
-    MSG_GENERATED_HEADER,
-    MSG_ID_NOT_FOUND,
-    MSG_INVALID_INPUT,
-    MSG_NO_IDEAS,
-    MSG_PHASE_START,
-    MSG_PRESS_ENTER,
-    MSG_RESEARCHING,
-    MSG_SELECT_PROMPT,
-    MSG_SELECTED,
-    MSG_SIM_TITLE,
-    MSG_TOPIC_EMPTY,
-    MSG_WAIT,
-    MSG_WAITING_FOR_DEBATE,
-)
 from src.core.theme import (
     AGENT_POS_CPO,
     AGENT_POS_FINANCE,
     AGENT_POS_NEW_EMP,
     AGENT_POS_SALES,
-    COLOR_BG,
     COLOR_CPO,
     COLOR_FINANCE,
     COLOR_NEW_EMP,
     COLOR_SALES,
-    COLOR_TEXT,
 )
 from src.core.validators import ConfigValidators
 
@@ -84,12 +20,8 @@ from src.core.validators import ConfigValidators
 class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
-    min_title_length: int = Field(
-        default=DEFAULT_MIN_TITLE_LENGTH, description="Minimum length for titles"
-    )
-    max_title_length: int = Field(
-        default=DEFAULT_MAX_TITLE_LENGTH, description="Maximum length for titles"
-    )
+    min_title_length: int = Field(default=3, description="Minimum length for titles")
+    max_title_length: int = Field(default=100, description="Maximum length for titles")
     min_content_length: int = Field(default=3, description="Minimum length for content blocks")
     max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
 
@@ -104,17 +36,23 @@ class ValidationConfig(BaseSettings):
 class ErrorMessages(BaseSettings):
     """Error messages for the application."""
 
-    unique_id_violation: str = ERR_UNIQUE_ID_VIOLATION
-    config_missing_openai: str = ERR_CONFIG_MISSING_OPENAI_KEY
-    config_missing_tavily: str = ERR_CONFIG_MISSING_TAVILY_KEY
-    search_config_missing: str = ERR_SEARCH_CONFIG_MISSING
-    llm_config_missing: str = ERR_LLM_CONFIG_MISSING
-    search_failed: str = ERR_SEARCH_FAILED
-    llm_failure: str = ERR_LLM_FAILURE
-    too_many_metrics: str = ERR_TOO_MANY_METRICS
-    invalid_metric_key: str = ERR_INVALID_METRIC_KEY
-    missing_persona: str = ERR_MISSING_PERSONA
-    missing_mvp: str = ERR_MISSING_MVP
+    unique_id_violation: str = "Unique ID constraint violated."
+    config_missing_openai: str = "OPENAI_API_KEY is not set."
+    config_missing_tavily: str = "TAVILY_API_KEY is not set."
+    search_config_missing: str = "Search configuration is incomplete."
+    llm_config_missing: str = "LLM configuration is incomplete."
+    search_failed: str = "Search operation failed."
+    llm_failure: str = "LLM operation failed."
+    too_many_metrics: str = "Too many custom metrics defined. Maximum is {limit}."
+    invalid_metric_key: str = "Invalid custom metric key: {key}."
+    missing_persona: str = "Target persona is required for this phase."
+    missing_mvp: str = "MVP definition is required for this phase."
+    invalid_api_key_format: str = "Invalid API key format: {key_name}."
+    api_key_empty: str = "{key_name} cannot be empty or whitespace-only."
+    api_key_too_short: str = "{key_name} is too short."
+    api_key_too_long: str = "{key_name} is too long."
+    api_key_invalid_prefix: str = "{key_name} must start with '{prefix}'."
+    api_key_invalid_chars: str = "{key_name} contains invalid characters."
 
 
 class UIConfig(BaseSettings):
@@ -122,29 +60,28 @@ class UIConfig(BaseSettings):
 
     page_size: int = Field(
         alias="UI_PAGE_SIZE",
-        default=DEFAULT_PAGE_SIZE,
         description="Number of items per page in UI",
     )
 
-    no_ideas: str = MSG_NO_IDEAS
-    generated_header: str = MSG_GENERATED_HEADER
-    press_enter: str = MSG_PRESS_ENTER
-    select_prompt: str = MSG_SELECT_PROMPT
-    id_not_found: str = MSG_ID_NOT_FOUND
-    invalid_input: str = MSG_INVALID_INPUT
-    selected: str = MSG_SELECTED
-    cycle_complete: str = MSG_CYCLE_COMPLETE
-    topic_empty: str = MSG_TOPIC_EMPTY
-    phase_start: str = MSG_PHASE_START
-    researching: str = MSG_RESEARCHING
-    wait: str = MSG_WAIT
-    execution_error: str = MSG_EXECUTION_ERROR
+    no_ideas: str = "No ideas generated."
+    generated_header: str = "\n--- Generated Ideas ---"
+    press_enter: str = "Press Enter to continue..."
+    select_prompt: str = "\nSelect an idea by ID, or 'q' to quit, 'n'/'p' for pages: "
+    id_not_found: str = "Error: ID not found."
+    invalid_input: str = "Invalid input."
+    selected: str = "Selected Plan:"
+    cycle_complete: str = "\n=== Cycle Complete ==="
+    topic_empty: str = "Topic cannot be empty."
+    phase_start: str = "Starting Phase: {phase}"
+    researching: str = "Researching topic: {topic}..."
+    wait: str = "Please wait..."
+    execution_error: str = "Execution error occurred."
 
 
 class AgentConfig(BaseModel):
     """Configuration for a single agent in the UI."""
 
-    model_config = SettingsConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True)
 
     role: str = Field(..., description="Role name of the agent")
     label: str = Field(..., description="Short label for UI")
@@ -172,35 +109,56 @@ class NemawashiConfig(BaseSettings):
 
     max_steps: int = Field(
         alias="NEMAWASHI_MAX_STEPS",
-        default=DEFAULT_NEMAWASHI_MAX_STEPS,
+        default=50,
         description="Max iterations for consensus",
     )
     tolerance: float = Field(
         alias="NEMAWASHI_TOLERANCE",
-        default=DEFAULT_NEMAWASHI_TOLERANCE,
+        default=1e-4,
         description="Convergence tolerance",
     )
     nomikai_boost: float = Field(
         alias="NEMAWASHI_NOMIKAI_BOOST",
-        default=DEFAULT_NEMAWASHI_BOOST,
+        default=0.2,
         description="Boost factor from Nomikai",
     )
     nomikai_reduction: float = Field(
         alias="NEMAWASHI_NOMIKAI_REDUCTION",
-        default=DEFAULT_NEMAWASHI_REDUCTION,
+        default=0.1,
         description="Stubbornness reduction from Nomikai",
+    )
+
+
+class FileConfig(BaseSettings):
+    """Configuration for FileService operations."""
+
+    max_workers: int = Field(
+        alias="FILE_MAX_WORKERS",
+        default=5,
+        description="Max thread pool workers for async file operations",
+    )
+    output_directory: str = Field(
+        alias="OUTPUT_DIR", default="outputs", description="Directory to save final artifacts"
+    )
+
+
+class GraphConfig(BaseSettings):
+    """Configuration for LangGraph workflow execution."""
+
+    interrupt_points: list[str] = Field(
+        alias="GRAPH_INTERRUPT_POINTS",
+        default=["ideator", "verification", "solution_proposal", "pmf"],
+        description="List of node names where the graph should interrupt execution for HITL",
     )
 
 
 class V0Config(BaseSettings):
     """Configuration for v0.dev integration."""
 
-    retry_max: int = Field(
-        alias="V0_RETRY_MAX", default=DEFAULT_V0_RETRY_MAX, description="Max retries for API calls"
-    )
+    retry_max: int = Field(alias="V0_RETRY_MAX", default=3, description="Max retries for API calls")
     retry_backoff: float = Field(
         alias="V0_RETRY_BACKOFF",
-        default=DEFAULT_V0_RETRY_BACKOFF,
+        default=2.0,
         description="Exponential backoff factor",
     )
 
@@ -208,79 +166,107 @@ class V0Config(BaseSettings):
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
-    width: int = Field(default=DEFAULT_WIDTH, description="Window width")
-    height: int = Field(default=DEFAULT_HEIGHT, description="Window height")
-    fps: int = Field(default=DEFAULT_FPS, description="Frames per second")
-    title: str = Field(default=MSG_SIM_TITLE, description="Window title")
-    bg_color: int = Field(default=COLOR_BG, description="Background color")
-    text_color: int = Field(default=COLOR_TEXT, description="Text color")
+    width: int = Field(alias="SIMULATION_WIDTH", description="Window width")
+    height: int = Field(alias="SIMULATION_HEIGHT", description="Window height")
+    fps: int = Field(alias="SIMULATION_FPS", description="Frames per second")
+    title: str = Field(alias="SIMULATION_TITLE", description="Window title")
+    bg_color: int = Field(alias="COLOR_BG", description="Background color")
+    text_color: int = Field(alias="COLOR_TEXT", description="Text color")
 
     chars_per_line: int = Field(
-        default=DEFAULT_CHARS_PER_LINE, description="Characters per line in dialogue"
+        alias="SIMULATION_CHARS_PER_LINE", description="Characters per line in dialogue"
     )
-    line_height: int = Field(default=DEFAULT_LINE_HEIGHT, description="Line height in pixels")
-    dialogue_x: int = Field(default=DEFAULT_DIALOGUE_X, description="Dialogue box X position")
-    dialogue_y: int = Field(default=DEFAULT_DIALOGUE_Y, description="Dialogue box Y position")
-    max_y: int = Field(default=DEFAULT_MAX_Y, description="Max Y for scrolling")
-    waiting_msg: str = Field(default=MSG_WAITING_FOR_DEBATE, description="Message when waiting")
+    line_height: int = Field(alias="SIMULATION_LINE_HEIGHT", description="Line height in pixels")
+    dialogue_x: int = Field(alias="SIMULATION_DIALOGUE_X", description="Dialogue box X position")
+    dialogue_y: int = Field(alias="SIMULATION_DIALOGUE_Y", description="Dialogue box Y position")
+    max_y: int = Field(alias="SIMULATION_MAX_Y", description="Max Y for scrolling")
+    waiting_msg: str = Field(alias="SIMULATION_WAITING_MSG", description="Message when waiting")
 
-    turn_sequence: list[dict[str, str]] = Field(
-        default_factory=lambda: [
-            {"node_name": "pitch", "role": "New Employee", "description": "New Employee Pitch"},
-            {
-                "node_name": "finance_critique",
-                "role": "Finance Manager",
-                "description": "Finance Critique",
-            },
-            {
-                "node_name": "defense_1",
-                "role": "New Employee",
-                "description": "New Employee Defense",
-            },
-            {
-                "node_name": "sales_critique",
-                "role": "Sales Manager",
-                "description": "Sales Critique",
-            },
-            {
-                "node_name": "defense_2",
-                "role": "New Employee",
-                "description": "New Employee Final Defense",
-            },
-        ],
-        description="List of simulation steps defining the turn sequence.",
+    turn_sequence_str: str = Field(
+        alias="SIMULATION_TURN_SEQUENCE",
+        description="List of simulation steps defining the turn sequence as a JSON string.",
     )
+
+    @property
+    def turn_sequence(self) -> list[dict[str, str]]:
+        import json
+
+        return json.loads(self.turn_sequence_str)  # type: ignore[no-any-return]
 
     console_sleep: float = Field(
-        default=DEFAULT_CONSOLE_SLEEP, description="Sleep time for console fallback"
+        alias="SIMULATION_CONSOLE_SLEEP", description="Sleep time for console fallback"
     )
-    max_turns: int = Field(default=DEFAULT_MAX_TURNS, description="Max turns in simulation")
+    max_turns: int = Field(alias="SIMULATION_MAX_TURNS", description="Max turns in simulation")
 
     # Explicit fields for individual agents to allow env var overrides
-    agent_new_emp: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="New Employee", label="NewEmp", color=COLOR_NEW_EMP, **AGENT_POS_NEW_EMP
-        ),
-        description="Configuration for New Employee Agent",
+    agent_new_emp_pos: dict[str, int] = Field(
+        alias="AGENT_POS_NEW_EMP",
+        default_factory=lambda: AGENT_POS_NEW_EMP,
+        description="New Employee Agent layout settings",
     )
-    agent_finance: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="Finance Manager", label="Finance", color=COLOR_FINANCE, **AGENT_POS_FINANCE
-        ),
-        description="Configuration for Finance Agent",
+    agent_new_emp_color: int = Field(
+        alias="COLOR_NEW_EMP", default=COLOR_NEW_EMP, description="New Employee Agent Color"
     )
-    agent_sales: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="Sales Manager", label="Sales", color=COLOR_SALES, **AGENT_POS_SALES
-        ),
-        description="Configuration for Sales Agent",
+
+    agent_finance_pos: dict[str, int] = Field(
+        alias="AGENT_POS_FINANCE",
+        default_factory=lambda: AGENT_POS_FINANCE,
+        description="Finance Agent layout settings",
     )
-    agent_cpo: AgentConfig = Field(
-        default_factory=lambda: AgentConfig(
-            role="CPO", label="CPO", color=COLOR_CPO, **AGENT_POS_CPO
-        ),
-        description="Configuration for CPO Agent",
+    agent_finance_color: int = Field(
+        alias="COLOR_FINANCE", default=COLOR_FINANCE, description="Finance Agent Color"
     )
+
+    agent_sales_pos: dict[str, int] = Field(
+        alias="AGENT_POS_SALES",
+        default_factory=lambda: AGENT_POS_SALES,
+        description="Sales Agent layout settings",
+    )
+    agent_sales_color: int = Field(
+        alias="COLOR_SALES", default=COLOR_SALES, description="Sales Agent Color"
+    )
+
+    agent_cpo_pos: dict[str, int] = Field(
+        alias="AGENT_POS_CPO",
+        default_factory=lambda: AGENT_POS_CPO,
+        description="CPO Agent layout settings",
+    )
+    agent_cpo_color: int = Field(
+        alias="COLOR_CPO", default=COLOR_CPO, description="CPO Agent Color"
+    )
+
+    @property
+    def agent_new_emp(self) -> AgentConfig:
+        return AgentConfig(
+            role="New Employee",
+            label="NewEmp",
+            color=self.agent_new_emp_color,
+            **self.agent_new_emp_pos,
+        )
+
+    @property
+    def agent_finance(self) -> AgentConfig:
+        return AgentConfig(
+            role="Finance Manager",
+            label="Finance",
+            color=self.agent_finance_color,
+            **self.agent_finance_pos,
+        )
+
+    @property
+    def agent_sales(self) -> AgentConfig:
+        return AgentConfig(
+            role="Sales Manager",
+            label="Sales",
+            color=self.agent_sales_color,
+            **self.agent_sales_pos,
+        )
+
+    @property
+    def agent_cpo(self) -> AgentConfig:
+        return AgentConfig(
+            role="CPO", label="CPO", color=self.agent_cpo_color, **self.agent_cpo_pos
+        )
 
     @property
     def agents(self) -> dict[str, AgentConfig]:
@@ -313,81 +299,121 @@ class GovernanceConfig(BaseSettings):
 
     min_roi_threshold: float = Field(
         alias="MIN_ROI_THRESHOLD",
-        default=DEFAULT_MIN_ROI_THRESHOLD,
         description="Minimum ROI for approval",
     )
-    default_cac: float = Field(alias="DEFAULT_CAC", default=DEFAULT_CAC, description="Fallback CAC")
-    default_arpu: float = Field(
-        alias="DEFAULT_ARPU", default=DEFAULT_ARPU, description="Fallback ARPU"
-    )
-    default_churn: float = Field(
-        alias="DEFAULT_CHURN", default=DEFAULT_CHURN, description="Fallback Churn Rate"
-    )
+    default_cac: float = Field(alias="DEFAULT_CAC", description="Fallback CAC")
+    default_arpu: float = Field(alias="DEFAULT_ARPU", description="Fallback ARPU")
+    default_churn: float = Field(alias="DEFAULT_CHURN", description="Fallback Churn Rate")
     max_llm_response_size: int = Field(
         alias="MAX_LLM_RESPONSE_SIZE",
-        default=DEFAULT_MAX_LLM_RESPONSE_SIZE,
+        default=10_000,
         description="Max bytes for LLM JSON response",
     )
-    output_path: str = Field(
-        alias="RINGI_SHO_PATH", default="RINGI_SHO.md", description="Path for Ringi-sho output"
-    )
+    output_path: str = Field(alias="RINGI_SHO_PATH", description="Path for Ringi-sho output")
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
-        default="average CAC churn ARPU LTV for {industry} startups benchmarks",
         description="Template for financial search",
     )
     max_search_result_size: int = Field(
         alias="MAX_SEARCH_RESULT_SIZE",
-        default=DEFAULT_MAX_SEARCH_RESULT_SIZE,
+        default=5000,
         description="Max chars for search result context",
     )
+
+    @field_validator("search_query_template")
+    @classmethod
+    def validate_template(cls, v: str) -> str:
+        if "{industry}" not in v:
+            msg = "search_query_template must contain {industry} placeholder."
+            raise ValueError(msg)
+        return v
 
 
 class Settings(BaseSettings):
     """Configuration settings for the application."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="forbid")
+    model_config = SettingsConfigDict(env_file_encoding="utf-8", extra="forbid")
 
-    openai_api_key: SecretStr | None = Field(
-        alias="OPENAI_API_KEY", default=None, description="OpenAI API Key"
+    # Explicitly enforce required keys without defaults
+    openai_api_key: SecretStr = Field(
+        alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=1
     )
-    tavily_api_key: SecretStr | None = Field(
-        alias="TAVILY_API_KEY", default=None, description="Tavily Search API Key"
+    tavily_api_key: SecretStr = Field(
+        alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=1
     )
-    v0_api_key: SecretStr | None = Field(
-        alias="V0_API_KEY", default=None, description="V0.dev API Key"
-    )
+    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key", min_length=1)
+
+    @field_validator("openai_api_key", mode="before")
+    @classmethod
+    def validate_openai_key_before(cls, v: str | SecretStr) -> SecretStr:
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        try:
+            ConfigValidators.validate_openai_key(secret_str)
+        except Exception as e:
+            base_msg = ErrorMessages().invalid_api_key_format.format(key_name="OpenAI API Key")
+            msg = f"{base_msg} {e}"
+            raise ValueError(msg) from e
+        return secret_str
+
+    @field_validator("tavily_api_key", mode="before")
+    @classmethod
+    def validate_tavily_key_before(cls, v: str | SecretStr) -> SecretStr:
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        try:
+            ConfigValidators.validate_tavily_key(secret_str)
+        except Exception as e:
+            base_msg = ErrorMessages().invalid_api_key_format.format(key_name="Tavily API Key")
+            msg = f"{base_msg} {e}"
+            raise ValueError(msg) from e
+        return secret_str
+
+    @field_validator("v0_api_key", mode="before")
+    @classmethod
+    def validate_v0_api_key_before(cls, v: str | SecretStr) -> SecretStr:
+        """Validate the format of the V0 API Key."""
+        import re
+
+        secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        secret = secret_str.get_secret_value()
+        if not secret or not secret.strip():
+            msg = "API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
+        if len(secret) < 10:
+            msg = "v0_api_key must be at least 10 characters long."
+            raise ValueError(msg)
+        if not re.match(r"^v0-[a-zA-Z0-9_\\-]{20,128}$", secret):
+            msg = "v0_api_key must start with 'v0-' and be 20-128 valid characters."
+            raise ValueError(msg)
+        return secret_str
+
     v0_api_url: str = Field(
         alias="V0_API_URL",
-        default="https://api.v0.dev/chat/completions",
         description="V0.dev API URL",
     )
 
-    llm_model: str = Field(alias="LLM_MODEL", default="gpt-4o", description="LLM Model name")
+    llm_model: str = Field(alias="LLM_MODEL", description="LLM Model name")
 
-    rag_persist_dir: str = Field(
-        alias="RAG_PERSIST_DIR", default="./vector_store", description="Directory for RAG index"
-    )
+    rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", description="Directory for RAG index")
     rag_chunk_size: int = Field(
-        alias="RAG_CHUNK_SIZE", default=DEFAULT_RAG_CHUNK_SIZE, description="Chunk size for RAG"
+        alias="RAG_CHUNK_SIZE", default=1024, description="Chunk size for RAG"
     )
     rag_max_document_length: int = Field(
         alias="RAG_MAX_DOC_LENGTH",
-        default=DEFAULT_RAG_MAX_DOC_LENGTH,
+        default=1_000_000,
         description="Max document length",
     )
     rag_max_query_length: int = Field(
         alias="RAG_MAX_QUERY_LENGTH",
-        default=DEFAULT_RAG_MAX_QUERY_LENGTH,
+        default=1000,
         description="Max query length",
     )
     rag_max_index_size_mb: int = Field(
         alias="RAG_MAX_INDEX_SIZE_MB",
-        default=DEFAULT_RAG_MAX_INDEX_SIZE_MB,
+        default=500,
         description="Max index size in MB",
     )
-    rag_allowed_paths: list[str] = Field(
-        default_factory=lambda: ["data", "vector_store", "tests"],
+    rag_allowed_paths: str | list[str] = Field(
+        alias="RAG_ALLOWED_PATHS",
         description="Allowed directories for RAG",
     )
     rag_rate_limit_interval: float = Field(
@@ -400,9 +426,33 @@ class Settings(BaseSettings):
         default=10,
         description="Max recursion depth for directory scanning",
     )
+
+    @field_validator("rag_allowed_paths", mode="before")
+    @classmethod
+    def parse_allowed_paths(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str):
+            return [p.strip() for p in v.split(",") if p.strip()]
+        return v
+
+    @field_validator("rag_max_index_size_mb")
+    @classmethod
+    def validate_rag_index_size(cls, v: int) -> int:
+        if v <= 0:
+            msg = "rag_max_index_size_mb must be positive."
+            raise ValueError(msg)
+        return v
+
+    @field_validator("rag_scan_depth_limit")
+    @classmethod
+    def validate_scan_depth(cls, v: int) -> int:
+        if v <= 0:
+            msg = "rag_scan_depth_limit must be positive."
+            raise ValueError(msg)
+        return v
+
     rag_batch_size: int = Field(
         alias="RAG_BATCH_SIZE",
-        default=DEFAULT_RAG_BATCH_SIZE,
+        default=100,
         description="Batch size for RAG ingestion",
     )
     rag_query_timeout: float = Field(
@@ -411,24 +461,24 @@ class Settings(BaseSettings):
 
     feature_chunk_size: int = Field(
         alias="FEATURE_CHUNK_SIZE",
-        default=DEFAULT_FEATURE_CHUNK_SIZE,
+        default=5,
         description="Chunk size for feature extraction",
     )
 
     circuit_breaker_fail_max: int = Field(
         alias="CB_FAIL_MAX",
-        default=DEFAULT_CB_FAIL_MAX,
+        default=3,
         description="Circuit breaker fail threshold",
     )
     circuit_breaker_reset_timeout: int = Field(
         alias="CB_RESET_TIMEOUT",
-        default=DEFAULT_CB_RESET_TIMEOUT,
+        default=300,
         description="Circuit breaker reset timeout",
     )
 
     iterator_safety_limit: int = Field(
         alias="ITERATOR_SAFETY_LIMIT",
-        default=DEFAULT_ITERATOR_SAFETY_LIMIT,
+        default=1000,
         description="Max items for iterators",
     )
 
@@ -440,14 +490,11 @@ class Settings(BaseSettings):
     )
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
-        default="emerging business trends and painful problems in {topic}",
         description="Template for search queries",
     )
 
-    log_level: str = Field(alias="LOG_LEVEL", default="INFO", description="Logging level")
-    ui_page_size: int = Field(
-        alias="UI_PAGE_SIZE", default=DEFAULT_PAGE_SIZE, description="Page size for UI"
-    )
+    log_level: str = Field(alias="LOG_LEVEL", description="Logging level")
+    ui_page_size: int = Field(alias="UI_PAGE_SIZE", description="Page size for UI")
 
     # Nested configurations - Use Field to allow Pydantic to manage them
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
@@ -457,29 +504,50 @@ class Settings(BaseSettings):
     nemawashi: NemawashiConfig = Field(default_factory=NemawashiConfig)
     v0: V0Config = Field(default_factory=V0Config)
     governance: GovernanceConfig = Field(default_factory=GovernanceConfig)
+    file_service: FileConfig = Field(default_factory=FileConfig)
+    graph: GraphConfig = Field(default_factory=GraphConfig)
 
-    def model_post_init(self, __context: object) -> None:
-        """Validate API keys on initialization."""
-        super().model_post_init(__context)
-        self.validate_api_keys()
 
-    def validate_api_keys(self) -> Self:
-        """Validate API keys are present and have correct format."""
-        if not self.openai_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_OPENAI_KEY)
-        ConfigValidators.validate_openai_key(self.openai_api_key)
+# Global settings state override
+_settings_override_state: dict[str, "typing.Any"] = {"override": None}
 
-        if not self.tavily_api_key:
-            raise ValueError(ERR_CONFIG_MISSING_TAVILY_KEY)
-        ConfigValidators.validate_tavily_key(self.tavily_api_key)
 
-        return self
-
-    def rotate_keys(self) -> None:
-        """Placeholder for key rotation."""
+def set_settings_override(settings: Settings | None) -> None:
+    _settings_override_state["override"] = settings
 
 
 @lru_cache
 def get_settings() -> Settings:
-    """Load and cache settings."""
-    return Settings()
+    """
+    Load and cache settings with a robust startup pre-validation fallback.
+    Prevents ungraceful crashes by catching Pydantic ValidationErrors for missing
+    required environment variables and outputting a clean summary before exit.
+    """
+    if _settings_override_state["override"]:
+        return _settings_override_state["override"]  # type: ignore[no-any-return]
+
+    import sys
+
+    from pydantic import ValidationError
+
+    try:
+        return Settings()
+    except ValidationError as e:
+        # Don't use standard logger yet as it might not be configured
+        print("\n" + "=" * 60)  # noqa: T201
+        print("CRITICAL CONFIGURATION ERROR: Missing or Invalid Environment Variables")  # noqa: T201
+        print("=" * 60)  # noqa: T201
+        for err in e.errors():
+            field_path = ".".join([str(loc) for loc in err["loc"]])
+            msg = err["msg"]
+            print(f"- {field_path}: {msg}")  # noqa: T201
+        print("\nPlease check your .env file and ensure all required variables are set.")  # noqa: T201
+        print("=" * 60 + "\n")  # noqa: T201
+
+        # Allow tests to catch this by strictly throwing it when pytest is running
+        import os
+
+        if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
+            raise
+
+        sys.exit(1)

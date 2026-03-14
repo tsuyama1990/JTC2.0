@@ -1,4 +1,6 @@
-import os
+from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
+from src.domain_models.sitemap import UserStory
+from src.domain_models.experiment import ExperimentPlan, MetricTarget
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -6,28 +8,37 @@ import pytest
 from src.agents.governance import GovernanceAgent
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.metrics import Metrics, RingiSho
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.state import GlobalState
 
 
-@patch.dict(os.environ, {"OPENAI_API_KEY": "sk-dummy", "TAVILY_API_KEY": "tv-dummy"})
 class TestCycle06UAT:
     @pytest.fixture
     def initial_state(self) -> GlobalState:
         return GlobalState(
             topic="UAT Cycle 6",
             metrics_data=Metrics(),
-            mvp_definition=MVP(
-                type=MVPType.SINGLE_FEATURE,
-                core_features=[
-                    Feature(
-                        name="AI Summarizer",
-                        description="Summarizes text",
-                        priority=Priority.MUST_HAVE,
-                    )
+            agent_prompt_spec=AgentPromptSpec(
+                sitemap="a",
+                routing_and_constraints="b",
+                core_user_story=UserStory(
+                    as_a="c",
+                    i_want_to="d",
+                    so_that="e",
+                    acceptance_criteria=["f"],
+                    target_route="/g",
+                ),
+                state_machine=StateMachine(success="h", loading="i", error="j", empty="k"),
+                validation_rules="l",
+                mermaid_flowchart="m",
+            ),
+            experiment_plan=ExperimentPlan(
+                riskiest_assumption="Assumption A",
+                experiment_type="Type B",
+                acquisition_channel="Channel C",
+                aarrr_metrics=[
+                    MetricTarget(metric_name="M", target_value="V", measurement_method="Meth")
                 ],
-                success_criteria="User saves time",
-                v0_url="https://v0.dev/uat-result",
+                pivot_condition="Pivot Cond P",
             ),
             selected_idea=LeanCanvas(
                 id=1,
@@ -73,13 +84,19 @@ class TestCycle06UAT:
                 )
 
                 chunk_ringi = MagicMock()
-                chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea.", "risks": ["High churn"]}'
+                chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Bad idea that is very bad.", "risks": ["High churn"]}'
 
                 # stream returns iterator
                 mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
 
                 # Run agent
                 result = agent.run(initial_state)
+
+                # Verify search query formation is safe and matches industry context
+                mock_search.safe_search.assert_called_once()
+                called_query = mock_search.safe_search.call_args[0][0]
+                assert "UAT Cycle 6" in called_query or "B2B Enterprise" in called_query
+                assert "average CAC" in called_query
 
                 # Verify RingiSho created
                 if "ringi_sho" in result:
@@ -126,13 +143,13 @@ class TestCycle06UAT:
                 )
 
                 chunk_ringi = MagicMock()
-                chunk_ringi.content = (
-                    '{"title": "Proposal", "executive_summary": "Great idea.", "risks": ["None"]}'
-                )
+                chunk_ringi.content = '{"title": "Proposal", "executive_summary": "Great idea that is very good.", "risks": ["None"]}'
 
                 mock_llm.stream.side_effect = [iter([chunk_fin]), iter([chunk_ringi])]
 
                 result = agent.run(initial_state)
+
+                mock_search.safe_search.assert_called_once()
 
                 if "ringi_sho" in result:
                     ringi_sho = result["ringi_sho"]

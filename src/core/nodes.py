@@ -7,7 +7,6 @@ from src.core.factory import AgentFactory
 from src.core.nemawashi.engine import NemawashiEngine
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
-from src.domain_models.mvp import MVP, Feature, MVPType, Priority
 from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.validators import StateValidator
@@ -25,9 +24,9 @@ def safe_node(
         def wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
             try:
                 return func(*args, **kwargs)  # type: ignore[no-any-return]
-            except Exception:
-                logger.exception(error_msg)
-                return {}
+            except Exception as e:
+                logger.exception(error_msg, exc_info=True)
+                return {"error": str(e)}
 
         return wrapper
 
@@ -151,10 +150,7 @@ def safe_cpo_run(state: GlobalState) -> dict[str, Any]:
 
 @safe_node("Error in Solution Proposal")
 def _solution_proposal_impl(state: GlobalState) -> dict[str, Any]:
-    builder = AgentFactory.get_builder_agent()
-    updates = builder.propose_features(state)
-    updates["phase"] = Phase.SOLUTION
-    return updates
+    return {"phase": Phase.SOLUTION}
 
 
 def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
@@ -176,43 +172,34 @@ def solution_proposal_node(state: GlobalState) -> dict[str, Any]:
     return _solution_proposal_impl(state)
 
 
-@safe_node("Error in MVP Generation")
-def mvp_generation_node(state: GlobalState) -> dict[str, Any]:
+@safe_node("Error in PMF Node")
+@safe_node("Error in Spec Generation")
+def spec_generation_node(state: GlobalState) -> dict[str, Any]:
     """
-    Generate MVP after user selection (Gate 3).
+    Generate AgentPromptSpec and ExperimentPlan (Cycle 5).
     """
-    logger.info("Generating MVP (Cycle 5)...")
+    logger.info("Generating Agent Prompt Spec and Experiment Plan (Cycle 5)...")
 
     builder = AgentFactory.get_builder_agent()
-    updates = builder.generate_mvp(state)
-
-    # If MVP Spec is generated, ensure MVP Definition exists for validation
-    if updates.get("mvp_spec"):
-        spec = updates["mvp_spec"]
-        mvp = MVP(
-            type=MVPType.SINGLE_FEATURE,
-            core_features=[
-                Feature(
-                    name=spec.core_feature,
-                    description=f"Core feature: {spec.core_feature}",
-                    priority=Priority.MUST_HAVE,
-                )
-            ],
-            success_criteria="User engagement and feedback.",
-            v0_url=updates.get("mvp_url"),  # Map URL if present
-        )
-        updates["mvp_definition"] = mvp
-
-    return updates
+    return builder.run(state)
 
 
-@safe_node("Error in PMF Node")
+@safe_node("Error in Experiment Planning")
+def experiment_planning_node(state: GlobalState) -> dict[str, Any]:
+    """
+    Placeholder node if we want to split generation.
+    Currently BuilderAgent handles both in spec_generation_node for atomicity.
+    """
+    logger.info("Experiment Planning Node: Passing through to PMF...")
+    return {}
+
+
 def pmf_node(state: GlobalState) -> dict[str, Any]:
     """Transition to PMF Phase."""
     StateValidator.validate_phase_requirements(state)
 
-    if not state.mvp_definition:
-        logger.warning("Entering PMF Phase without an MVP definition.")
+    if not state.agent_prompt_spec:
+        logger.warning("Entering PMF Phase without an AgentPromptSpec.")
 
     logger.info(f"Transitioning to Phase: {Phase.PMF}")
     return {"phase": Phase.PMF}
@@ -230,3 +217,54 @@ def governance_node(state: GlobalState) -> dict[str, Any]:
 
     updates["phase"] = Phase.GOVERNANCE
     return updates
+
+
+@safe_node("Error in Final Artifact Generation")
+def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
+    """
+    Finalize artifacts by generating a comprehensive PDF of all Canvas and Models,
+    and outputting the AgentPromptSpec and ExperimentPlan as Markdown files.
+    """
+    from pathlib import Path
+
+    from src.core.config import get_settings
+    from src.core.services.file_service import FileService
+
+    logger.info("Generating Final Artifacts...")
+    file_service = FileService()
+    settings = get_settings()
+
+    # Securely resolve output path, preventing path traversal
+    # Ensure it's inside the current working directory
+    base_dir = Path.cwd() / settings.file_service.output_directory
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    def write_markdown(filename: str, content: str) -> None:
+        try:
+            path = base_dir / filename
+            file_service.save_text_async(content, str(path))
+        except Exception:
+            logger.exception(f"Failed to write markdown artifact: {filename}")
+
+    try:
+        # Write Markdown specs if they exist in state
+        if state.agent_prompt_spec:
+            content = f"# Agent Prompt Spec\n\n```json\n{state.agent_prompt_spec.model_dump_json(indent=2)}\n```"
+            write_markdown("AgentPromptSpec.md", content)
+
+        if state.experiment_plan:
+            content = f"# Experiment Plan\n\n```json\n{state.experiment_plan.model_dump_json(indent=2)}\n```"
+            write_markdown("ExperimentPlan.md", content)
+
+        # Note: RingiSho is already saved by GovernanceAgent, but we'll export a duplicate
+        # to the unified outputs directory for completeness.
+        if state.ringi_sho:
+            content = f"# Ringi-Sho\n\n```json\n{state.ringi_sho.model_dump_json(indent=2)}\n```"
+            write_markdown("RingiSho.md", content)
+
+        file_service.save_pdf_sync(state, base_dir)
+    finally:
+        # Ensure thread pool is shut down cleanly to prevent resource leaks
+        file_service.shutdown()
+
+    return {}

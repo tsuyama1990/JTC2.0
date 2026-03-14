@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING
 
-from src.core.config import get_settings
-
 if TYPE_CHECKING:
     from src.domain_models.state import GlobalState
 
@@ -26,14 +24,48 @@ class StateValidator:
         Raises:
             ValueError: If requirements for the phase are not met.
         """
+
         from src.domain_models.enums import Phase
 
-        settings = get_settings()
+        if not isinstance(state.phase, Phase):
+            msg = f"Invalid phase enum value: {state.phase}"
+            raise TypeError(msg)
 
-        if state.phase == Phase.VERIFICATION and state.target_persona is None:
-            raise ValueError(settings.errors.missing_persona)
+        def _check(field_name: str, phase_name: str) -> None:
+            if getattr(state, field_name, None) is None:
+                msg = f"Missing field '{field_name}' required for the {phase_name} phase."
+                raise ValueError(msg)
 
-        if state.phase == Phase.SOLUTION and state.mvp_definition is None:
-            raise ValueError(settings.errors.missing_mvp)
+        # Basic topic sanitization
+        if state.topic:
+            import bleach
+
+            # Use comprehensive HTML sanitization
+            sanitized = bleach.clean(state.topic, tags=[], attributes={}, strip=True)
+            # Remove null bytes
+            sanitized = sanitized.replace("\x00", "")
+            # Prevent control character injections
+            sanitized = "".join(ch for ch in sanitized if ord(ch) >= 32 or ch in "\n\r\t")
+
+            # Note: We removed the naive SQL keyword string replacement as per security audit.
+            # State topic is used strictly as an LLM context parameter, not directly within DB queries.
+            # If database persistence is added, parameterized queries (e.g. SQLAlchemy) must be used.
+            state.topic = sanitized
+
+        if state.phase == Phase.VERIFICATION:
+            _check("target_persona", "VERIFICATION")
+
+        elif state.phase == Phase.SOLUTION:
+            _check("mental_model", "SOLUTION")
+            _check("customer_journey", "SOLUTION")
+            _check("sitemap_and_story", "SOLUTION")
+
+        elif state.phase == Phase.PMF:
+            _check("agent_prompt_spec", "PMF")
+            _check("experiment_plan", "PMF")
+
+        elif state.phase == Phase.GOVERNANCE:
+            _check("experiment_plan", "GOVERNANCE")
+            _check("agent_prompt_spec", "GOVERNANCE")
 
         return state

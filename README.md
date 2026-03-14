@@ -1,38 +1,31 @@
-# The JTC 2.0: Enterprise Business Accelerator
+# The JTC 2.0: Enterprise Business Accelerator (Remastered Edition)
 
-![Status](https://img.shields.io/badge/Status-Cycle_5_Complete-green)
+![Status](https://img.shields.io/badge/Status-Architected-green)
 ![Python](https://img.shields.io/badge/Python-3.12+-blue)
+![LangGraph](https://img.shields.io/badge/Agent_Engine-LangGraph-orange)
+![Pydantic](https://img.shields.io/badge/Data_Validation-Pydantic-purple)
 
-**The JTC 2.0** is a paradigm-shifting multi-agent system that fuses the rigorous methodology of **"Startup Science"** with the complex organizational dynamics of **Traditional Japanese Companies (JTCs)**. It is not just a chatbot; it is a role-playing simulation where your business ideas are subjected to "Gekizume" (harsh feedback) by AI agents, validated against real customer interviews, and automatically built into MVPs.
+**The JTC 2.0 (Remastered Edition)** is an intelligent agent-based simulation and startup validation tool. It guides your rough ideas through rigorous ideation using LangGraph orchestrators and strictly typed data schemas, acting as an advanced Requirements Engineering Engine.
 
-## 🚀 Overview
+## 🚀 Key Features
 
--   **What**: An AI-powered co-founder that helps you brainstorm, validate, and simulate the organizational resistance to new business ideas.
--   **Why**: To help intrapreneurs navigate the "Valley of Death" in large organizations by simulating the harsh reality of corporate decision-making before pitching to real stakeholders.
--   **How**: Uses **LangGraph** to orchestrate specialized agents (Ideator, Finance, Sales, CPO) and **Tavily** for real-time market research.
-
-## ✨ Features
-
--   **Automated Ideation Engine**: Generates 10 distinct, research-backed Lean Canvas business ideas from a single topic.
--   **JTC Simulation Engine ("The Meeting")**: Watch your "New Employee" proxy defend your idea against skeptical "Finance Manager" and aggressive "Sales Manager" agents in a realistic debate.
--   **Real-World Data Ingestion (Secure RAG)**: Ingest customer interview transcripts (via `--ingest`) to ground the simulation in primary data. Features strict path validation and memory-safe processing for large files.
--   **CPO Mentor Agent**: A silent observer who provides fact-based, data-driven advice ("The Mom Test") using ingested transcripts to validate or pivot your idea.
--   **Nemawashi (Root-Binding) Engine**: Analyze the invisible influence network within the organization. Identify "Key Influencers" and simulate "Nomikai" (drinking parties) to build consensus behind the scenes using the French-DeGroot model.
--   **Automated MVP Construction**: Generate high-fidelity React/Tailwind UI from your Lean Canvas using v0.dev.
--   **Business Governance & Ringi-sho**: Automated financial analysis (LTV/CAC, ROI) and generation of a formal "Ringi-sho" approval document to secure executive buy-in.
--   **Pyxel Retro UI**: A gamified RPG-style interface for observing the simulation without personal emotional attachment ("De-identification").
--   **Modular Architecture**: Designed for scalability and maintainability with strict schema validation and separated responsibilities.
+*   **Ideation Engine & Research Validation:** Transforms basic topics into structured 10 distinct Lean Canvas drafts using live search data.
+*   **Pydantic Schema Validation:** Employs strictly typed data models throughout the lifecycle to guarantee consistency and remove hallucinatory logic.
+*   **Decoupled Orchestration:** Ensures separation of business logic running in LangGraph from local user validations via terminal and simulation nodes.
+*   **JTC Meeting Simulation:** Run realistic multi-agent "Gekizume" (harsh feedback) debates with specialized Persona Agents (Finance Manager, Sales Manager, etc.).
+*   **Gamified Retro UI:** Review the ongoing debates visually via a Pyxel-based Retro RPG interface, providing a psychological buffer through the Proxy Agent.
+*   **Reality Injection via RAG and CPO Agent:** Ingests raw customer interview transcripts into a LlamaIndex Vector Database to ground the debate. The CPO agent uses this factual data to validate or invalidate assumptions directly against the Value Proposition Canvas and Alternative Analysis models.
+*   **Automated Specification Generation:** Transforms validated concepts into flawless, universally compatible `AgentPromptSpec.md` markdown specifications for AI coding tools.
+*   **Experiment Planning:** Rigorously generates `ExperimentPlan.md` outlining the MVP execution, AARRR metric targets, and pivot conditions based on your generated idea.
+*   **Governance & Financial Approval:** Mathematically simulates influence consensus building and financial viability (LTV, CAC, ROI) to automatically construct a Japanese-style corporate approval document ("Ringi-sho").
 
 ## 📋 Prerequisites
 
 -   **Python 3.12+**
--   **uv** (Modern Python package manager)
--   **API Keys**:
-    -   `OPENAI_API_KEY` (GPT-4o recommended)
-    -   `TAVILY_API_KEY` (For market research)
-    -   `V0_API_KEY` (For MVP Generation)
+-   **uv** package manager
+-   **API Keys**: `OPENAI_API_KEY`, `TAVILY_API_KEY`, `V0_API_KEY` configured in your `.env`.
 
-## 🛠 Installation
+## 🛠 Installation & Setup
 
 1.  **Clone the repository**
     ```bash
@@ -46,67 +39,43 @@
     ```
 
 3.  **Configure Environment**
-    Create a `.env` file in the root directory:
     ```bash
-    OPENAI_API_KEY=sk-...
-    TAVILY_API_KEY=tvly-...
-    V0_API_KEY=v0-...
+    cp .env.example .env
+    # Add your keys: OPENAI_API_KEY, TAVILY_API_KEY
+    # UV_PROJECT_ENVIRONMENT=".venv"
     ```
 
 ## 🚀 Usage
 
-**Ingest Customer Transcripts:**
-
-First, feed the system with real-world data (e.g., interview notes):
+Launch the ideation process by entering your core business topic. The orchestrator will research your topic and present 10 distinct validated lean canvas proposals for your review.
 
 ```bash
-uv run main.py --ingest ./path/to/interview.txt
+uv run main.py "AI solutions for independent plumbers"
 ```
+*You'll be prompted to verify and choose a Plan A directly within the CLI.*
 
-**Start the Ideation & Simulation:**
+You can also use Marimo notebooks to run through the full "Fitness Journey Workflow" visually in your browser.
 
 ```bash
-uv run main.py "AI for Agriculture"
+uv run marimo edit tutorials/UAT_AND_TUTORIAL.py
 ```
 
-The system will:
-1.  Research the topic and generate 10 Lean Canvas drafts.
-2.  Ask you to select one "Plan A" to proceed.
-3.  Launch the **JTC Simulation** where agents debate the plan.
-4.  The **CPO Agent** will intervene after the meeting to provide data-backed mentoring based on your ingested transcripts.
-5.  The **Nemawashi Engine** will analyze the political landscape and advise on who to influence first.
-6.  The **Builder Agent** will construct an MVP Spec and generate a UI URL via v0.dev.
-
-## 🏗 Architecture
-
-**Directory Structure:**
+## 📂 Project Structure
 
 ```ascii
 .
 ├── src/
-│   ├── agents/             # Agent Logic (Ideator, CPO, Personas, Builder)
-│   ├── core/               # Core Logic
-│   │   ├── nemawashi/      # Consensus Building Package (Logic, Analytics, Nomikai)
-│   │   ├── simulation.py   # Simulation Graph
-│   │   └── config.py       # Configuration & Validation
-│   ├── data/               # RAG Engine & Ingestion
-│   ├── domain_models/      # Pydantic Schemas (LeanCanvas, Politics, GlobalState, MVP)
-│   ├── tools/              # API Wrappers (Tavily, V0Client)
-│   ├── ui/                 # Pyxel Renderer
+│   ├── agents/             # Persona definitions (Ideator, CPO, Hacker, etc.)
+│   ├── core/               # LangGraph orchestration, Config, and LLM wrappers
+│   ├── data/               # LlamaIndex RAG implementation and parsers
+│   ├── domain_models/      # Strict Pydantic schemas (LeanCanvas, VPC, MentalModel)
+│   ├── ui/                 # Pyxel "Retro RPG" rendering engine
 │   └── main.py             # CLI Entry Point
-├── tests/                  # Unit & UAT Tests
-├── dev_documents/          # Specs & Logs
-└── pyproject.toml          # Project Configuration
+├── tests/                  # Unit, Integration, and Mock Mode E2E tests
+├── dev_documents/          # Architectural Specifications and UAT Plans
+├── tutorials/              # Marimo notebooks for interactive validation
+└── pyproject.toml          # Strict dependency and linter configurations
 ```
-
-## 🗺 Roadmap
-
--   **Cycle 1: Foundation & Ideation (Completed)**
--   **Cycle 2: JTC Simulation (Completed)**
--   **Cycle 3: Real World Connection (RAG) (Completed)**
--   **Cycle 4: Consensus Building (Nemawashi) (Completed)**
--   **Cycle 5: MVP Generation (Completed)**
--   **Cycle 6: Governance & Finalization (Completed)**
 
 ## 📄 License
 

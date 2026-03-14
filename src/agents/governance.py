@@ -63,6 +63,9 @@ class GovernanceAgent(BaseAgent):
         # 5. Save to Disk (Async wrapper)
         self._save_to_file(ringi_sho)
 
+        # Shut down FileService executor to prevent resource leaks
+        self.file_service.shutdown()
+
         # 6. Update State
         updated_metrics = state.metrics_data.model_copy() if state.metrics_data else Metrics()
         updated_metrics.financials = financials
@@ -70,16 +73,17 @@ class GovernanceAgent(BaseAgent):
         return {"ringi_sho": ringi_sho, "metrics_data": updated_metrics}
 
     def _get_industry_context(self, state: GlobalState) -> str:
-        import re
-
         industry = state.topic
         if state.selected_idea:
             industry = f"{state.selected_idea.customer_segments} related to {state.topic}"
 
-        # Security: Whitelist characters to prevent injection attacks (alphanumeric and spaces only)
-        # As per audit requirement to remove dangerous chars like . and ,
-        sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", industry)
-        return sanitized.strip()
+        industry = industry.strip()
+
+        # Security: Impose strict length limits to prevent search string injection payload overflows
+        if len(industry) > 100:
+            industry = industry[:100]
+
+        return industry
 
     def _estimate_financials(self, industry: str, search_result: str) -> Financials:
         settings = get_settings()
@@ -110,7 +114,7 @@ class GovernanceAgent(BaseAgent):
     def _generate_ringi_sho(
         self, state: GlobalState, financials: Financials, status: str
     ) -> RingiSho:
-        mvp_url = state.mvp_url or "N/A"
+        mvp_url = "N/A"
         idea_title = state.selected_idea.title if state.selected_idea else "Untitled Idea"
 
         prompt = (
