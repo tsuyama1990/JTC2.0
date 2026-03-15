@@ -26,51 +26,61 @@ class BuilderAgent(BaseAgent):
     def __init__(self, llm: BaseChatModel) -> None:
         self.llm = llm
         self.settings = get_settings()
+
+        fail_max = self.settings.circuit_breaker_fail_max
+        reset_timeout = self.settings.circuit_breaker_reset_timeout
+        if not (1 <= fail_max <= 100):
+            msg = "circuit_breaker_fail_max must be between 1 and 100."
+            raise ValueError(msg)
+        if not (10 <= reset_timeout <= 3600):
+            msg = "circuit_breaker_reset_timeout must be between 10 and 3600."
+            raise ValueError(msg)
+
         self._breaker = pybreaker.CircuitBreaker(
-            fail_max=self.settings.circuit_breaker_fail_max,
-            reset_timeout=self.settings.circuit_breaker_reset_timeout,
+            fail_max=fail_max,
+            reset_timeout=reset_timeout,
         )
 
-    def _compile_context(self, state: GlobalState) -> str:  # noqa: C901
-        """Compiles prior domain models into a single string for the LLM, truncating parts safely to avoid OOM."""
+    def _compile_context(self, state: GlobalState) -> str:
+        """Compiles prior domain models using a generator to prevent holding massive objects in memory."""
         import json
+        from collections.abc import Iterator
 
-        def truncate_dict_strings(d: Any, max_str_len: int = 500) -> Any:
-            """Recursively truncate string values in a dictionary to prevent JSON malformation."""
-            if isinstance(d, dict):
-                return {k: truncate_dict_strings(v, max_str_len) for k, v in d.items()}
-            if isinstance(d, list):
-                return [truncate_dict_strings(v, max_str_len) for v in d]
-            if isinstance(d, str) and len(d) > max_str_len:
-                return d[:max_str_len] + "...[TRUNC]"
-            return d
+        def _stream_context() -> Iterator[str]:
+            if state.selected_idea:
+                yield f"Idea: {state.selected_idea.title}\n"
+                yield f"Problem: {state.selected_idea.problem}\n"
+                yield f"Solution: {state.selected_idea.solution}\n\n"
 
-        def _safe_dump(model: Any) -> str:
-            raw_dict = model.model_dump(mode="json")
-            truncated_dict = truncate_dict_strings(raw_dict)
-            return json.dumps(truncated_dict, indent=2)
+            def _yield_model(name: str, model: Any) -> Iterator[str]:
+                yield f"{name}: "
+                raw_dict = model.model_dump(mode="json")
+                yield from json.JSONEncoder(indent=2).iterencode(raw_dict)
+                yield "\n\n"
 
-        context_parts = []
-        if state.selected_idea:
-            context_parts.append(f"Idea: {state.selected_idea.title}")
-            context_parts.append(f"Problem: {state.selected_idea.problem}")
-            context_parts.append(f"Solution: {state.selected_idea.solution}")
-        if state.vpc:
-            context_parts.append(f"VPC: {_safe_dump(state.vpc)}")
-        if state.mental_model:
-            context_parts.append(f"Mental Model: {_safe_dump(state.mental_model)}")
-        if state.customer_journey:
-            context_parts.append(f"Journey: {_safe_dump(state.customer_journey)}")
-        if state.sitemap_and_story:
-            context_parts.append(f"Sitemap & Story: {_safe_dump(state.sitemap_and_story)}")
+            if state.vpc:
+                yield from _yield_model("VPC", state.vpc)
+            if state.mental_model:
+                yield from _yield_model("Mental Model", state.mental_model)
+            if state.customer_journey:
+                yield from _yield_model("Journey", state.customer_journey)
+            if state.sitemap_and_story:
+                yield from _yield_model("Sitemap & Story", state.sitemap_and_story)
 
-        final_context = "\n\n".join(context_parts)
         max_size = getattr(self.settings.governance, "max_llm_response_size", 10000) * 10
-        if len(final_context) > max_size:
-            logger.warning("Compiled context still exceeded max size after dictionary truncation.")
-            return final_context[:max_size]
+        current_size = 0
+        context_chunks: list[str] = []
 
-        return final_context
+        for chunk in _stream_context():
+            chunk_len = len(chunk)
+            if current_size + chunk_len > max_size:
+                context_chunks.append(chunk[:max_size - current_size])
+                logger.warning(f"Context streaming truncated at {max_size} characters.")
+                break
+            context_chunks.append(chunk)
+            current_size += chunk_len
+
+        return "".join(context_chunks)
 
     def _generate_agent_prompt_spec(
         self, context: str, error_feedback: str = ""

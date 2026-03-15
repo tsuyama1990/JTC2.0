@@ -309,6 +309,11 @@ class GovernanceConfig(BaseSettings):
         default=10_000,
         description="Max bytes for LLM JSON response",
     )
+    max_content_multiplier: int = Field(
+        alias="MAX_CONTENT_MULTIPLIER",
+        default=5,
+        description="Multiplier applied to max_llm_response_size for validations",
+    )
     output_path: str = Field(alias="RINGI_SHO_PATH", description="Path for Ringi-sho output")
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",

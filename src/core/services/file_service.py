@@ -136,9 +136,13 @@ class FileService:
         return target_path
 
     def _validate_content_size(self, content: str, title: str = "Content") -> None:
-        """Check if content memory size exceeds max allowed (20MB) to prevent OOM."""
+        """Check if content memory size exceeds max allowed to prevent OOM."""
         import sys
-        max_memory_bytes = 20 * 1024 * 1024
+        # Dynamic memory calculation based on configuration instead of hardcoded 20MB limit
+        base_size = self.settings.governance.max_llm_response_size
+        multiplier = self.settings.governance.max_content_multiplier
+        max_memory_bytes = base_size * multiplier * 100 # Rough heuristic scale up for safe JSON footprints
+
         if sys.getsizeof(content) > max_memory_bytes:
             msg = f"Content memory footprint too large for {title}."
             raise ValueError(msg)
@@ -262,8 +266,17 @@ class FileService:
                 self._check_permissions(path.parent)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 self._check_permissions(path)
-                path.write_text(content, encoding="utf-8")
+
+                # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(content)
+
                 logger.info(f"File saved successfully to {path}")
+                break
+            except FileExistsError:
+                logger.warning(f"File already exists (concurrent access): {path}")
+                # We do not retry if the file already exists since O_EXCL was strict about creation
                 break
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
