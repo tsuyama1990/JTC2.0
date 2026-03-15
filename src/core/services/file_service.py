@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 import bleach
 
 from src.core.config import get_settings
-from src.core.constants import MAX_CONTENT_MULTIPLIER
 from src.core.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
@@ -80,13 +79,25 @@ class FileService:
             msg = "Null byte detected in path."
             raise ConfigurationError(msg)
 
+        if ".." in path_str or "\\" in path_str:
+            msg = "Path traversal sequences detected."
+            raise ConfigurationError(msg)
+
+        p = Path(path)
+
+        # We explicitly forbid following symlinks for security
+        try:
+            if p.is_symlink():
+                msg = "Symlinks are not allowed."
+                raise ConfigurationError(msg)
+        except OSError:
+            pass
+
         try:
             cwd = Path.cwd().resolve(strict=True)
             output_dir = cwd / self.settings.file_service.output_directory
             output_dir.mkdir(parents=True, exist_ok=True)
             output_dir = output_dir.resolve(strict=True)
-
-            p = Path(path)
 
             # Resolve parent strictly (must exist)
             parent = p.parent.resolve(strict=True)
@@ -114,10 +125,11 @@ class FileService:
         return target_path
 
     def _validate_content_size(self, content: str, title: str = "Content") -> None:
-        """Check if content size exceeds max allowed."""
-        max_size = self.settings.governance.max_llm_response_size * MAX_CONTENT_MULTIPLIER
-        if len(content) > max_size:
-            msg = f"Content too large for {title}."
+        """Check if content memory size exceeds max allowed (20MB) to prevent OOM."""
+        import sys
+        max_memory_bytes = 20 * 1024 * 1024
+        if sys.getsizeof(content) > max_memory_bytes:
+            msg = f"Content memory footprint too large for {title}."
             raise ValueError(msg)
 
     def _sanitize_content(self, content: str) -> str:

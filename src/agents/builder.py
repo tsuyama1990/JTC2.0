@@ -33,27 +33,33 @@ class BuilderAgent(BaseAgent):
         )
 
     def _compile_context(self, state: GlobalState) -> str:
-        """Compiles prior domain models into a single string for the LLM."""
+        """Compiles prior domain models into a single string for the LLM, truncating parts to avoid OOM."""
         context_parts = []
+
+        def _safe_dump(model: Any, max_len: int = 20000) -> str:
+            dumped = str(model.model_dump_json(indent=2))
+            if len(dumped) > max_len:
+                logger.warning(f"Model dump truncated from {len(dumped)} to {max_len} characters.")
+                return dumped[:max_len] + "\n...[TRUNCATED]"
+            return dumped
+
         if state.selected_idea:
             context_parts.append(f"Idea: {state.selected_idea.title}")
             context_parts.append(f"Problem: {state.selected_idea.problem}")
             context_parts.append(f"Solution: {state.selected_idea.solution}")
         if state.vpc:
-            context_parts.append(f"VPC: {state.vpc.model_dump_json(indent=2)}")
+            context_parts.append(f"VPC: {_safe_dump(state.vpc)}")
         if state.mental_model:
-            context_parts.append(f"Mental Model: {state.mental_model.model_dump_json(indent=2)}")
+            context_parts.append(f"Mental Model: {_safe_dump(state.mental_model)}")
         if state.customer_journey:
-            context_parts.append(f"Journey: {state.customer_journey.model_dump_json(indent=2)}")
+            context_parts.append(f"Journey: {_safe_dump(state.customer_journey)}")
         if state.sitemap_and_story:
-            context_parts.append(
-                f"Sitemap & Story: {state.sitemap_and_story.model_dump_json(indent=2)}"
-            )
+            context_parts.append(f"Sitemap & Story: {_safe_dump(state.sitemap_and_story)}")
 
         final_context = "\n\n".join(context_parts)
         max_size = getattr(self.settings.governance, "max_llm_response_size", 10000) * 10
         if len(final_context) > max_size:
-            logger.warning("Compiled context exceeded max size. Truncating.")
+            logger.warning("Compiled context exceeded max size. Truncating final output.")
             return final_context[:max_size] + "\n...[TRUNCATED]"
 
         return final_context
