@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol

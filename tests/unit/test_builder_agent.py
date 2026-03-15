@@ -31,10 +31,14 @@ def agent(mock_llm: MagicMock) -> BuilderAgent:
 
 @pytest.fixture
 def state_with_context() -> GlobalState:
-    from src.domain_models.value_proposition import ValuePropositionCanvas, CustomerProfile, ValueMap
-    from src.domain_models.mental_model import MentalModelDiagram, MentalTower
     from src.domain_models.journey import CustomerJourney, JourneyPhase
-    from src.domain_models.sitemap import SitemapAndStory, Route
+    from src.domain_models.mental_model import MentalModelDiagram, MentalTower
+    from src.domain_models.sitemap import Route, SitemapAndStory
+    from src.domain_models.value_proposition import (
+        CustomerProfile,
+        ValueMap,
+        ValuePropositionCanvas,
+    )
 
     return GlobalState(
         topic="Testing",
