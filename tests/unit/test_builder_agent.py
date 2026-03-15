@@ -150,7 +150,9 @@ class TestBuilderAgent:
             pivot_condition="Pivot Cond P",
         )
 
-        with patch.object(agent, "_generate_specs_with_retries", return_value=(expected_spec, expected_plan, None)):
+        with patch.object(
+            agent, "_generate_specs_with_retries", return_value=(expected_spec, expected_plan, None)
+        ):
             result = agent.run(state_with_context)
             assert "error" not in result
             assert result.get("agent_prompt_spec") == expected_spec
@@ -158,7 +160,11 @@ class TestBuilderAgent:
 
     def test_run_exception(self, agent: BuilderAgent, state_with_context: GlobalState) -> None:
         """Test run catches exceptions safely."""
-        with patch.object(agent, "_generate_specs_with_retries", return_value=(None, None, "BuilderAgent failed during spec generation: Failed")):
+        with patch.object(
+            agent,
+            "_generate_specs_with_retries",
+            return_value=(None, None, "BuilderAgent failed during spec generation: Failed"),
+        ):
             result = agent.run(state_with_context)
             assert "error" in result
             assert "BuilderAgent failed during spec generation: Failed" in result["error"]

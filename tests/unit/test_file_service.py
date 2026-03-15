@@ -23,12 +23,14 @@ class TestFileService:
     def test_validate_path_traversal(self, file_service: FileService) -> None:
         """Verify path traversal attacks are blocked."""
         from src.core.services.file_service import PathValidator
+
         with pytest.raises(ConfigurationError, match="Path traversal sequence"):
             PathValidator.validate_filename("../../../etc/passwd")
 
     def test_validate_path_null_byte(self, file_service: FileService) -> None:
         """Verify null byte attacks are blocked."""
         from src.core.services.file_service import PathValidator
+
         with pytest.raises(ConfigurationError, match="Path traversal sequence"):
             PathValidator.validate_filename("file\x00.txt")
 
@@ -94,10 +96,10 @@ class TestFileService:
             try:
                 # O_NOFOLLOW causes os.open to raise an OSError (specifically FileExistsError depending on platform/O_EXCL interaction)
                 # Let's catch Exception generally and verify it doesn't succeed modifying the target.
-                try:
+                import contextlib
+
+                with contextlib.suppress(Exception):
                     file_service._save_text_sync("test", symlink_path.name)
-                except Exception:
-                    pass
 
                 # The crucial part is that the target outside file should not be modified
                 assert outside_file.read_text() == "secrets"
@@ -108,6 +110,7 @@ class TestFileService:
     def test_sanitize_pdf_content(self, file_service: FileService) -> None:
         """Verify PDF content sanitization strips bad characters but keeps text."""
         from src.core.services.file_service import ContentSanitizer
+
         dirty_content = "Normal text\nwith \x00 null and \x08 backspace."
         clean_content = ContentSanitizer.sanitize_pdf_content(dirty_content)
         assert "Normal text" in clean_content

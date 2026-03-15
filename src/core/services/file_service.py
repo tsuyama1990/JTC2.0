@@ -58,6 +58,7 @@ class PathValidator:
     def validate_filename(filename: str) -> None:
         """Whitelist strategy to validate pure filenames without any path hierarchy components."""
         import re
+
         if not filename or not isinstance(filename, str):
             raise ConfigurationError("Filename must be a non-empty string.")
 
@@ -90,10 +91,16 @@ class PathValidator:
 
         try:
             # Atomic file descriptor operation
-            flags = getattr(os, "O_RDONLY", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            flags = (
+                getattr(os, "O_RDONLY", 0)
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_NOFOLLOW", 0)
+            )
             fd = os.open(str(output_dir), flags)
         except OSError as e:
-            raise PermissionError(f"Unable to safely open directory descriptor for {output_dir}") from e
+            raise PermissionError(
+                f"Unable to safely open directory descriptor for {output_dir}"
+            ) from e
 
         try:
             st = os.fstat(fd)
@@ -127,34 +134,59 @@ class ContentSanitizer:
     """Handles deep string, memory, and injection sanitization."""
 
     @staticmethod
-    def validate_content_size(content: str, title: str = "Content", max_bytes: int = 50 * 1024 * 1024) -> None:
+    def validate_content_size(
+        content: str, title: str = "Content", max_bytes: int = 50 * 1024 * 1024
+    ) -> None:
         """Check if content memory size exceeds strict maximum allowed to prevent OOM attacks."""
         if len(content) > max_bytes:
             raise ValueError(f"Content length too large for {title}.")
 
         byte_length = len(content.encode("utf-8"))
         if byte_length > max_bytes:
-            raise ValueError(f"Content memory footprint ({byte_length} bytes) exceeds limit ({max_bytes}) for {title}.")
+            raise ValueError(
+                f"Content memory footprint ({byte_length} bytes) exceeds limit ({max_bytes}) for {title}."
+            )
 
     @staticmethod
     def sanitize_pdf_content(content: str) -> str:
         """
-        Sanitize content using a strict HTML/XML sanitizer to prevent PDF rendering breaks or injection.
+        Sanitize content using a strict character whitelist to prevent PDF rendering breaks or injection.
+        Bleach is insufficient against raw PDF structural injections.
         """
         ContentSanitizer.validate_content_size(content, "Sanitization")
 
-        import bleach
-        # Bleach strictly removes unsafe tags and attributes. We use a purely text-focused configuration.
-        sanitized = bleach.clean(
-            content,
-            tags=[], # No HTML tags allowed
-            attributes={},
-            strip=True
+        import string
+
+        # A strictly safe set of allowed characters to prevent PDF structural syntax like << >> / and ()
+        # We permit alphanumeric and a highly restricted set of punctuation. No slashes, brackets, or angle brackets.
+        # This completely mitigates complex PDF payload injections without relying on regex parsing.
+        allowed_chars = set(string.ascii_letters + string.digits + " \n\t\r-.,:;!?'\"%")
+
+        # In Python 3, unicodedata can help us identify standard word characters for multi-lingual text
+        import unicodedata
+
+        allowed_categories = {"Lu", "Ll", "Lt", "Lm", "Lo", "Nd", "Nl", "No", "Zs", "Zl", "Zp"}
+
+        sanitized_chars = []
+        for ch in content:
+            if ch in allowed_chars or unicodedata.category(ch) in allowed_categories:
+                sanitized_chars.append(ch)
+            else:
+                # Transliterate or drop unsafe characters (especially syntax operators)
+                sanitized_chars.append(" ")
+
+        sanitized_str = "".join(sanitized_chars)
+
+        # Redact remaining known keywords just in case they are formed from safe letters
+        import re
+
+        sanitized_str = re.sub(
+            r"(?i)\b(obj|endobj|stream|endstream|xref|trailer|startxref)\b",
+            "[REDACTED_PDF_TOKEN]",
+            sanitized_str,
         )
 
-        # Redact remaining known keywords for PDF structural syntax
-        import re
-        return re.sub(r"(?i)\b(obj|endobj|stream|endstream|xref|trailer|startxref)\b", "[REDACTED_PDF_TOKEN]", sanitized)
+        return sanitized_str
 
 
 class StateSanitizer:
@@ -167,12 +199,20 @@ class StateSanitizer:
         # Create a safe whitelist-only instance of the state specifically for PDF generation.
         return GlobalState(
             topic="*** REDACTED TOPIC ***" if "secret" in state.topic.lower() else state.topic,
-            selected_idea=state.selected_idea.model_copy(deep=True) if state.selected_idea else None,
+            selected_idea=state.selected_idea.model_copy(deep=True)
+            if state.selected_idea
+            else None,
             vpc=state.vpc.model_copy(deep=True) if state.vpc else None,
             mental_model=state.mental_model.model_copy(deep=True) if state.mental_model else None,
-            customer_journey=state.customer_journey.model_copy(deep=True) if state.customer_journey else None,
-            sitemap_and_story=state.sitemap_and_story.model_copy(deep=True) if state.sitemap_and_story else None,
-            alternative_analysis=state.alternative_analysis.model_copy(deep=True) if state.alternative_analysis else None,
+            customer_journey=state.customer_journey.model_copy(deep=True)
+            if state.customer_journey
+            else None,
+            sitemap_and_story=state.sitemap_and_story.model_copy(deep=True)
+            if state.sitemap_and_story
+            else None,
+            alternative_analysis=state.alternative_analysis.model_copy(deep=True)
+            if state.alternative_analysis
+            else None,
         )
 
 
@@ -198,7 +238,6 @@ class FileService:
         self._is_shutdown = True
         self._executor.shutdown(wait=wait)
 
-
     def _validate_content_size(self, content: str, title: str = "Content") -> None:
         """Check if content memory size exceeds strict maximum allowed to prevent OOM attacks."""
         # Set a hard upper bound based on actual system expectations
@@ -215,7 +254,6 @@ class FileService:
         if byte_length > max_memory_bytes:
             msg = f"Content memory footprint ({byte_length} bytes) exceeds limit ({max_memory_bytes}) for {title}."
             raise ValueError(msg)
-
 
     def save_pdf_async(
         self,
@@ -240,15 +278,25 @@ class FileService:
             msg = f"Expected GlobalState, got {type(state)}"
             raise TypeError(msg)
 
+        PathValidator.validate_filename(filename)
+
         # Perform explicit memory limit size checks synchronously before queuing
         if state.vpc:
-            ContentSanitizer.validate_content_size(state.vpc.model_dump_json(indent=2), "VPC PDF Chunk")
+            ContentSanitizer.validate_content_size(
+                state.vpc.model_dump_json(indent=2), "VPC PDF Chunk"
+            )
         if state.mental_model:
-            ContentSanitizer.validate_content_size(state.mental_model.model_dump_json(indent=2), "MentalModel PDF Chunk")
+            ContentSanitizer.validate_content_size(
+                state.mental_model.model_dump_json(indent=2), "MentalModel PDF Chunk"
+            )
         if state.customer_journey:
-            ContentSanitizer.validate_content_size(state.customer_journey.model_dump_json(indent=2), "Journey PDF Chunk")
+            ContentSanitizer.validate_content_size(
+                state.customer_journey.model_dump_json(indent=2), "Journey PDF Chunk"
+            )
         if state.sitemap_and_story:
-            ContentSanitizer.validate_content_size(state.sitemap_and_story.model_dump_json(indent=2), "Sitemap PDF Chunk")
+            ContentSanitizer.validate_content_size(
+                state.sitemap_and_story.model_dump_json(indent=2), "Sitemap PDF Chunk"
+            )
 
         safe_state = StateSanitizer.redact_state_for_pdf(state)
 
@@ -279,7 +327,9 @@ class FileService:
 
         try:
             PathValidator.validate_filename(filename)
-            dir_fd = PathValidator.get_secure_directory_fd(self.settings.file_service.output_directory)
+            dir_fd = PathValidator.get_secure_directory_fd(
+                self.settings.file_service.output_directory
+            )
 
             pdf = pdf_generator or FPDFGenerator()
             pdf.add_page()
@@ -347,7 +397,6 @@ class FileService:
         except Exception:
             logger.exception("Failed to generate PDF artifact.")
 
-
     def save_text_async(self, content: str, path: str | Path) -> Future[None]:
         """
         Save text to a file asynchronously using a thread pool.
@@ -377,31 +426,40 @@ class FileService:
     def _save_text_sync(self, content: str, filename: str) -> None:
         """
         Synchronous implementation of save text.
-        Secured with strict TOCTOU prevention via single atomic open without retries that could target different files.
+        Secured with strict TOCTOU prevention via single atomic open using dir_fd if available.
         """
         ContentSanitizer.validate_content_size(content, "Text Save")
 
         dir_fd = -1
         try:
-            dir_fd = PathValidator.get_secure_directory_fd(self.settings.file_service.output_directory)
-
-            cwd = Path.cwd().resolve(strict=True)
-            output_dir = cwd / self.settings.file_service.output_directory
-            final_path = output_dir / filename
+            dir_fd = PathValidator.get_secure_directory_fd(
+                self.settings.file_service.output_directory
+            )
 
             # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
             # We add O_NOFOLLOW to explicitly refuse opening a symlink target.
             flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
 
-            # We validated dir_fd is a pure directory and we own it.
-            # Using O_EXCL | O_NOFOLLOW ensures that creating the file is entirely safe from TOCTOU.
-            fd = os.open(str(final_path), flags, 0o600)
+            # To use the secure dir_fd directly and prevent TOCTOU attacks outside the folder:
+            # We use openat relative to the directory file descriptor on POSIX systems.
+            if getattr(os, "supports_dir_fd", None) and os.open in os.supports_dir_fd:
+                fd = os.open(filename, flags, 0o600, dir_fd=dir_fd)
+            else:
+                cwd = Path.cwd().resolve(strict=True)
+                output_dir = cwd / self.settings.file_service.output_directory
+                final_path_str = str(output_dir / filename)
+                fd = os.open(final_path_str, flags, 0o600)
+
+            cwd = Path.cwd().resolve(strict=True)
+            output_dir = cwd / self.settings.file_service.output_directory
+            final_path = output_dir / filename
 
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     f.write(content)
             except Exception:
                 import contextlib
+
                 with contextlib.suppress(OSError):
                     os.close(fd)
                 if final_path.exists():
@@ -420,5 +478,6 @@ class FileService:
         finally:
             if dir_fd != -1:
                 import contextlib
+
                 with contextlib.suppress(OSError):
                     os.close(dir_fd)
