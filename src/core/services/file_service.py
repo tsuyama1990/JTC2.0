@@ -276,7 +276,19 @@ class FileService:
     def _check_permissions(self, path: Path) -> None:
         """Check if the user has write permissions for the directory and owns it."""
         dir_path = path if path.is_dir() else path.parent
+
+        # Security: Also check if the directory is a symlink via os.lstat directly.
+        import stat
         if dir_path.exists():
+            try:
+                st = os.lstat(dir_path)
+                if stat.S_ISLNK(st.st_mode):
+                    msg = f"Directory is a symlink, which is not permitted: {dir_path}"
+                    raise PermissionError(msg)
+            except OSError as e:
+                msg = f"Unable to verify directory status: {e}"
+                raise PermissionError(msg) from e
+
             if not os.access(dir_path, os.W_OK):
                 msg = f"Permission denied for directory: {dir_path}"
                 raise PermissionError(msg)
@@ -323,62 +335,47 @@ class FileService:
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Includes simple retry logic for robustness and absolute TOCTOU prevention via atomic open.
+        Secured with strict TOCTOU prevention via single atomic open without retries that could target different files.
         """
         self._validate_content_size(content, "Text Save")
 
-        attempts = 3
-        for attempt in range(attempts):
-            try:
-                # Validate the parent directory before writing to ensure it's not a symlink.
-                # _validate_path guarantees 'path' is inside output_directory and output_directory exists.
-                # The parent will be output_dir directly, which is created securely.
-                # Do not indiscriminately call mkdir here on arbitrary parents.
+        # Check permissions strictly
+        self._check_permissions(path)
 
-                if path.parent.is_symlink():
-                    msg = f"Parent directory is a symlink: {path.parent}"
-                    raise ConfigurationError(msg)  # noqa: TRY301
+        try:
+            # Validate the parent directory before writing to ensure it's not a symlink.
+            # _validate_path guarantees 'path' is inside output_directory and output_directory exists.
+            if path.parent.is_symlink():
+                msg = f"Parent directory is a symlink: {path.parent}"
+                raise ConfigurationError(msg)  # noqa: TRY301
 
-                # Resolve the final path exactly before open
-                final_path = Path(os.path.realpath(str(path)))
-                cwd = Path.cwd().resolve(strict=True)
-                output_dir = cwd / self.settings.file_service.output_directory
-                output_dir = output_dir.resolve(strict=True)
+            # Resolve the final path exactly before open
+            final_path = Path(os.path.realpath(str(path)))
+            cwd = Path.cwd().resolve(strict=True)
+            output_dir = cwd / self.settings.file_service.output_directory
+            output_dir = output_dir.resolve(strict=True)
 
-                if not final_path.is_relative_to(output_dir):
-                    msg = f"Path traversal detected before open: {final_path}"
-                    raise ConfigurationError(msg)  # noqa: TRY301
+            if not final_path.is_relative_to(output_dir):
+                msg = f"Path traversal detected before open: {final_path}"
+                raise ConfigurationError(msg)  # noqa: TRY301
 
-                # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
-                # This guarantees the file wasn't replaced by a symlink prior to creation.
-                # We also add O_NOFOLLOW to explicitly refuse opening a symlink target if the OS supports it.
-                flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-                if hasattr(os, "O_NOFOLLOW"):
-                    flags |= os.O_NOFOLLOW
+            # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
+            # We add O_NOFOLLOW to explicitly refuse opening a symlink target.
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= os.O_NOFOLLOW
 
-                fd = os.open(final_path, flags, 0o600)
+            fd = os.open(final_path, flags, 0o600)
 
-                with os.fdopen(fd, "w", encoding="utf-8") as f:
-                    f.write(content)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
 
-                logger.info(f"File saved successfully to {final_path}")
-                break
-            except FileExistsError:
-                logger.warning(f"File already exists (concurrent access or symlink trick): {path}")
-                # We do not retry if the file already exists since O_EXCL was strict about creation
-                break
-            except PermissionError:
-                logger.exception(f"Permission denied writing to {path}")
-                break  # No point retrying permission error
-            except OSError:
-                if attempt < attempts - 1:
-                    wait_time = 2**attempt
-                    logger.warning(
-                        f"OS error writing to {path}, retrying in {wait_time}s... ({attempt + 1}/{attempts})"
-                    )
-                    time.sleep(wait_time)
-                    continue
-                logger.exception(f"OS error writing to {path} after {attempts} attempts")
-            except Exception:
-                logger.exception(f"Unexpected error writing to {path}")
-                break
+            logger.info(f"File saved successfully to {final_path}")
+        except FileExistsError:
+            logger.warning(f"File already exists (concurrent access or symlink trick): {path}")
+        except PermissionError:
+            logger.exception(f"Permission denied writing to {path}")
+        except OSError:
+            logger.exception(f"OS error writing to {path}")
+        except Exception:
+            logger.exception(f"Unexpected error writing to {path}")

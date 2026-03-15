@@ -36,6 +36,11 @@ class BuilderAgent(BaseAgent):
             msg = "circuit_breaker_reset_timeout must be between 10 and 300."
             raise ValueError(msg)
 
+        max_size = getattr(self.settings.governance, "max_llm_response_size", 0)
+        if not (1000 <= max_size <= 1000000):
+            msg = "max_llm_response_size must be between 1000 and 1,000,000 bytes."
+            raise ValueError(msg)
+
         self._breaker = pybreaker.CircuitBreaker(
             fail_max=fail_max,
             reset_timeout=reset_timeout,
@@ -49,16 +54,28 @@ class BuilderAgent(BaseAgent):
         from collections.abc import Iterator
 
         def _stream_context() -> Iterator[str]:
+            import unicodedata
+
+            def _sanitize(text: str) -> str:
+                # Whitelist of allowed categories to strictly sanitize injection vectors
+                # keeping letters, numbers, punctuation, spaces
+                allowed_categories = {"Lu", "Ll", "Lt", "Lm", "Lo", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po", "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp"}
+                keep_chars = {"\n", "\t", "\r"}
+                return "".join(
+                    ch for ch in text
+                    if unicodedata.category(ch) in allowed_categories or ch in keep_chars
+                )
+
             if state.selected_idea:
-                yield f"Idea: {state.selected_idea.title}\n"
-                yield f"Problem: {state.selected_idea.problem}\n"
-                yield f"Solution: {state.selected_idea.solution}\n\n"
+                yield _sanitize(f"Idea: {state.selected_idea.title}\n")
+                yield _sanitize(f"Problem: {state.selected_idea.problem}\n")
+                yield _sanitize(f"Solution: {state.selected_idea.solution}\n\n")
 
             def _yield_model(name: str, model: Any) -> Iterator[str]:
                 yield f"{name}: "
                 # Replace JSONEncoder.iterencode with secure model_dump_json for Pydantic
                 json_str = model.model_dump_json(indent=2)
-                yield json_str
+                yield _sanitize(json_str)
                 yield "\n\n"
 
             if state.vpc:
@@ -70,7 +87,7 @@ class BuilderAgent(BaseAgent):
             if state.sitemap_and_story:
                 yield from _yield_model("Sitemap & Story", state.sitemap_and_story)
 
-        max_size = getattr(self.settings.governance, "max_llm_response_size", 10000) * 10
+        max_size = getattr(self.settings.governance, "max_llm_response_size", 10000)
         current_size = 0
         context_chunks: list[str] = []
         is_truncated = False
@@ -157,6 +174,18 @@ class BuilderAgent(BaseAgent):
         Agent entry point.
         """
         logger.info("Executing spec generation...")
+
+        missing_models = []
+        if not state.vpc: missing_models.append("ValuePropositionCanvas")
+        if not state.mental_model: missing_models.append("MentalModelDiagram")
+        if not state.customer_journey: missing_models.append("CustomerJourney")
+        if not state.sitemap_and_story: missing_models.append("SitemapAndStory")
+
+        if missing_models:
+            msg = f"Missing required context models: {', '.join(missing_models)}"
+            logger.error(msg)
+            return {"error": msg}
+
         context, is_truncated = self._compile_context(state)
 
         if not context.strip():

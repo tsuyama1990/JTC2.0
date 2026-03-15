@@ -48,7 +48,7 @@ Name                                     Stmts   Miss  Cover   Missing
 src/__init__.py                              0      0   100%
 src/agents/__init__.py                       6      0   100%
 src/agents/base.py                           9      0   100%
-src/agents/builder.py                      137     50    64%   33-34, 36-37, 58-62, 65, 67, 69, 71, 81-84, 100, 102, 113-121, 132, 134, 145-153, 176-179, 184-185, 193-203
+src/agents/builder.py                      155     46    70%   33-34, 36-37, 41-42, 98-101, 117, 119, 130-138, 149, 151, 162-170, 192-193, 205-208, 213-214, 222-232
 src/agents/cpo.py                           77     24    69%   61-62, 65-66, 76, 81-83, 114-127, 131-134, 137-142, 149-151
 src/agents/governance.py                   107     10    91%   84, 146-148, 208, 218-241
 src/agents/ideator.py                       47     12    74%   31-34, 97-107
@@ -68,9 +68,9 @@ src/core/nemawashi/consensus.py             26      2    92%   37, 65
 src/core/nemawashi/engine.py                19      1    95%   34
 src/core/nemawashi/nomikai.py               73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
 src/core/nemawashi/utils.py                 43      6    86%   31-33, 46-47, 50
-src/core/nodes.py                          157     47    70%   27-29, 50-56, 87-88, 106-110, 122-123, 147-148, 163-165, 168, 181-190, 199-200, 205-211, 219-225, 252-253, 274-277
+src/core/nodes.py                          160     47    71%   27-29, 50-56, 87-88, 106-110, 122-123, 147-148, 163-165, 168, 181-190, 199-200, 205-211, 219-225, 252-253, 277-278, 282-283
 src/core/services/__init__.py                0      0   100%
-src/core/services/file_service.py          213     67    69%   32-34, 37, 40, 43, 46, 49, 52, 90-91, 94-95, 107-108, 111-112, 114-115, 145-146, 209-210, 213, 258, 264-274, 281-282, 285-286, 305-310, 319-321, 339-340, 349-350, 366-384
+src/core/services/file_service.py          212     64    70%   32-34, 37, 40, 43, 46, 49, 52, 90-91, 94-95, 107-108, 111-112, 114-115, 145-146, 209-210, 213, 258, 264-274, 286-290, 293-294, 297-298, 317-322, 331-333, 349-350, 359-360, 374-381
 src/core/simulation.py                      34      4    88%   45-49, 66
 src/core/theme.py                           18      0   100%
 src/core/utils.py                            4      4     0%   1-10
@@ -99,7 +99,7 @@ src/tools/__init__.py                        2      0   100%
 src/tools/search.py                         34      5    85%   35, 39, 75, 90-91
 src/ui/renderer.py                          98     11    89%   35, 94, 97-101, 125, 135-141, 161
 ----------------------------------------------------------------------
-TOTAL                                     2619    514    80%
-============================= 139 passed in 23.49s =============================
+TOTAL                                     2639    507    81%
+============================= 139 passed in 53.89s =============================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

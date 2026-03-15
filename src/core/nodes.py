@@ -270,9 +270,15 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
 
         try:
             pdf_future = file_service.save_pdf_async(state, base_dir)
-            pdf_future.result(timeout=30.0)  # Wait for PDF to finish with timeout
-        except TimeoutError:
-            logger.exception("PDF generation timed out after 30 seconds.")
+            import concurrent.futures
+            concurrent.futures.wait([pdf_future], timeout=30.0)
+
+            if not pdf_future.done():
+                pdf_future.cancel()
+                logger.exception("PDF generation timed out after 30 seconds. Task cancelled.")
+            else:
+                # To surface any potential exceptions raised inside the thread
+                pdf_future.result()
         except Exception:
             logger.exception("PDF generation failed.")
     finally:
