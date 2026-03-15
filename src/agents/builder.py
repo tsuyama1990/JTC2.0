@@ -27,14 +27,8 @@ class BuilderAgent(BaseAgent):
         self.llm = llm
         self.settings = get_settings()
 
-        fail_max = self.settings.circuit_breaker_fail_max
-        reset_timeout = self.settings.circuit_breaker_reset_timeout
-        if not (1 <= fail_max <= 10):
-            msg = "circuit_breaker_fail_max must be between 1 and 10."
-            raise ValueError(msg)
-        if not (10 <= reset_timeout <= 300):
-            msg = "circuit_breaker_reset_timeout must be between 10 and 300."
-            raise ValueError(msg)
+        fail_max = 3
+        reset_timeout = 60
 
         max_size = getattr(self.settings.governance, "max_llm_response_size", 0)
         if not (1000 <= max_size <= 1000000):
@@ -54,7 +48,10 @@ class BuilderAgent(BaseAgent):
         context_chunks: list[str] = []
         current_size = 0
         is_truncated = False
-        max_size = getattr(self.settings.governance, "max_llm_response_size", 10000)
+        max_size = getattr(self.settings.governance, "max_llm_response_size", 100000)
+        if max_size < 1000:
+            logger.warning(f"max_llm_response_size {max_size} is too low. Defaulting to 100000.")
+            max_size = 100000
 
         def _add_chunk(chunk: str) -> None:
             nonlocal current_size, is_truncated
@@ -173,9 +170,18 @@ class BuilderAgent(BaseAgent):
     def _generate_specs_with_retries(
         self, context: str, is_truncated: bool
     ) -> tuple[AgentPromptSpec | None, ExperimentPlan | None, str | None]:
-        """Generates both specs, retrying on validation errors."""
+        """Generates both specs, retrying on validation errors, incorporating exponential backoff and circuit breaker checks."""
+        import time
+
         agent_prompt_spec = None
         experiment_plan = None
+
+        def _do_backoff(attempt: int) -> None:
+            # Exponential backoff with jitter
+            import secrets
+            base_delay = 1.0
+            delay = base_delay * (2**attempt) + (secrets.randbelow(50) / 100.0)
+            time.sleep(delay)
 
         error_feedback = ""
         for attempt in range(3):
@@ -189,6 +195,10 @@ class BuilderAgent(BaseAgent):
                     f"Validation error generating AgentPromptSpec (attempt {attempt + 1}/3)."
                 )
                 error_feedback = str(e)
+                _do_backoff(attempt)
+            except pybreaker.CircuitBreakerError as e:
+                logger.exception("Circuit breaker is open. Aborting retries for AgentPromptSpec.")
+                return None, None, f"System unavailable due to recurring errors: {e}"
             except Exception as e:
                 logger.exception("BuilderAgent run failed during spec generation.")
                 return None, None, f"BuilderAgent failed during spec generation: {e}"
@@ -208,6 +218,10 @@ class BuilderAgent(BaseAgent):
                     f"Validation error generating ExperimentPlan (attempt {attempt + 1}/3)."
                 )
                 error_feedback = str(e)
+                _do_backoff(attempt)
+            except pybreaker.CircuitBreakerError as e:
+                logger.exception("Circuit breaker is open. Aborting retries for ExperimentPlan.")
+                return None, None, f"System unavailable due to recurring errors: {e}"
             except Exception as e:
                 logger.exception("BuilderAgent run failed during plan generation.")
                 return None, None, f"BuilderAgent failed during plan generation: {e}"

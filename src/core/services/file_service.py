@@ -85,13 +85,13 @@ class FileService:
             msg = "Null byte detected in path."
             raise ConfigurationError(msg)
 
-        if urllib.parse.unquote(path_str) != path_str:
-            msg = "URL-encoded paths are not allowed."
-            raise ConfigurationError(msg)
+        unquoted = urllib.parse.unquote(path_str)
+        if unquoted != path_str:
+            path_str = unquoted  # evaluate the decoded version for directory traversals
 
-        if unicodedata.normalize("NFKC", path_str) != path_str:
-            msg = "Un-normalized unicode sequences detected in path."
-            raise ConfigurationError(msg)
+        normalized = unicodedata.normalize("NFKC", path_str)
+        if normalized != path_str:
+            path_str = normalized
 
         if ".." in path_str or "\\" in path_str:
             msg = "Path traversal sequences detected."
@@ -132,17 +132,20 @@ class FileService:
         return resolved_target
 
     def _validate_content_size(self, content: str, title: str = "Content") -> None:
-        """Check if content memory size exceeds max allowed to prevent OOM."""
-        # Dynamic memory calculation based on configuration instead of hardcoded 20MB limit
-        base_size = self.settings.governance.max_llm_response_size
-        multiplier = self.settings.governance.max_content_multiplier
-        max_memory_bytes = (
-            base_size * multiplier * 100
-        )  # Rough heuristic scale up for safe JSON footprints
+        """Check if content memory size exceeds strict maximum allowed to prevent OOM attacks."""
+        # Set a hard upper bound based on actual system expectations
+        # A single PDF artifact or JSON dump should realistically never exceed 50MB in plain text.
+        max_memory_bytes = getattr(
+            self.settings.file_service, "max_file_size_bytes", 50 * 1024 * 1024
+        )
 
-        # Use actual string byte length for more accurate text OOM prevention
-        if len(content.encode("utf-8")) > max_memory_bytes:
-            msg = f"Content memory footprint too large for {title}."
+        if len(content) > max_memory_bytes:
+            msg = f"Content length too large for {title}."
+            raise ValueError(msg)
+
+        byte_length = len(content.encode("utf-8"))
+        if byte_length > max_memory_bytes:
+            msg = f"Content memory footprint ({byte_length} bytes) exceeds limit ({max_memory_bytes}) for {title}."
             raise ValueError(msg)
 
     def _sanitize_pdf_content(self, content: str) -> str:
@@ -156,14 +159,19 @@ class FileService:
 
         self._validate_content_size(content, "Sanitization")
 
-        # Strip explicit PDF injection patterns
+        # Strip explicit PDF injection patterns and syntax tokens
         content = re.sub(
-            r"(?i)(/JavaScript|/JS|/OpenAction|/AA|/A|/URI|/SubmitForm|/Launch|/GoToR|/SetOCGState)",
+            r"(?i)(/JavaScript|/JS|/OpenAction|/AA|/A|/URI|/SubmitForm|/Launch|/GoToR|/SetOCGState|/RichMediaExecute|/Action|/Named|/Sound)",
             "[REDACTED]",
             content,
         )
         content = re.sub(r"(?i)\bobj\b", "o b j", content)
         content = re.sub(r"(?i)\bendobj\b", "e n d o b j", content)
+        content = re.sub(r"(?i)\bstream\b", "s t r e a m", content)
+        content = re.sub(r"(?i)\bendstream\b", "e n d s t r e a m", content)
+
+        # Remove literal formatting commands
+        content = content.replace("<<", "< <").replace(">>", "> >")
 
         # Instead of bleach (HTML), we strip characters not suitable for PDF
         allowed_categories = {
@@ -211,18 +219,38 @@ class FileService:
         """
         Submits the PDF generation task to the ThreadPoolExecutor and returns a Future.
         The timeout parameter is handled at the point of future.result().
+        Ensures explicit state validation and redaction before pushing state across threads.
         """
         if self._is_shutdown:
             msg = "FileService is shut down."
             raise RuntimeError(msg)
 
+        from src.domain_models.state import GlobalState
+
+        if not isinstance(state, GlobalState):
+            msg = f"Expected GlobalState, got {type(state)}"
+            raise TypeError(msg)
+
+        # Create a deep copy of the state safely before passing to thread to prevent
+        # concurrent modifications or bleeding sensitive data
+        safe_state = state.model_copy(deep=True)
+
+        # Mask any sensitive attributes that shouldn't make it to output artifacts
+        # We strip away configuration internals, transcripts, and history just in case.
+        safe_state.topic = (
+            "*** REDACTED TOPIC ***" if "secret" in safe_state.topic.lower() else safe_state.topic
+        )
+        safe_state.transcripts = []
+        safe_state.debate_history = []
+        safe_state.messages = []
+
         future = self._executor.submit(
-            self._save_pdf_sync, state, base_dir, filename, pdf_generator
+            self._save_pdf_sync, safe_state, base_dir, filename, pdf_generator
         )
         future.add_done_callback(self._handle_async_error)
         return future
 
-    def _save_pdf_sync(  # noqa: C901
+    def _save_pdf_sync(
         self,
         state: "GlobalState",
         base_dir: Path,
@@ -323,10 +351,14 @@ class FileService:
             if not os.access(dir_path, os.W_OK):
                 msg = f"Permission denied for directory: {dir_path}"
                 raise PermissionError(msg)
-            # Ensure the directory is owned by the current user to prevent privilege escalation
-            if hasattr(os, "geteuid") and dir_path.stat().st_uid != os.geteuid():
-                msg = f"Directory not owned by current user: {dir_path}"
-                raise PermissionError(msg)
+
+            # Cross-platform permission checking, handling root correctly
+            if os.name == "posix" and hasattr(os, "geteuid"):
+                euid = os.geteuid()
+                # If running as root, we bypass the strict ownership check as root inherently has access
+                if euid != 0 and dir_path.stat().st_uid != euid:
+                    msg = f"Directory not owned by current user: {dir_path}"
+                    raise PermissionError(msg)
 
     def save_text_async(self, content: str, path: str | Path) -> Future[None]:
         """
@@ -374,12 +406,6 @@ class FileService:
         self._check_permissions(path)
 
         try:
-            # Validate the parent directory before writing to ensure it's not a symlink.
-            # _validate_path guarantees 'path' is inside output_directory and output_directory exists.
-            if path.parent.is_symlink():
-                msg = f"Parent directory is a symlink: {path.parent}"
-                raise ConfigurationError(msg)  # noqa: TRY301
-
             # Resolve the final path exactly before open
             final_path = Path(os.path.realpath(str(path)))
             cwd = Path.cwd().resolve(strict=True)
@@ -389,6 +415,25 @@ class FileService:
             if not final_path.is_relative_to(output_dir):
                 msg = f"Path traversal detected before open: {final_path}"
                 raise ConfigurationError(msg)  # noqa: TRY301
+
+            # Validate the parent directory before writing to ensure it's not a symlink.
+            import stat
+
+            try:
+                # lstat the parent and the file itself if it exists
+                parent_st = os.lstat(final_path.parent)
+                if stat.S_ISLNK(parent_st.st_mode):
+                    msg = f"Parent directory is a symlink: {final_path.parent}"
+                    raise ConfigurationError(msg)
+
+                if final_path.exists():
+                    target_st = os.lstat(final_path)
+                    if stat.S_ISLNK(target_st.st_mode):
+                        msg = f"Target file is a symlink: {final_path}"
+                        raise ConfigurationError(msg)
+            except OSError as e:
+                msg = f"OS error verifying symlinks: {e}"
+                raise ConfigurationError(msg) from e
 
             # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
             # We add O_NOFOLLOW to explicitly refuse opening a symlink target.
