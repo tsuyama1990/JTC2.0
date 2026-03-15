@@ -271,6 +271,7 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
         try:
             pdf_future = file_service.save_pdf_async(state, base_dir)
             import concurrent.futures
+
             concurrent.futures.wait([pdf_future], timeout=30.0)
 
             if not pdf_future.done():

@@ -101,6 +101,7 @@ class FileService:
 
         # Whitelist approach for the filename itself
         import re
+
         # Reject literal '..' in the name
         if ".." in p.name:
             msg = f"Path traversal sequence in filename: {p.name}"
@@ -140,7 +141,7 @@ class FileService:
         )  # Rough heuristic scale up for safe JSON footprints
 
         # Use actual string byte length for more accurate text OOM prevention
-        if len(content.encode('utf-8')) > max_memory_bytes:
+        if len(content.encode("utf-8")) > max_memory_bytes:
             msg = f"Content memory footprint too large for {title}."
             raise ValueError(msg)
 
@@ -156,18 +157,46 @@ class FileService:
         self._validate_content_size(content, "Sanitization")
 
         # Strip explicit PDF injection patterns
-        content = re.sub(r"(?i)(/JavaScript|/JS|/OpenAction|/AA|/A|/URI|/SubmitForm|/Launch|/GoToR|/SetOCGState)", "[REDACTED]", content)
+        content = re.sub(
+            r"(?i)(/JavaScript|/JS|/OpenAction|/AA|/A|/URI|/SubmitForm|/Launch|/GoToR|/SetOCGState)",
+            "[REDACTED]",
+            content,
+        )
         content = re.sub(r"(?i)\bobj\b", "o b j", content)
         content = re.sub(r"(?i)\bendobj\b", "e n d o b j", content)
 
         # Instead of bleach (HTML), we strip characters not suitable for PDF
-        allowed_categories = {"Lu", "Ll", "Lt", "Lm", "Lo", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po", "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp"}
+        allowed_categories = {
+            "Lu",
+            "Ll",
+            "Lt",
+            "Lm",
+            "Lo",
+            "Nd",
+            "Nl",
+            "No",
+            "Pc",
+            "Pd",
+            "Ps",
+            "Pe",
+            "Pi",
+            "Pf",
+            "Po",
+            "Sm",
+            "Sc",
+            "Sk",
+            "So",
+            "Zs",
+            "Zl",
+            "Zp",
+        }
 
         # Add basic ASCII control characters we want to keep (newline, tab)
         keep_chars = {"\n", "\t", "\r"}
 
         return "".join(
-            ch for ch in content
+            ch
+            for ch in content
             if unicodedata.category(ch) in allowed_categories or ch in keep_chars
         )
 
@@ -187,7 +216,9 @@ class FileService:
             msg = "FileService is shut down."
             raise RuntimeError(msg)
 
-        future = self._executor.submit(self._save_pdf_sync, state, base_dir, filename, pdf_generator)
+        future = self._executor.submit(
+            self._save_pdf_sync, state, base_dir, filename, pdf_generator
+        )
         future.add_done_callback(self._handle_async_error)
         return future
 
@@ -278,6 +309,7 @@ class FileService:
 
         # Security: Also check if the directory is a symlink via os.lstat directly.
         import stat
+
         if dir_path.exists():
             try:
                 st = os.lstat(dir_path)

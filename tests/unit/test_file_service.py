@@ -113,13 +113,19 @@ class TestFileService:
         state = GlobalState(
             topic="Secure Topic",
             selected_idea=LeanCanvas(
-                id=1, title="Test Idea Generation", problem="Problem to solve effectively", customer_segments="CS",
-                unique_value_prop="UVP that provides value", solution="Solution that solves the problem"
-            )
+                id=1,
+                title="Test Idea Generation",
+                problem="Problem to solve effectively",
+                customer_segments="CS",
+                unique_value_prop="UVP that provides value",
+                solution="Solution that solves the problem",
+            ),
         )
 
         mock_pdf = MagicMock()
-        future = file_service.save_pdf_async(state, actual_out_dir, "test_out.pdf", pdf_generator=mock_pdf)
+        future = file_service.save_pdf_async(
+            state, actual_out_dir, "test_out.pdf", pdf_generator=mock_pdf
+        )
         future.result()
 
         # Verify the mock was called, indicating successful logic pass

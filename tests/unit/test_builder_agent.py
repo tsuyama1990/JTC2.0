@@ -53,25 +53,52 @@ def state_with_context() -> GlobalState:
         ),
         vpc=ValuePropositionCanvas(
             customer_profile=CustomerProfile(customer_jobs=["job"], pains=["pain"], gains=["gain"]),
-            value_map=ValueMap(products_and_services=["service"], pain_relievers=["reliever"], gain_creators=["creator"]),
-            fit_evaluation="Valid fit."
+            value_map=ValueMap(
+                products_and_services=["service"],
+                pain_relievers=["reliever"],
+                gain_creators=["creator"],
+            ),
+            fit_evaluation="Valid fit.",
         ),
         mental_model=MentalModelDiagram(
             towers=[MentalTower(belief="belief", cognitive_tasks=["task"])],
-            feature_alignment="alignment"
+            feature_alignment="alignment",
         ),
         customer_journey=CustomerJourney(
             phases=[
-                JourneyPhase(phase_name="認知", touchpoint="point", customer_action="action", mental_tower_ref="ref", pain_points=["pain"], emotion_score=1),
-                JourneyPhase(phase_name="検討", touchpoint="point", customer_action="action", mental_tower_ref="ref", pain_points=["pain"], emotion_score=1),
-                JourneyPhase(phase_name="離脱", touchpoint="point", customer_action="action", mental_tower_ref="ref", pain_points=["pain"], emotion_score=1)
+                JourneyPhase(
+                    phase_name="認知",
+                    touchpoint="point",
+                    customer_action="action",
+                    mental_tower_ref="ref",
+                    pain_points=["pain"],
+                    emotion_score=1,
+                ),
+                JourneyPhase(
+                    phase_name="検討",
+                    touchpoint="point",
+                    customer_action="action",
+                    mental_tower_ref="ref",
+                    pain_points=["pain"],
+                    emotion_score=1,
+                ),
+                JourneyPhase(
+                    phase_name="離脱",
+                    touchpoint="point",
+                    customer_action="action",
+                    mental_tower_ref="ref",
+                    pain_points=["pain"],
+                    emotion_score=1,
+                ),
             ],
-            worst_pain_phase="離脱"
+            worst_pain_phase="離脱",
         ),
         sitemap_and_story=SitemapAndStory(
             sitemap=[Route(path="/", name="Home", purpose="landing", is_protected=False)],
-            core_story=UserStory(as_a="u", i_want_to="do", so_that="val", acceptance_criteria=["c"], target_route="/")
-        )
+            core_story=UserStory(
+                as_a="u", i_want_to="do", so_that="val", acceptance_criteria=["c"], target_route="/"
+            ),
+        ),
     )
 
 

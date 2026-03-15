@@ -1,15 +1,16 @@
 import os
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from src.agents.cpo import CPOAgent
 from src.core.config import get_settings
-from src.domain_models.state import GlobalState
-from src.domain_models.simulation import DialogueMessage, Role
+from src.domain_models.alternative import AlternativeAnalysis, AlternativeTool
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.politics import InfluenceNetwork, Stakeholder
-from src.domain_models.value_proposition import ValuePropositionCanvas, CustomerProfile, ValueMap
-from src.domain_models.alternative import AlternativeAnalysis, AlternativeTool
+from src.domain_models.simulation import DialogueMessage, Role
+from src.domain_models.state import GlobalState
+from src.domain_models.value_proposition import CustomerProfile, ValueMap, ValuePropositionCanvas
 from tests.conftest import DUMMY_ENV_VARS
 
 
@@ -27,6 +28,7 @@ def test_cpo_agent_initialization_invalid_path() -> None:
             app_settings=get_settings(),
             rag_path="../../../etc/passwd",
         )
+
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 def test_cpo_agent_run_no_transcripts() -> None:
@@ -54,15 +56,15 @@ def test_cpo_agent_run_no_transcripts() -> None:
 
         state = GlobalState(
             topic="Idea",
-            transcripts=[], # empty
+            transcripts=[],  # empty
             selected_idea=LeanCanvas(
                 id=1,
                 title="Generic Title",
                 problem="Problem that has three words",
                 solution="Solution that has three words",
                 customer_segments="C",
-                unique_value_prop="Unique value that has three words"
-            )
+                unique_value_prop="Unique value that has three words",
+            ),
         )
 
         res = agent.run(state)
@@ -73,7 +75,10 @@ def test_cpo_agent_run_no_transcripts() -> None:
         assert last_msg.role == Role.CPO
 
         # Should call query with "against general knowledge"
-        mock_rag_instance.query.assert_called_with("Validate assumption: Generic Title against general knowledge")
+        mock_rag_instance.query.assert_called_with(
+            "Validate assumption: Generic Title against general knowledge"
+        )
+
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 def test_cpo_agent_run_with_nemawashi_and_canvas_models() -> None:
@@ -106,25 +111,31 @@ def test_cpo_agent_run_with_nemawashi_and_canvas_models() -> None:
                 problem="Problem that has three words",
                 solution="Solution that has three words",
                 customer_segments="C",
-                unique_value_prop="Unique value that has three words"
+                unique_value_prop="Unique value that has three words",
             ),
             influence_network=InfluenceNetwork(
                 matrix=[[1.0, 0.0], [0.0, 1.0]],
                 stakeholders=[
                     Stakeholder(name="Sales", initial_support=0.2, stubbornness=0.8),
-                    Stakeholder(name="Finance", initial_support=0.9, stubbornness=0.1)
-                ]
+                    Stakeholder(name="Finance", initial_support=0.9, stubbornness=0.1),
+                ],
             ),
             vpc=ValuePropositionCanvas(
                 customer_profile=CustomerProfile(customer_jobs=["A"], pains=["B"], gains=["C"]),
-                value_map=ValueMap(products_and_services=["D"], pain_relievers=["E"], gain_creators=["F"]),
-                fit_evaluation="Good fit"
+                value_map=ValueMap(
+                    products_and_services=["D"], pain_relievers=["E"], gain_creators=["F"]
+                ),
+                fit_evaluation="Good fit",
             ),
             alternative_analysis=AlternativeAnalysis(
-                    current_alternatives=[AlternativeTool(name="Tool", financial_cost="0", time_cost="10", ux_friction="high")],
+                current_alternatives=[
+                    AlternativeTool(
+                        name="Tool", financial_cost="0", time_cost="10", ux_friction="high"
+                    )
+                ],
                 switching_cost="High",
-                ten_x_value="Fast"
-            )
+                ten_x_value="Fast",
+            ),
         )
 
         res = agent.run(state)
@@ -170,8 +181,13 @@ def test_cpo_agent_run_rag_error() -> None:
         state = GlobalState(
             topic="Idea",
             selected_idea=LeanCanvas(
-                id=1, title="Title", problem="Problem that has three words", solution="Solution that has three words", customer_segments="C", unique_value_prop="Unique value that has three words"
-            )
+                id=1,
+                title="Title",
+                problem="Problem that has three words",
+                solution="Solution that has three words",
+                customer_segments="C",
+                unique_value_prop="Unique value that has three words",
+            ),
         )
 
         res = agent.run(state)
@@ -180,6 +196,7 @@ def test_cpo_agent_run_rag_error() -> None:
         last_msg = res["debate_history"][-1]
         assert isinstance(last_msg, DialogueMessage)
         assert last_msg.role == Role.CPO
+
 
 @patch.dict(os.environ, DUMMY_ENV_VARS)
 def test_cpo_agent_run_generation_error() -> None:
@@ -204,8 +221,13 @@ def test_cpo_agent_run_generation_error() -> None:
         state = GlobalState(
             topic="Idea",
             selected_idea=LeanCanvas(
-                id=1, title="Title", problem="Problem that has three words", solution="Solution that has three words", customer_segments="C", unique_value_prop="Unique value that has three words"
-            )
+                id=1,
+                title="Title",
+                problem="Problem that has three words",
+                solution="Solution that has three words",
+                customer_segments="C",
+                unique_value_prop="Unique value that has three words",
+            ),
         )
 
         # The base PersonaAgent handles exceptions, but run() has a broad except block
@@ -216,8 +238,6 @@ def test_cpo_agent_run_generation_error() -> None:
         if "error" in res:
             assert "LLM connection failed" in res["error"]
         assert "debate_history" in res
-from src.core.config import get_settings
-from src.domain_models.simulation import Role
 
 
 @patch("src.agents.cpo.RAG")

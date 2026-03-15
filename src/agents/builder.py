@@ -170,7 +170,9 @@ class BuilderAgent(BaseAgent):
             return f"Missing required context models: {', '.join(missing)}"
         return None
 
-    def _generate_specs_with_retries(self, context: str, is_truncated: bool) -> tuple[AgentPromptSpec | None, ExperimentPlan | None, str | None]:
+    def _generate_specs_with_retries(
+        self, context: str, is_truncated: bool
+    ) -> tuple[AgentPromptSpec | None, ExperimentPlan | None, str | None]:
         """Generates both specs, retrying on validation errors."""
         agent_prompt_spec = None
         experiment_plan = None
@@ -178,10 +180,14 @@ class BuilderAgent(BaseAgent):
         error_feedback = ""
         for attempt in range(3):
             try:
-                agent_prompt_spec = self._generate_agent_prompt_spec(context, is_truncated, error_feedback)
+                agent_prompt_spec = self._generate_agent_prompt_spec(
+                    context, is_truncated, error_feedback
+                )
                 break
             except ValidationError as e:
-                logger.warning(f"Validation error generating AgentPromptSpec (attempt {attempt + 1}/3).")
+                logger.warning(
+                    f"Validation error generating AgentPromptSpec (attempt {attempt + 1}/3)."
+                )
                 error_feedback = str(e)
             except Exception as e:
                 logger.exception("BuilderAgent run failed during spec generation.")
@@ -193,10 +199,14 @@ class BuilderAgent(BaseAgent):
         error_feedback = ""
         for attempt in range(3):
             try:
-                experiment_plan = self._generate_experiment_plan(context, is_truncated, error_feedback)
+                experiment_plan = self._generate_experiment_plan(
+                    context, is_truncated, error_feedback
+                )
                 break
             except ValidationError as e:
-                logger.warning(f"Validation error generating ExperimentPlan (attempt {attempt + 1}/3).")
+                logger.warning(
+                    f"Validation error generating ExperimentPlan (attempt {attempt + 1}/3)."
+                )
                 error_feedback = str(e)
             except Exception as e:
                 logger.exception("BuilderAgent run failed during plan generation.")
@@ -221,7 +231,9 @@ class BuilderAgent(BaseAgent):
             logger.warning("No context available to generate specs.")
             return {"error": "No context available to generate specs."}
 
-        agent_prompt_spec, experiment_plan, err = self._generate_specs_with_retries(context, is_truncated)
+        agent_prompt_spec, experiment_plan, err = self._generate_specs_with_retries(
+            context, is_truncated
+        )
         if err:
             return {"error": err}
 
