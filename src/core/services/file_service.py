@@ -5,8 +5,6 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-import bleach
-
 from src.core.config import get_settings
 from src.core.exceptions import ConfigurationError
 
@@ -62,20 +60,23 @@ class FileService:
 
     def __init__(self) -> None:
         self.settings = get_settings()
-        # Max workers limited to avoid thread exhaustion
         self._executor = ThreadPoolExecutor(max_workers=self.settings.file_service.max_workers)
+        self._is_shutdown = False
 
     def shutdown(self, wait: bool = True) -> None:
         """
         Cleanly shut down the thread pool executor to prevent resource leaks.
+        Waits for all pending operations to complete.
         """
+        if self._is_shutdown:
+            return
+        self._is_shutdown = True
         self._executor.shutdown(wait=wait)
 
-    def _validate_path(self, path: str | Path) -> Path:  # noqa: C901
+    def _validate_path(self, path: str | Path) -> Path:
         """
         Validate path to prevent traversal.
-        Strictly resolves the parent directory (which must exist) and checks using is_relative_to().
-        Never uses strict=False for security-critical path validation.
+        Uses os.path.realpath() directly on the target path to prevent TOCTOU vulnerabilities.
         """
         import unicodedata
         import urllib.parse
@@ -97,46 +98,20 @@ class FileService:
             msg = "Path traversal sequences detected."
             raise ConfigurationError(msg)
 
-        p = Path(path)
+        cwd = Path.cwd().resolve(strict=True)
+        output_dir = cwd / self.settings.file_service.output_directory
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = output_dir.resolve(strict=True)
 
-        # We explicitly forbid following symlinks for security
-        try:
-            if p.is_symlink():
-                msg = "Symlinks are not allowed."
-                raise ConfigurationError(msg)
-        except OSError:
-            pass
+        # Use os.path.realpath to fully resolve the path including all symlinks
+        # strict=False allows resolving paths that don't exist yet
+        resolved_target = Path(os.path.realpath(path_str))
 
-        try:
-            cwd = Path.cwd().resolve(strict=True)
-            output_dir = cwd / self.settings.file_service.output_directory
-            output_dir.mkdir(parents=True, exist_ok=True)
-            output_dir = output_dir.resolve(strict=True)
+        if not resolved_target.is_relative_to(output_dir):
+            msg = f"Path traversal detected: {resolved_target}"
+            raise ConfigurationError(msg)
 
-            # Resolve parent strictly (must exist)
-            parent = p.parent.resolve(strict=True)
-
-            # Reconstruct the target path
-            target_path = parent / p.name
-
-            # Atomic path validation check
-            resolved_target = target_path.resolve(strict=True)
-            if not resolved_target.is_relative_to(output_dir):
-                msg = f"Path traversal detected: {target_path}"
-                raise ConfigurationError(msg)  # noqa: TRY301
-
-        except FileNotFoundError as e:
-            # If the target file doesn't exist yet, we check the parent which we already resolved strictly
-            if not parent.is_relative_to(output_dir):
-                msg = f"Path traversal detected (new file): {target_path}"
-                raise ConfigurationError(msg) from e
-        except ConfigurationError:
-            raise
-        except Exception as e:
-            msg = f"Invalid path: {e}"
-            raise ConfigurationError(msg) from e
-
-        return target_path
+        return resolved_target
 
     def _validate_content_size(self, content: str, title: str = "Content") -> None:
         """Check if content memory size exceeds max allowed to prevent OOM."""
@@ -153,19 +128,45 @@ class FileService:
             msg = f"Content memory footprint too large for {title}."
             raise ValueError(msg)
 
-    def _sanitize_content(self, content: str) -> str:
-        """Sanitize content to prevent injection attacks."""
+    def _sanitize_pdf_content(self, content: str) -> str:
+        """
+        Sanitize content specifically for PDF generation (fpdf2).
+        Removes HTML tags and unprintable characters that could disrupt PDF rendering.
+        """
+        import unicodedata
+
         self._validate_content_size(content, "Sanitization")
-        return bleach.clean(content, strip=True)
 
-    def _check_permissions(self, path: Path) -> None:
-        """Check if the user has write permissions for the directory."""
-        dir_path = path if path.is_dir() else path.parent
-        if dir_path.exists() and not os.access(dir_path, os.W_OK):
-            msg = f"Permission denied for directory: {dir_path}"
-            raise PermissionError(msg)
+        # Instead of bleach (HTML), we strip characters not suitable for PDF
+        allowed_categories = {"Lu", "Ll", "Lt", "Lm", "Lo", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po", "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp"}
 
-    def save_pdf_sync(  # noqa: C901
+        # Add basic ASCII control characters we want to keep (newline, tab)
+        keep_chars = {"\n", "\t", "\r"}
+
+        return "".join(
+            ch for ch in content
+            if unicodedata.category(ch) in allowed_categories or ch in keep_chars
+        )
+
+    def save_pdf_async(
+        self,
+        state: "GlobalState",
+        base_dir: Path,
+        filename: str = "Final_Artifacts_Canvas.pdf",
+        pdf_generator: PDFGenerator | None = None,
+    ) -> Future[None]:
+        """
+        Submits the PDF generation task to the ThreadPoolExecutor and returns a Future.
+        """
+        if self._is_shutdown:
+            msg = "FileService is shut down."
+            raise RuntimeError(msg)
+
+        future = self._executor.submit(self._save_pdf_sync, state, base_dir, filename, pdf_generator)
+        future.add_done_callback(self._handle_async_error)
+        return future
+
+    def _save_pdf_sync(  # noqa: C901
         self,
         state: "GlobalState",
         base_dir: Path,
@@ -199,7 +200,7 @@ class FileService:
 
             def add_section(title: str, content: str) -> None:
                 self._validate_content_size(content, title)
-                sanitized_content = self._sanitize_content(content)
+                sanitized_content = self._sanitize_pdf_content(content)
 
                 pdf.set_font("Helvetica", "B", 14)
                 pdf.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
@@ -237,7 +238,14 @@ class FileService:
         except Exception:
             logger.exception("Failed to generate PDF artifact.")
 
-    def save_text_async(self, content: str, path: str | Path) -> None:
+    def _check_permissions(self, path: Path) -> None:
+        """Check if the user has write permissions for the directory."""
+        dir_path = path if path.is_dir() else path.parent
+        if dir_path.exists() and not os.access(dir_path, os.W_OK):
+            msg = f"Permission denied for directory: {dir_path}"
+            raise PermissionError(msg)
+
+    def save_text_async(self, content: str, path: str | Path) -> Future[None]:
         """
         Save text to a file asynchronously using a thread pool.
         This prevents blocking the main event loop during file I/O.
@@ -246,12 +254,22 @@ class FileService:
             content: The string content to write.
             path: The destination file path.
         """
+        if self._is_shutdown:
+            msg = "FileService is shut down."
+            raise RuntimeError(msg)
+
         try:
             valid_path = self._validate_path(path)
             future = self._executor.submit(self._save_text_sync, content, valid_path)
             future.add_done_callback(self._handle_async_error)
         except Exception:
             logger.exception("Failed to schedule file save")
+            # Create a failed future to fulfill return type
+            failed_future: Future[None] = Future()
+            failed_future.set_exception(RuntimeError("Failed to schedule file save"))
+            return failed_future
+        else:
+            return future
 
     def _handle_async_error(self, future: Future[Any]) -> None:
         """Callback to handle errors from async operations."""
@@ -265,20 +283,31 @@ class FileService:
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Includes simple retry logic for robustness.
+        Includes simple retry logic for robustness and TOCTOU prevention.
         """
         self._validate_content_size(content, "Text Save")
 
         attempts = 3
         for attempt in range(attempts):
             try:
-                # Ensure parent exists
-                self._check_permissions(path.parent)
                 path.parent.mkdir(parents=True, exist_ok=True)
-                self._check_permissions(path)
 
                 # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
                 fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+
+                # Check path again after opening to ensure it wasn't replaced by a symlink
+                resolved_after_open = Path(os.path.realpath(str(path)))
+                cwd = Path.cwd().resolve(strict=True)
+                output_dir = cwd / self.settings.file_service.output_directory
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_dir = output_dir.resolve(strict=True)
+
+                if not resolved_after_open.is_relative_to(output_dir):
+                    os.close(fd)
+                    path.unlink(missing_ok=True)
+                    msg = f"Path traversal detected after open: {resolved_after_open}"
+                    raise ConfigurationError(msg)  # noqa: TRY301
+
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     f.write(content)
 

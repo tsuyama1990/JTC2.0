@@ -262,7 +262,8 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
             content = f"# Ringi-Sho\n\n```json\n{state.ringi_sho.model_dump_json(indent=2)}\n```"
             write_markdown("RingiSho.md", content)
 
-        file_service.save_pdf_sync(state, base_dir)
+        pdf_future = file_service.save_pdf_async(state, base_dir)
+        pdf_future.result()  # Wait for PDF to finish
     finally:
         # Ensure thread pool is shut down cleanly to prevent resource leaks
         file_service.shutdown()
