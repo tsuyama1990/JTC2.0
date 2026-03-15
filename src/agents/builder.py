@@ -3,7 +3,6 @@ from typing import Any
 
 import pybreaker
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
 from typing_extensions import TypedDict
 
@@ -55,11 +54,9 @@ class BuilderAgent(BaseAgent):
         import json
 
         def safe_json_dumps(obj: Any) -> str:
-            # Limit individual object chunks to ~20KB
-            chunk = json.dumps(obj)
-            if len(chunk.encode("utf-8")) > 20000:
-                return chunk[:20000] + "... [TRUNCATED]"
-            return chunk
+            # We don't truncate midway through strings to avoid corrupting JSON parsing or LLM context.
+            # Instead, we just emit valid JSON representation of the object.
+            return json.dumps(obj)
 
         if state.selected_idea:
             yield "Idea: " + safe_json_dumps(state.selected_idea.title) + "\n"
@@ -108,82 +105,16 @@ class BuilderAgent(BaseAgent):
                 break
             chunk_len = len(chunk.encode("utf-8"))
             if current_size + chunk_len > max_size:
-                # Append only what fits
-                remaining_bytes = max_size - current_size
-                safe_chunk = chunk.encode("utf-8")[:remaining_bytes].decode("utf-8", "ignore")
-                context_chunks.append(safe_chunk)
-                logger.warning(f"Context streaming truncated at {max_size} bytes.")
+                # If a single chunk puts us over the limit, we discard the chunk entirely
+                # rather than slicing it, to maintain well-formed textual syntax/JSON per field.
+                logger.warning(f"Context streaming truncated at {max_size} bytes. Discarding remaining models.")
                 is_truncated = True
-            else:
-                context_chunks.append(chunk)
-                current_size += chunk_len
+                break
+
+            context_chunks.append(chunk)
+            current_size += chunk_len
 
         return "".join(context_chunks), is_truncated
-
-    def _generate_agent_prompt_spec(
-        self, context: str, is_truncated: bool, error_feedback: str = ""
-    ) -> AgentPromptSpec:
-        """Generates the AgentPromptSpec."""
-        sys_msg = (
-            "You are an expert Frontend Architect and Product Manager. "
-            "Using the provided context, generate the ultimate Markdown prompt spec for AI coders (like Cursor/Windsurf). "
-            "You must apply 'subtraction thinking' to remove unnecessary features."
-        )
-        if is_truncated:
-            sys_msg += "\n\nWARNING: The input context was truncated. Some fields may be incomplete. Provide your best effort given the data available."
-        if error_feedback:
-            sys_msg += f"\n\nPREVIOUS ERROR TO FIX:\n{error_feedback}"
-
-        prompt = ChatPromptTemplate.from_messages(
-            [("system", sys_msg), ("user", "Context:\n{context}")]
-        )
-
-        chain = prompt | self.llm.with_structured_output(AgentPromptSpec)
-        try:
-            result = self._breaker.call(chain.invoke, {"context": context})
-            if isinstance(result, AgentPromptSpec):
-                return result
-            msg = f"Expected AgentPromptSpec, got {type(result)}"
-            raise ValueError(msg)  # noqa: TRY301
-        except pybreaker.CircuitBreakerError:
-            logger.exception("Circuit breaker tripped generating AgentPromptSpec")
-            raise
-        except Exception as e:
-            logger.exception("Unexpected error generating AgentPromptSpec")
-            msg = f"Failed to generate AgentPromptSpec: {e}"
-            raise ValueError(msg) from e
-
-    def _generate_experiment_plan(
-        self, context: str, is_truncated: bool, error_feedback: str = ""
-    ) -> ExperimentPlan:
-        """Generates the ExperimentPlan."""
-        sys_msg = (
-            "You are a growth hacker. Generate an Experiment Plan to test the riskiest assumption of this MVP. "
-            "Define the acquisition channel, AARRR metrics targets, and the pivot condition."
-        )
-        if is_truncated:
-            sys_msg += "\n\nWARNING: The input context was truncated. Some fields may be incomplete. Provide your best effort given the data available."
-        if error_feedback:
-            sys_msg += f"\n\nPREVIOUS ERROR TO FIX:\n{error_feedback}"
-
-        prompt = ChatPromptTemplate.from_messages(
-            [("system", sys_msg), ("user", "Context:\n{context}")]
-        )
-
-        chain = prompt | self.llm.with_structured_output(ExperimentPlan)
-        try:
-            result = self._breaker.call(chain.invoke, {"context": context})
-            if isinstance(result, ExperimentPlan):
-                return result
-            msg = f"Expected ExperimentPlan, got {type(result)}"
-            raise ValueError(msg)  # noqa: TRY301
-        except pybreaker.CircuitBreakerError:
-            logger.exception("Circuit breaker tripped generating ExperimentPlan")
-            raise
-        except Exception as e:
-            logger.exception("Unexpected error generating ExperimentPlan")
-            msg = f"Failed to generate ExperimentPlan: {e}"
-            raise ValueError(msg) from e
 
     def _validate_state(self, state: GlobalState) -> str | None:
         """Validates that all required context models exist."""

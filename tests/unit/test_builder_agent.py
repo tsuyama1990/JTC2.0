@@ -120,64 +120,7 @@ class TestBuilderAgent:
         assert context == ""
         assert not is_truncated
 
-    @patch("src.agents.builder.ChatPromptTemplate.from_messages")
-    def test_generate_agent_prompt_spec_success(
-        self, mock_prompt: MagicMock, agent: BuilderAgent
-    ) -> None:
-        """Test generating AgentPromptSpec successfully."""
-        mock_prompt_tmpl = MagicMock()
-        mock_prompt.return_value = mock_prompt_tmpl
-
-        expected_spec = AgentPromptSpec(
-            sitemap="Map",
-            routing_and_constraints="Rules",
-            core_user_story=UserStory(
-                as_a="u", i_want_to="do", so_that="val", acceptance_criteria=["c"], target_route="/"
-            ),
-            state_machine=StateMachine(success="s", loading="l", error="e", empty="em"),
-            validation_rules="Zod",
-            mermaid_flowchart="graph TD;",
-        )
-
-        mock_chain = MagicMock()
-        mock_chain.invoke.return_value = expected_spec
-        mock_prompt_tmpl.__or__.return_value = mock_chain
-
-        mock_llm_structured = MagicMock()
-        mock_llm_structured.return_value = mock_chain
-        agent.llm.with_structured_output = mock_llm_structured  # type: ignore
-
-        result = agent._generate_agent_prompt_spec("Context", False)
-        assert result == expected_spec
-
-    @patch("src.agents.builder.ChatPromptTemplate.from_messages")
-    def test_generate_experiment_plan_success(
-        self, mock_prompt: MagicMock, agent: BuilderAgent
-    ) -> None:
-        """Test generating ExperimentPlan successfully."""
-        mock_prompt_tmpl = MagicMock()
-        mock_prompt.return_value = mock_prompt_tmpl
-
-        expected_plan = ExperimentPlan(
-            riskiest_assumption="Assumption A",
-            experiment_type="Type B",
-            acquisition_channel="Channel C",
-            aarrr_metrics=[
-                MetricTarget(metric_name="M", target_value="V", measurement_method="Meth")
-            ],
-            pivot_condition="Pivot Cond P",
-        )
-
-        mock_chain = MagicMock()
-        mock_chain.invoke.return_value = expected_plan
-        mock_prompt_tmpl.__or__.return_value = mock_chain
-
-        mock_llm_structured = MagicMock()
-        mock_llm_structured.return_value = mock_chain
-        agent.llm.with_structured_output = mock_llm_structured  # type: ignore
-
-        result = agent._generate_experiment_plan("Context", False)
-        assert result == expected_plan
+    # Removed obsolete direct tests for internal tenacity functions.
 
     def test_run_empty_context(self, agent: BuilderAgent) -> None:
         """Test run aborts if there's no context available."""
@@ -207,18 +150,15 @@ class TestBuilderAgent:
             pivot_condition="Pivot Cond P",
         )
 
-        with (
-            patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec),
-            patch.object(agent, "_generate_experiment_plan", return_value=expected_plan),
-        ):
+        with patch.object(agent, "_generate_specs_with_retries", return_value=(expected_spec, expected_plan, None)):
             result = agent.run(state_with_context)
-            assert result == {
-                "agent_prompt_spec": expected_spec,
-                "experiment_plan": expected_plan,
-            }
+            assert "error" not in result
+            assert result.get("agent_prompt_spec") == expected_spec
+            assert result.get("experiment_plan") == expected_plan
 
     def test_run_exception(self, agent: BuilderAgent, state_with_context: GlobalState) -> None:
         """Test run catches exceptions safely."""
-        with patch.object(agent, "_generate_agent_prompt_spec", side_effect=Exception("Failed")):
+        with patch.object(agent, "_generate_specs_with_retries", return_value=(None, None, "BuilderAgent failed during spec generation: Failed")):
             result = agent.run(state_with_context)
             assert "error" in result
+            assert "BuilderAgent failed during spec generation: Failed" in result["error"]

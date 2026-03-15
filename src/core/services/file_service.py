@@ -198,69 +198,6 @@ class FileService:
         self._is_shutdown = True
         self._executor.shutdown(wait=wait)
 
-    def _validate_path(self, path: str | Path) -> Path:
-        """
-        Validate path to prevent traversal.
-        Uses os.path.realpath() directly on the target path to prevent TOCTOU vulnerabilities.
-        """
-        import unicodedata
-        import urllib.parse
-
-        path_str = str(path)
-        if "\x00" in path_str:
-            msg = "Null byte detected in path."
-            raise ConfigurationError(msg)
-
-        unquoted = urllib.parse.unquote(path_str)
-        if unquoted != path_str:
-            path_str = unquoted  # evaluate the decoded version for directory traversals
-
-        normalized = unicodedata.normalize("NFKC", path_str)
-        if normalized != path_str:
-            path_str = normalized
-
-        if ".." in path_str or "\\" in path_str:
-            msg = "Path traversal sequences detected."
-            raise ConfigurationError(msg)
-
-        # Prevent complex Unicode traversal attacks by restricting to basic ASCII
-        if not path_str.isascii():
-            msg = "Non-ASCII characters in paths are not allowed to prevent canonicalization attacks."
-            raise ConfigurationError(msg)
-
-        p = Path(path_str)
-
-        # Whitelist approach for the filename itself
-        import re
-
-        # Reject literal '..' in the name
-        if ".." in p.name:
-            msg = f"Path traversal sequence in filename: {p.name}"
-            raise ConfigurationError(msg)
-
-        if p.stem and not re.match(r"^[a-zA-Z0-9_\-]+$", p.stem):
-            msg = f"Invalid characters in filename: {p.stem}"
-            raise ConfigurationError(msg)
-        if p.suffix and not re.match(r"^\.[a-zA-Z0-9]+$", p.suffix):
-            msg = f"Invalid characters in suffix: {p.suffix}"
-            raise ConfigurationError(msg)
-
-        cwd = Path.cwd().resolve(strict=True)
-        output_dir = cwd / self.settings.file_service.output_directory
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_dir = output_dir.resolve(strict=True)
-
-        # Combine strictly with the output directory directly, bypassing piecemeal parent logic
-        target_path = output_dir / p.name
-
-        # Perform final realpath resolution to check for symlink escapes
-        resolved_target = Path(os.path.realpath(str(target_path)))
-
-        if not resolved_target.is_relative_to(output_dir):
-            msg = f"Path traversal detected: {resolved_target}"
-            raise ConfigurationError(msg)
-
-        return resolved_target
 
     def _validate_content_size(self, content: str, title: str = "Content") -> None:
         """Check if content memory size exceeds strict maximum allowed to prevent OOM attacks."""
@@ -279,42 +216,6 @@ class FileService:
             msg = f"Content memory footprint ({byte_length} bytes) exceeds limit ({max_memory_bytes}) for {title}."
             raise ValueError(msg)
 
-    def _sanitize_pdf_content(self, content: str) -> str:
-        """
-        Sanitize content specifically for PDF generation (fpdf2).
-        Uses a strict whitelist to prevent any PDF-specific structure injections.
-        Only allows basic alphanumeric, whitespace, and a very limited set of punctuation.
-        """
-        self._validate_content_size(content, "Sanitization")
-
-        import re
-
-        # We also need to permit basic Japanese/multilingual characters which would be blocked by string.printable
-        # but block things that form PDF syntax like << >> / and ()
-        import unicodedata
-
-        allowed_categories = {
-            "Lu", "Ll", "Lt", "Lm", "Lo", "Nd", "Nl", "No",
-            "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
-            "Zs", "Zl", "Zp", "Sm", "Sc", "Sk", "So"
-        }
-
-        # Block specific PDF structural characters
-        blocked_chars = {"<", ">", "/", "(", ")", "\\"}
-
-        sanitized_chars = []
-        for ch in content:
-            if ch in blocked_chars:
-                sanitized_chars.append(" ")
-            elif unicodedata.category(ch) in allowed_categories or ch in {"\n", "\t", "\r", " "}:
-                sanitized_chars.append(ch)
-            else:
-                sanitized_chars.append(" ")
-
-        sanitized_str = "".join(sanitized_chars)
-
-        # Redact remaining known keywords just in case they are formed from safe letters
-        return re.sub(r"(?i)\b(obj|endobj|stream|endstream|xref|trailer|startxref)\b", "[REDACTED_PDF_TOKEN]", sanitized_str)
 
     def save_pdf_async(
         self,
@@ -446,65 +347,24 @@ class FileService:
         except Exception:
             logger.exception("Failed to generate PDF artifact.")
 
-    def _check_permissions(self, path: Path) -> None:
-        """Check if the user has write permissions for the directory and owns it securely avoiding TOCTOU."""
-        dir_path = path if path.is_dir() else path.parent
-
-        if not dir_path.exists():
-            return
-
-        import stat
-        try:
-            # Atomic file descriptor operation
-            flags = getattr(os, "O_RDONLY", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
-            fd = os.open(dir_path, flags)
-        except OSError as e:
-            msg = f"Unable to verify directory safely (might be a symlink or inaccessible): {e}"
-            raise PermissionError(msg) from e
-
-        try:
-            st = os.fstat(fd)
-            # Ensure it is a directory and not a symlink
-            # O_NOFOLLOW should already prevent opening a symlink, but verify type
-            if not stat.S_ISDIR(st.st_mode):
-                msg = f"Expected a directory: {dir_path}"
-                raise PermissionError(msg)
-
-            # Check write permissions based on fstat mode
-            # 0o200 is User Write
-            if not (st.st_mode & 0o200):
-                msg = f"Permission denied for directory: {dir_path}"
-                raise PermissionError(msg)
-
-            # Cross-platform permission checking, handling root correctly
-            if os.name == "posix" and hasattr(os, "geteuid"):
-                euid = os.geteuid()
-                if euid not in (0, st.st_uid):
-                    msg = f"Directory not owned by current user: {dir_path}"
-                    raise PermissionError(msg)
-        finally:
-            os.close(fd)
 
     def save_text_async(self, content: str, path: str | Path) -> Future[None]:
         """
         Save text to a file asynchronously using a thread pool.
         This prevents blocking the main event loop during file I/O.
-
-        Args:
-            content: The string content to write.
-            path: The destination file path.
+        Exceptions are returned inside the Future instead of an explicit callback.
         """
         if self._is_shutdown:
             msg = "FileService is shut down."
             raise RuntimeError(msg)
 
         # Validate synchronously before enqueuing to prevent thread exhaustion with huge payloads
-        self._validate_content_size(content, "Text Save Async")
+        ContentSanitizer.validate_content_size(content, "Text Save Async")
 
         try:
-            valid_path = self._validate_path(path)
-            future = self._executor.submit(self._save_text_sync, content, valid_path)
-            future.add_done_callback(self._handle_async_error)
+            filename = Path(path).name
+            PathValidator.validate_filename(filename)
+            future = self._executor.submit(self._save_text_sync, content, filename)
         except Exception:
             logger.exception("Failed to schedule file save")
             # Create a failed future to fulfill return type
@@ -514,72 +374,51 @@ class FileService:
         else:
             return future
 
-    def _handle_async_error(self, future: Future[Any]) -> None:
-        """Callback to handle errors from async operations."""
-        try:
-            exc = future.exception(timeout=0)
-            if exc:
-                logger.error(f"Async file save operation failed: {exc}")
-        except Exception:
-            logger.exception("Async file save operation failed with unexpected error")
-
-    def _save_text_sync(self, content: str, path: Path) -> None:
+    def _save_text_sync(self, content: str, filename: str) -> None:
         """
         Synchronous implementation of save text.
         Secured with strict TOCTOU prevention via single atomic open without retries that could target different files.
         """
-        self._validate_content_size(content, "Text Save")
+        ContentSanitizer.validate_content_size(content, "Text Save")
 
-        # Check permissions strictly
-        self._check_permissions(path)
-
+        dir_fd = -1
         try:
-            # Resolve the final path exactly before open
-            final_path = Path(os.path.realpath(str(path)))
+            dir_fd = PathValidator.get_secure_directory_fd(self.settings.file_service.output_directory)
+
             cwd = Path.cwd().resolve(strict=True)
             output_dir = cwd / self.settings.file_service.output_directory
-            output_dir = output_dir.resolve(strict=True)
-
-            if not final_path.is_relative_to(output_dir):
-                msg = f"Path traversal detected before open: {final_path}"
-                raise ConfigurationError(msg)
-
-            # Validate the parent directory before writing to ensure it's not a symlink.
-            import stat
-
-            try:
-                # lstat the parent and the file itself if it exists
-                parent_st = os.lstat(final_path.parent)
-                if stat.S_ISLNK(parent_st.st_mode):
-                    msg = f"Parent directory is a symlink: {final_path.parent}"
-                    raise ConfigurationError(msg)
-
-                if final_path.exists():
-                    target_st = os.lstat(final_path)
-                    if stat.S_ISLNK(target_st.st_mode):
-                        msg = f"Target file is a symlink: {final_path}"
-                        raise ConfigurationError(msg)
-            except OSError as e:
-                msg = f"OS error verifying symlinks: {e}"
-                raise ConfigurationError(msg) from e
+            final_path = output_dir / filename
 
             # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
             # We add O_NOFOLLOW to explicitly refuse opening a symlink target.
-            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-            if hasattr(os, "O_NOFOLLOW"):
-                flags |= os.O_NOFOLLOW
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
 
-            fd = os.open(final_path, flags, 0o600)
+            # We validated dir_fd is a pure directory and we own it.
+            # Using O_EXCL | O_NOFOLLOW ensures that creating the file is entirely safe from TOCTOU.
+            fd = os.open(str(final_path), flags, 0o600)
 
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(content)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except Exception:
+                import contextlib
+                with contextlib.suppress(OSError):
+                    os.close(fd)
+                if final_path.exists():
+                    final_path.unlink()
+                raise
 
             logger.info(f"File saved successfully to {final_path}")
         except FileExistsError:
-            logger.warning(f"File already exists (concurrent access or symlink trick): {path}")
+            logger.warning(f"File already exists (concurrent access or symlink trick): {filename}")
         except PermissionError:
-            logger.exception(f"Permission denied writing to {path}")
+            logger.exception(f"Permission denied writing to {filename}")
         except OSError:
-            logger.exception(f"OS error writing to {path}")
+            logger.exception(f"OS error writing to {filename}")
         except Exception:
-            logger.exception(f"Unexpected error writing to {path}")
+            logger.exception(f"Unexpected error writing to {filename}")
+        finally:
+            if dir_fd != -1:
+                import contextlib
+                with contextlib.suppress(OSError):
+                    os.close(dir_fd)
