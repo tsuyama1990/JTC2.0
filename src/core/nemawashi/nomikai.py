@@ -24,6 +24,10 @@ class SimulationService:
         Simulate a 'Nomikai' event to boost support and reduce stubbornness.
         Returns a NEW InfluenceNetwork (immutable).
         """
+        if len(network.stakeholders) > 10000:
+            msg = f"Network size {len(network.stakeholders)} exceeds limit of 10,000 stakeholders."
+            raise ValidationError(msg)
+
         # Immutable update
         new_network = network.model_copy(deep=True)
 

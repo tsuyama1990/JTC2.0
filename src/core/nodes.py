@@ -235,6 +235,8 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
     """
     from pathlib import Path
 
+    from tenacity import retry, stop_after_attempt, wait_exponential
+
     from src.core.config import get_settings
     from src.core.services.file_service import FileService
 
@@ -254,6 +256,23 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
         except Exception:
             logger.exception(f"Failed to write markdown artifact: {filename}")
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    def _generate_pdf_with_retry() -> None:
+        logger.info("Attempting PDF generation...")
+        pdf_future = file_service.save_pdf_async(state, base_dir)
+        import concurrent.futures
+
+        concurrent.futures.wait([pdf_future], timeout=30.0)
+
+        if not pdf_future.done():
+            pdf_future.cancel()
+            msg = "PDF generation timed out after 30 seconds."
+            logger.error(msg)
+            raise TimeoutError(msg)
+
+        # To surface any potential exceptions raised inside the thread
+        pdf_future.result()
+
     try:
         # Write Markdown specs if they exist in state
         if state.agent_prompt_spec:
@@ -271,19 +290,11 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
             write_markdown("RingiSho.md", content)
 
         try:
-            pdf_future = file_service.save_pdf_async(state, base_dir)
-            import concurrent.futures
-
-            concurrent.futures.wait([pdf_future], timeout=30.0)
-
-            if not pdf_future.done():
-                pdf_future.cancel()
-                logger.exception("PDF generation timed out after 30 seconds. Task cancelled.")
-            else:
-                # To surface any potential exceptions raised inside the thread
-                pdf_future.result()
+            _generate_pdf_with_retry()
         except Exception:
-            logger.exception("PDF generation failed.")
+            logger.exception(
+                "PDF generation failed after retries. Proceeding with text-only outputs."
+            )
     finally:
         # Ensure thread pool is shut down cleanly to prevent resource leaks
         file_service.shutdown()

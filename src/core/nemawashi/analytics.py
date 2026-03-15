@@ -66,7 +66,7 @@ class AnalyticsService:
     def _eigen_centrality_dense(self, matrix_list: list[list[float]]) -> np.ndarray:
         """
         Compute eigenvector centrality using dense numpy arrays.
-        Safe for small networks.
+        Safe for small networks. Implements fallback to sparse eig on failure.
         """
         matrix = np.array(matrix_list)
 
@@ -74,19 +74,31 @@ class AnalyticsService:
             msg = "Influence matrix contains NaN or Inf values."
             raise ValidationError(msg)
 
-        # Eig on transpose for left eigenvectors
-        eigenvalues, eigenvectors = np.linalg.eig(matrix.T)
+        try:
+            # Eig on transpose for left eigenvectors
+            eigenvalues, eigenvectors = np.linalg.eig(matrix.T)
 
-        # Find eigenvalue closest to 1.0
-        idx = np.argmin(np.abs(eigenvalues - 1.0))
-        centrality = np.abs(eigenvectors[:, idx])
+            # Find eigenvalue closest to 1.0
+            idx = np.argmin(np.abs(eigenvalues - 1.0))
+            centrality = np.abs(eigenvectors[:, idx])
 
-        # Normalize
-        s = np.sum(centrality)
-        if s > 0:
-            centrality = centrality / s
+            if np.iscomplexobj(centrality):
+                logger.warning(
+                    "Complex centrality computed in dense calculation. Falling back to sparse."
+                )
+                msg = "Complex results returned."
+                raise np.linalg.LinAlgError(msg)  # noqa: TRY301
 
-        return typing.cast(np.ndarray, centrality)
+            # Normalize
+            s = np.sum(centrality)
+            if s > 0:
+                centrality = centrality / s
+
+            return typing.cast(np.ndarray, centrality)
+
+        except np.linalg.LinAlgError as e:
+            logger.warning(f"Dense eig calculation failed ({e}). Retrying with sparse solver.")
+            return self._eigen_centrality_sparse(csr_matrix(matrix))
 
     def _eigen_centrality_sparse(self, sparse_mat: csr_matrix) -> np.ndarray:
         """Compute centrality from pre-built CSR matrix."""

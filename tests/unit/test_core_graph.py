@@ -91,7 +91,9 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
 
 @patch("src.core.nodes.AnalyticsService")
 @patch("src.core.nodes.ConsensusService")
-def test_nemawashi_analysis_node(mock_consensus_cls: MagicMock, mock_analytics_cls: MagicMock, mock_state: GlobalState) -> None:
+def test_nemawashi_analysis_node(
+    mock_consensus_cls: MagicMock, mock_analytics_cls: MagicMock, mock_state: GlobalState
+) -> None:
     """Test Nemawashi analysis logic."""
     mock_consensus = mock_consensus_cls.return_value
     mock_analytics = mock_analytics_cls.return_value

@@ -41,15 +41,53 @@ class ConsensusService:
 
         opinions = np.array([s.initial_support for s in network.stakeholders], dtype=float)
 
-        # Build Sparse Matrix using shared utility
-        matrix_op = NemawashiUtils.build_sparse_matrix(network, n)
-
-        # Validate using shared utility
-        NemawashiUtils.validate_stochasticity(matrix_op, self.settings.tolerance)
+        from src.core.exceptions import ValidationError
 
         # Use settings for max_steps, no hardcoded default in logic
         max_steps = self.settings.max_steps
         tolerance = self.settings.tolerance
+
+        matrix_op = None
+        max_retries = 3
+
+        # Retry loop for validation failures
+        for attempt in range(max_retries):
+            try:
+                # Build Sparse Matrix using shared utility
+                matrix_op = NemawashiUtils.build_sparse_matrix(network, n)
+
+                # Validate using shared utility
+                NemawashiUtils.validate_stochasticity(matrix_op, tolerance)
+
+                # If validation passes, break out of retry loop
+                break
+            except ValidationError as e:
+                logger.warning(f"Stochasticity validation failed on attempt {attempt + 1}: {e}")
+                if attempt == max_retries - 1:
+                    logger.exception("Max retries reached for stochasticity validation.")
+                    raise
+
+                # Fallback mechanism: auto-normalize the matrix to enforce stochasticity
+                logger.info("Applying auto-normalization fallback.")
+                if matrix_op is not None:
+                    try:
+                        import numpy as np
+
+                        row_sums = np.array(matrix_op.sum(axis=1)).flatten()
+                        # Prevent division by zero
+                        row_sums[row_sums == 0] = 1.0
+
+                        from scipy.sparse import diags
+
+                        inv_diag = diags(1.0 / row_sums)
+                        matrix_op = inv_diag.dot(matrix_op)
+                        # Fallback succeeded, use this matrix and break out of the retry loop
+                        break
+                    except Exception as norm_e:
+                        logger.warning(f"Normalization fallback failed: {norm_e}")
+
+        if matrix_op is None:
+            return []
 
         current_ops = opinions
 

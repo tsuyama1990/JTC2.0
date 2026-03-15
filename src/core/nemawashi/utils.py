@@ -35,8 +35,11 @@ class NemawashiUtils:
             msg = f"Stochasticity check failed: {e}"
             raise ValidationError(msg) from e
 
-        if not np.allclose(row_sums, 1.0, atol=tolerance):
-            msg = "Influence matrix rows must sum to 1.0"
+        failing_indices = np.where(~np.isclose(row_sums, 1.0, atol=tolerance))[0]
+        if failing_indices.size > 0:
+            details = [f"row {i} sum={row_sums[i]:.4f}" for i in failing_indices[:5]]
+            extra = "..." if failing_indices.size > 5 else ""
+            msg = f"Influence matrix stochasticity failure (must sum to 1.0): {', '.join(details)} {extra}"
             raise ValidationError(msg)
 
     @staticmethod
