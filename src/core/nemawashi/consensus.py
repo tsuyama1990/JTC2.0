@@ -7,14 +7,14 @@ from src.domain_models.politics import InfluenceNetwork
 logger = logging.getLogger(__name__)
 
 
-class ConsensusEngine:
+class ConsensusService:
     """
     Handles the core mathematical consensus building (French-DeGroot Model).
     """
 
     def __init__(self, settings: NemawashiConfig | None = None) -> None:
         """
-        Initialize the Consensus Engine.
+        Initialize the Consensus Service.
 
         Args:
             settings: Configuration settings for Nemawashi. If None, loads from global settings.

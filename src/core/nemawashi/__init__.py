@@ -1,11 +1,9 @@
-from src.core.nemawashi.analytics import InfluenceAnalyzer
-from src.core.nemawashi.consensus import ConsensusEngine
-from src.core.nemawashi.engine import NemawashiEngine
-from src.core.nemawashi.nomikai import NomikaiSimulator
+from src.core.nemawashi.analytics import AnalyticsService
+from src.core.nemawashi.consensus import ConsensusService
+from src.core.nemawashi.nomikai import SimulationService
 
 __all__ = [
-    "ConsensusEngine",
-    "InfluenceAnalyzer",
-    "NemawashiEngine",
-    "NomikaiSimulator",
+    "AnalyticsService",
+    "ConsensusService",
+    "SimulationService",
 ]

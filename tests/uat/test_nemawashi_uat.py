@@ -1,7 +1,7 @@
 import pytest
 
-from src.core.nemawashi import NemawashiEngine
-from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.core.nemawashi import AnalyticsService, ConsensusService, SimulationService
+from src.domain_models.politics import DenseInfluenceNetwork, Stakeholder
 from src.domain_models.state import GlobalState
 
 
@@ -18,10 +18,10 @@ def test_identify_key_influencer_uat() -> None:
 
     matrix = [[0.9, 0.0, 0.1], [0.5, 0.5, 0.0], [0.8, 0.0, 0.2]]
 
-    net = InfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
+    net = DenseInfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
     state = GlobalState(influence_network=net)
 
-    engine = NemawashiEngine()
+    engine = AnalyticsService()
 
     try:
         influencers = engine.identify_influencers(state.influence_network)  # type: ignore
@@ -41,22 +41,23 @@ def test_nomikai_effect_uat() -> None:
     # CEO listens to Finance 0.8, self 0.2
     matrix = [[0.9, 0.1], [0.8, 0.2]]
 
-    net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
+    net = DenseInfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
 
-    engine = NemawashiEngine()
+    consensus_engine = ConsensusService()
+    sim_engine = SimulationService()
 
     try:
-        initial_ops = engine.calculate_consensus(net)
+        initial_ops = consensus_engine.calculate_consensus(net)
         initial_avg = sum(initial_ops) / len(initial_ops)
 
         # Run Nomikai on Finance
-        new_net = engine.run_nomikai(net, "Finance Manager")
+        new_net = sim_engine.run_nomikai(net, "Finance Manager")
 
         # Check Finance support increase
         assert new_net.stakeholders[0].initial_support > 0.1
 
         # Re-run consensus
-        final_ops = engine.calculate_consensus(new_net)
+        final_ops = consensus_engine.calculate_consensus(new_net)
         final_avg = sum(final_ops) / len(final_ops)
 
         # Should be higher

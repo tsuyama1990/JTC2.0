@@ -1,6 +1,5 @@
 import logging
 import typing
-from typing import cast
 
 import numpy as np
 from scipy.sparse import coo_matrix, csgraph, csr_matrix
@@ -8,12 +7,16 @@ from scipy.sparse.linalg import eigs
 
 from src.core.exceptions import CalculationError, ValidationError
 from src.core.nemawashi.utils import NemawashiUtils
-from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
+from src.domain_models.politics import (
+    DenseInfluenceNetwork,
+    InfluenceNetwork,
+    SparseMatrixEntry,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class InfluenceAnalyzer:
+class AnalyticsService:
     """
     Analyzes the structure and key influencers of the network.
     """
@@ -28,10 +31,9 @@ class InfluenceAnalyzer:
             return []
 
         try:
-            # Check if dense
-            if network.matrix and isinstance(network.matrix[0], list):
-                # Dense matrix (list of lists)
-                matrix_dense = cast(list[list[float]], network.matrix)
+            if isinstance(network, DenseInfluenceNetwork):
+                # Dense matrix
+                matrix_dense = network.matrix
                 # Validation
                 NemawashiUtils.validate_stochasticity(matrix_dense)
 
@@ -42,8 +44,8 @@ class InfluenceAnalyzer:
                 else:
                     centrality = self._eigen_centrality_dense(matrix_dense)
             else:
-                # Sparse matrix (list of entries) or empty
-                entries = cast(list[SparseMatrixEntry], network.matrix)
+                # Sparse matrix
+                entries = network.matrix
                 # Validation (Dimensions checked, stochasticity check harder on raw entries without building matrix)
                 # We build matrix first then validate
 

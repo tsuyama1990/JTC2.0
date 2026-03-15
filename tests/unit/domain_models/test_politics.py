@@ -1,12 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.core.constants import (
-    ERR_MATRIX_SHAPE,
-    ERR_MATRIX_VALUES,
-    ERR_STAKEHOLDER_MISMATCH,
-)
-from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.domain_models.politics import DenseInfluenceNetwork, Stakeholder
 
 
 def test_valid_network() -> None:
@@ -16,7 +11,7 @@ def test_valid_network() -> None:
 
     matrix = [[1.0, 0.0], [0.5, 0.5]]
 
-    net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
+    net = DenseInfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
     assert len(net.stakeholders) == 2
     assert net.matrix == matrix
 
@@ -27,8 +22,8 @@ def test_invalid_matrix_values() -> None:
     matrix = [[1.5]]  # Invalid value
 
     with pytest.raises(ValidationError) as exc:
-        InfluenceNetwork(stakeholders=[s1], matrix=matrix)
-    assert ERR_MATRIX_VALUES in str(exc.value)
+        DenseInfluenceNetwork(stakeholders=[s1], matrix=matrix)
+    assert "Matrix values must be between 0.0 and 1.0" in str(exc.value)
 
 
 def test_matrix_dimension_mismatch() -> None:
@@ -40,8 +35,8 @@ def test_matrix_dimension_mismatch() -> None:
     matrix = [[1.0]]
 
     with pytest.raises(ValidationError) as exc:
-        InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
-    assert ERR_STAKEHOLDER_MISMATCH in str(exc.value)
+        DenseInfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
+    assert "Matrix row count must match stakeholder count" in str(exc.value)
 
 
 def test_matrix_shape_mismatch() -> None:
@@ -53,8 +48,8 @@ def test_matrix_shape_mismatch() -> None:
     matrix = [[1.0], [0.5]]
 
     with pytest.raises(ValidationError) as exc:
-        InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
-    assert ERR_MATRIX_SHAPE in str(exc.value)
+        DenseInfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
+    assert "Matrix must be square" in str(exc.value)
 
 
 def test_stakeholder_validation() -> None:

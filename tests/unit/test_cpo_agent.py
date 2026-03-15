@@ -7,7 +7,7 @@ from src.agents.cpo import CPOAgent
 from src.core.config import get_settings
 from src.domain_models.alternative import AlternativeAnalysis, AlternativeTool
 from src.domain_models.lean_canvas import LeanCanvas
-from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.domain_models.politics import DenseInfluenceNetwork, Stakeholder
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 from src.domain_models.value_proposition import CustomerProfile, ValueMap, ValuePropositionCanvas
@@ -113,7 +113,7 @@ def test_cpo_agent_run_with_nemawashi_and_canvas_models() -> None:
                 customer_segments="C",
                 unique_value_prop="Unique value that has three words",
             ),
-            influence_network=InfluenceNetwork(
+            influence_network=DenseInfluenceNetwork(
                 matrix=[[1.0, 0.0], [0.0, 1.0]],
                 stakeholders=[
                     Stakeholder(name="Sales", initial_support=0.2, stubbornness=0.8),

@@ -4,7 +4,10 @@ import numpy as np
 from scipy.sparse import coo_matrix, csr_matrix
 
 from src.core.exceptions import ValidationError
-from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
+from src.domain_models.politics import (
+    DenseInfluenceNetwork,
+    InfluenceNetwork,
+)
 
 
 class NemawashiUtils:
@@ -49,7 +52,7 @@ class NemawashiUtils:
         if not network.matrix:
             return csr_matrix((n, n), dtype=float)
 
-        if isinstance(network.matrix[0], list):
+        if isinstance(network, DenseInfluenceNetwork):
             try:
                 return csr_matrix(network.matrix, shape=(n, n), dtype=float)
             except Exception as e:
@@ -57,7 +60,7 @@ class NemawashiUtils:
                 raise ValidationError(msg) from e
 
         # Sparse input
-        entries = cast(list[SparseMatrixEntry], network.matrix)
+        entries = network.matrix
         count = len(entries)
 
         try:

@@ -1,14 +1,17 @@
 import logging
-from typing import cast
 
 from src.core.config import NemawashiConfig, get_settings
 from src.core.exceptions import ValidationError
-from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry
+from src.domain_models.politics import (
+    DenseInfluenceNetwork,
+    InfluenceNetwork,
+    SparseInfluenceNetwork,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class NomikaiSimulator:
+class SimulationService:
     """
     Simulates 'Nomikai' events (informal gatherings) to influence opinion dynamics.
     """
@@ -49,9 +52,10 @@ class NomikaiSimulator:
         new_supp = min(1.0, current_supp + (1.0 - current_supp) * boost)
         network.stakeholders[idx].initial_support = new_supp
 
-    def _redistribute_dense(self, network: InfluenceNetwork, idx: int, reduction: float) -> None:
-        matrix = cast(list[list[float]], network.matrix)
-        row = matrix[idx]
+    def _redistribute_dense(
+        self, network: DenseInfluenceNetwork, idx: int, reduction: float
+    ) -> None:
+        row = network.matrix[idx]
         old_self = row[idx]
         new_self = max(0.0, old_self - reduction)
         diff = old_self - new_self
@@ -64,8 +68,10 @@ class NomikaiSimulator:
                 else:
                     row[j] += add_per_person
 
-    def _redistribute_sparse(self, network: InfluenceNetwork, idx: int, reduction: float) -> None:
-        entries = cast(list[SparseMatrixEntry], network.matrix)
+    def _redistribute_sparse(
+        self, network: SparseInfluenceNetwork, idx: int, reduction: float
+    ) -> None:
+        entries = network.matrix
         self_entry = next((e for e in entries if e.row == idx and e.col == idx), None)
         if self_entry:
             old_self = self_entry.val
@@ -86,11 +92,10 @@ class NomikaiSimulator:
     def _update_stubbornness_field(self, network: InfluenceNetwork, idx: int) -> None:
         if not network.matrix:
             return
-        if isinstance(network.matrix[0], list):
-            matrix = cast(list[list[float]], network.matrix)
-            new_val = matrix[idx][idx]
+        if isinstance(network, DenseInfluenceNetwork):
+            new_val = network.matrix[idx][idx]
         else:
-            entries = cast(list[SparseMatrixEntry], network.matrix)
+            entries = network.matrix
             self_entry = next((e for e in entries if e.row == idx and e.col == idx), None)
             new_val = self_entry.val if self_entry else 1.0
         network.stakeholders[idx].stubbornness = new_val
@@ -102,7 +107,7 @@ class NomikaiSimulator:
         if not network.matrix:
             return
 
-        if isinstance(network.matrix[0], list):
+        if isinstance(network, DenseInfluenceNetwork):
             self._redistribute_dense(network, idx, reduction)
         else:
             self._redistribute_sparse(network, idx, reduction)
