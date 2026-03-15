@@ -181,7 +181,13 @@ def spec_generation_node(state: GlobalState) -> dict[str, Any]:
     logger.info("Generating Agent Prompt Spec and Experiment Plan (Cycle 5)...")
 
     builder = AgentFactory.get_builder_agent()
-    return builder.run(state)
+    result = builder.run(state)
+
+    if not result:
+        logger.error("BuilderAgent returned an empty result (possible validation failure).")
+        return {"error": "Failed to generate specifications. Builder returned empty."}
+
+    return result
 
 
 @safe_node("Error in Experiment Planning")
@@ -262,8 +268,13 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
             content = f"# Ringi-Sho\n\n```json\n{state.ringi_sho.model_dump_json(indent=2)}\n```"
             write_markdown("RingiSho.md", content)
 
-        pdf_future = file_service.save_pdf_async(state, base_dir)
-        pdf_future.result()  # Wait for PDF to finish
+        try:
+            pdf_future = file_service.save_pdf_async(state, base_dir)
+            pdf_future.result(timeout=30.0)  # Wait for PDF to finish with timeout
+        except TimeoutError:
+            logger.exception("PDF generation timed out after 30 seconds.")
+        except Exception:
+            logger.exception("PDF generation failed.")
     finally:
         # Ensure thread pool is shut down cleanly to prevent resource leaks
         file_service.shutdown()

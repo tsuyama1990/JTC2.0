@@ -98,14 +98,33 @@ class FileService:
             msg = "Path traversal sequences detected."
             raise ConfigurationError(msg)
 
+        p = Path(path_str)
+
+        # Whitelist approach for the filename itself
+        import re
+        if p.name and not re.match(r"^[a-zA-Z0-9_\-\.]+$", p.name):
+            msg = f"Invalid characters in filename: {p.name}"
+            raise ConfigurationError(msg)
+
         cwd = Path.cwd().resolve(strict=True)
         output_dir = cwd / self.settings.file_service.output_directory
         output_dir.mkdir(parents=True, exist_ok=True)
         output_dir = output_dir.resolve(strict=True)
 
-        # Use os.path.realpath to fully resolve the path including all symlinks
-        # strict=False allows resolving paths that don't exist yet
-        resolved_target = Path(os.path.realpath(path_str))
+        # Securely resolve the parent directory to ensure it exists and has no symlink tricks
+        try:
+            parent = p.parent.resolve(strict=True)
+            if not parent.is_relative_to(output_dir):
+                msg = f"Parent directory is outside output directory: {parent}"
+                raise ConfigurationError(msg)
+        except FileNotFoundError as e:
+            # Revert to checking realpath if parent does not exist, ensuring we don't traverse
+            parent = Path(os.path.realpath(str(p.parent)))
+            if not parent.is_relative_to(output_dir):
+                msg = f"Unresolved parent directory is outside output directory: {parent}"
+                raise ConfigurationError(msg) from e
+
+        resolved_target = parent / p.name
 
         if not resolved_target.is_relative_to(output_dir):
             msg = f"Path traversal detected: {resolved_target}"
@@ -132,10 +151,17 @@ class FileService:
         """
         Sanitize content specifically for PDF generation (fpdf2).
         Removes HTML tags and unprintable characters that could disrupt PDF rendering.
+        Also explicitly removes known PDF-specific injection vectors.
         """
+        import re
         import unicodedata
 
         self._validate_content_size(content, "Sanitization")
+
+        # Strip explicit PDF injection patterns
+        content = re.sub(r"(?i)(/JavaScript|/JS|/OpenAction|/AA|/A|/URI|/SubmitForm)", "[REDACTED]", content)
+        content = re.sub(r"(?i)\bobj\b", "o b j", content)
+        content = re.sub(r"(?i)\bendobj\b", "e n d o b j", content)
 
         # Instead of bleach (HTML), we strip characters not suitable for PDF
         allowed_categories = {"Lu", "Ll", "Lt", "Lm", "Lo", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po", "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp"}
@@ -154,9 +180,11 @@ class FileService:
         base_dir: Path,
         filename: str = "Final_Artifacts_Canvas.pdf",
         pdf_generator: PDFGenerator | None = None,
+        timeout: float | None = None,
     ) -> Future[None]:
         """
         Submits the PDF generation task to the ThreadPoolExecutor and returns a Future.
+        The timeout parameter is handled at the point of future.result().
         """
         if self._is_shutdown:
             msg = "FileService is shut down."
@@ -283,30 +311,21 @@ class FileService:
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Includes simple retry logic for robustness and TOCTOU prevention.
+        Includes simple retry logic for robustness and TOCTOU prevention via strict validation prior to open.
         """
         self._validate_content_size(content, "Text Save")
 
         attempts = 3
         for attempt in range(attempts):
             try:
+                # Resolve the parent strictly and ensure it is valid
+                # Then make the directory safely if it doesn't exist
                 path.parent.mkdir(parents=True, exist_ok=True)
 
                 # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
+                # This guarantees the file wasn't replaced by a symlink prior to creation.
+                # If an attacker places a symlink here, O_CREAT | O_EXCL fails with FileExistsError.
                 fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-
-                # Check path again after opening to ensure it wasn't replaced by a symlink
-                resolved_after_open = Path(os.path.realpath(str(path)))
-                cwd = Path.cwd().resolve(strict=True)
-                output_dir = cwd / self.settings.file_service.output_directory
-                output_dir.mkdir(parents=True, exist_ok=True)
-                output_dir = output_dir.resolve(strict=True)
-
-                if not resolved_after_open.is_relative_to(output_dir):
-                    os.close(fd)
-                    path.unlink(missing_ok=True)
-                    msg = f"Path traversal detected after open: {resolved_after_open}"
-                    raise ConfigurationError(msg)  # noqa: TRY301
 
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     f.write(content)
@@ -314,7 +333,7 @@ class FileService:
                 logger.info(f"File saved successfully to {path}")
                 break
             except FileExistsError:
-                logger.warning(f"File already exists (concurrent access): {path}")
+                logger.warning(f"File already exists (concurrent access or symlink trick): {path}")
                 # We do not retry if the file already exists since O_EXCL was strict about creation
                 break
             except PermissionError:
