@@ -29,11 +29,11 @@ class BuilderAgent(BaseAgent):
 
         fail_max = self.settings.circuit_breaker_fail_max
         reset_timeout = self.settings.circuit_breaker_reset_timeout
-        if not (1 <= fail_max <= 100):
-            msg = "circuit_breaker_fail_max must be between 1 and 100."
+        if not (1 <= fail_max <= 10):
+            msg = "circuit_breaker_fail_max must be between 1 and 10."
             raise ValueError(msg)
-        if not (10 <= reset_timeout <= 3600):
-            msg = "circuit_breaker_reset_timeout must be between 10 and 3600."
+        if not (10 <= reset_timeout <= 300):
+            msg = "circuit_breaker_reset_timeout must be between 10 and 300."
             raise ValueError(msg)
 
         self._breaker = pybreaker.CircuitBreaker(
@@ -46,7 +46,6 @@ class BuilderAgent(BaseAgent):
         Compiles prior domain models using a generator to prevent holding massive objects in memory.
         Returns the compiled context string and a boolean indicating if truncation occurred.
         """
-        import json
         from collections.abc import Iterator
 
         def _stream_context() -> Iterator[str]:
@@ -57,8 +56,9 @@ class BuilderAgent(BaseAgent):
 
             def _yield_model(name: str, model: Any) -> Iterator[str]:
                 yield f"{name}: "
-                raw_dict = model.model_dump(mode="json")
-                yield from json.JSONEncoder(indent=2).iterencode(raw_dict)
+                # Replace JSONEncoder.iterencode with secure model_dump_json for Pydantic
+                json_str = model.model_dump_json(indent=2)
+                yield json_str
                 yield "\n\n"
 
             if state.vpc:
@@ -161,7 +161,7 @@ class BuilderAgent(BaseAgent):
 
         if not context.strip():
             logger.warning("No context available to generate specs.")
-            return {}
+            return {"error": "No context available to generate specs."}
 
         agent_prompt_spec = None
         experiment_plan = None
@@ -177,12 +177,12 @@ class BuilderAgent(BaseAgent):
                     f"Validation error generating AgentPromptSpec (attempt {attempt + 1}/3)."
                 )
                 error_feedback = str(e)
-            except Exception:
+            except Exception as e:
                 logger.exception("BuilderAgent run failed during spec generation.")
-                return {}
+                return {"error": f"BuilderAgent failed during spec generation: {e}"}
         else:
             logger.error("Failed to generate valid AgentPromptSpec after 3 attempts.")
-            return {}
+            return {"error": "Failed to generate valid AgentPromptSpec after 3 attempts."}
 
         # Self-correction loop for ExperimentPlan
         error_feedback = ""
@@ -195,12 +195,12 @@ class BuilderAgent(BaseAgent):
                     f"Validation error generating ExperimentPlan (attempt {attempt + 1}/3)."
                 )
                 error_feedback = str(e)
-            except Exception:
+            except Exception as e:
                 logger.exception("BuilderAgent run failed during plan generation.")
-                return {}
+                return {"error": f"BuilderAgent failed during plan generation: {e}"}
         else:
             logger.error("Failed to generate valid ExperimentPlan after 3 attempts.")
-            return {}
+            return {"error": "Failed to generate valid ExperimentPlan after 3 attempts."}
 
         logger.info("Successfully generated AgentPromptSpec and ExperimentPlan.")
         return {"agent_prompt_spec": agent_prompt_spec, "experiment_plan": experiment_plan}

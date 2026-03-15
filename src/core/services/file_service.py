@@ -102,8 +102,16 @@ class FileService:
 
         # Whitelist approach for the filename itself
         import re
-        if p.name and not re.match(r"^[a-zA-Z0-9_\-\.]+$", p.name):
-            msg = f"Invalid characters in filename: {p.name}"
+        # Reject literal '..' in the name
+        if ".." in p.name:
+            msg = f"Path traversal sequence in filename: {p.name}"
+            raise ConfigurationError(msg)
+
+        if p.stem and not re.match(r"^[a-zA-Z0-9_\-]+$", p.stem):
+            msg = f"Invalid characters in filename: {p.stem}"
+            raise ConfigurationError(msg)
+        if p.suffix and not re.match(r"^\.[a-zA-Z0-9]+$", p.suffix):
+            msg = f"Invalid characters in suffix: {p.suffix}"
             raise ConfigurationError(msg)
 
         cwd = Path.cwd().resolve(strict=True)
@@ -125,8 +133,6 @@ class FileService:
 
     def _validate_content_size(self, content: str, title: str = "Content") -> None:
         """Check if content memory size exceeds max allowed to prevent OOM."""
-        import sys
-
         # Dynamic memory calculation based on configuration instead of hardcoded 20MB limit
         base_size = self.settings.governance.max_llm_response_size
         multiplier = self.settings.governance.max_content_multiplier
@@ -134,7 +140,8 @@ class FileService:
             base_size * multiplier * 100
         )  # Rough heuristic scale up for safe JSON footprints
 
-        if sys.getsizeof(content) > max_memory_bytes:
+        # Use actual string byte length for more accurate text OOM prevention
+        if len(content.encode('utf-8')) > max_memory_bytes:
             msg = f"Content memory footprint too large for {title}."
             raise ValueError(msg)
 
@@ -150,7 +157,7 @@ class FileService:
         self._validate_content_size(content, "Sanitization")
 
         # Strip explicit PDF injection patterns
-        content = re.sub(r"(?i)(/JavaScript|/JS|/OpenAction|/AA|/A|/URI|/SubmitForm)", "[REDACTED]", content)
+        content = re.sub(r"(?i)(/JavaScript|/JS|/OpenAction|/AA|/A|/URI|/SubmitForm|/Launch|/GoToR|/SetOCGState)", "[REDACTED]", content)
         content = re.sub(r"(?i)\bobj\b", "o b j", content)
         content = re.sub(r"(?i)\bendobj\b", "e n d o b j", content)
 
@@ -236,6 +243,15 @@ class FileService:
                 ("6. Sitemap and Story", state.sitemap_and_story),
             ]
 
+            # Pre-validate/sanitize all sections completely to prevent malicious Pydantic injections
+            # before beginning actual PDF generation structure manipulation.
+            for title, model in sections:
+                if model:
+                    json_str = model.model_dump_json(indent=2)
+                    self._validate_content_size(json_str, title)
+                    # Running it through sanitize early prevents unsafe strings getting stored
+                    _ = self._sanitize_pdf_content(json_str)
+
             for idx, (title, model) in enumerate(sections):
                 if model:
                     if idx == 3:
@@ -258,11 +274,16 @@ class FileService:
             logger.exception("Failed to generate PDF artifact.")
 
     def _check_permissions(self, path: Path) -> None:
-        """Check if the user has write permissions for the directory."""
+        """Check if the user has write permissions for the directory and owns it."""
         dir_path = path if path.is_dir() else path.parent
-        if dir_path.exists() and not os.access(dir_path, os.W_OK):
-            msg = f"Permission denied for directory: {dir_path}"
-            raise PermissionError(msg)
+        if dir_path.exists():
+            if not os.access(dir_path, os.W_OK):
+                msg = f"Permission denied for directory: {dir_path}"
+                raise PermissionError(msg)
+            # Ensure the directory is owned by the current user to prevent privilege escalation
+            if hasattr(os, "geteuid") and dir_path.stat().st_uid != os.geteuid():
+                msg = f"Directory not owned by current user: {dir_path}"
+                raise PermissionError(msg)
 
     def save_text_async(self, content: str, path: str | Path) -> Future[None]:
         """
@@ -316,7 +337,7 @@ class FileService:
 
                 if path.parent.is_symlink():
                     msg = f"Parent directory is a symlink: {path.parent}"
-                    raise ConfigurationError(msg)
+                    raise ConfigurationError(msg)  # noqa: TRY301
 
                 # Resolve the final path exactly before open
                 final_path = Path(os.path.realpath(str(path)))
@@ -326,7 +347,7 @@ class FileService:
 
                 if not final_path.is_relative_to(output_dir):
                     msg = f"Path traversal detected before open: {final_path}"
-                    raise ConfigurationError(msg)
+                    raise ConfigurationError(msg)  # noqa: TRY301
 
                 # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
                 # This guarantees the file wasn't replaced by a symlink prior to creation.

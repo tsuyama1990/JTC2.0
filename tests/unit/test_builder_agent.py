@@ -126,7 +126,7 @@ class TestBuilderAgent:
         """Test run aborts if there's no context available."""
         state = GlobalState(topic="test")
         result = agent.run(state)
-        assert result == {}
+        assert "error" in result
 
     def test_run_success(self, agent: BuilderAgent, state_with_context: GlobalState) -> None:
         """Test full successful generation cycle."""
@@ -164,4 +164,4 @@ class TestBuilderAgent:
         """Test run catches exceptions safely."""
         with patch.object(agent, "_generate_agent_prompt_spec", side_effect=Exception("Failed")):
             result = agent.run(state_with_context)
-            assert result == {}
+            assert "error" in result
