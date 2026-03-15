@@ -11,7 +11,10 @@ from src.core.constants import (
 
 
 class Stakeholder(BaseModel):
-    """Represents a key stakeholder in the Nemawashi process."""
+    """
+    Represents a key stakeholder in the Nemawashi process.
+    Contains their name, initial support, and stubbornness for the DeGroot model.
+    """
 
     name: str = Field(..., min_length=1, max_length=100)
     initial_support: float = Field(..., ge=0.0, le=1.0)

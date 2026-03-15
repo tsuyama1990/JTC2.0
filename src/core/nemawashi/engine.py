@@ -8,7 +8,7 @@ from src.domain_models.politics import InfluenceNetwork
 class NemawashiEngine:
     """
     Core engine for Nemawashi (Consensus Building).
-    Aggregates consensus calculation, analytics, and simulation logic.
+    Aggregates consensus calculation, analytics, and simulation logic using the DeGroot model.
     """
 
     def __init__(self, settings: NemawashiConfig | None = None) -> None:
