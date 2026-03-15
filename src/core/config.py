@@ -378,11 +378,11 @@ class Settings(BaseSettings):
         if not secret or not secret.strip():
             msg = "API key cannot be empty or whitespace-only."
             raise ValueError(msg)
-        if len(secret) != 31:
-            msg = "v0_api_key must be exactly 31 characters long."
+        if not (20 <= len(secret) <= 128):
+            msg = "v0_api_key must be between 20 and 128 characters long."
             raise ValueError(msg)
-        if not re.match(r"^v0-[a-zA-Z0-9]+$", secret):
-            msg = "v0_api_key must start with 'v0-' and contain only alphanumeric characters."
+        if not re.match(r"^v0-[a-zA-Z0-9_\-]+$", secret):
+            msg = "v0_api_key must start with 'v0-' and contain only alphanumeric characters, dashes, or underscores."
             raise ValueError(msg)
         return secret_str
 

@@ -68,15 +68,26 @@ class FileService:
         """
         self._executor.shutdown(wait=wait)
 
-    def _validate_path(self, path: str | Path) -> Path:
+    def _validate_path(self, path: str | Path) -> Path:  # noqa: C901
         """
         Validate path to prevent traversal.
         Strictly resolves the parent directory (which must exist) and checks using is_relative_to().
         Never uses strict=False for security-critical path validation.
         """
+        import unicodedata
+        import urllib.parse
+
         path_str = str(path)
         if "\x00" in path_str:
             msg = "Null byte detected in path."
+            raise ConfigurationError(msg)
+
+        if urllib.parse.unquote(path_str) != path_str:
+            msg = "URL-encoded paths are not allowed."
+            raise ConfigurationError(msg)
+
+        if unicodedata.normalize("NFKC", path_str) != path_str:
+            msg = "Un-normalized unicode sequences detected in path."
             raise ConfigurationError(msg)
 
         if ".." in path_str or "\\" in path_str:
@@ -134,6 +145,7 @@ class FileService:
 
     def _sanitize_content(self, content: str) -> str:
         """Sanitize content to prevent injection attacks."""
+        self._validate_content_size(content, "Sanitization")
         return bleach.clean(content, strip=True)
 
     def _check_permissions(self, path: Path) -> None:
