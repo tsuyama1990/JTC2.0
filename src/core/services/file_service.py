@@ -1,6 +1,6 @@
 import logging
 import os
-import unicodedata
+import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 class PDFGenerator(Protocol):
     """Protocol for generating PDFs to allow dependency injection/testing."""
     def add_page(self) -> None: ...
-    def set_font(self, family: str, style: str = "", size: float = 0) -> None: ...
-    def cell(self, w: float, h: float, txt: str = "", border: int = 0, ln: int = 0, align: str = "", fill: bool = False, link: str = "", new_x: str = "", new_y: str = "") -> None: ...
-    def ln(self, h: float | None = None) -> None: ...
-    def multi_cell(self, w: float, h: float, txt: str = "", border: int = 0, align: str = "", fill: bool = False) -> None: ...
-    def output(self, name: str = "", dest: str = "") -> None: ...
+    def set_font(self, *args: Any, **kwargs: Any) -> None: ...
+    def cell(self, *args: Any, **kwargs: Any) -> None: ...
+    def ln(self, *args: Any, **kwargs: Any) -> None: ...
+    def multi_cell(self, *args: Any, **kwargs: Any) -> None: ...
+    def output(self, *args: Any, **kwargs: Any) -> None: ...
 
 
 class FPDFGenerator:
@@ -36,20 +36,20 @@ class FPDFGenerator:
     def add_page(self) -> None:
         self._pdf.add_page()
 
-    def set_font(self, family: str, style: str = "", size: float = 0) -> None:
-        self._pdf.set_font(family, style, size)
+    def set_font(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.set_font(*args, **kwargs)
 
-    def cell(self, w: float, h: float, txt: str = "", border: int = 0, ln: int = 0, align: str = "", fill: bool = False, link: str = "", new_x: str = "", new_y: str = "") -> None:
-        self._pdf.cell(w, h, txt, border, ln, align, fill, link, new_x, new_y)
+    def cell(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.cell(*args, **kwargs)
 
-    def ln(self, h: float | None = None) -> None:
-        self._pdf.ln(h)
+    def ln(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.ln(*args, **kwargs)
 
-    def multi_cell(self, w: float, h: float, txt: str = "", border: int = 0, align: str = "", fill: bool = False) -> None:
-        self._pdf.multi_cell(w, h, txt, border, align, fill)
+    def multi_cell(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.multi_cell(*args, **kwargs)
 
-    def output(self, name: str = "", dest: str = "") -> None:
-        self._pdf.output(name, dest)
+    def output(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.output(*args, **kwargs)
 
 
 class FileService:
@@ -95,11 +95,16 @@ class FileService:
             target_path = parent / p.name
 
             # Atomic path validation check
-            resolved_target = target_path.resolve(strict=False)
-            if not resolved_target.is_relative_to(cwd) and not resolved_target.is_relative_to(output_dir):
+            resolved_target = target_path.resolve(strict=True)
+            if not resolved_target.is_relative_to(output_dir):
                 msg = f"Path traversal detected: {target_path}"
                 raise ConfigurationError(msg)  # noqa: TRY301
 
+        except FileNotFoundError as e:
+            # If the target file doesn't exist yet, we check the parent which we already resolved strictly
+            if not parent.is_relative_to(output_dir):
+                msg = f"Path traversal detected (new file): {target_path}"
+                raise ConfigurationError(msg) from e
         except ConfigurationError:
             raise
         except Exception as e:
@@ -117,16 +122,7 @@ class FileService:
 
     def _sanitize_content(self, content: str) -> str:
         """Sanitize content to prevent injection attacks."""
-        cleaned = bleach.clean(content, strip=True)
-        # Only allow specific unicode categories (Letters, Numbers, Punctuation, Separators, Symbols)
-        sanitized_chars = []
-        for ch in cleaned:
-            cat = unicodedata.category(ch)[0]
-            if cat in ("L", "N", "P", "Z", "S"):
-                sanitized_chars.append(ch)
-            else:
-                sanitized_chars.append(" ") # replace invalid characters with space
-        return "".join(sanitized_chars)
+        return bleach.clean(content, strip=True)
 
     def _check_permissions(self, path: Path) -> None:
         """Check if the user has write permissions for the directory."""
@@ -222,9 +218,11 @@ class FileService:
     def _handle_async_error(self, future: Future[Any]) -> None:
         """Callback to handle errors from async operations."""
         try:
-            future.result()
+            exc = future.exception(timeout=0)
+            if exc:
+                logger.error(f"Async file save operation failed: {exc}")
         except Exception:
-            logger.exception("Async file save operation failed")
+            logger.exception("Async file save operation failed with unexpected error")
 
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
@@ -248,9 +246,11 @@ class FileService:
                 break  # No point retrying permission error
             except OSError:
                 if attempt < attempts - 1:
+                    wait_time = 2 ** attempt
                     logger.warning(
-                        f"OS error writing to {path}, retrying... ({attempt + 1}/{attempts})"
+                        f"OS error writing to {path}, retrying in {wait_time}s... ({attempt + 1}/{attempts})"
                     )
+                    time.sleep(wait_time)
                     continue
                 logger.exception(f"OS error writing to {path} after {attempts} attempts")
             except Exception:

@@ -476,6 +476,14 @@ class Settings(BaseSettings):
         description="Circuit breaker reset timeout",
     )
 
+    @field_validator("circuit_breaker_fail_max", "circuit_breaker_reset_timeout")
+    @classmethod
+    def validate_circuit_breaker(cls, v: int) -> int:
+        if v <= 0:
+            msg = "Circuit breaker parameters must be greater than 0."
+            raise ValueError(msg)
+        return v
+
     iterator_safety_limit: int = Field(
         alias="ITERATOR_SAFETY_LIMIT",
         default=1000,
