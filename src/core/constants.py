@@ -24,6 +24,9 @@ ERR_INVALID_DIMENSIONS: Final[str] = "Invalid dimensions."
 ERR_INVALID_FPS: Final[str] = "Invalid FPS value."
 ERR_INVALID_RESOLUTION: Final[str] = "Invalid resolution."
 
+# --- File Service Constants ---
+MAX_CONTENT_MULTIPLIER: Final[int] = 5  # Multiplier against max_llm_response_size for PDF/Text validation
+
 # --- V0 Error Messages ---
 ERR_V0_API_KEY_MISSING: Final[str] = "V0 API Key missing."
 ERR_V0_GENERATION_FAILED: Final[str] = "V0 generation failed."

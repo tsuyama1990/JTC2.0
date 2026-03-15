@@ -1,15 +1,55 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import os
+import unicodedata
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
+
+import bleach
 
 from src.core.config import get_settings
+from src.core.constants import MAX_CONTENT_MULTIPLIER
 from src.core.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
     from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
+
+
+class PDFGenerator(Protocol):
+    """Protocol for generating PDFs to allow dependency injection/testing."""
+    def add_page(self) -> None: ...
+    def set_font(self, family: str, style: str = "", size: float = 0) -> None: ...
+    def cell(self, w: float, h: float, txt: str = "", border: int = 0, ln: int = 0, align: str = "", fill: bool = False, link: str = "", new_x: str = "", new_y: str = "") -> None: ...
+    def ln(self, h: float | None = None) -> None: ...
+    def multi_cell(self, w: float, h: float, txt: str = "", border: int = 0, align: str = "", fill: bool = False) -> None: ...
+    def output(self, name: str = "", dest: str = "") -> None: ...
+
+
+class FPDFGenerator:
+    """Concrete implementation using fpdf2."""
+    def __init__(self) -> None:
+        from fpdf import FPDF
+        self._pdf = FPDF()
+
+    def add_page(self) -> None:
+        self._pdf.add_page()
+
+    def set_font(self, family: str, style: str = "", size: float = 0) -> None:
+        self._pdf.set_font(family, style, size)
+
+    def cell(self, w: float, h: float, txt: str = "", border: int = 0, ln: int = 0, align: str = "", fill: bool = False, link: str = "", new_x: str = "", new_y: str = "") -> None:
+        self._pdf.cell(w, h, txt, border, ln, align, fill, link, new_x, new_y)
+
+    def ln(self, h: float | None = None) -> None:
+        self._pdf.ln(h)
+
+    def multi_cell(self, w: float, h: float, txt: str = "", border: int = 0, align: str = "", fill: bool = False) -> None:
+        self._pdf.multi_cell(w, h, txt, border, align, fill)
+
+    def output(self, name: str = "", dest: str = "") -> None:
+        self._pdf.output(name, dest)
 
 
 class FileService:
@@ -42,6 +82,10 @@ class FileService:
 
         try:
             cwd = Path.cwd().resolve(strict=True)
+            output_dir = cwd / self.settings.file_service.output_directory
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_dir = output_dir.resolve(strict=True)
+
             p = Path(path)
 
             # Resolve parent strictly (must exist)
@@ -51,7 +95,8 @@ class FileService:
             target_path = parent / p.name
 
             # Atomic path validation check
-            if not target_path.resolve(strict=False).is_relative_to(cwd):
+            resolved_target = target_path.resolve(strict=False)
+            if not resolved_target.is_relative_to(cwd) and not resolved_target.is_relative_to(output_dir):
                 msg = f"Path traversal detected: {target_path}"
                 raise ConfigurationError(msg)  # noqa: TRY301
 
@@ -63,25 +108,54 @@ class FileService:
 
         return target_path
 
+    def _validate_content_size(self, content: str, title: str = "Content") -> None:
+        """Check if content size exceeds max allowed."""
+        max_size = self.settings.governance.max_llm_response_size * MAX_CONTENT_MULTIPLIER
+        if len(content) > max_size:
+            msg = f"Content too large for {title}."
+            raise ValueError(msg)
+
+    def _sanitize_content(self, content: str) -> str:
+        """Sanitize content to prevent injection attacks."""
+        cleaned = bleach.clean(content, strip=True)
+        # Only allow specific unicode categories (Letters, Numbers, Punctuation, Separators, Symbols)
+        sanitized_chars = []
+        for ch in cleaned:
+            cat = unicodedata.category(ch)[0]
+            if cat in ("L", "N", "P", "Z", "S"):
+                sanitized_chars.append(ch)
+            else:
+                sanitized_chars.append(" ") # replace invalid characters with space
+        return "".join(sanitized_chars)
+
+    def _check_permissions(self, path: Path) -> None:
+        """Check if the user has write permissions for the directory."""
+        dir_path = path if path.is_dir() else path.parent
+        if dir_path.exists() and not os.access(dir_path, os.W_OK):
+            msg = f"Permission denied for directory: {dir_path}"
+            raise PermissionError(msg)
+
     def save_pdf_sync(  # noqa: C901
-        self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf"
+        self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf", pdf_generator: PDFGenerator | None = None
     ) -> None:
         """
         Generates the Final Artifact Canvas PDF from GlobalState.
         Includes robust path validation and uses fpdf2 for secure rendering.
         """
-        if not state:
-            msg = "GlobalState is required for PDF generation."
-            raise ValueError(msg)
+        from src.domain_models.state import GlobalState
+
+        if not isinstance(state, GlobalState):
+            msg = f"Expected GlobalState, got {type(state)}"
+            raise TypeError(msg)
 
         if not state.selected_idea:
             logger.warning("PDF Generation: missing selected_idea. PDF might be empty.")
 
-        from fpdf import FPDF
-
         try:
             pdf_path = self._validate_path(base_dir / filename)
-            pdf = FPDF()
+            self._check_permissions(pdf_path)
+
+            pdf = pdf_generator or FPDFGenerator()
             pdf.add_page()
             pdf.set_font("Helvetica", "B", 16)
             pdf.cell(
@@ -90,13 +164,13 @@ class FileService:
             pdf.ln(10)
 
             def add_section(title: str, content: str) -> None:
-                if len(content) > self.settings.governance.max_llm_response_size * 5:
-                    msg = f"Content too large for PDF section: {title}"
-                    raise ValueError(msg)  # noqa: TRY301
+                self._validate_content_size(content, title)
+                sanitized_content = self._sanitize_content(content)
+
                 pdf.set_font("Helvetica", "B", 14)
                 pdf.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
                 pdf.set_font("Helvetica", "", 10)
-                pdf.multi_cell(0, 8, content)
+                pdf.multi_cell(0, 8, sanitized_content)
                 pdf.ln(5)
 
             sections = [
@@ -123,6 +197,9 @@ class FileService:
         except ValueError:
             logger.exception("Validation error during PDF generation.")
             raise
+        except TypeError:
+            logger.exception("Type error during PDF generation.")
+            raise
         except Exception:
             logger.exception("Failed to generate PDF artifact.")
 
@@ -137,24 +214,32 @@ class FileService:
         """
         try:
             valid_path = self._validate_path(path)
-            self._executor.submit(self._save_text_sync, content, valid_path)
+            future = self._executor.submit(self._save_text_sync, content, valid_path)
+            future.add_done_callback(self._handle_async_error)
         except Exception:
             logger.exception("Failed to schedule file save")
+
+    def _handle_async_error(self, future: Future[Any]) -> None:
+        """Callback to handle errors from async operations."""
+        try:
+            future.result()
+        except Exception:
+            logger.exception("Async file save operation failed")
 
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
         Includes simple retry logic for robustness.
         """
-        if len(content) > self.settings.governance.max_llm_response_size * 5:
-            msg = "Content too large to be safely written to disk."
-            raise ValueError(msg)
+        self._validate_content_size(content, "Text Save")
 
         attempts = 3
         for attempt in range(attempts):
             try:
                 # Ensure parent exists
+                self._check_permissions(path.parent)
                 path.parent.mkdir(parents=True, exist_ok=True)
+                self._check_permissions(path)
                 path.write_text(content, encoding="utf-8")
                 logger.info(f"File saved successfully to {path}")
                 break

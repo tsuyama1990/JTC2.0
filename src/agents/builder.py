@@ -2,8 +2,8 @@ import logging
 from typing import Any
 
 import pybreaker
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic import ValidationError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -24,7 +24,7 @@ class BuilderAgent(BaseAgent):
     the AgentPromptSpec and ExperimentPlan.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: BaseChatModel) -> None:
         self.llm = llm
         self.settings = get_settings()
         self._breaker = pybreaker.CircuitBreaker(

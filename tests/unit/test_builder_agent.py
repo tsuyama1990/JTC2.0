@@ -13,7 +13,7 @@ from src.domain_models.state import GlobalState
 
 @pytest.fixture
 def mock_llm() -> Generator[MagicMock, None, None]:
-    with patch("src.agents.builder.ChatOpenAI", autospec=True) as mock:
+    with patch("src.agents.builder.BaseChatModel", autospec=True) as mock:
         yield mock.return_value
 
 

@@ -13,9 +13,10 @@ class TestFileService:
         return FileService()
 
     @patch("src.core.services.file_service.FileService._validate_path")
+    @patch("src.core.services.file_service.FileService._check_permissions")
     @patch("src.core.services.file_service.Path")
     def test_save_text_async_success(
-        self, mock_path: MagicMock, mock_validate: MagicMock, file_service: FileService
+        self, mock_path: MagicMock, mock_check_perms: MagicMock, mock_validate: MagicMock, file_service: FileService
     ) -> None:
         mock_validate.return_value = mock_path.return_value
         mock_validate.return_value.__str__.return_value = "protected.md"
@@ -51,10 +52,12 @@ class TestFileService:
         assert "Permission denied writing to protected.md" in caplog.text
 
     @patch("src.core.services.file_service.FileService._validate_path")
+    @patch("src.core.services.file_service.FileService._check_permissions")
     @patch("src.core.services.file_service.Path")
     def test_save_text_async_os_error(
         self,
         mock_path: MagicMock,
+        mock_check_perms: MagicMock,
         mock_validate: MagicMock,
         file_service: FileService,
         caplog: pytest.LogCaptureFixture,
