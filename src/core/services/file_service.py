@@ -97,6 +97,11 @@ class FileService:
             msg = "Path traversal sequences detected."
             raise ConfigurationError(msg)
 
+        # Prevent complex Unicode traversal attacks by restricting to basic ASCII
+        if not path_str.isascii():
+            msg = "Non-ASCII characters in paths are not allowed to prevent canonicalization attacks."
+            raise ConfigurationError(msg)
+
         p = Path(path_str)
 
         # Whitelist approach for the filename itself
@@ -151,62 +156,39 @@ class FileService:
     def _sanitize_pdf_content(self, content: str) -> str:
         """
         Sanitize content specifically for PDF generation (fpdf2).
-        Removes HTML tags and unprintable characters that could disrupt PDF rendering.
-        Also explicitly removes known PDF-specific injection vectors.
+        Uses a strict whitelist to prevent any PDF-specific structure injections.
+        Only allows basic alphanumeric, whitespace, and a very limited set of punctuation.
         """
-        import re
-        import unicodedata
-
         self._validate_content_size(content, "Sanitization")
 
-        # Strip explicit PDF injection patterns and syntax tokens
-        content = re.sub(
-            r"(?i)(/JavaScript|/JS|/OpenAction|/AA|/A|/URI|/SubmitForm|/Launch|/GoToR|/SetOCGState|/RichMediaExecute|/Action|/Named|/Sound)",
-            "[REDACTED]",
-            content,
-        )
-        content = re.sub(r"(?i)\bobj\b", "o b j", content)
-        content = re.sub(r"(?i)\bendobj\b", "e n d o b j", content)
-        content = re.sub(r"(?i)\bstream\b", "s t r e a m", content)
-        content = re.sub(r"(?i)\bendstream\b", "e n d s t r e a m", content)
+        import re
 
-        # Remove literal formatting commands
-        content = content.replace("<<", "< <").replace(">>", "> >")
+        # We also need to permit basic Japanese/multilingual characters which would be blocked by string.printable
+        # but block things that form PDF syntax like << >> / and ()
+        import unicodedata
 
-        # Instead of bleach (HTML), we strip characters not suitable for PDF
         allowed_categories = {
-            "Lu",
-            "Ll",
-            "Lt",
-            "Lm",
-            "Lo",
-            "Nd",
-            "Nl",
-            "No",
-            "Pc",
-            "Pd",
-            "Ps",
-            "Pe",
-            "Pi",
-            "Pf",
-            "Po",
-            "Sm",
-            "Sc",
-            "Sk",
-            "So",
-            "Zs",
-            "Zl",
-            "Zp",
+            "Lu", "Ll", "Lt", "Lm", "Lo", "Nd", "Nl", "No",
+            "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
+            "Zs", "Zl", "Zp", "Sm", "Sc", "Sk", "So"
         }
 
-        # Add basic ASCII control characters we want to keep (newline, tab)
-        keep_chars = {"\n", "\t", "\r"}
+        # Block specific PDF structural characters
+        blocked_chars = {"<", ">", "/", "(", ")", "\\"}
 
-        return "".join(
-            ch
-            for ch in content
-            if unicodedata.category(ch) in allowed_categories or ch in keep_chars
-        )
+        sanitized_chars = []
+        for ch in content:
+            if ch in blocked_chars:
+                sanitized_chars.append(" ")
+            elif unicodedata.category(ch) in allowed_categories or ch in {"\n", "\t", "\r", " "}:
+                sanitized_chars.append(ch)
+            else:
+                sanitized_chars.append(" ")
+
+        sanitized_str = "".join(sanitized_chars)
+
+        # Redact remaining known keywords just in case they are formed from safe letters
+        return re.sub(r"(?i)\b(obj|endobj|stream|endstream|xref|trailer|startxref)\b", "[REDACTED_PDF_TOKEN]", sanitized_str)
 
     def save_pdf_async(
         self,
@@ -231,18 +213,28 @@ class FileService:
             msg = f"Expected GlobalState, got {type(state)}"
             raise TypeError(msg)
 
-        # Create a deep copy of the state safely before passing to thread to prevent
-        # concurrent modifications or bleeding sensitive data
-        safe_state = state.model_copy(deep=True)
+        # Perform explicit memory limit size checks synchronously before queuing
+        # This prevents large payloads from consuming thread pool resources.
+        if state.vpc:
+            self._validate_content_size(state.vpc.model_dump_json(indent=2), "VPC PDF Chunk")
+        if state.mental_model:
+            self._validate_content_size(state.mental_model.model_dump_json(indent=2), "MentalModel PDF Chunk")
+        if state.customer_journey:
+            self._validate_content_size(state.customer_journey.model_dump_json(indent=2), "Journey PDF Chunk")
+        if state.sitemap_and_story:
+            self._validate_content_size(state.sitemap_and_story.model_dump_json(indent=2), "Sitemap PDF Chunk")
 
-        # Mask any sensitive attributes that shouldn't make it to output artifacts
-        # We strip away configuration internals, transcripts, and history just in case.
-        safe_state.topic = (
-            "*** REDACTED TOPIC ***" if "secret" in safe_state.topic.lower() else safe_state.topic
+        # Create a safe whitelist-only instance of the state specifically for PDF generation.
+        # This completely avoids leaking internal configuration, agent histories, or unvalidated data.
+        safe_state = GlobalState(
+            topic="*** REDACTED TOPIC ***" if "secret" in state.topic.lower() else state.topic,
+            selected_idea=state.selected_idea.model_copy(deep=True) if state.selected_idea else None,
+            vpc=state.vpc.model_copy(deep=True) if state.vpc else None,
+            mental_model=state.mental_model.model_copy(deep=True) if state.mental_model else None,
+            customer_journey=state.customer_journey.model_copy(deep=True) if state.customer_journey else None,
+            sitemap_and_story=state.sitemap_and_story.model_copy(deep=True) if state.sitemap_and_story else None,
+            alternative_analysis=state.alternative_analysis.model_copy(deep=True) if state.alternative_analysis else None,
         )
-        safe_state.transcripts = []
-        safe_state.debate_history = []
-        safe_state.messages = []
 
         future = self._executor.submit(
             self._save_pdf_sync, safe_state, base_dir, filename, pdf_generator
@@ -332,33 +324,43 @@ class FileService:
             logger.exception("Failed to generate PDF artifact.")
 
     def _check_permissions(self, path: Path) -> None:
-        """Check if the user has write permissions for the directory and owns it."""
+        """Check if the user has write permissions for the directory and owns it securely avoiding TOCTOU."""
         dir_path = path if path.is_dir() else path.parent
 
-        # Security: Also check if the directory is a symlink via os.lstat directly.
+        if not dir_path.exists():
+            return
+
         import stat
+        try:
+            # Atomic file descriptor operation
+            flags = getattr(os, "O_RDONLY", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(dir_path, flags)
+        except OSError as e:
+            msg = f"Unable to verify directory safely (might be a symlink or inaccessible): {e}"
+            raise PermissionError(msg) from e
 
-        if dir_path.exists():
-            try:
-                st = os.lstat(dir_path)
-                if stat.S_ISLNK(st.st_mode):
-                    msg = f"Directory is a symlink, which is not permitted: {dir_path}"
-                    raise PermissionError(msg)
-            except OSError as e:
-                msg = f"Unable to verify directory status: {e}"
-                raise PermissionError(msg) from e
+        try:
+            st = os.fstat(fd)
+            # Ensure it is a directory and not a symlink
+            # O_NOFOLLOW should already prevent opening a symlink, but verify type
+            if not stat.S_ISDIR(st.st_mode):
+                msg = f"Expected a directory: {dir_path}"
+                raise PermissionError(msg)
 
-            if not os.access(dir_path, os.W_OK):
+            # Check write permissions based on fstat mode
+            # 0o200 is User Write
+            if not (st.st_mode & 0o200):
                 msg = f"Permission denied for directory: {dir_path}"
                 raise PermissionError(msg)
 
             # Cross-platform permission checking, handling root correctly
             if os.name == "posix" and hasattr(os, "geteuid"):
                 euid = os.geteuid()
-                # If running as root, we bypass the strict ownership check as root inherently has access
-                if euid != 0 and dir_path.stat().st_uid != euid:
+                if euid not in (0, st.st_uid):
                     msg = f"Directory not owned by current user: {dir_path}"
                     raise PermissionError(msg)
+        finally:
+            os.close(fd)
 
     def save_text_async(self, content: str, path: str | Path) -> Future[None]:
         """
@@ -372,6 +374,9 @@ class FileService:
         if self._is_shutdown:
             msg = "FileService is shut down."
             raise RuntimeError(msg)
+
+        # Validate synchronously before enqueuing to prevent thread exhaustion with huge payloads
+        self._validate_content_size(content, "Text Save Async")
 
         try:
             valid_path = self._validate_path(path)

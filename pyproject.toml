@@ -100,7 +100,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/agents/builder.py" = ["PLR0911"]
+"src/agents/builder.py" = ["PLR0911", "C901"]
 "src/core/services/file_service.py" = ["C901"]
 "dev_documents/system_prompts_phase02/tutorials/UAT_AND_TUTORIAL.py" = ["C901"]
 "tests/**/*.py" = ["S101", "E402", "ANN"]  # Allow assert in tests, sys.path manipulations

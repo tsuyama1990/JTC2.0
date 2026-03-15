@@ -108,9 +108,9 @@ class TestBuilderAgent:
     ) -> None:
         """Test _compile_context correctly stringifies models."""
         context, is_truncated = agent._compile_context(state_with_context)
-        assert "Idea: App title" in context
-        assert "Problem: Prob is a big problem" in context
-        assert "Solution: Sol is the best solution" in context
+        assert 'Idea: "App title"' in context
+        assert 'Problem: "Prob is a big problem"' in context
+        assert 'Solution: "Sol is the best solution"' in context
         assert not is_truncated
 
     def test_compile_context_empty(self, agent: BuilderAgent) -> None:

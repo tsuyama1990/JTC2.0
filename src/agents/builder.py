@@ -5,6 +5,7 @@ import pybreaker
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
+from typing_extensions import TypedDict
 
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
@@ -13,6 +14,12 @@ from src.domain_models.experiment import ExperimentPlan
 from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
+
+
+class BuilderAgentResult(TypedDict, total=False):
+    agent_prompt_spec: AgentPromptSpec | None
+    experiment_plan: ExperimentPlan | None
+    error: str
 
 
 class BuilderAgent(BaseAgent):
@@ -40,6 +47,49 @@ class BuilderAgent(BaseAgent):
             reset_timeout=reset_timeout,
         )
 
+    def _yield_context_chunks(self, state: GlobalState) -> Any:
+        """
+        Yields JSON-serialized chunks of domain models to prevent loading entire datasets into memory.
+        Enforces size limits per field.
+        """
+        import json
+
+        def safe_json_dumps(obj: Any) -> str:
+            # Limit individual object chunks to ~20KB
+            chunk = json.dumps(obj)
+            if len(chunk.encode("utf-8")) > 20000:
+                return chunk[:20000] + "... [TRUNCATED]"
+            return chunk
+
+        if state.selected_idea:
+            yield "Idea: " + safe_json_dumps(state.selected_idea.title) + "\n"
+            yield "Problem: " + safe_json_dumps(state.selected_idea.problem) + "\n"
+            yield "Solution: " + safe_json_dumps(state.selected_idea.solution) + "\n\n"
+
+        if state.vpc:
+            yield "VPC:\n"
+            for k, v in state.vpc.model_dump().items():
+                yield f"{k}: {safe_json_dumps(v)}\n"
+            yield "\n"
+
+        if state.mental_model:
+            yield "Mental Model:\n"
+            for k, v in state.mental_model.model_dump().items():
+                yield f"{k}: {safe_json_dumps(v)}\n"
+            yield "\n"
+
+        if state.customer_journey:
+            yield "Journey:\n"
+            for k, v in state.customer_journey.model_dump().items():
+                yield f"{k}: {safe_json_dumps(v)}\n"
+            yield "\n"
+
+        if state.sitemap_and_story:
+            yield "Sitemap & Story:\n"
+            for k, v in state.sitemap_and_story.model_dump().items():
+                yield f"{k}: {safe_json_dumps(v)}\n"
+            yield "\n"
+
     def _compile_context(self, state: GlobalState) -> tuple[str, bool]:
         """
         Compiles prior domain models safely to prevent holding massive objects in memory.
@@ -53,15 +103,13 @@ class BuilderAgent(BaseAgent):
             logger.warning(f"max_llm_response_size {max_size} is too low. Defaulting to 100000.")
             max_size = 100000
 
-        def _add_chunk(chunk: str) -> None:
-            nonlocal current_size, is_truncated
+        for chunk in self._yield_context_chunks(state):
             if is_truncated:
-                return
+                break
             chunk_len = len(chunk.encode("utf-8"))
             if current_size + chunk_len > max_size:
-                # Append only what fits (character-wise approximation to stay safe)
+                # Append only what fits
                 remaining_bytes = max_size - current_size
-                # Safe truncate string by encoding, slicing, and decoding safely
                 safe_chunk = chunk.encode("utf-8")[:remaining_bytes].decode("utf-8", "ignore")
                 context_chunks.append(safe_chunk)
                 logger.warning(f"Context streaming truncated at {max_size} bytes.")
@@ -69,21 +117,6 @@ class BuilderAgent(BaseAgent):
             else:
                 context_chunks.append(chunk)
                 current_size += chunk_len
-
-        if state.selected_idea:
-            _add_chunk(f"Idea: {state.selected_idea.title}\n")
-            _add_chunk(f"Problem: {state.selected_idea.problem}\n")
-            _add_chunk(f"Solution: {state.selected_idea.solution}\n\n")
-
-        # Dump models as JSON securely
-        if state.vpc:
-            _add_chunk(f"VPC: {state.vpc.model_dump_json(indent=2)}\n\n")
-        if state.mental_model:
-            _add_chunk(f"Mental Model: {state.mental_model.model_dump_json(indent=2)}\n\n")
-        if state.customer_journey:
-            _add_chunk(f"Journey: {state.customer_journey.model_dump_json(indent=2)}\n\n")
-        if state.sitemap_and_story:
-            _add_chunk(f"Sitemap & Story: {state.sitemap_and_story.model_dump_json(indent=2)}\n\n")
 
         return "".join(context_chunks), is_truncated
 
@@ -231,7 +264,7 @@ class BuilderAgent(BaseAgent):
 
         return agent_prompt_spec, experiment_plan, None
 
-    def run(self, state: GlobalState) -> dict[str, Any]:
+    def run(self, state: GlobalState) -> BuilderAgentResult:
         """Agent entry point."""
         logger.info("Executing spec generation...")
 
