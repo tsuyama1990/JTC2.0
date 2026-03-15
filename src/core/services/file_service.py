@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class PDFGenerator(Protocol):
     """Protocol for generating PDFs to allow dependency injection/testing."""
+
     def add_page(self) -> None: ...
     def set_font(self, *args: Any, **kwargs: Any) -> None: ...
     def cell(self, *args: Any, **kwargs: Any) -> None: ...
@@ -28,8 +29,10 @@ class PDFGenerator(Protocol):
 
 class FPDFGenerator:
     """Concrete implementation using fpdf2."""
+
     def __init__(self) -> None:
         from fpdf import FPDF
+
         self._pdf = FPDF()
 
     def add_page(self) -> None:
@@ -138,10 +141,13 @@ class FileService:
     def _validate_content_size(self, content: str, title: str = "Content") -> None:
         """Check if content memory size exceeds max allowed to prevent OOM."""
         import sys
+
         # Dynamic memory calculation based on configuration instead of hardcoded 20MB limit
         base_size = self.settings.governance.max_llm_response_size
         multiplier = self.settings.governance.max_content_multiplier
-        max_memory_bytes = base_size * multiplier * 100 # Rough heuristic scale up for safe JSON footprints
+        max_memory_bytes = (
+            base_size * multiplier * 100
+        )  # Rough heuristic scale up for safe JSON footprints
 
         if sys.getsizeof(content) > max_memory_bytes:
             msg = f"Content memory footprint too large for {title}."
@@ -160,7 +166,11 @@ class FileService:
             raise PermissionError(msg)
 
     def save_pdf_sync(  # noqa: C901
-        self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf", pdf_generator: PDFGenerator | None = None
+        self,
+        state: "GlobalState",
+        base_dir: Path,
+        filename: str = "Final_Artifacts_Canvas.pdf",
+        pdf_generator: PDFGenerator | None = None,
     ) -> None:
         """
         Generates the Final Artifact Canvas PDF from GlobalState.
@@ -283,7 +293,7 @@ class FileService:
                 break  # No point retrying permission error
             except OSError:
                 if attempt < attempts - 1:
-                    wait_time = 2 ** attempt
+                    wait_time = 2**attempt
                     logger.warning(
                         f"OS error writing to {path}, retrying in {wait_time}s... ({attempt + 1}/{attempts})"
                     )

@@ -74,7 +74,7 @@ class BuilderAgent(BaseAgent):
         for chunk in _stream_context():
             chunk_len = len(chunk)
             if current_size + chunk_len > max_size:
-                context_chunks.append(chunk[:max_size - current_size])
+                context_chunks.append(chunk[: max_size - current_size])
                 logger.warning(f"Context streaming truncated at {max_size} characters.")
                 break
             context_chunks.append(chunk)
@@ -154,7 +154,9 @@ class BuilderAgent(BaseAgent):
                 agent_prompt_spec = self._generate_agent_prompt_spec(context, error_feedback)
                 break
             except ValidationError as e:
-                logger.warning(f"Validation error generating AgentPromptSpec (attempt {attempt+1}/3).")
+                logger.warning(
+                    f"Validation error generating AgentPromptSpec (attempt {attempt + 1}/3)."
+                )
                 error_feedback = str(e)
             except Exception:
                 logger.exception("BuilderAgent run failed during spec generation.")
@@ -170,7 +172,9 @@ class BuilderAgent(BaseAgent):
                 experiment_plan = self._generate_experiment_plan(context, error_feedback)
                 break
             except ValidationError as e:
-                logger.warning(f"Validation error generating ExperimentPlan (attempt {attempt+1}/3).")
+                logger.warning(
+                    f"Validation error generating ExperimentPlan (attempt {attempt + 1}/3)."
+                )
                 error_feedback = str(e)
             except Exception:
                 logger.exception("BuilderAgent run failed during plan generation.")

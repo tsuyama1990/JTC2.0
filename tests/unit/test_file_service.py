@@ -18,7 +18,13 @@ class TestFileService:
     @patch("src.core.services.file_service.os.fdopen")
     @patch("src.core.services.file_service.Path")
     def test_save_text_async_success(
-        self, mock_path: MagicMock, mock_fdopen: MagicMock, mock_os_open: MagicMock, mock_check_perms: MagicMock, mock_validate: MagicMock, file_service: FileService
+        self,
+        mock_path: MagicMock,
+        mock_fdopen: MagicMock,
+        mock_os_open: MagicMock,
+        mock_check_perms: MagicMock,
+        mock_validate: MagicMock,
+        file_service: FileService,
     ) -> None:
         mock_validate.return_value = mock_path.return_value
         mock_validate.return_value.__str__.return_value = "protected.md"
@@ -36,7 +42,10 @@ class TestFileService:
         # Assertions
         mock_validate.assert_called_with("test.md")
         import os
-        mock_os_open.assert_called_with(mock_validate.return_value, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+
+        mock_os_open.assert_called_with(
+            mock_validate.return_value, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+        )
         mock_file.write.assert_called_with("content")
 
     @patch("src.core.services.file_service.FileService._validate_path")
