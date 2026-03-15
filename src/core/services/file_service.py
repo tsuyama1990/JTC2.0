@@ -1,7 +1,11 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import os
+import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
+
+import bleach
 
 from src.core.config import get_settings
 from src.core.exceptions import ConfigurationError
@@ -10,6 +14,41 @@ if TYPE_CHECKING:
     from src.domain_models.state import GlobalState
 
 logger = logging.getLogger(__name__)
+
+
+class PDFGenerator(Protocol):
+    """Protocol for generating PDFs to allow dependency injection/testing."""
+    def add_page(self) -> None: ...
+    def set_font(self, *args: Any, **kwargs: Any) -> None: ...
+    def cell(self, *args: Any, **kwargs: Any) -> None: ...
+    def ln(self, *args: Any, **kwargs: Any) -> None: ...
+    def multi_cell(self, *args: Any, **kwargs: Any) -> None: ...
+    def output(self, *args: Any, **kwargs: Any) -> None: ...
+
+
+class FPDFGenerator:
+    """Concrete implementation using fpdf2."""
+    def __init__(self) -> None:
+        from fpdf import FPDF
+        self._pdf = FPDF()
+
+    def add_page(self) -> None:
+        self._pdf.add_page()
+
+    def set_font(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.set_font(*args, **kwargs)
+
+    def cell(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.cell(*args, **kwargs)
+
+    def ln(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.ln(*args, **kwargs)
+
+    def multi_cell(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.multi_cell(*args, **kwargs)
+
+    def output(self, *args: Any, **kwargs: Any) -> None:
+        self._pdf.output(*args, **kwargs)
 
 
 class FileService:
@@ -29,20 +68,47 @@ class FileService:
         """
         self._executor.shutdown(wait=wait)
 
-    def _validate_path(self, path: str | Path) -> Path:
+    def _validate_path(self, path: str | Path) -> Path:  # noqa: C901
         """
         Validate path to prevent traversal.
         Strictly resolves the parent directory (which must exist) and checks using is_relative_to().
         Never uses strict=False for security-critical path validation.
         """
+        import unicodedata
+        import urllib.parse
+
         path_str = str(path)
         if "\x00" in path_str:
             msg = "Null byte detected in path."
             raise ConfigurationError(msg)
 
+        if urllib.parse.unquote(path_str) != path_str:
+            msg = "URL-encoded paths are not allowed."
+            raise ConfigurationError(msg)
+
+        if unicodedata.normalize("NFKC", path_str) != path_str:
+            msg = "Un-normalized unicode sequences detected in path."
+            raise ConfigurationError(msg)
+
+        if ".." in path_str or "\\" in path_str:
+            msg = "Path traversal sequences detected."
+            raise ConfigurationError(msg)
+
+        p = Path(path)
+
+        # We explicitly forbid following symlinks for security
+        try:
+            if p.is_symlink():
+                msg = "Symlinks are not allowed."
+                raise ConfigurationError(msg)
+        except OSError:
+            pass
+
         try:
             cwd = Path.cwd().resolve(strict=True)
-            p = Path(path)
+            output_dir = cwd / self.settings.file_service.output_directory
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_dir = output_dir.resolve(strict=True)
 
             # Resolve parent strictly (must exist)
             parent = p.parent.resolve(strict=True)
@@ -51,10 +117,16 @@ class FileService:
             target_path = parent / p.name
 
             # Atomic path validation check
-            if not target_path.is_relative_to(cwd):
+            resolved_target = target_path.resolve(strict=True)
+            if not resolved_target.is_relative_to(output_dir):
                 msg = f"Path traversal detected: {target_path}"
                 raise ConfigurationError(msg)  # noqa: TRY301
 
+        except FileNotFoundError as e:
+            # If the target file doesn't exist yet, we check the parent which we already resolved strictly
+            if not parent.is_relative_to(output_dir):
+                msg = f"Path traversal detected (new file): {target_path}"
+                raise ConfigurationError(msg) from e
         except ConfigurationError:
             raise
         except Exception as e:
@@ -63,33 +135,51 @@ class FileService:
 
         return target_path
 
-<<<<<<< HEAD
+    def _validate_content_size(self, content: str, title: str = "Content") -> None:
+        """Check if content memory size exceeds max allowed to prevent OOM."""
+        import sys
+        # Dynamic memory calculation based on configuration instead of hardcoded 20MB limit
+        base_size = self.settings.governance.max_llm_response_size
+        multiplier = self.settings.governance.max_content_multiplier
+        max_memory_bytes = base_size * multiplier * 100 # Rough heuristic scale up for safe JSON footprints
+
+        if sys.getsizeof(content) > max_memory_bytes:
+            msg = f"Content memory footprint too large for {title}."
+            raise ValueError(msg)
+
+    def _sanitize_content(self, content: str) -> str:
+        """Sanitize content to prevent injection attacks."""
+        self._validate_content_size(content, "Sanitization")
+        return bleach.clean(content, strip=True)
+
+    def _check_permissions(self, path: Path) -> None:
+        """Check if the user has write permissions for the directory."""
+        dir_path = path if path.is_dir() else path.parent
+        if dir_path.exists() and not os.access(dir_path, os.W_OK):
+            msg = f"Permission denied for directory: {dir_path}"
+            raise PermissionError(msg)
+
     def save_pdf_sync(  # noqa: C901
-        self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf"
+        self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf", pdf_generator: PDFGenerator | None = None
     ) -> None:
-=======
-    def save_pdf_sync(
-        self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf"
-    ) -> None:  # noqa: C901
->>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
         """
         Generates the Final Artifact Canvas PDF from GlobalState.
         Includes robust path validation and uses fpdf2 for secure rendering.
         """
-        if not state:
-            msg = "GlobalState is required for PDF generation."
-            raise ValueError(msg)
+        from src.domain_models.state import GlobalState
 
-        # Ensure we have at least the selected idea to generate a meaningful PDF
+        if not isinstance(state, GlobalState):
+            msg = f"Expected GlobalState, got {type(state)}"
+            raise TypeError(msg)
+
         if not state.selected_idea:
             logger.warning("PDF Generation: missing selected_idea. PDF might be empty.")
 
-        from fpdf import FPDF
-
         try:
             pdf_path = self._validate_path(base_dir / filename)
+            self._check_permissions(pdf_path)
 
-            pdf = FPDF()
+            pdf = pdf_generator or FPDFGenerator()
             pdf.add_page()
             pdf.set_font("Helvetica", "B", 16)
             pdf.cell(
@@ -98,43 +188,41 @@ class FileService:
             pdf.ln(10)
 
             def add_section(title: str, content: str) -> None:
+                self._validate_content_size(content, title)
+                sanitized_content = self._sanitize_content(content)
+
                 pdf.set_font("Helvetica", "B", 14)
                 pdf.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
                 pdf.set_font("Helvetica", "", 10)
-
-                # Use multi_cell for text wrapping. Ensure utf-8 strings are handled.
-                # fpdf2 natively handles utf-8.
-                pdf.multi_cell(0, 8, content)
+                pdf.multi_cell(0, 8, sanitized_content)
                 pdf.ln(5)
 
-            if state.selected_idea:
-                add_section("1. Lean Canvas", state.selected_idea.model_dump_json(indent=2))
+            sections = [
+                ("1. Lean Canvas", state.selected_idea),
+                ("2. Value Proposition Canvas", state.vpc),
+                ("3. Alternative Analysis", state.alternative_analysis),
+                ("4. Mental Model", state.mental_model),
+                ("5. Customer Journey", state.customer_journey),
+                ("6. Sitemap and Story", state.sitemap_and_story),
+            ]
 
-            if state.vpc:
-                add_section("2. Value Proposition Canvas", state.vpc.model_dump_json(indent=2))
-
-            if state.alternative_analysis:
-                add_section(
-                    "3. Alternative Analysis", state.alternative_analysis.model_dump_json(indent=2)
-                )
-
-            if state.mental_model:
-                pdf.add_page()
-                add_section("4. Mental Model", state.mental_model.model_dump_json(indent=2))
-
-            if state.customer_journey:
-                add_section("5. Customer Journey", state.customer_journey.model_dump_json(indent=2))
-
-            if state.sitemap_and_story:
-                add_section(
-                    "6. Sitemap and Story", state.sitemap_and_story.model_dump_json(indent=2)
-                )
+            for idx, (title, model) in enumerate(sections):
+                if model:
+                    if idx == 3:
+                        pdf.add_page()
+                    add_section(title, model.model_dump_json(indent=2))
 
             pdf.output(str(pdf_path))
             logger.info(f"PDF generated successfully at {pdf_path}")
 
         except ConfigurationError:
             logger.exception("Security error during PDF generation.")
+            raise
+        except ValueError:
+            logger.exception("Validation error during PDF generation.")
+            raise
+        except TypeError:
+            logger.exception("Type error during PDF generation.")
             raise
         except Exception:
             logger.exception("Failed to generate PDF artifact.")
@@ -150,31 +238,56 @@ class FileService:
         """
         try:
             valid_path = self._validate_path(path)
-            self._executor.submit(self._save_text_sync, content, valid_path)
+            future = self._executor.submit(self._save_text_sync, content, valid_path)
+            future.add_done_callback(self._handle_async_error)
         except Exception:
             logger.exception("Failed to schedule file save")
+
+    def _handle_async_error(self, future: Future[Any]) -> None:
+        """Callback to handle errors from async operations."""
+        try:
+            exc = future.exception(timeout=0)
+            if exc:
+                logger.error(f"Async file save operation failed: {exc}")
+        except Exception:
+            logger.exception("Async file save operation failed with unexpected error")
 
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
         Includes simple retry logic for robustness.
         """
+        self._validate_content_size(content, "Text Save")
+
         attempts = 3
         for attempt in range(attempts):
             try:
                 # Ensure parent exists
+                self._check_permissions(path.parent)
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(content, encoding="utf-8")
+                self._check_permissions(path)
+
+                # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(content)
+
                 logger.info(f"File saved successfully to {path}")
+                break
+            except FileExistsError:
+                logger.warning(f"File already exists (concurrent access): {path}")
+                # We do not retry if the file already exists since O_EXCL was strict about creation
                 break
             except PermissionError:
                 logger.exception(f"Permission denied writing to {path}")
                 break  # No point retrying permission error
             except OSError:
                 if attempt < attempts - 1:
+                    wait_time = 2 ** attempt
                     logger.warning(
-                        f"OS error writing to {path}, retrying... ({attempt + 1}/{attempts})"
+                        f"OS error writing to {path}, retrying in {wait_time}s... ({attempt + 1}/{attempts})"
                     )
+                    time.sleep(wait_time)
                     continue
                 logger.exception(f"OS error writing to {path} after {attempts} attempts")
             except Exception:

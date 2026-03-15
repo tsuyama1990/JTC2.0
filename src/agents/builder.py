@@ -1,10 +1,10 @@
 import logging
 from typing import Any
 
+import pybreaker
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic import ValidationError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src.agents.base import BaseAgent
 from src.core.config import get_settings
@@ -23,40 +23,69 @@ class BuilderAgent(BaseAgent):
     the AgentPromptSpec and ExperimentPlan.
     """
 
-    def __init__(self, llm: ChatOpenAI) -> None:
+    def __init__(self, llm: BaseChatModel) -> None:
         self.llm = llm
         self.settings = get_settings()
 
+        fail_max = self.settings.circuit_breaker_fail_max
+        reset_timeout = self.settings.circuit_breaker_reset_timeout
+        if not (1 <= fail_max <= 100):
+            msg = "circuit_breaker_fail_max must be between 1 and 100."
+            raise ValueError(msg)
+        if not (10 <= reset_timeout <= 3600):
+            msg = "circuit_breaker_reset_timeout must be between 10 and 3600."
+            raise ValueError(msg)
+
+        self._breaker = pybreaker.CircuitBreaker(
+            fail_max=fail_max,
+            reset_timeout=reset_timeout,
+        )
+
     def _compile_context(self, state: GlobalState) -> str:
-        """Compiles prior domain models into a single string for the LLM."""
-        context_parts = []
-        if state.selected_idea:
-            context_parts.append(f"Idea: {state.selected_idea.title}")
-            context_parts.append(f"Problem: {state.selected_idea.problem}")
-            context_parts.append(f"Solution: {state.selected_idea.solution}")
-        if state.vpc:
-            context_parts.append(f"VPC: {state.vpc.model_dump_json(indent=2)}")
-        if state.mental_model:
-            context_parts.append(f"Mental Model: {state.mental_model.model_dump_json(indent=2)}")
-        if state.customer_journey:
-            context_parts.append(f"Journey: {state.customer_journey.model_dump_json(indent=2)}")
-        if state.sitemap_and_story:
-            context_parts.append(
-                f"Sitemap & Story: {state.sitemap_and_story.model_dump_json(indent=2)}"
-            )
+        """Compiles prior domain models using a generator to prevent holding massive objects in memory."""
+        import json
+        from collections.abc import Iterator
 
-        return "\n\n".join(context_parts)
+        def _stream_context() -> Iterator[str]:
+            if state.selected_idea:
+                yield f"Idea: {state.selected_idea.title}\n"
+                yield f"Problem: {state.selected_idea.problem}\n"
+                yield f"Solution: {state.selected_idea.solution}\n\n"
 
-    @retry(
-        retry=retry_if_exception_type(ValidationError),
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True,
-    )
+            def _yield_model(name: str, model: Any) -> Iterator[str]:
+                yield f"{name}: "
+                raw_dict = model.model_dump(mode="json")
+                yield from json.JSONEncoder(indent=2).iterencode(raw_dict)
+                yield "\n\n"
+
+            if state.vpc:
+                yield from _yield_model("VPC", state.vpc)
+            if state.mental_model:
+                yield from _yield_model("Mental Model", state.mental_model)
+            if state.customer_journey:
+                yield from _yield_model("Journey", state.customer_journey)
+            if state.sitemap_and_story:
+                yield from _yield_model("Sitemap & Story", state.sitemap_and_story)
+
+        max_size = getattr(self.settings.governance, "max_llm_response_size", 10000) * 10
+        current_size = 0
+        context_chunks: list[str] = []
+
+        for chunk in _stream_context():
+            chunk_len = len(chunk)
+            if current_size + chunk_len > max_size:
+                context_chunks.append(chunk[:max_size - current_size])
+                logger.warning(f"Context streaming truncated at {max_size} characters.")
+                break
+            context_chunks.append(chunk)
+            current_size += chunk_len
+
+        return "".join(context_chunks)
+
     def _generate_agent_prompt_spec(
         self, context: str, error_feedback: str = ""
     ) -> AgentPromptSpec:
-        """Generates the AgentPromptSpec with self-correction retry loop."""
+        """Generates the AgentPromptSpec."""
         sys_msg = (
             "You are an expert Frontend Architect and Product Manager. "
             "Using the provided context, generate the ultimate Markdown prompt spec for AI coders (like Cursor/Windsurf). "
@@ -71,27 +100,17 @@ class BuilderAgent(BaseAgent):
 
         chain = prompt | self.llm.with_structured_output(AgentPromptSpec)
         try:
-            result = chain.invoke({"context": context})
+            result = self._breaker.call(chain.invoke, {"context": context})
             if isinstance(result, AgentPromptSpec):
                 return result
-<<<<<<< HEAD
             msg = f"Expected AgentPromptSpec, got {type(result)}"
             raise ValueError(msg)
-=======
-            raise ValueError(f"Expected AgentPromptSpec, got {type(result)}")
->>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
-        except ValidationError as e:
-            logger.warning(f"Validation error generating AgentPromptSpec. Retrying... Details: {e}")
+        except pybreaker.CircuitBreakerError:
+            logger.exception("Circuit breaker tripped generating AgentPromptSpec")
             raise
 
-    @retry(
-        retry=retry_if_exception_type(ValidationError),
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True,
-    )
     def _generate_experiment_plan(self, context: str, error_feedback: str = "") -> ExperimentPlan:
-        """Generates the ExperimentPlan with self-correction retry loop."""
+        """Generates the ExperimentPlan."""
         sys_msg = (
             "You are a growth hacker. Generate an Experiment Plan to test the riskiest assumption of this MVP. "
             "Define the acquisition channel, AARRR metrics targets, and the pivot condition."
@@ -105,17 +124,13 @@ class BuilderAgent(BaseAgent):
 
         chain = prompt | self.llm.with_structured_output(ExperimentPlan)
         try:
-            result = chain.invoke({"context": context})
+            result = self._breaker.call(chain.invoke, {"context": context})
             if isinstance(result, ExperimentPlan):
                 return result
-<<<<<<< HEAD
             msg = f"Expected ExperimentPlan, got {type(result)}"
             raise ValueError(msg)
-=======
-            raise ValueError(f"Expected ExperimentPlan, got {type(result)}")
->>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
-        except ValidationError as e:
-            logger.warning(f"Validation error generating ExperimentPlan. Retrying... Details: {e}")
+        except pybreaker.CircuitBreakerError:
+            logger.exception("Circuit breaker tripped generating ExperimentPlan")
             raise
 
     def run(self, state: GlobalState) -> dict[str, Any]:
@@ -129,21 +144,40 @@ class BuilderAgent(BaseAgent):
             logger.warning("No context available to generate specs.")
             return {}
 
-        try:
-            agent_prompt_spec = self._generate_agent_prompt_spec(context)
-            experiment_plan = self._generate_experiment_plan(context)
-<<<<<<< HEAD
-        except Exception:
-            logger.exception("BuilderAgent run failed during spec generation.")
-            return {}
-        else:
-            logger.info("Successfully generated AgentPromptSpec and ExperimentPlan.")
-            return {"agent_prompt_spec": agent_prompt_spec, "experiment_plan": experiment_plan}
-=======
+        agent_prompt_spec = None
+        experiment_plan = None
 
-            logger.info("Successfully generated AgentPromptSpec and ExperimentPlan.")
-            return {"agent_prompt_spec": agent_prompt_spec, "experiment_plan": experiment_plan}
-        except Exception:
-            logger.exception("BuilderAgent run failed during spec generation.")
+        # Self-correction loop for AgentPromptSpec
+        error_feedback = ""
+        for attempt in range(3):
+            try:
+                agent_prompt_spec = self._generate_agent_prompt_spec(context, error_feedback)
+                break
+            except ValidationError as e:
+                logger.warning(f"Validation error generating AgentPromptSpec (attempt {attempt+1}/3).")
+                error_feedback = str(e)
+            except Exception:
+                logger.exception("BuilderAgent run failed during spec generation.")
+                return {}
+        else:
+            logger.error("Failed to generate valid AgentPromptSpec after 3 attempts.")
             return {}
->>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
+
+        # Self-correction loop for ExperimentPlan
+        error_feedback = ""
+        for attempt in range(3):
+            try:
+                experiment_plan = self._generate_experiment_plan(context, error_feedback)
+                break
+            except ValidationError as e:
+                logger.warning(f"Validation error generating ExperimentPlan (attempt {attempt+1}/3).")
+                error_feedback = str(e)
+            except Exception:
+                logger.exception("BuilderAgent run failed during plan generation.")
+                return {}
+        else:
+            logger.error("Failed to generate valid ExperimentPlan after 3 attempts.")
+            return {}
+
+        logger.info("Successfully generated AgentPromptSpec and ExperimentPlan.")
+        return {"agent_prompt_spec": agent_prompt_spec, "experiment_plan": experiment_plan}

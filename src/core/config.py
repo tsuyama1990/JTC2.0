@@ -309,6 +309,11 @@ class GovernanceConfig(BaseSettings):
         default=10_000,
         description="Max bytes for LLM JSON response",
     )
+    max_content_multiplier: int = Field(
+        alias="MAX_CONTENT_MULTIPLIER",
+        default=5,
+        description="Multiplier applied to max_llm_response_size for validations",
+    )
     output_path: str = Field(alias="RINGI_SHO_PATH", description="Path for Ringi-sho output")
     search_query_template: str = Field(
         alias="GOV_SEARCH_QUERY_TEMPLATE",
@@ -378,11 +383,11 @@ class Settings(BaseSettings):
         if not secret or not secret.strip():
             msg = "API key cannot be empty or whitespace-only."
             raise ValueError(msg)
-        if len(secret) < 10:
-            msg = "v0_api_key must be at least 10 characters long."
+        if not (20 <= len(secret) <= 128):
+            msg = "v0_api_key must be between 20 and 128 characters long."
             raise ValueError(msg)
-        if not re.match(r"^v0-[a-zA-Z0-9_\\-]{20,128}$", secret):
-            msg = "v0_api_key must start with 'v0-' and be 20-128 valid characters."
+        if not re.match(r"^v0-[a-zA-Z0-9_\-]+$", secret):
+            msg = "v0_api_key must start with 'v0-' and contain only alphanumeric characters, dashes, or underscores."
             raise ValueError(msg)
         return secret_str
 
@@ -475,6 +480,22 @@ class Settings(BaseSettings):
         default=300,
         description="Circuit breaker reset timeout",
     )
+
+    @field_validator("circuit_breaker_fail_max")
+    @classmethod
+    def validate_circuit_breaker_fail_max(cls, v: int) -> int:
+        if not (1 <= v <= 100):
+            msg = "circuit_breaker_fail_max must be between 1 and 100."
+            raise ValueError(msg)
+        return v
+
+    @field_validator("circuit_breaker_reset_timeout")
+    @classmethod
+    def validate_circuit_breaker_reset_timeout(cls, v: int) -> int:
+        if not (10 <= v <= 3600):
+            msg = "circuit_breaker_reset_timeout must be between 10 and 3600."
+            raise ValueError(msg)
+        return v
 
     iterator_safety_limit: int = Field(
         alias="ITERATOR_SAFETY_LIMIT",
