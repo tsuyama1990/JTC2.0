@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+import pybreaker
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import ValidationError
@@ -26,6 +27,10 @@ class BuilderAgent(BaseAgent):
     def __init__(self, llm: ChatOpenAI) -> None:
         self.llm = llm
         self.settings = get_settings()
+        self._breaker = pybreaker.CircuitBreaker(
+            fail_max=self.settings.circuit_breaker_fail_max,
+            reset_timeout=self.settings.circuit_breaker_reset_timeout,
+        )
 
     def _compile_context(self, state: GlobalState) -> str:
         """Compiles prior domain models into a single string for the LLM."""
@@ -45,7 +50,13 @@ class BuilderAgent(BaseAgent):
                 f"Sitemap & Story: {state.sitemap_and_story.model_dump_json(indent=2)}"
             )
 
-        return "\n\n".join(context_parts)
+        final_context = "\n\n".join(context_parts)
+        max_size = getattr(self.settings.governance, "max_llm_response_size", 10000) * 10
+        if len(final_context) > max_size:
+            logger.warning("Compiled context exceeded max size. Truncating.")
+            return final_context[:max_size] + "\n...[TRUNCATED]"
+
+        return final_context
 
     @retry(
         retry=retry_if_exception_type(ValidationError),
@@ -71,11 +82,14 @@ class BuilderAgent(BaseAgent):
 
         chain = prompt | self.llm.with_structured_output(AgentPromptSpec)
         try:
-            result = chain.invoke({"context": context})
+            result = self._breaker.call(chain.invoke, {"context": context})
             if isinstance(result, AgentPromptSpec):
                 return result
             msg = f"Expected AgentPromptSpec, got {type(result)}"
             raise ValueError(msg)
+        except pybreaker.CircuitBreakerError:
+            logger.exception("Circuit breaker tripped generating AgentPromptSpec")
+            raise
         except ValidationError as e:
             logger.warning(f"Validation error generating AgentPromptSpec. Retrying... Details: {e}")
             raise
@@ -101,11 +115,14 @@ class BuilderAgent(BaseAgent):
 
         chain = prompt | self.llm.with_structured_output(ExperimentPlan)
         try:
-            result = chain.invoke({"context": context})
+            result = self._breaker.call(chain.invoke, {"context": context})
             if isinstance(result, ExperimentPlan):
                 return result
             msg = f"Expected ExperimentPlan, got {type(result)}"
             raise ValueError(msg)
+        except pybreaker.CircuitBreakerError:
+            logger.exception("Circuit breaker tripped generating ExperimentPlan")
+            raise
         except ValidationError as e:
             logger.warning(f"Validation error generating ExperimentPlan. Retrying... Details: {e}")
             raise

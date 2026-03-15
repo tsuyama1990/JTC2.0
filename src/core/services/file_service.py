@@ -51,7 +51,7 @@ class FileService:
             target_path = parent / p.name
 
             # Atomic path validation check
-            if not target_path.is_relative_to(cwd):
+            if not target_path.resolve(strict=False).is_relative_to(cwd):
                 msg = f"Path traversal detected: {target_path}"
                 raise ConfigurationError(msg)  # noqa: TRY301
 
@@ -63,7 +63,7 @@ class FileService:
 
         return target_path
 
-    def save_pdf_sync(
+    def save_pdf_sync(  # noqa: C901
         self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf"
     ) -> None:
         """
@@ -74,7 +74,6 @@ class FileService:
             msg = "GlobalState is required for PDF generation."
             raise ValueError(msg)
 
-        # Ensure we have at least the selected idea to generate a meaningful PDF
         if not state.selected_idea:
             logger.warning("PDF Generation: missing selected_idea. PDF might be empty.")
 
@@ -82,7 +81,6 @@ class FileService:
 
         try:
             pdf_path = self._validate_path(base_dir / filename)
-
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Helvetica", "B", 16)
@@ -92,43 +90,38 @@ class FileService:
             pdf.ln(10)
 
             def add_section(title: str, content: str) -> None:
+                if len(content) > self.settings.governance.max_llm_response_size * 5:
+                    msg = f"Content too large for PDF section: {title}"
+                    raise ValueError(msg)  # noqa: TRY301
                 pdf.set_font("Helvetica", "B", 14)
                 pdf.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
                 pdf.set_font("Helvetica", "", 10)
-
-                # Use multi_cell for text wrapping. Ensure utf-8 strings are handled.
-                # fpdf2 natively handles utf-8.
                 pdf.multi_cell(0, 8, content)
                 pdf.ln(5)
 
-            if state.selected_idea:
-                add_section("1. Lean Canvas", state.selected_idea.model_dump_json(indent=2))
+            sections = [
+                ("1. Lean Canvas", state.selected_idea),
+                ("2. Value Proposition Canvas", state.vpc),
+                ("3. Alternative Analysis", state.alternative_analysis),
+                ("4. Mental Model", state.mental_model),
+                ("5. Customer Journey", state.customer_journey),
+                ("6. Sitemap and Story", state.sitemap_and_story),
+            ]
 
-            if state.vpc:
-                add_section("2. Value Proposition Canvas", state.vpc.model_dump_json(indent=2))
-
-            if state.alternative_analysis:
-                add_section(
-                    "3. Alternative Analysis", state.alternative_analysis.model_dump_json(indent=2)
-                )
-
-            if state.mental_model:
-                pdf.add_page()
-                add_section("4. Mental Model", state.mental_model.model_dump_json(indent=2))
-
-            if state.customer_journey:
-                add_section("5. Customer Journey", state.customer_journey.model_dump_json(indent=2))
-
-            if state.sitemap_and_story:
-                add_section(
-                    "6. Sitemap and Story", state.sitemap_and_story.model_dump_json(indent=2)
-                )
+            for idx, (title, model) in enumerate(sections):
+                if model:
+                    if idx == 3:
+                        pdf.add_page()
+                    add_section(title, model.model_dump_json(indent=2))
 
             pdf.output(str(pdf_path))
             logger.info(f"PDF generated successfully at {pdf_path}")
 
         except ConfigurationError:
             logger.exception("Security error during PDF generation.")
+            raise
+        except ValueError:
+            logger.exception("Validation error during PDF generation.")
             raise
         except Exception:
             logger.exception("Failed to generate PDF artifact.")
@@ -153,6 +146,10 @@ class FileService:
         Synchronous implementation of save text.
         Includes simple retry logic for robustness.
         """
+        if len(content) > self.settings.governance.max_llm_response_size * 5:
+            msg = "Content too large to be safely written to disk."
+            raise ValueError(msg)
+
         attempts = 3
         for attempt in range(attempts):
             try:

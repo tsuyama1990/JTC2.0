@@ -19,7 +19,13 @@ def mock_llm() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def agent(mock_llm: MagicMock) -> BuilderAgent:
-    with patch("src.agents.builder.get_settings"):
+    with patch("src.agents.builder.get_settings") as mock_settings:
+        # Mock settings used in BuilderAgent
+        mock_settings_inst = MagicMock()
+        mock_settings_inst.circuit_breaker_fail_max = 3
+        mock_settings_inst.circuit_breaker_reset_timeout = 60
+        mock_settings_inst.governance.max_llm_response_size = 10000
+        mock_settings.return_value = mock_settings_inst
         return BuilderAgent(llm=mock_llm)
 
 
