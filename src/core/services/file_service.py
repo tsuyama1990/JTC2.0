@@ -63,15 +63,9 @@ class FileService:
 
         return target_path
 
-<<<<<<< HEAD
-    def save_pdf_sync(  # noqa: C901
-        self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf"
-    ) -> None:
-=======
     def save_pdf_sync(
         self, state: "GlobalState", base_dir: Path, filename: str = "Final_Artifacts_Canvas.pdf"
-    ) -> None:  # noqa: C901
->>>>>>> dbf79509e5301d6b0cbef8dc6782ab30464bee9e
+    ) -> None:
         """
         Generates the Final Artifact Canvas PDF from GlobalState.
         Includes robust path validation and uses fpdf2 for secure rendering.
