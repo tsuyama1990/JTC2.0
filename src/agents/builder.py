@@ -41,8 +41,11 @@ class BuilderAgent(BaseAgent):
             reset_timeout=reset_timeout,
         )
 
-    def _compile_context(self, state: GlobalState) -> str:
-        """Compiles prior domain models using a generator to prevent holding massive objects in memory."""
+    def _compile_context(self, state: GlobalState) -> tuple[str, bool]:
+        """
+        Compiles prior domain models using a generator to prevent holding massive objects in memory.
+        Returns the compiled context string and a boolean indicating if truncation occurred.
+        """
         import json
         from collections.abc import Iterator
 
@@ -70,20 +73,22 @@ class BuilderAgent(BaseAgent):
         max_size = getattr(self.settings.governance, "max_llm_response_size", 10000) * 10
         current_size = 0
         context_chunks: list[str] = []
+        is_truncated = False
 
         for chunk in _stream_context():
             chunk_len = len(chunk)
             if current_size + chunk_len > max_size:
                 context_chunks.append(chunk[: max_size - current_size])
                 logger.warning(f"Context streaming truncated at {max_size} characters.")
+                is_truncated = True
                 break
             context_chunks.append(chunk)
             current_size += chunk_len
 
-        return "".join(context_chunks)
+        return "".join(context_chunks), is_truncated
 
     def _generate_agent_prompt_spec(
-        self, context: str, error_feedback: str = ""
+        self, context: str, is_truncated: bool, error_feedback: str = ""
     ) -> AgentPromptSpec:
         """Generates the AgentPromptSpec."""
         sys_msg = (
@@ -91,6 +96,8 @@ class BuilderAgent(BaseAgent):
             "Using the provided context, generate the ultimate Markdown prompt spec for AI coders (like Cursor/Windsurf). "
             "You must apply 'subtraction thinking' to remove unnecessary features."
         )
+        if is_truncated:
+            sys_msg += "\n\nWARNING: The input context was truncated. Some fields may be incomplete. Provide your best effort given the data available."
         if error_feedback:
             sys_msg += f"\n\nPREVIOUS ERROR TO FIX:\n{error_feedback}"
 
@@ -104,17 +111,25 @@ class BuilderAgent(BaseAgent):
             if isinstance(result, AgentPromptSpec):
                 return result
             msg = f"Expected AgentPromptSpec, got {type(result)}"
-            raise ValueError(msg)
+            raise ValueError(msg)  # noqa: TRY301
         except pybreaker.CircuitBreakerError:
             logger.exception("Circuit breaker tripped generating AgentPromptSpec")
             raise
+        except Exception as e:
+            logger.exception("Unexpected error generating AgentPromptSpec")
+            msg = f"Failed to generate AgentPromptSpec: {e}"
+            raise ValueError(msg) from e
 
-    def _generate_experiment_plan(self, context: str, error_feedback: str = "") -> ExperimentPlan:
+    def _generate_experiment_plan(
+        self, context: str, is_truncated: bool, error_feedback: str = ""
+    ) -> ExperimentPlan:
         """Generates the ExperimentPlan."""
         sys_msg = (
             "You are a growth hacker. Generate an Experiment Plan to test the riskiest assumption of this MVP. "
             "Define the acquisition channel, AARRR metrics targets, and the pivot condition."
         )
+        if is_truncated:
+            sys_msg += "\n\nWARNING: The input context was truncated. Some fields may be incomplete. Provide your best effort given the data available."
         if error_feedback:
             sys_msg += f"\n\nPREVIOUS ERROR TO FIX:\n{error_feedback}"
 
@@ -128,17 +143,21 @@ class BuilderAgent(BaseAgent):
             if isinstance(result, ExperimentPlan):
                 return result
             msg = f"Expected ExperimentPlan, got {type(result)}"
-            raise ValueError(msg)
+            raise ValueError(msg)  # noqa: TRY301
         except pybreaker.CircuitBreakerError:
             logger.exception("Circuit breaker tripped generating ExperimentPlan")
             raise
+        except Exception as e:
+            logger.exception("Unexpected error generating ExperimentPlan")
+            msg = f"Failed to generate ExperimentPlan: {e}"
+            raise ValueError(msg) from e
 
     def run(self, state: GlobalState) -> dict[str, Any]:
         """
         Agent entry point.
         """
         logger.info("Executing spec generation...")
-        context = self._compile_context(state)
+        context, is_truncated = self._compile_context(state)
 
         if not context.strip():
             logger.warning("No context available to generate specs.")
@@ -151,7 +170,7 @@ class BuilderAgent(BaseAgent):
         error_feedback = ""
         for attempt in range(3):
             try:
-                agent_prompt_spec = self._generate_agent_prompt_spec(context, error_feedback)
+                agent_prompt_spec = self._generate_agent_prompt_spec(context, is_truncated, error_feedback)
                 break
             except ValidationError as e:
                 logger.warning(
@@ -169,7 +188,7 @@ class BuilderAgent(BaseAgent):
         error_feedback = ""
         for attempt in range(3):
             try:
-                experiment_plan = self._generate_experiment_plan(context, error_feedback)
+                experiment_plan = self._generate_experiment_plan(context, is_truncated, error_feedback)
                 break
             except ValidationError as e:
                 logger.warning(

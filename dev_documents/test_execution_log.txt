@@ -23,10 +23,10 @@ tests/unit/test_cli_input.py ...                                         [ 35%]
 tests/unit/test_cli_scalability.py .                                     [ 36%]
 tests/unit/test_config.py .......                                        [ 41%]
 tests/unit/test_core.py ....                                             [ 44%]
-tests/unit/test_core_graph.py ....F                                      [ 48%]
+tests/unit/test_core_graph.py .....                                      [ 48%]
 tests/unit/test_cpo_agent.py ..                                          [ 49%]
 tests/unit/test_domain_models.py .............                           [ 58%]
-tests/unit/test_file_service.py ........                                 [ 64%]
+tests/unit/test_file_service.py .....F..                                 [ 64%]
 tests/unit/test_governance_agent.py ...                                  [ 66%]
 tests/unit/test_governance_memory.py ..                                  [ 68%]
 tests/unit/test_ideator_agent.py ...                                     [ 70%]
@@ -41,96 +41,91 @@ tests/unit/test_tools.py ...                                             [ 96%]
 tests/unit/test_ui.py .....                                              [100%]
 
 =================================== FAILURES ===================================
-_____________________ test_final_artifact_generation_node ______________________
+________________ TestFileService.test_symlink_hijack_prevention ________________
 
-mock_makedirs = <MagicMock name='makedirs' id='140173247519280'>
-mock_fpdf_cls = <MagicMock name='FPDF' id='140173247521344'>
-mock_fs_cls = <MagicMock name='FileService' id='140173242920512'>
-mock_state = GlobalState(phase=<Phase.IDEATION: 'ideation'>, topic='Test Topic', generated_ideas=None, selected_idea=LeanCanvas(id=...nancials(cac=10.0, ltv=100.0, payback_months=1.0, roi=10.0), risks=['Risk 1'], approval_status='Approved'), error=None)
+self = <test_file_service.TestFileService object at 0x7fd68dd632c0>
+file_service = <src.core.services.file_service.FileService object at 0x7fd6894ca780>
 
-    @patch("src.core.services.file_service.FileService")
-    @patch("fpdf.FPDF")
-    @patch("os.makedirs")
-    def test_final_artifact_generation_node(
-        mock_makedirs: MagicMock,
-        mock_fpdf_cls: MagicMock,
-        mock_fs_cls: MagicMock,
-        mock_state: GlobalState,
-    ) -> None:
-        """Test the generation of final artifacts (Markdown and PDF)."""
-        mock_fs = mock_fs_cls.return_value
+    def test_symlink_hijack_prevention(self, file_service: FileService) -> None:
+        """Verify that symlinks inside the output directory are resolved properly and blocked if they escape."""
+        cwd = Path.cwd().resolve(strict=True)
+        output_dir_name = file_service.settings.file_service.output_directory
+        actual_out_dir = cwd / output_dir_name
+        actual_out_dir.mkdir(parents=True, exist_ok=True)
 
-        story = UserStory(
-            as_a="User",
-            i_want_to="do something",
-            so_that="I get value",
-            acceptance_criteria=["Criterion 1"],
-            target_route="/home",
-        )
-        # Add dummy spec and experiment to state
-        mock_state.agent_prompt_spec = AgentPromptSpec(
-            sitemap="Test Sitemap",
-            routing_and_constraints="Test Constraints",
-            core_user_story=story,
-            state_machine=StateMachine(
-                success="Success State",
-                loading="Loading State",
-                error="Error State",
-                empty="Empty State",
-            ),
-            validation_rules="Validation rules here",
-            mermaid_flowchart="graph TD;",
-        )
-        mock_state.experiment_plan = ExperimentPlan(
-            riskiest_assumption="Test assumption",
-            experiment_type="LP",
-            acquisition_channel="Ads",
-            aarrr_metrics=[
-                MetricTarget(metric_name="Metric 1", target_value="10%", measurement_method="Logs")
-            ],
-            pivot_condition="If failure happens",
-        )
-        mock_state.ringi_sho = RingiSho(
-            title="Test Proposal",
-            executive_summary="Summary is long enough for the check.",
-            financial_projection=Financials(cac=10, ltv=100, payback_months=1, roi=10),
-            risks=["Risk 1"],
-            approval_status="Approved",
-        )
+        with tempfile.TemporaryDirectory() as outside_dir:
+            outside_file = Path(outside_dir) / "secret.txt"
+            outside_file.write_text("secrets")
 
-        result = final_artifact_generation_node(mock_state)
+            symlink_path = actual_out_dir / "evil_link.txt"
+            if symlink_path.exists() or symlink_path.is_symlink():
+                symlink_path.unlink()
 
-        # Verify it completes without error
-        assert result == {}
+            Path(symlink_path).symlink_to(outside_file)
 
-        # Verify FileService is used to write Markdown files
-        assert mock_fs.save_text_async.call_count == 3
-        # Check that it attempted to write AgentPromptSpec, ExperimentPlan, and RingiSho
-        call_args = [call[0][1] for call in mock_fs.save_text_async.call_args_list]
-        assert any("AgentPromptSpec.md" in str(arg) for arg in call_args)
-        assert any("ExperimentPlan.md" in str(arg) for arg in call_args)
-        assert any("RingiSho.md" in str(arg) for arg in call_args)
+            try:
+                # Due to new logic, the parent of symlink_path is valid since it exists within output directory.
+                # However, the atomic writing operation (os.O_EXCL) blocks symlink trickery.
+                # Here we assert _validate_path correctly resolves the parent directory rather than failing on traversal.
+>               result = file_service._validate_path(symlink_path)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        # Verify PDF generation logic is called via FileService
->       mock_fs.save_pdf_sync.assert_called_once()
-
-tests/unit/test_core_graph.py:198:
+tests/unit/test_file_service.py:96:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = <MagicMock name='FileService().save_pdf_sync' id='140173295828288'>
+self = <src.core.services.file_service.FileService object at 0x7fd6894ca780>
+path = PosixPath('/app/outputs/evil_link.txt')
 
-    def assert_called_once(self):
-        """assert that the mock was called only once.
+    def _validate_path(self, path: str | Path) -> Path:
         """
-        if not self.call_count == 1:
-            msg = ("Expected '%s' to have been called once. Called %s times.%s"
-                   % (self._mock_name or 'mock',
-                      self.call_count,
-                      self._calls_repr()))
->           raise AssertionError(msg)
-E           AssertionError: Expected 'save_pdf_sync' to have been called once. Called 0 times.
+        Validate path to prevent traversal.
+        Uses os.path.realpath() directly on the target path to prevent TOCTOU vulnerabilities.
+        """
+        import unicodedata
+        import urllib.parse
 
-/home/jules/.pyenv/versions/3.12.13/lib/python3.12/unittest/mock.py:928: AssertionError
+        path_str = str(path)
+        if "\x00" in path_str:
+            msg = "Null byte detected in path."
+            raise ConfigurationError(msg)
+
+        if urllib.parse.unquote(path_str) != path_str:
+            msg = "URL-encoded paths are not allowed."
+            raise ConfigurationError(msg)
+
+        if unicodedata.normalize("NFKC", path_str) != path_str:
+            msg = "Un-normalized unicode sequences detected in path."
+            raise ConfigurationError(msg)
+
+        if ".." in path_str or "\\" in path_str:
+            msg = "Path traversal sequences detected."
+            raise ConfigurationError(msg)
+
+        p = Path(path_str)
+
+        # Whitelist approach for the filename itself
+        import re
+        if p.name and not re.match(r"^[a-zA-Z0-9_\-\.]+$", p.name):
+            msg = f"Invalid characters in filename: {p.name}"
+            raise ConfigurationError(msg)
+
+        cwd = Path.cwd().resolve(strict=True)
+        output_dir = cwd / self.settings.file_service.output_directory
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = output_dir.resolve(strict=True)
+
+        # Combine strictly with the output directory directly, bypassing piecemeal parent logic
+        target_path = output_dir / p.name
+
+        # Perform final realpath resolution to check for symlink escapes
+        resolved_target = Path(os.path.realpath(str(target_path)))
+
+        if not resolved_target.is_relative_to(output_dir):
+            msg = f"Path traversal detected: {resolved_target}"
+>           raise ConfigurationError(msg)
+E           src.core.exceptions.ConfigurationError: Path traversal detected: /tmp/tmpy18sc1sl/secret.txt
+
+src/core/services/file_service.py:122: ConfigurationError
 ================================ tests coverage ================================
 _______________ coverage: platform linux, python 3.12.13-final-0 _______________
 
@@ -139,7 +134,7 @@ Name                                     Stmts   Miss  Cover   Missing
 src/__init__.py                              0      0   100%
 src/agents/__init__.py                       6      0   100%
 src/agents/base.py                           9      0   100%
-src/agents/builder.py                      124     39    69%   33-34, 36-37, 56-59, 62, 64, 66, 68, 77-79, 95, 106-110, 119, 130-134, 157-160, 165-166, 174-184
+src/agents/builder.py                      138     50    64%   33-34, 36-37, 59-62, 65, 67, 69, 71, 81-84, 100, 102, 113-121, 132, 134, 145-153, 176-179, 184-185, 193-203
 src/agents/cpo.py                           77     24    69%   61-62, 65-66, 76, 81-83, 114-127, 131-134, 137-142, 149-151
 src/agents/governance.py                   107     10    91%   84, 146-148, 208, 218-241
 src/agents/ideator.py                       47     12    74%   31-34, 97-107
@@ -159,9 +154,9 @@ src/core/nemawashi/consensus.py             26      2    92%   37, 65
 src/core/nemawashi/engine.py                19      1    95%   34
 src/core/nemawashi/nomikai.py               73     22    70%   34-35, 68-82, 88, 93-95, 103, 108
 src/core/nemawashi/utils.py                 43      6    86%   31-33, 46-47, 50
-src/core/nodes.py                          148     39    74%   27-29, 50-56, 87-88, 106-110, 122-123, 147-148, 163-165, 168, 181-184, 193-194, 199-205, 213-219, 246-247
+src/core/nodes.py                          157     47    70%   27-29, 50-56, 87-88, 106-110, 122-123, 147-148, 163-165, 168, 181-190, 199-200, 205-211, 219-225, 252-253, 274-277
 src/core/services/__init__.py                0      0   100%
-src/core/services/file_service.py          187     59    68%   32-34, 37, 40, 43, 46, 49, 52, 90-91, 94-95, 128-129, 183-184, 187, 223, 229-239, 245-246, 265-270, 279-281, 306-309, 316-334
+src/core/services/file_service.py          199     61    69%   32-34, 37, 40, 43, 46, 49, 52, 90-91, 94-95, 106-107, 138-139, 202-203, 206, 242, 248-258, 264-265, 284-289, 298-300, 318-319, 328-329, 345-363
 src/core/simulation.py                      34      4    88%   45-49, 66
 src/core/theme.py                           18      0   100%
 src/core/utils.py                            4      4     0%   1-10
@@ -190,9 +185,9 @@ src/tools/__init__.py                        2      0   100%
 src/tools/search.py                         34      5    85%   35, 39, 75, 90-91
 src/ui/renderer.py                          98     11    89%   35, 94, 97-101, 125, 135-141, 161
 ----------------------------------------------------------------------
-TOTAL                                     2571    487    81%
+TOTAL                                     2606    508    81%
 =========================== short test summary info ============================
-FAILED tests/unit/test_core_graph.py::test_final_artifact_generation_node - A...
-======================== 1 failed, 138 passed in 27.58s ========================
+FAILED tests/unit/test_file_service.py::TestFileService::test_symlink_hijack_prevention
+======================== 1 failed, 138 passed in 26.77s ========================
 /app/.venv/lib/python3.12/site-packages/coverage/inorout.py:561: CoverageWarning: Module dev_src was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-imported
   self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")

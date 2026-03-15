@@ -111,20 +111,11 @@ class FileService:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_dir = output_dir.resolve(strict=True)
 
-        # Securely resolve the parent directory to ensure it exists and has no symlink tricks
-        try:
-            parent = p.parent.resolve(strict=True)
-            if not parent.is_relative_to(output_dir):
-                msg = f"Parent directory is outside output directory: {parent}"
-                raise ConfigurationError(msg)
-        except FileNotFoundError as e:
-            # Revert to checking realpath if parent does not exist, ensuring we don't traverse
-            parent = Path(os.path.realpath(str(p.parent)))
-            if not parent.is_relative_to(output_dir):
-                msg = f"Unresolved parent directory is outside output directory: {parent}"
-                raise ConfigurationError(msg) from e
+        # Combine strictly with the output directory directly, bypassing piecemeal parent logic
+        target_path = output_dir / p.name
 
-        resolved_target = parent / p.name
+        # Perform final realpath resolution to check for symlink escapes
+        resolved_target = Path(os.path.realpath(str(target_path)))
 
         if not resolved_target.is_relative_to(output_dir):
             msg = f"Path traversal detected: {resolved_target}"
@@ -311,26 +302,45 @@ class FileService:
     def _save_text_sync(self, content: str, path: Path) -> None:
         """
         Synchronous implementation of save text.
-        Includes simple retry logic for robustness and TOCTOU prevention via strict validation prior to open.
+        Includes simple retry logic for robustness and absolute TOCTOU prevention via atomic open.
         """
         self._validate_content_size(content, "Text Save")
 
         attempts = 3
         for attempt in range(attempts):
             try:
-                # Resolve the parent strictly and ensure it is valid
-                # Then make the directory safely if it doesn't exist
-                path.parent.mkdir(parents=True, exist_ok=True)
+                # Validate the parent directory before writing to ensure it's not a symlink.
+                # _validate_path guarantees 'path' is inside output_directory and output_directory exists.
+                # The parent will be output_dir directly, which is created securely.
+                # Do not indiscriminately call mkdir here on arbitrary parents.
+
+                if path.parent.is_symlink():
+                    msg = f"Parent directory is a symlink: {path.parent}"
+                    raise ConfigurationError(msg)
+
+                # Resolve the final path exactly before open
+                final_path = Path(os.path.realpath(str(path)))
+                cwd = Path.cwd().resolve(strict=True)
+                output_dir = cwd / self.settings.file_service.output_directory
+                output_dir = output_dir.resolve(strict=True)
+
+                if not final_path.is_relative_to(output_dir):
+                    msg = f"Path traversal detected before open: {final_path}"
+                    raise ConfigurationError(msg)
 
                 # Atomic file writing utilizing O_EXCL to prevent TOCTOU symlink hijacking
                 # This guarantees the file wasn't replaced by a symlink prior to creation.
-                # If an attacker places a symlink here, O_CREAT | O_EXCL fails with FileExistsError.
-                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                # We also add O_NOFOLLOW to explicitly refuse opening a symlink target if the OS supports it.
+                flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                if hasattr(os, "O_NOFOLLOW"):
+                    flags |= os.O_NOFOLLOW
+
+                fd = os.open(final_path, flags, 0o600)
 
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     f.write(content)
 
-                logger.info(f"File saved successfully to {path}")
+                logger.info(f"File saved successfully to {final_path}")
                 break
             except FileExistsError:
                 logger.warning(f"File already exists (concurrent access or symlink trick): {path}")

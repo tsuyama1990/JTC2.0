@@ -50,16 +50,18 @@ class TestBuilderAgent:
         self, agent: BuilderAgent, state_with_context: GlobalState
     ) -> None:
         """Test _compile_context correctly stringifies models."""
-        context = agent._compile_context(state_with_context)
+        context, is_truncated = agent._compile_context(state_with_context)
         assert "Idea: App title" in context
         assert "Problem: Prob is a big problem" in context
         assert "Solution: Sol is the best solution" in context
+        assert not is_truncated
 
     def test_compile_context_empty(self, agent: BuilderAgent) -> None:
         """Test _compile_context handles empty state."""
         state = GlobalState(topic="Test")
-        context = agent._compile_context(state)
+        context, is_truncated = agent._compile_context(state)
         assert context == ""
+        assert not is_truncated
 
     @patch("src.agents.builder.ChatPromptTemplate.from_messages")
     def test_generate_agent_prompt_spec_success(
@@ -88,7 +90,7 @@ class TestBuilderAgent:
         mock_llm_structured.return_value = mock_chain
         agent.llm.with_structured_output = mock_llm_structured  # type: ignore
 
-        result = agent._generate_agent_prompt_spec("Context")
+        result = agent._generate_agent_prompt_spec("Context", False)
         assert result == expected_spec
 
     @patch("src.agents.builder.ChatPromptTemplate.from_messages")
@@ -117,7 +119,7 @@ class TestBuilderAgent:
         mock_llm_structured.return_value = mock_chain
         agent.llm.with_structured_output = mock_llm_structured  # type: ignore
 
-        result = agent._generate_experiment_plan("Context")
+        result = agent._generate_experiment_plan("Context", False)
         assert result == expected_plan
 
     def test_run_empty_context(self, agent: BuilderAgent) -> None:
