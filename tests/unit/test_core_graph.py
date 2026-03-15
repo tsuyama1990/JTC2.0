@@ -194,6 +194,10 @@ def test_final_artifact_generation_node(
     assert any("ExperimentPlan.md" in str(arg) for arg in call_args)
     assert any("RingiSho.md" in str(arg) for arg in call_args)
 
-    # Verify PDF generation logic is called via FileService
-    mock_fs.save_pdf_sync.assert_called_once()
-    assert "outputs" in str(mock_fs.save_pdf_sync.call_args[0][1])
+    # Verify PDF generation logic is called via FileService using async method
+    mock_fs.save_pdf_async.assert_called_once()
+    assert "outputs" in str(mock_fs.save_pdf_async.call_args[0][1])
+
+    # Verify that we check the future result or done status according to implementation
+    # Implementation now uses concurrent.futures.wait, which doesn't directly call result() unless done() is True
+    # We just ensure save_pdf_async was invoked correctly and didn't crash.

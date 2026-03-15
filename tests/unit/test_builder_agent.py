@@ -31,6 +31,15 @@ def agent(mock_llm: MagicMock) -> BuilderAgent:
 
 @pytest.fixture
 def state_with_context() -> GlobalState:
+    from src.domain_models.journey import CustomerJourney, JourneyPhase
+    from src.domain_models.mental_model import MentalModelDiagram, MentalTower
+    from src.domain_models.sitemap import Route, SitemapAndStory
+    from src.domain_models.value_proposition import (
+        CustomerProfile,
+        ValueMap,
+        ValuePropositionCanvas,
+    )
+
     return GlobalState(
         topic="Testing",
         selected_idea=LeanCanvas(
@@ -42,6 +51,27 @@ def state_with_context() -> GlobalState:
             solution="Sol is the best solution",
             status="draft",
         ),
+        vpc=ValuePropositionCanvas(
+            customer_profile=CustomerProfile(customer_jobs=["job"], pains=["pain"], gains=["gain"]),
+            value_map=ValueMap(products_and_services=["service"], pain_relievers=["reliever"], gain_creators=["creator"]),
+            fit_evaluation="Valid fit."
+        ),
+        mental_model=MentalModelDiagram(
+            towers=[MentalTower(belief="belief", cognitive_tasks=["task"])],
+            feature_alignment="alignment"
+        ),
+        customer_journey=CustomerJourney(
+            phases=[
+                JourneyPhase(phase_name="認知", touchpoint="point", customer_action="action", mental_tower_ref="ref", pain_points=["pain"], emotion_score=1),
+                JourneyPhase(phase_name="検討", touchpoint="point", customer_action="action", mental_tower_ref="ref", pain_points=["pain"], emotion_score=1),
+                JourneyPhase(phase_name="離脱", touchpoint="point", customer_action="action", mental_tower_ref="ref", pain_points=["pain"], emotion_score=1)
+            ],
+            worst_pain_phase="離脱"
+        ),
+        sitemap_and_story=SitemapAndStory(
+            sitemap=[Route(path="/", name="Home", purpose="landing", is_protected=False)],
+            core_story=UserStory(as_a="u", i_want_to="do", so_that="val", acceptance_criteria=["c"], target_route="/")
+        )
     )
 
 
@@ -50,16 +80,18 @@ class TestBuilderAgent:
         self, agent: BuilderAgent, state_with_context: GlobalState
     ) -> None:
         """Test _compile_context correctly stringifies models."""
-        context = agent._compile_context(state_with_context)
+        context, is_truncated = agent._compile_context(state_with_context)
         assert "Idea: App title" in context
         assert "Problem: Prob is a big problem" in context
         assert "Solution: Sol is the best solution" in context
+        assert not is_truncated
 
     def test_compile_context_empty(self, agent: BuilderAgent) -> None:
         """Test _compile_context handles empty state."""
         state = GlobalState(topic="Test")
-        context = agent._compile_context(state)
+        context, is_truncated = agent._compile_context(state)
         assert context == ""
+        assert not is_truncated
 
     @patch("src.agents.builder.ChatPromptTemplate.from_messages")
     def test_generate_agent_prompt_spec_success(
@@ -88,7 +120,7 @@ class TestBuilderAgent:
         mock_llm_structured.return_value = mock_chain
         agent.llm.with_structured_output = mock_llm_structured  # type: ignore
 
-        result = agent._generate_agent_prompt_spec("Context")
+        result = agent._generate_agent_prompt_spec("Context", False)
         assert result == expected_spec
 
     @patch("src.agents.builder.ChatPromptTemplate.from_messages")
@@ -117,14 +149,14 @@ class TestBuilderAgent:
         mock_llm_structured.return_value = mock_chain
         agent.llm.with_structured_output = mock_llm_structured  # type: ignore
 
-        result = agent._generate_experiment_plan("Context")
+        result = agent._generate_experiment_plan("Context", False)
         assert result == expected_plan
 
     def test_run_empty_context(self, agent: BuilderAgent) -> None:
         """Test run aborts if there's no context available."""
         state = GlobalState(topic="test")
         result = agent.run(state)
-        assert result == {}
+        assert "error" in result
 
     def test_run_success(self, agent: BuilderAgent, state_with_context: GlobalState) -> None:
         """Test full successful generation cycle."""
@@ -162,4 +194,4 @@ class TestBuilderAgent:
         """Test run catches exceptions safely."""
         with patch.object(agent, "_generate_agent_prompt_spec", side_effect=Exception("Failed")):
             result = agent.run(state_with_context)
-            assert result == {}
+            assert "error" in result
