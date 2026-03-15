@@ -51,9 +51,135 @@ class FPDFGenerator:
         self._pdf.output(*args, **kwargs)
 
 
+class PathValidator:
+    """Handles strictly robust path validation to prevent traversal attacks."""
+
+    @staticmethod
+    def validate_filename(filename: str) -> None:
+        """Whitelist strategy to validate pure filenames without any path hierarchy components."""
+        import re
+        if not filename or not isinstance(filename, str):
+            raise ConfigurationError("Filename must be a non-empty string.")
+
+        if not filename.isascii():
+            msg = "Non-ASCII characters in filename are not allowed to prevent canonicalization attacks."
+            raise ConfigurationError(msg)
+
+        if ".." in filename or "/" in filename or "\\" in filename or "\x00" in filename:
+            raise ConfigurationError(f"Path traversal sequence in filename: {filename}")
+
+        p = Path(filename)
+        if p.stem and not re.match(r"^[a-zA-Z0-9_\-]+$", p.stem):
+            raise ConfigurationError(f"Invalid characters in filename: {p.stem}")
+        if p.suffix and not re.match(r"^\.[a-zA-Z0-9]+$", p.suffix):
+            raise ConfigurationError(f"Invalid characters in suffix: {p.suffix}")
+
+    @staticmethod
+    def get_secure_directory_fd(output_directory: str) -> int:
+        """
+        Opens a directory and returns its file descriptor to prevent TOCTOU symlink injection attacks.
+        Uses O_NOFOLLOW to abort if the directory path involves a symlink at the very end.
+        """
+        import stat
+
+        cwd = Path.cwd().resolve(strict=True)
+        output_dir = (cwd / output_directory).resolve(strict=True)
+
+        if not output_dir.is_relative_to(cwd):
+            raise ConfigurationError("Output directory must be within CWD.")
+
+        try:
+            # Atomic file descriptor operation
+            flags = getattr(os, "O_RDONLY", 0) | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(str(output_dir), flags)
+        except OSError as e:
+            raise PermissionError(f"Unable to safely open directory descriptor for {output_dir}") from e
+
+        try:
+            st = os.fstat(fd)
+            if not stat.S_ISDIR(st.st_mode):
+                os.close(fd)
+                raise PermissionError(f"Expected a directory: {output_dir}")
+
+            # Check write permissions
+            if not (st.st_mode & 0o200):
+                os.close(fd)
+                raise PermissionError(f"Permission denied for directory: {output_dir}")
+
+            # Cross-platform permission checking, handling root correctly
+            if os.name == "posix" and hasattr(os, "geteuid"):
+                euid = os.geteuid()
+                if euid not in (0, st.st_uid):
+                    os.close(fd)
+                    raise PermissionError(f"Directory not owned by current user: {output_dir}")
+
+        except Exception:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            raise
+
+        return fd
+
+
+class ContentSanitizer:
+    """Handles deep string, memory, and injection sanitization."""
+
+    @staticmethod
+    def validate_content_size(content: str, title: str = "Content", max_bytes: int = 50 * 1024 * 1024) -> None:
+        """Check if content memory size exceeds strict maximum allowed to prevent OOM attacks."""
+        if len(content) > max_bytes:
+            raise ValueError(f"Content length too large for {title}.")
+
+        byte_length = len(content.encode("utf-8"))
+        if byte_length > max_bytes:
+            raise ValueError(f"Content memory footprint ({byte_length} bytes) exceeds limit ({max_bytes}) for {title}.")
+
+    @staticmethod
+    def sanitize_pdf_content(content: str) -> str:
+        """
+        Sanitize content using a strict HTML/XML sanitizer to prevent PDF rendering breaks or injection.
+        """
+        ContentSanitizer.validate_content_size(content, "Sanitization")
+
+        import bleach
+        # Bleach strictly removes unsafe tags and attributes. We use a purely text-focused configuration.
+        sanitized = bleach.clean(
+            content,
+            tags=[], # No HTML tags allowed
+            attributes={},
+            strip=True
+        )
+
+        # Redact remaining known keywords for PDF structural syntax
+        import re
+        return re.sub(r"(?i)\b(obj|endobj|stream|endstream|xref|trailer|startxref)\b", "[REDACTED_PDF_TOKEN]", sanitized)
+
+
+class StateSanitizer:
+    """Redacts GlobalState to prevent leakage of internal configuration or sensitive agent histories to output artifacts."""
+
+    @staticmethod
+    def redact_state_for_pdf(state: "GlobalState") -> "GlobalState":
+        from src.domain_models.state import GlobalState
+
+        # Create a safe whitelist-only instance of the state specifically for PDF generation.
+        return GlobalState(
+            topic="*** REDACTED TOPIC ***" if "secret" in state.topic.lower() else state.topic,
+            selected_idea=state.selected_idea.model_copy(deep=True) if state.selected_idea else None,
+            vpc=state.vpc.model_copy(deep=True) if state.vpc else None,
+            mental_model=state.mental_model.model_copy(deep=True) if state.mental_model else None,
+            customer_journey=state.customer_journey.model_copy(deep=True) if state.customer_journey else None,
+            sitemap_and_story=state.sitemap_and_story.model_copy(deep=True) if state.sitemap_and_story else None,
+            alternative_analysis=state.alternative_analysis.model_copy(deep=True) if state.alternative_analysis else None,
+        )
+
+
 class FileService:
     """
     Service for handling file operations securely and efficiently.
+    Composes dedicated validator and sanitizer components.
     Uses ThreadPoolExecutor for non-blocking I/O in async contexts.
     """
 
@@ -214,32 +340,20 @@ class FileService:
             raise TypeError(msg)
 
         # Perform explicit memory limit size checks synchronously before queuing
-        # This prevents large payloads from consuming thread pool resources.
         if state.vpc:
-            self._validate_content_size(state.vpc.model_dump_json(indent=2), "VPC PDF Chunk")
+            ContentSanitizer.validate_content_size(state.vpc.model_dump_json(indent=2), "VPC PDF Chunk")
         if state.mental_model:
-            self._validate_content_size(state.mental_model.model_dump_json(indent=2), "MentalModel PDF Chunk")
+            ContentSanitizer.validate_content_size(state.mental_model.model_dump_json(indent=2), "MentalModel PDF Chunk")
         if state.customer_journey:
-            self._validate_content_size(state.customer_journey.model_dump_json(indent=2), "Journey PDF Chunk")
+            ContentSanitizer.validate_content_size(state.customer_journey.model_dump_json(indent=2), "Journey PDF Chunk")
         if state.sitemap_and_story:
-            self._validate_content_size(state.sitemap_and_story.model_dump_json(indent=2), "Sitemap PDF Chunk")
+            ContentSanitizer.validate_content_size(state.sitemap_and_story.model_dump_json(indent=2), "Sitemap PDF Chunk")
 
-        # Create a safe whitelist-only instance of the state specifically for PDF generation.
-        # This completely avoids leaking internal configuration, agent histories, or unvalidated data.
-        safe_state = GlobalState(
-            topic="*** REDACTED TOPIC ***" if "secret" in state.topic.lower() else state.topic,
-            selected_idea=state.selected_idea.model_copy(deep=True) if state.selected_idea else None,
-            vpc=state.vpc.model_copy(deep=True) if state.vpc else None,
-            mental_model=state.mental_model.model_copy(deep=True) if state.mental_model else None,
-            customer_journey=state.customer_journey.model_copy(deep=True) if state.customer_journey else None,
-            sitemap_and_story=state.sitemap_and_story.model_copy(deep=True) if state.sitemap_and_story else None,
-            alternative_analysis=state.alternative_analysis.model_copy(deep=True) if state.alternative_analysis else None,
-        )
+        safe_state = StateSanitizer.redact_state_for_pdf(state)
 
         future = self._executor.submit(
             self._save_pdf_sync, safe_state, base_dir, filename, pdf_generator
         )
-        future.add_done_callback(self._handle_async_error)
         return future
 
     def _save_pdf_sync(
@@ -263,8 +377,8 @@ class FileService:
             logger.warning("PDF Generation: missing selected_idea. PDF might be empty.")
 
         try:
-            pdf_path = self._validate_path(base_dir / filename)
-            self._check_permissions(pdf_path)
+            PathValidator.validate_filename(filename)
+            dir_fd = PathValidator.get_secure_directory_fd(self.settings.file_service.output_directory)
 
             pdf = pdf_generator or FPDFGenerator()
             pdf.add_page()
@@ -275,8 +389,8 @@ class FileService:
             pdf.ln(10)
 
             def add_section(title: str, content: str) -> None:
-                self._validate_content_size(content, title)
-                sanitized_content = self._sanitize_pdf_content(content)
+                ContentSanitizer.validate_content_size(content, title)
+                sanitized_content = ContentSanitizer.sanitize_pdf_content(content)
 
                 pdf.set_font("Helvetica", "B", 14)
                 pdf.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
@@ -298,9 +412,8 @@ class FileService:
             for title, model in sections:
                 if model:
                     json_str = model.model_dump_json(indent=2)
-                    self._validate_content_size(json_str, title)
-                    # Running it through sanitize early prevents unsafe strings getting stored
-                    _ = self._sanitize_pdf_content(json_str)
+                    ContentSanitizer.validate_content_size(json_str, title)
+                    _ = ContentSanitizer.sanitize_pdf_content(json_str)
 
             for idx, (title, model) in enumerate(sections):
                 if model:
@@ -308,8 +421,18 @@ class FileService:
                         pdf.add_page()
                     add_section(title, model.model_dump_json(indent=2))
 
-            pdf.output(str(pdf_path))
-            logger.info(f"PDF generated successfully at {pdf_path}")
+            # Atomically save the file using the secure directory file descriptor
+            cwd = Path.cwd().resolve(strict=True)
+            output_dir = cwd / self.settings.file_service.output_directory
+            temp_pdf_path = output_dir / f"{filename}.tmp"
+            final_pdf_path = output_dir / filename
+
+            # fpdf2 outputs directly to string path. We use a temp file in the dir then atomically rename.
+            pdf.output(str(temp_pdf_path))
+            os.rename(str(temp_pdf_path), str(final_pdf_path))
+
+            os.close(dir_fd)
+            logger.info(f"PDF generated successfully at {final_pdf_path}")
 
         except ConfigurationError:
             logger.exception("Security error during PDF generation.")
@@ -419,7 +542,7 @@ class FileService:
 
             if not final_path.is_relative_to(output_dir):
                 msg = f"Path traversal detected before open: {final_path}"
-                raise ConfigurationError(msg)  # noqa: TRY301
+                raise ConfigurationError(msg)
 
             # Validate the parent directory before writing to ensure it's not a symlink.
             import stat

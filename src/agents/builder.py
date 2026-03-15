@@ -264,7 +264,7 @@ class BuilderAgent(BaseAgent):
 
         return agent_prompt_spec, experiment_plan, None
 
-    def run(self, state: GlobalState) -> BuilderAgentResult:
+    def run(self, state: GlobalState) -> dict[str, Any]:
         """Agent entry point."""
         logger.info("Executing spec generation...")
 
