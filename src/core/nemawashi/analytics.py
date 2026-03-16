@@ -56,7 +56,7 @@ class AnalyticsService:
             # Map indices back to names
             return [network.stakeholders[i].name for i in indices if i < len(network.stakeholders)]
 
-        except Exception as e:
+        except (ValueError, TypeError, ValidationError) as e:
             msg = "Eigenvector calculation failed"
             logger.exception(msg)
             error_msg = f"{msg}: {e}"
@@ -66,20 +66,19 @@ class AnalyticsService:
         self, sparse_mat: csr_matrix
     ) -> np.ndarray[Any, np.dtype[np.float64]]:
         """Compute centrality from pre-built CSR matrix."""
+        from scipy.linalg import LinAlgError
+
         mat_t = sparse_mat.T
         try:
-            if mat_t.shape[0] < 2:
-                from scipy.linalg import eig as dense_eig
-
-                vals, vecs = dense_eig(mat_t.toarray())
-            else:
-                vals, vecs = eigs(mat_t, k=1, which="LM")
+            if mat_t.shape[0] == 1:
+                return np.array([1.0], dtype=np.float64)
+            vals, vecs = eigs(mat_t, k=1, which="LM")
             centrality = np.abs(vecs.flatten())
             s = np.sum(centrality)
             if s > 0:
                 centrality = centrality / s
             return typing.cast(np.ndarray[Any, np.dtype[np.float64]], centrality)
-        except Exception as e:
+        except (LinAlgError, ValueError) as e:
             logger.warning(f"Sparse eig failed, falling back? {e}")
             msg = "Sparse eigen calculation failed"
             raise CalculationError(msg) from e

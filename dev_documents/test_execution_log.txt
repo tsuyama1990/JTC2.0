@@ -63,7 +63,7 @@ src/core/graph.py                           37      0   100%
 src/core/llm.py                             10      0   100%
 src/core/metrics.py                         17      0   100%
 src/core/nemawashi/__init__.py               0      0   100%
-src/core/nemawashi/analytics.py             66     19    71%   29, 33, 42-43, 59-63, 82-85, 94, 110-115
+src/core/nemawashi/analytics.py             66     19    71%   29, 33, 42-43, 59-63, 81-84, 93, 109-114
 src/core/nemawashi/consensus.py             59      8    86%   40-41, 54-55, 97-98, 101, 114
 src/core/nemawashi/interfaces.py             6      6     0%   1-8
 src/core/nemawashi/nomikai.py               69     29    58%   28-29, 32-33, 42-43, 62-63, 80-112
@@ -100,4 +100,4 @@ src/tools/search.py                         34      5    85%   35, 39, 75, 90-91
 src/ui/renderer.py                          98     11    89%   35, 94, 97-101, 125, 135-141, 161
 ----------------------------------------------------------------------
 TOTAL                                     2854    534    81%
-============================= 160 passed in 51.10s =============================
+============================= 160 passed in 50.72s =============================
