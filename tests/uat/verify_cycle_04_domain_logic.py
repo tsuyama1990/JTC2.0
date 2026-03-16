@@ -21,7 +21,9 @@ def cell_1() -> tuple[Any, ...]:
     import marimo as mo
     import numpy as np
 
-    from src.core.nemawashi.engine import NemawashiEngine
+    from src.core.nemawashi.analytics import AnalyticsService
+    from src.core.nemawashi.consensus import ConsensusService
+    from src.core.nemawashi.nomikai import SimulationService
     from src.domain_models.politics import DenseInfluenceNetwork, Stakeholder
     from tests.conftest import DUMMY_ENV_VARS
 
@@ -30,7 +32,9 @@ def cell_1() -> tuple[Any, ...]:
         mo,
         DenseInfluenceNetwork,
         Stakeholder,
-        NemawashiEngine,
+        AnalyticsService,
+        ConsensusService,
+        SimulationService,
         np,
         patch,
         os,
@@ -42,7 +46,7 @@ def cell_1() -> tuple[Any, ...]:
 def cell_2(
     Stakeholder: Any,
     DenseInfluenceNetwork: Any,
-    NemawashiEngine: Any,
+    AnalyticsService: Any,
     mo: Any,
     patch: Any,
     os: Any,
@@ -57,7 +61,7 @@ def cell_2(
     net = DenseInfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
 
     with patch.dict(os.environ, DUMMY_ENV_VARS):
-        engine = NemawashiEngine()
+        engine = AnalyticsService()
         influencers = engine.identify_influencers(net)
 
     assert influencers[0] == "Finance Manager", f"Expected Finance Manager, got {influencers[0]}"
@@ -68,7 +72,8 @@ def cell_2(
 @app.cell
 def cell_3(
     net: Any,
-    engine: Any,
+    ConsensusService: Any,
+    SimulationService: Any,
     mo: Any,
     patch: Any,
     os: Any,
@@ -77,11 +82,14 @@ def cell_3(
     mo.md("## Scenario 2: The 'Nomikai' Effect")
 
     with patch.dict(os.environ, DUMMY_ENV_VARS):
-        initial_ops = engine.calculate_consensus(net)
+        consensus_engine = ConsensusService()
+        sim_engine = SimulationService()
+
+        initial_ops = consensus_engine.calculate_consensus(net)
         initial_avg = sum(initial_ops) / len(initial_ops)
 
-        new_net = engine.run_nomikai(net, "Finance Manager")
-        final_ops = engine.calculate_consensus(new_net)
+        new_net = sim_engine.run_nomikai(net, "Finance Manager")
+        final_ops = consensus_engine.calculate_consensus(new_net)
         final_avg = sum(final_ops) / len(final_ops)
 
     assert new_net.stakeholders[0].initial_support > 0.2, "Finance Manager support did not increase"
@@ -90,14 +98,14 @@ def cell_3(
     mo.md(
         f"**Success!** Nomikai effect verified.\nInitial consensus: {initial_avg:.2f} -> Final consensus: {final_avg:.2f}"
     )
-    return initial_ops, initial_avg, new_net, final_ops, final_avg
+    return initial_ops, initial_avg, new_net, final_ops, final_avg, consensus_engine, sim_engine
 
 
 @app.cell
 def cell_4(
     Stakeholder: Any,
     DenseInfluenceNetwork: Any,
-    engine: Any,
+    ConsensusService: Any,
     np: Any,
     mo: Any,
     patch: Any,
@@ -117,7 +125,8 @@ def cell_4(
     initial_variance = np.var([0.1, 0.5, 0.9])
 
     with patch.dict(os.environ, DUMMY_ENV_VARS):
-        final_ops_conv = engine.calculate_consensus(converge_net)
+        consensus_engine_conv = ConsensusService()
+        final_ops_conv = consensus_engine_conv.calculate_consensus(converge_net)
         final_variance = np.var(final_ops_conv)
 
     assert final_variance < initial_variance, "Variance did not decrease"
@@ -134,6 +143,7 @@ def cell_4(
         initial_variance,
         final_ops_conv,
         final_variance,
+        consensus_engine_conv,
     )
 
 

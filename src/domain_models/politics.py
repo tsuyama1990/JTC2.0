@@ -57,8 +57,8 @@ class DenseInfluenceNetwork(BaseModel):
         for row in v:
             for val in row:
                 if not (0.0 <= val <= 1.0):
-                    msg = "Matrix values must be between 0.0 and 1.0"
-                    raise MatrixValuesError(msg)
+                    msg = f"Matrix value {val} is out of bounds [0.0, 1.0]."
+                    raise ValueError(msg)
         return v
 
     @model_validator(mode="after")

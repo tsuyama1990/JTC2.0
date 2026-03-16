@@ -23,7 +23,7 @@ def test_invalid_matrix_values() -> None:
 
     with pytest.raises(ValidationError) as exc:
         DenseInfluenceNetwork(stakeholders=[s1], matrix=matrix)
-    assert "Matrix values must be between 0.0 and 1.0" in str(exc.value)
+    assert "out of bounds" in str(exc.value)
 
 
 def test_matrix_dimension_mismatch() -> None:

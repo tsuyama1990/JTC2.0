@@ -15,34 +15,59 @@ class NemawashiUtils:
 
     @staticmethod
     def validate_stochasticity(
-        matrix: csr_matrix | list[list[float]] | np.ndarray, tolerance: float = 1e-6
+        matrix: csr_matrix | list[list[float]] | np.ndarray,
+        tolerance: float = 1e-6,
+        expected_nodes: int | None = None,
     ) -> None:
         """
         Validate that matrix rows sum to approximately 1.0.
         Supports both sparse (csr_matrix) and dense (list[list[float]] or ndarray) inputs.
-        Also validates that all values are in the range [0.0, 1.0].
+        Also validates that all values are in the range [0.0, 1.0] and checks dimension squareness.
         """
         try:
             if hasattr(matrix, "data") and isinstance(matrix, csr_matrix):
+                if expected_nodes and matrix.shape != (expected_nodes, expected_nodes):
+                    msg = f"Matrix dimensions {matrix.shape} do not match expected nodes ({expected_nodes}, {expected_nodes})"
+                    raise ValidationError(msg)  # noqa: TRY301
+
                 # Check value bounds for sparse matrix
                 if (matrix.data < 0.0).any() or (matrix.data > 1.0).any():
                     msg = "Matrix values must be between 0.0 and 1.0"
                     raise ValidationError(msg)  # noqa: TRY301
                 row_sums = matrix.sum(axis=1).A1
+
             elif isinstance(matrix, np.ndarray):
+                if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+                    msg = f"Matrix must be square, got shape {matrix.shape}"
+                    raise ValidationError(msg)  # noqa: TRY301
+                if expected_nodes and matrix.shape != (expected_nodes, expected_nodes):
+                    msg = f"Matrix dimensions {matrix.shape} do not match expected nodes ({expected_nodes}, {expected_nodes})"
+                    raise ValidationError(msg)  # noqa: TRY301
+
                 if (matrix < 0.0).any() or (matrix > 1.0).any():
                     msg = "Matrix values must be between 0.0 and 1.0"
                     raise ValidationError(msg)  # noqa: TRY301
                 row_sums = matrix.sum(axis=1)
+
             else:
                 # List of lists
                 dense = cast(list[list[float]], matrix)
+                n_rows = len(dense)
+                if expected_nodes and n_rows != expected_nodes:
+                    msg = f"Matrix rows ({n_rows}) do not match expected nodes ({expected_nodes})"
+                    raise ValidationError(msg)  # noqa: TRY301
+
                 for row in dense:
+                    if len(row) != n_rows:
+                        msg = "Matrix must be square"
+                        raise ValidationError(msg)  # noqa: TRY301
                     for val in row:
                         if not (0.0 <= val <= 1.0):
                             msg = "Matrix values must be between 0.0 and 1.0"
                             raise ValidationError(msg)  # noqa: TRY301
                 row_sums = np.array([sum(row) for row in dense])
+        except ValidationError:
+            raise
         except Exception as e:
             msg = f"Stochasticity check failed: {e}"
             raise ValidationError(msg) from e

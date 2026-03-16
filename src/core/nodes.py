@@ -4,7 +4,8 @@ from collections.abc import Callable
 from typing import Any
 
 from src.core.factory import AgentFactory
-from src.core.nemawashi.engine import NemawashiEngine
+from src.core.nemawashi.analytics import AnalyticsService
+from src.core.nemawashi.consensus import ConsensusService
 from src.core.simulation import create_simulation_graph
 from src.data.rag import RAG
 from src.domain_models.simulation import Role
@@ -122,10 +123,11 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
         logger.warning("No influence network found. Skipping Nemawashi analysis.")
         return {}
 
-    engine = NemawashiEngine()
+    consensus_service = ConsensusService()
+    analytics_service = AnalyticsService()
 
     # Calculate new consensus (opinions)
-    new_opinions = engine.calculate_consensus(state.influence_network)
+    new_opinions = consensus_service.calculate_consensus(state.influence_network)
 
     # Update the influence network in state
     updated_network = state.influence_network.model_copy(deep=True)
@@ -135,7 +137,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
             stakeholder.initial_support = new_opinions[i]
 
     # Identify influencers (optional, for logging or CPO context)
-    influencers = engine.identify_influencers(updated_network)
+    influencers = analytics_service.identify_influencers(updated_network)
     logger.info(f"Identified Key Influencers: {influencers}")
 
     return {"influence_network": updated_network}
@@ -260,16 +262,21 @@ def final_artifact_generation_node(state: GlobalState) -> dict[str, Any]:
         pdf_future = file_service.save_pdf_async(state, base_dir)
         import concurrent.futures
 
-        concurrent.futures.wait([pdf_future], timeout=30.0)
+        try:
+            # Wait for completion or timeout
+            concurrent.futures.wait([pdf_future], timeout=30.0)
 
-        if not pdf_future.done():
-            pdf_future.cancel()
-            msg = "PDF generation timed out after 30 seconds."
-            logger.error(msg)
-            raise TimeoutError(msg)
+            if not pdf_future.done():
+                msg = "PDF generation timed out after 30 seconds."
+                logger.error(msg)
+                raise TimeoutError(msg)
 
-        # To surface any potential exceptions raised inside the thread
-        pdf_future.result()
+            # To surface any potential exceptions raised inside the thread
+            pdf_future.result()
+        finally:
+            # Ensure the future is cancelled if it was still running
+            if not pdf_future.done():
+                pdf_future.cancel()
 
     try:
         # Write Markdown specs if they exist in state

@@ -31,10 +31,14 @@ class ConsensusService:
 
         Returns:
             A list of final opinion values (0.0 to 1.0) for each stakeholder.
+            Raises ValidationError if network is empty.
         """
+        from src.core.exceptions import ValidationError
+
         n = len(network.stakeholders)
         if n == 0:
-            return []
+            msg = "Network contains no stakeholders."
+            raise ValidationError(msg)
 
         # Convert opinions to numpy array
         import numpy as np
@@ -64,7 +68,7 @@ class ConsensusService:
                 matrix_op = NemawashiUtils.build_sparse_matrix(network, n)
 
                 # Validate using shared utility
-                NemawashiUtils.validate_stochasticity(matrix_op, tolerance)
+                NemawashiUtils.validate_stochasticity(matrix_op, tolerance, expected_nodes=n)
 
                 # If validation passes, break out of retry loop
                 break

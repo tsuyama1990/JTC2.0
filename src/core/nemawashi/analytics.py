@@ -24,7 +24,7 @@ class AnalyticsService:
     def identify_influencers(self, network: InfluenceNetwork) -> list[str]:
         """
         Identify key influencers based on eigenvector centrality.
-        Uses sparse matrices for efficiency if the network is large (>1000 nodes).
+        Always uses sparse matrices for efficiency and scalability.
         """
         n = len(network.stakeholders)
         if n == 0:
@@ -34,21 +34,18 @@ class AnalyticsService:
             if isinstance(network, DenseInfluenceNetwork):
                 # Dense matrix
                 matrix_dense = network.matrix
-                # Validation
-                NemawashiUtils.validate_stochasticity(matrix_dense)
+                # Convert to numpy array and validate
+                matrix_np = np.array(matrix_dense)
+                if not np.all(np.isfinite(matrix_np)):
+                    msg = "Influence matrix contains NaN or Inf values."
+                    raise ValidationError(msg)  # noqa: TRY301
+                NemawashiUtils.validate_stochasticity(matrix_dense, expected_nodes=n)
 
-                # Check size to decide strategy
-                if n > 1000:
-                    # Convert to sparse for efficiency
-                    centrality = self._eigen_centrality_sparse(csr_matrix(matrix_dense))
-                else:
-                    centrality = self._eigen_centrality_dense(matrix_dense)
+                # Convert to sparse for efficiency
+                centrality = self._eigen_centrality_sparse(csr_matrix(matrix_np))
             else:
                 # Sparse matrix
                 entries = network.matrix
-                # Validation (Dimensions checked, stochasticity check harder on raw entries without building matrix)
-                # We build matrix first then validate
-
                 centrality = self._eigen_centrality_sparse_entries(entries, n)
 
             # Rank stakeholders
@@ -62,45 +59,6 @@ class AnalyticsService:
             logger.exception(msg)
             error_msg = f"{msg}: {e}"
             raise CalculationError(error_msg) from e
-
-    def _eigen_centrality_dense(self, matrix_list: list[list[float]]) -> np.ndarray:
-        """
-        Compute eigenvector centrality using dense numpy arrays.
-        Safe for small networks. Implements fallback to sparse eig on failure.
-        """
-        matrix = np.array(matrix_list)
-
-        if not np.all(np.isfinite(matrix)):
-            msg = "Influence matrix contains NaN or Inf values."
-            raise ValidationError(msg)
-
-        NemawashiUtils.validate_stochasticity(matrix)
-
-        try:
-            # Eig on transpose for left eigenvectors
-            eigenvalues, eigenvectors = np.linalg.eig(matrix.T)
-
-            # Find eigenvalue closest to 1.0
-            idx = np.argmin(np.abs(eigenvalues - 1.0))
-            centrality = np.abs(eigenvectors[:, idx])
-
-            if np.iscomplexobj(centrality):
-                logger.warning(
-                    "Complex centrality computed in dense calculation. Falling back to sparse."
-                )
-                msg = "Complex results returned."
-                raise np.linalg.LinAlgError(msg)  # noqa: TRY301
-
-            # Normalize
-            s = np.sum(centrality)
-            if s > 0:
-                centrality = centrality / s
-
-            return typing.cast(np.ndarray, centrality)
-
-        except np.linalg.LinAlgError as e:
-            logger.warning(f"Dense eig calculation failed ({e}). Retrying with sparse solver.")
-            return self._eigen_centrality_sparse(csr_matrix(matrix))
 
     def _eigen_centrality_sparse(self, sparse_mat: csr_matrix) -> np.ndarray:
         """Compute centrality from pre-built CSR matrix."""
@@ -134,7 +92,7 @@ class AnalyticsService:
         sparse_mat = coo_matrix((data, (rows, cols)), shape=(n, n), dtype=float).tocsr()
 
         # Validate stochasticity on the built matrix
-        NemawashiUtils.validate_stochasticity(sparse_mat)
+        NemawashiUtils.validate_stochasticity(sparse_mat, expected_nodes=n)
 
         return self._eigen_centrality_sparse(sparse_mat)
 
