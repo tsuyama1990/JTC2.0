@@ -1,8 +1,8 @@
 import logging
 import typing
-from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 from scipy.linalg import LinAlgError
 from scipy.sparse import coo_matrix, csgraph, csr_matrix
 from scipy.sparse.linalg import eigs
@@ -73,9 +73,7 @@ class AnalyticsService:
             error_msg = f"{msg}: {e}"
             raise CalculationError(error_msg) from e
 
-    def _eigen_centrality_sparse(
-        self, sparse_mat: csr_matrix
-    ) -> np.ndarray[Any, np.dtype[np.float64]]:
+    def _eigen_centrality_sparse(self, sparse_mat: csr_matrix) -> npt.NDArray[np.float64]:
         """Compute centrality from pre-built CSR matrix."""
         mat_t = sparse_mat.T
 
@@ -97,7 +95,7 @@ class AnalyticsService:
 
     def _eigen_centrality_sparse_entries(
         self, entries: list[SparseMatrixEntry], n: int
-    ) -> np.ndarray[Any, np.dtype[np.float64]]:
+    ) -> npt.NDArray[np.float64]:
         """
         Compute eigenvector centrality from sparse entries.
         """
