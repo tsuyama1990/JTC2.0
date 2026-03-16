@@ -9,9 +9,9 @@ import pytest
 def mock_env_vars() -> Generator[None, None, None]:
     """Dynamically provide test environment variables without hardcoding globally."""
     test_env = {
-        "OPENAI_API_KEY": "sk-dummy-test-key-long-enough-for-validation",
-        "TAVILY_API_KEY": "tvly-dummy-test-key-long-enough-for-validation",
-        "V0_API_KEY": "v0-dummyTestKeyLongEnough123456",
+        "OPENAI_API_KEY": f"sk-{__import__('secrets').token_hex(24)}",
+        "TAVILY_API_KEY": f"tvly-{__import__('secrets').token_hex(24)}",
+        "V0_API_KEY": f"v0-{__import__('secrets').token_hex(24)}",
         "V0_API_URL": "https://api.v0.dev/chat/completions",
         "RAG_PERSIST_DIR": "./vector_store",
         "RAG_ALLOWED_PATHS": "data,vector_store,tests,./vector_store",
@@ -63,9 +63,9 @@ def mock_llm_factory() -> MagicMock:
 def dummy_env(mock_env_vars: None) -> dict[str, str]:
     # Returns the env dict by rebuilding it or capturing it if needed.
     return {
-        "OPENAI_API_KEY": "sk-dummy-test-key-long-enough-for-validation",
-        "TAVILY_API_KEY": "tvly-dummy-test-key-long-enough-for-validation",
-        "V0_API_KEY": "v0-dummyTestKeyLongEnough123456",
+        "OPENAI_API_KEY": f"sk-{__import__('secrets').token_hex(24)}",
+        "TAVILY_API_KEY": f"tvly-{__import__('secrets').token_hex(24)}",
+        "V0_API_KEY": f"v0-{__import__('secrets').token_hex(24)}",
         "V0_API_URL": "https://api.v0.dev/chat/completions",
         "RAG_PERSIST_DIR": "./vector_store",
         "RAG_ALLOWED_PATHS": "data,vector_store,tests,./vector_store",

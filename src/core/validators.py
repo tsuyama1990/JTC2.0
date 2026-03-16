@@ -4,8 +4,6 @@ from pathlib import Path
 
 from pydantic import SecretStr
 
-from src.core.exceptions import ConfigurationError
-
 
 class ConfigValidators:
     """Centralized validation service for application configuration."""
@@ -15,60 +13,74 @@ class ConfigValidators:
         """Validate OpenAI API key format."""
         val = key.get_secret_value()
         if not val or not val.strip():
-            raise ValueError("OpenAI API key cannot be empty or whitespace-only.")
+            msg = "OpenAI API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
         if len(val) < 20:
-            raise ValueError("OpenAI API key is too short.")
+            msg = "OpenAI API key is too short."
+            raise ValueError(msg)
         if len(val) > 128:
-            raise ValueError("OpenAI API key is too long.")
+            msg = "OpenAI API key is too long."
+            raise ValueError(msg)
         if not val.startswith("sk-"):
-            raise ValueError("OpenAI API key must start with 'sk-'.")
+            msg = "OpenAI API key must start with 'sk-'."
+            raise ValueError(msg)
 
     @staticmethod
     def validate_tavily_key(key: SecretStr) -> None:
         """Validate Tavily API key format."""
         val = key.get_secret_value()
         if not val or not val.strip():
-            raise ValueError("Tavily API key cannot be empty or whitespace-only.")
+            msg = "Tavily API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
         if len(val) < 20:
-            raise ValueError("Tavily API key is too short.")
+            msg = "Tavily API key is too short."
+            raise ValueError(msg)
         if len(val) > 128:
-            raise ValueError("Tavily API key is too long.")
+            msg = "Tavily API key is too long."
+            raise ValueError(msg)
         if not val.startswith("tvly-"):
-            raise ValueError("Tavily API key must start with 'tvly-'.")
+            msg = "Tavily API key must start with 'tvly-'."
+            raise ValueError(msg)
 
     @staticmethod
     def validate_v0_key(key: SecretStr) -> None:
-        import re
         val = key.get_secret_value()
         if not val or not val.strip():
-            raise ValueError("v0 API key cannot be empty or whitespace-only.")
+            msg = "v0 API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
         if not (20 <= len(val) <= 128):
-            raise ValueError("v0 API key must be between 20 and 128 characters long.")
+            msg = "v0 API key must be between 20 and 128 characters long."
+            raise ValueError(msg)
         if not re.match(r"^v0-[a-zA-Z0-9_\-]+$", val):
-            raise ValueError("v0 API key must start with 'v0-' and contain only alphanumeric characters, dashes, or underscores.")
+            msg = "v0 API key must start with 'v0-' and contain only alphanumeric characters, dashes, or underscores."
+            raise ValueError(msg)
 
     @staticmethod
     def validate_resolution(val: int) -> int:
         if val <= 0:
-            raise ValueError("Resolution must be strictly positive.")
+            msg = "Resolution must be strictly positive."
+            raise ValueError(msg)
         return val
 
     @staticmethod
     def validate_fps(val: int) -> int:
         if val <= 0:
-            raise ValueError("FPS must be strictly positive.")
+            msg = "FPS must be strictly positive."
+            raise ValueError(msg)
         return val
 
     @staticmethod
     def validate_color(val: int) -> int:
         if not (0 <= val <= 15):
-            raise ValueError("Color must be between 0 and 15 (Pyxel palette).")
+            msg = "Color must be between 0 and 15 (Pyxel palette)."
+            raise ValueError(msg)
         return val
 
     @staticmethod
     def validate_dimension(val: int) -> int:
         if val <= 0:
-            raise ValueError("Dimension must be positive.")
+            msg = "Dimension must be positive."
+            raise ValueError(msg)
         return val
 
     @staticmethod

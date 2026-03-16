@@ -337,19 +337,17 @@ class Settings(BaseSettings):
 
     # Explicitly enforce required keys without defaults
     openai_api_key: SecretStr = Field(
-        default=SecretStr(""), alias="OPENAI_API_KEY", description="OpenAI API Key"
+        alias="OPENAI_API_KEY", description="OpenAI API Key"
     )
     tavily_api_key: SecretStr = Field(
-        default=SecretStr(""), alias="TAVILY_API_KEY", description="Tavily Search API Key"
+        alias="TAVILY_API_KEY", description="Tavily Search API Key"
     )
-    v0_api_key: SecretStr = Field(default=SecretStr(""), alias="V0_API_KEY", description="V0.dev API Key")
+    v0_api_key: SecretStr | None = Field(default=None, alias="V0_API_KEY", description="V0.dev API Key")
 
     @field_validator("openai_api_key", mode="before")
     @classmethod
     def validate_openai_key_before(cls, v: str | SecretStr) -> SecretStr:
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
-        if not secret_str.get_secret_value():
-            raise ValueError("OPENAI_API_KEY is not set.")
         try:
             ConfigValidators.validate_openai_key(secret_str)
         except Exception as e:
@@ -362,8 +360,6 @@ class Settings(BaseSettings):
     @classmethod
     def validate_tavily_key_before(cls, v: str | SecretStr) -> SecretStr:
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
-        if not secret_str.get_secret_value():
-            raise ValueError("TAVILY_API_KEY is not set.")
         try:
             ConfigValidators.validate_tavily_key(secret_str)
         except Exception as e:
@@ -374,10 +370,12 @@ class Settings(BaseSettings):
 
     @field_validator("v0_api_key", mode="before")
     @classmethod
-    def validate_v0_api_key_before(cls, v: str | SecretStr) -> SecretStr:
+    def validate_v0_api_key_before(cls, v: str | SecretStr | None) -> SecretStr | None:
+        if v is None:
+            return None
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
         if not secret_str.get_secret_value():
-            return secret_str
+            return None
         try:
             ConfigValidators.validate_v0_key(secret_str)
         except Exception as e:
