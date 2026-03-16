@@ -1,9 +1,8 @@
-from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
+import pybreaker
 import pytest
 from pydantic import ValidationError
-import pybreaker
 
 from src.agents.builder import BuilderAgent
 from src.domain_models.agent_spec import AgentPromptSpec, StateMachine
@@ -14,19 +13,20 @@ from src.domain_models.state import GlobalState
 
 
 @pytest.fixture
-def mock_llm() -> Generator[MagicMock, None, None]:
-    with patch("src.agents.builder.BaseChatModel", autospec=True) as mock:
-        yield mock.return_value
+def mock_llm() -> MagicMock:
+    from langchain_core.language_models.chat_models import BaseChatModel
+
+    return MagicMock(spec=BaseChatModel)
 
 
 @pytest.fixture
 def agent(mock_llm: MagicMock) -> BuilderAgent:
     with patch("src.agents.builder.get_settings") as mock_settings:
-        # Mock settings used in BuilderAgent
+        # Provide a mock settings instance that satisfies BuilderAgent checks
         mock_settings_inst = MagicMock()
+        mock_settings_inst.governance.max_llm_response_size = 10000
         mock_settings_inst.circuit_breaker_fail_max = 3
         mock_settings_inst.circuit_breaker_reset_timeout = 60
-        mock_settings_inst.governance.max_llm_response_size = 10000
         mock_settings.return_value = mock_settings_inst
         return BuilderAgent(llm=mock_llm)
 
@@ -103,6 +103,7 @@ def state_with_context() -> GlobalState:
         ),
     )
 
+
 @pytest.fixture
 def expected_spec() -> AgentPromptSpec:
     return AgentPromptSpec(
@@ -116,15 +117,14 @@ def expected_spec() -> AgentPromptSpec:
         mermaid_flowchart="graph TD;",
     )
 
+
 @pytest.fixture
 def expected_plan() -> ExperimentPlan:
     return ExperimentPlan(
         riskiest_assumption="Assumption A",
         experiment_type="Type B",
         acquisition_channel="Channel C",
-        aarrr_metrics=[
-            MetricTarget(metric_name="M", target_value="V", measurement_method="Meth")
-        ],
+        aarrr_metrics=[MetricTarget(metric_name="M", target_value="V", measurement_method="Meth")],
         pivot_condition="Pivot Cond P",
     )
 
@@ -159,15 +159,32 @@ class TestBuilderAgent:
         self, agent: BuilderAgent, expected_spec: AgentPromptSpec
     ) -> None:
         """Test direct _generate_agent_prompt_spec generation."""
-        with patch.object(agent._breaker, "call", return_value=expected_spec):
+        # Mock LLM to return a chain that returns expected_spec
+        mock_chain = MagicMock()
+        mock_chain.invoke.return_value = expected_spec
+        mock_llm_out = MagicMock()
+        mock_llm_out.__ror__.return_value = mock_chain
+        agent.llm.with_structured_output = MagicMock(return_value=mock_llm_out)  # type: ignore
+
+        with patch("langchain_core.prompts.ChatPromptTemplate") as MockPrompt:
+            mock_p = MagicMock()
+            mock_p.__or__ = lambda self, other: mock_chain
+            MockPrompt.from_messages.return_value = mock_p
             result = agent._generate_agent_prompt_spec("context", True, "error_fb")
             assert result == expected_spec
 
-    def test_generate_agent_prompt_spec_invalid_type(
-        self, agent: BuilderAgent
-    ) -> None:
+    def test_generate_agent_prompt_spec_invalid_type(self, agent: BuilderAgent) -> None:
         """Test _generate_agent_prompt_spec handles unexpected return types."""
-        with patch.object(agent._breaker, "call", return_value="Not an AgentPromptSpec"):
+        mock_chain = MagicMock()
+        mock_chain.invoke.return_value = "Not an AgentPromptSpec"
+        mock_llm_out = MagicMock()
+        mock_llm_out.__ror__.return_value = mock_chain
+        agent.llm.with_structured_output = MagicMock(return_value=mock_llm_out)  # type: ignore
+
+        with patch("langchain_core.prompts.ChatPromptTemplate") as MockPrompt:
+            mock_p = MagicMock()
+            mock_p.__or__ = lambda self, other: mock_chain
+            MockPrompt.from_messages.return_value = mock_p
             with pytest.raises(ValueError, match="Expected AgentPromptSpec"):
                 agent._generate_agent_prompt_spec("context", False, "")
 
@@ -175,15 +192,31 @@ class TestBuilderAgent:
         self, agent: BuilderAgent, expected_plan: ExperimentPlan
     ) -> None:
         """Test direct _generate_experiment_plan generation."""
-        with patch.object(agent._breaker, "call", return_value=expected_plan):
+        mock_chain = MagicMock()
+        mock_chain.invoke.return_value = expected_plan
+        mock_llm_out = MagicMock()
+        mock_llm_out.__ror__.return_value = mock_chain
+        agent.llm.with_structured_output = MagicMock(return_value=mock_llm_out)  # type: ignore
+
+        with patch("langchain_core.prompts.ChatPromptTemplate") as MockPrompt:
+            mock_p = MagicMock()
+            mock_p.__or__ = lambda self, other: mock_chain
+            MockPrompt.from_messages.return_value = mock_p
             result = agent._generate_experiment_plan("context", True, "error_fb")
             assert result == expected_plan
 
-    def test_generate_experiment_plan_invalid_type(
-        self, agent: BuilderAgent
-    ) -> None:
+    def test_generate_experiment_plan_invalid_type(self, agent: BuilderAgent) -> None:
         """Test _generate_experiment_plan handles unexpected return types."""
-        with patch.object(agent._breaker, "call", return_value="Not an ExperimentPlan"):
+        mock_chain = MagicMock()
+        mock_chain.invoke.return_value = "Not an ExperimentPlan"
+        mock_llm_out = MagicMock()
+        mock_llm_out.__ror__.return_value = mock_chain
+        agent.llm.with_structured_output = MagicMock(return_value=mock_llm_out)  # type: ignore
+
+        with patch("langchain_core.prompts.ChatPromptTemplate") as MockPrompt:
+            mock_p = MagicMock()
+            mock_p.__or__ = lambda self, other: mock_chain
+            MockPrompt.from_messages.return_value = mock_p
             with pytest.raises(ValueError, match="Expected ExperimentPlan"):
                 agent._generate_experiment_plan("context", False, "")
 
@@ -191,18 +224,20 @@ class TestBuilderAgent:
         self, agent: BuilderAgent, expected_spec: AgentPromptSpec, expected_plan: ExperimentPlan
     ) -> None:
         """Test retry wrapper succeeds immediately."""
-        with patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec):
-            with patch.object(agent, "_generate_experiment_plan", return_value=expected_plan):
-                spec, plan, err = agent._generate_specs_with_retries("context", False)
-                assert spec == expected_spec
-                assert plan == expected_plan
-                assert err is None
+        with (
+            patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec),
+            patch.object(agent, "_generate_experiment_plan", return_value=expected_plan),
+        ):
+            spec, plan, err = agent._generate_specs_with_retries("context", False)
+            assert spec == expected_spec
+            assert plan == expected_plan
+            assert err is None
 
-    def test_generate_specs_with_retries_circuit_breaker(
-        self, agent: BuilderAgent
-    ) -> None:
+    def test_generate_specs_with_retries_circuit_breaker(self, agent: BuilderAgent) -> None:
         """Test retry wrapper trips circuit breaker."""
-        with patch.object(agent, "_generate_agent_prompt_spec", side_effect=pybreaker.CircuitBreakerError("Open")):
+        with patch.object(
+            agent, "_generate_agent_prompt_spec", side_effect=pybreaker.CircuitBreakerError("Open")
+        ):
             spec, plan, err = agent._generate_specs_with_retries("context", False)
             assert spec is None
             assert plan is None
@@ -212,17 +247,29 @@ class TestBuilderAgent:
         self, agent: BuilderAgent, expected_spec: AgentPromptSpec, expected_plan: ExperimentPlan
     ) -> None:
         """Test retry wrapper handles validation errors and succeeds."""
-        with patch.object(
-            agent, "_generate_agent_prompt_spec", side_effect=[ValidationError.from_exception_data(title="A", line_errors=[]), expected_spec]
+        with (
+            patch.object(
+                agent,
+                "_generate_agent_prompt_spec",
+                side_effect=[
+                    ValidationError.from_exception_data(title="A", line_errors=[]),
+                    expected_spec,
+                ],
+            ),
+            patch.object(
+                agent,
+                "_generate_experiment_plan",
+                side_effect=[
+                    ValidationError.from_exception_data(title="A", line_errors=[]),
+                    expected_plan,
+                ],
+            ),
+            patch("time.sleep"),
         ):
-            with patch.object(
-                agent, "_generate_experiment_plan", side_effect=[ValidationError.from_exception_data(title="A", line_errors=[]), expected_plan]
-            ):
-                with patch("time.sleep"):
-                    spec, plan, err = agent._generate_specs_with_retries("context", False)
-                    assert spec == expected_spec
-                    assert plan == expected_plan
-                    assert err is None
+            spec, plan, err = agent._generate_specs_with_retries("context", False)
+            assert spec == expected_spec
+            assert plan == expected_plan
+            assert err is None
 
     def test_run_missing_context_models(self, agent: BuilderAgent) -> None:
         """Test run aborts if there's no context available."""
@@ -240,70 +287,89 @@ class TestBuilderAgent:
             assert "error" in result
             assert "No context available to generate specs" in result["error"]
 
-    def test_generate_specs_with_retries_fail_all_attempts_spec(
-        self, agent: BuilderAgent
-    ) -> None:
+    def test_generate_specs_with_retries_fail_all_attempts_spec(self, agent: BuilderAgent) -> None:
         """Test retry wrapper exhausts attempts for spec."""
-        with patch.object(
-            agent, "_generate_agent_prompt_spec", side_effect=ValidationError.from_exception_data(title="A", line_errors=[])
+        with (
+            patch.object(
+                agent,
+                "_generate_agent_prompt_spec",
+                side_effect=ValidationError.from_exception_data(title="A", line_errors=[]),
+            ),
+            patch("time.sleep"),
         ):
-            with patch("time.sleep"):
-                spec, plan, err = agent._generate_specs_with_retries("context", False)
-                assert spec is None
-                assert plan is None
-                assert "Failed to generate valid AgentPromptSpec" in err
+            spec, plan, err = agent._generate_specs_with_retries("context", False)
+            assert spec is None
+            assert plan is None
+            assert err is not None
+            assert "Failed to generate valid AgentPromptSpec" in err
 
     def test_generate_specs_with_retries_fail_all_attempts_plan(
         self, agent: BuilderAgent, expected_spec: AgentPromptSpec
     ) -> None:
         """Test retry wrapper exhausts attempts for plan."""
-        with patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec):
-            with patch.object(
-                agent, "_generate_experiment_plan", side_effect=ValidationError.from_exception_data(title="A", line_errors=[])
-            ):
-                with patch("time.sleep"):
-                    spec, plan, err = agent._generate_specs_with_retries("context", False)
-                    assert spec is None
-                    assert plan is None
-                    assert "Failed to generate valid ExperimentPlan" in err
-
-    def test_generate_specs_with_retries_unexpected_exception(
-        self, agent: BuilderAgent
-    ) -> None:
-        """Test retry wrapper catches unexpected exception during spec."""
-        with patch.object(
-            agent, "_generate_agent_prompt_spec", side_effect=Exception("Boom")
+        with (
+            patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec),
+            patch.object(
+                agent,
+                "_generate_experiment_plan",
+                side_effect=ValidationError.from_exception_data(title="A", line_errors=[]),
+            ),
+            patch("time.sleep"),
         ):
             spec, plan, err = agent._generate_specs_with_retries("context", False)
             assert spec is None
             assert plan is None
+            assert err is not None
+            assert "Failed to generate valid ExperimentPlan" in err
+
+    def test_generate_specs_with_retries_unexpected_exception(self, agent: BuilderAgent) -> None:
+        """Test retry wrapper catches unexpected exception during spec."""
+        with patch.object(agent, "_generate_agent_prompt_spec", side_effect=Exception("Boom")):
+            spec, plan, err = agent._generate_specs_with_retries("context", False)
+            assert spec is None
+            assert plan is None
+            assert err is not None
             assert "Boom" in err
 
     def test_generate_specs_with_retries_unexpected_exception_plan(
         self, agent: BuilderAgent, expected_spec: AgentPromptSpec
     ) -> None:
         """Test retry wrapper catches unexpected exception during plan."""
-        with patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec):
-            with patch.object(
-                agent, "_generate_experiment_plan", side_effect=Exception("Boom2")
-            ):
-                spec, plan, err = agent._generate_specs_with_retries("context", False)
-                assert spec is None
-                assert plan is None
-                assert "Boom2" in err
+        with (
+            patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec),
+            patch.object(agent, "_generate_experiment_plan", side_effect=Exception("Boom2")),
+        ):
+            spec, plan, err = agent._generate_specs_with_retries("context", False)
+            assert spec is None
+            assert plan is None
+            assert err is not None
+            assert "Boom2" in err
 
     def test_generate_specs_with_retries_circuit_breaker_open_plan(
         self, agent: BuilderAgent, expected_spec: AgentPromptSpec
     ) -> None:
         """Test retry wrapper trips circuit breaker on plan."""
-        with patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec):
-            with patch.object(agent, "_generate_experiment_plan", side_effect=pybreaker.CircuitBreakerError("Open")):
-                spec, plan, err = agent._generate_specs_with_retries("context", False)
-                assert spec is None
-                assert plan is None
-                assert "System unavailable" in str(err)
+        with (
+            patch.object(agent, "_generate_agent_prompt_spec", return_value=expected_spec),
+            patch.object(
+                agent,
+                "_generate_experiment_plan",
+                side_effect=pybreaker.CircuitBreakerError("Open"),
+            ),
+        ):
+            spec, plan, err = agent._generate_specs_with_retries("context", False)
+            assert spec is None
+            assert plan is None
+            assert err is not None
+            assert "System unavailable" in str(err)
 
-    def test_run_success(self, agent: BuilderAgent, state_with_context: GlobalState, expected_spec: AgentPromptSpec, expected_plan: ExperimentPlan) -> None:
+    def test_run_success(
+        self,
+        agent: BuilderAgent,
+        state_with_context: GlobalState,
+        expected_spec: AgentPromptSpec,
+        expected_plan: ExperimentPlan,
+    ) -> None:
         """Test full successful generation cycle."""
         with patch.object(
             agent, "_generate_specs_with_retries", return_value=(expected_spec, expected_plan, None)
@@ -325,7 +391,11 @@ class TestBuilderAgent:
             assert "BuilderAgent failed during spec generation: Failed" in result["error"]
 
     def test_builder_agent_integration(
-        self, agent: BuilderAgent, state_with_context: GlobalState, expected_spec: AgentPromptSpec, expected_plan: ExperimentPlan
+        self,
+        agent: BuilderAgent,
+        state_with_context: GlobalState,
+        expected_spec: AgentPromptSpec,
+        expected_plan: ExperimentPlan,
     ) -> None:
         """Integration test validating end-to-end behavior of the BuilderAgent."""
         # Because we're passing the mocked LLM, let's just mock the generator methods
@@ -343,14 +413,21 @@ class TestBuilderAgent:
             assert AgentPromptSpec.model_validate(result["agent_prompt_spec"].model_dump())
             assert ExperimentPlan.model_validate(result["experiment_plan"].model_dump())
 
-    def test_context_truncation_edge_cases_large_model(self, agent: BuilderAgent, state_with_context: GlobalState) -> None:
+    def test_context_truncation_edge_cases_large_model(
+        self, agent: BuilderAgent, state_with_context: GlobalState
+    ) -> None:
         """Test compiling context with very large data forcing hard truncation."""
         agent.settings.governance.max_llm_response_size = 1000
 
         # Artificially expand one of the models so it triggers the size limit quickly
         from src.domain_models.sitemap import Route
+
+        assert state_with_context.sitemap_and_story is not None
         state_with_context.sitemap_and_story.sitemap.extend(
-            [Route(path=f"/p{i}", name=f"N{i}", purpose="test", is_protected=False) for i in range(100)]
+            [
+                Route(path=f"/p{i}", name=f"N{i}", purpose="test", is_protected=False)
+                for i in range(100)
+            ]
         )
 
         # Manually verify that at least one chunk triggers truncation
@@ -376,24 +453,23 @@ class TestBuilderAgent:
         # However, getting `chain.invoke` to fail requires passing an object through `__or__`.
 
         # Let's bypass Langchain entirely to prove the breaker works as configured:
-        def failing_func(*args, **kwargs):
-            raise ValueError("LLM Failure")
+        import contextlib
+        from typing import Any
+
+        def failing_func(*args: Any, **kwargs: Any) -> Any:
+            msg = "LLM Failure"
+            raise ValueError(msg)
 
         # Our circuit breaker requires 3 errors to trip
-        try:
+        with contextlib.suppress(ValueError):
             agent._breaker.call(failing_func)
-        except ValueError:
-            pass
-        try:
+
+        with contextlib.suppress(ValueError):
             agent._breaker.call(failing_func)
-        except ValueError:
-            pass
 
         # The 3rd time might raise ValueError or CircuitBreakerError depending on pybreaker internal hook
-        try:
+        with contextlib.suppress(Exception):
             agent._breaker.call(failing_func)
-        except Exception:
-            pass
 
         # The circuit is now open!
         assert agent._breaker.state.name == "open"
@@ -406,7 +482,7 @@ class TestBuilderAgent:
         # It doesn't matter what LangChain does, because `breaker.call` is going to raise
         # CircuitBreakerError, which is caught and transformed to a ValueError.
         # We just need to ensure `chain = prompt | llm...` succeeds in building the chain.
-        agent.llm.with_structured_output.return_value = MagicMock()
+        agent.llm.with_structured_output = MagicMock(return_value=MagicMock())  # type: ignore
 
         # When `_generate_agent_prompt_spec` is called, the internal breaker throws `CircuitBreakerError`.
         # BUT our `test_circuit_breaker_tripping_and_reset` doesn't need to actually execute the real code again.
@@ -414,6 +490,8 @@ class TestBuilderAgent:
         # However, to hit line 162 in `builder.py` (`logger.exception("Circuit breaker tripped generating AgentPromptSpec")`)
         # we need to simulate the circuit breaker error occurring inside the normal workflow!
 
-        with patch.object(agent._breaker, "call", side_effect=pybreaker.CircuitBreakerError("Open")):
-            with pytest.raises(pybreaker.CircuitBreakerError):
-                agent._generate_agent_prompt_spec("context", False)
+        with (
+            patch.object(agent._breaker, "call", side_effect=pybreaker.CircuitBreakerError("Open")),
+            pytest.raises(pybreaker.CircuitBreakerError),
+        ):
+            agent._generate_agent_prompt_spec("context", False)
