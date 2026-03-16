@@ -1,14 +1,17 @@
 import logging
 import typing
-from typing import Any
 
 import numpy as np
+import numpy.typing as npt
+from scipy.linalg import LinAlgError
 from scipy.sparse import coo_matrix, csgraph, csr_matrix
 from scipy.sparse.linalg import eigs
 
 from src.core.exceptions import CalculationError, ValidationError
 from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import (
+    DenseInfluenceNetwork,
+    SparseInfluenceNetwork,
     SparseMatrixEntry,
 )
 
@@ -20,7 +23,9 @@ class AnalyticsService:
     Analyzes the structure and key influencers of the network.
     """
 
-    def identify_influencers(self, network: Any) -> list[str]:
+    def identify_influencers(
+        self, network: DenseInfluenceNetwork | SparseInfluenceNetwork
+    ) -> list[str]:
         """
         Identify key influencers based on eigenvector centrality.
         Always uses sparse matrices for efficiency and scalability.
@@ -29,8 +34,6 @@ class AnalyticsService:
             return []
 
         n = len(network.stakeholders)
-        if n == 0:
-            return []
 
         try:
             if network.is_dense:
@@ -48,46 +51,54 @@ class AnalyticsService:
             else:
                 # Sparse matrix
                 entries = network.matrix
-                centrality = self._eigen_centrality_sparse_entries(entries, n)
+                if not isinstance(entries, list):
+                    msg = "Expected sparse matrix entries to be a list"
+                    raise TypeError(msg)  # noqa: TRY301
+                if len(entries) > 0 and not isinstance(entries[0], SparseMatrixEntry):
+                    msg = "Expected list elements to be SparseMatrixEntry"
+                    raise TypeError(msg)  # noqa: TRY301
+                centrality = self._eigen_centrality_sparse_entries(
+                    typing.cast(list[SparseMatrixEntry], entries), n
+                )
 
             # Rank stakeholders
             indices = np.argsort(centrality)[::-1]  # Descending
 
             # Map indices back to names
-            return [network.stakeholders[i].name for i in indices if i < len(network.stakeholders)]
+            return [network.stakeholders[i].name for i in indices]
 
-        except Exception as e:
+        except (ValueError, TypeError, ValidationError) as e:
             msg = "Eigenvector calculation failed"
             logger.exception(msg)
             error_msg = f"{msg}: {e}"
             raise CalculationError(error_msg) from e
 
-    def _eigen_centrality_sparse(
-        self, sparse_mat: csr_matrix
-    ) -> np.ndarray[Any, np.dtype[np.float64]]:
+    def _eigen_centrality_sparse(self, sparse_mat: csr_matrix) -> npt.NDArray[np.float64]:
         """Compute centrality from pre-built CSR matrix."""
         mat_t = sparse_mat.T
+
         try:
-            vals, vecs = eigs(mat_t, k=1, which="LM")
-            centrality = np.abs(vecs.flatten())
+            if mat_t.shape[0] == 1:
+                centrality = np.array([1.0], dtype=np.float64)
+            else:
+                vals, vecs = eigs(mat_t, k=1, which="LM")
+                centrality = np.abs(vecs.flatten())
+        except (LinAlgError, ValueError) as e:
+            logger.warning(f"Sparse eig failed: {e}")
+            msg = "Sparse eigen calculation failed"
+            raise CalculationError(msg) from e
+        else:
             s = np.sum(centrality)
             if s > 0:
                 centrality = centrality / s
-            return typing.cast(np.ndarray[Any, np.dtype[np.float64]], centrality)
-        except Exception as e:
-            logger.warning(f"Sparse eig failed, falling back? {e}")
-            msg = "Sparse eigen calculation failed"
-            raise CalculationError(msg) from e
+            return centrality
 
     def _eigen_centrality_sparse_entries(
         self, entries: list[SparseMatrixEntry], n: int
-    ) -> np.ndarray[Any, np.dtype[np.float64]]:
+    ) -> npt.NDArray[np.float64]:
         """
         Compute eigenvector centrality from sparse entries.
         """
-        if not entries:
-            return np.zeros(n)
-
         # Build sparse matrix
         rows = [e.row for e in entries]
         cols = [e.col for e in entries]
@@ -103,7 +114,7 @@ class AnalyticsService:
     def is_connected(self, matrix: csr_matrix) -> bool:
         """Check if graph has a single component (weakly connected)."""
         if matrix.shape[0] == 0:
-            return False
+            return True
 
         adj = matrix > 0
         n_components, _ = csgraph.connected_components(adj, connection="weak")

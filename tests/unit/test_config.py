@@ -55,12 +55,10 @@ def test_invalid_log_level(dummy_env: dict[str, str]) -> None:
     env["LOG_LEVEL"] = "INVALID_LEVEL"
     with patch.dict("os.environ", env, clear=True):
         get_settings.cache_clear()
-        with pytest.raises(ValueError):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
             get_settings()
-    with patch.dict(os.environ, env, clear=True):
-        get_settings.cache_clear()
-        s = get_settings()
-        assert s.log_level == "INVALID_LEVEL"
 
 
 def test_agent_config_validation() -> None:
