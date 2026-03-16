@@ -27,6 +27,9 @@ class AnalyticsService:
         Identify key influencers based on eigenvector centrality.
         Always uses sparse matrices for efficiency and scalability.
         """
+        if not network.stakeholders:
+            return []
+
         n = len(network.stakeholders)
         if n == 0:
             return []
@@ -61,7 +64,9 @@ class AnalyticsService:
             error_msg = f"{msg}: {e}"
             raise CalculationError(error_msg) from e
 
-    def _eigen_centrality_sparse(self, sparse_mat: csr_matrix) -> np.ndarray[Any, Any]:
+    def _eigen_centrality_sparse(
+        self, sparse_mat: csr_matrix
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
         """Compute centrality from pre-built CSR matrix."""
         mat_t = sparse_mat.T
         try:
@@ -70,7 +75,7 @@ class AnalyticsService:
             s = np.sum(centrality)
             if s > 0:
                 centrality = centrality / s
-            return typing.cast(np.ndarray[Any, Any], centrality)
+            return typing.cast(np.ndarray[Any, np.dtype[np.float64]], centrality)
         except Exception as e:
             logger.warning(f"Sparse eig failed, falling back? {e}")
             msg = "Sparse eigen calculation failed"
@@ -78,7 +83,7 @@ class AnalyticsService:
 
     def _eigen_centrality_sparse_entries(
         self, entries: list[SparseMatrixEntry], n: int
-    ) -> np.ndarray[Any, Any]:
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
         """
         Compute eigenvector centrality from sparse entries.
         """
@@ -97,11 +102,11 @@ class AnalyticsService:
 
         return self._eigen_centrality_sparse(sparse_mat)
 
-    def is_connected(self, matrix_list: list[list[float]]) -> bool:
+    def is_connected(self, matrix: csr_matrix) -> bool:
         """Check if graph has a single component (weakly connected)."""
-        if not matrix_list:
+        if matrix.shape[0] == 0:
             return False
 
-        adj = np.array(matrix_list) > 0
+        adj = matrix > 0
         n_components, _ = csgraph.connected_components(adj, connection="weak")
         return int(n_components) == 1
