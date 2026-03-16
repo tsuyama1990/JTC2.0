@@ -53,11 +53,14 @@ def test_consensus_dense_conversion_failure(base_dense_network: DenseInfluenceNe
         engine.calculate_consensus(base_dense_network)
 
 
+INVALID_STOCHASTIC_SUM = 0.9
+
+
 def test_consensus_stochasticity_check_failure(base_dense_network: DenseInfluenceNetwork) -> None:
     """Test that runtime stochasticity check catches invalid matrices."""
     engine = ConsensusService()
 
-    bad_matrix = csr_matrix([[0.9]])  # Sum is 0.9
+    bad_matrix = csr_matrix([[INVALID_STOCHASTIC_SUM]])  # Sum is 0.9
 
     with patch(
         "src.core.nemawashi.consensus.NemawashiUtils.build_sparse_matrix",
@@ -95,14 +98,18 @@ def test_run_nomikai_target_not_found(base_dense_network: DenseInfluenceNetwork)
         service.run_nomikai(base_dense_network, "B")
 
 
+MAX_STAKEHOLDERS = 10001
+
+
 def test_run_nomikai_exceeds_limit() -> None:
     service = SimulationService()
     stakeholders = [
-        Stakeholder(name=f"A{i}", initial_support=0.5, stubbornness=0.5) for i in range(10001)
+        Stakeholder(name=f"A{i}", initial_support=0.5, stubbornness=0.5)
+        for i in range(MAX_STAKEHOLDERS)
     ]
     net = SparseInfluenceNetwork(
         stakeholders=stakeholders,
-        matrix=[SparseMatrixEntry(row=i, col=i, val=1.0) for i in range(10001)],
+        matrix=[SparseMatrixEntry(row=i, col=i, val=1.0) for i in range(MAX_STAKEHOLDERS)],
     )
     with pytest.raises(ValidationError, match="exceeds limit"):
         service.run_nomikai(net, "A0")
@@ -221,8 +228,11 @@ def test_validate_stochasticity_csr_nan() -> None:
         NemawashiUtils.validate_stochasticity(mat, expected_nodes=2)
 
 
+INVALID_BOUNDS_VALUES = (1.5, -0.5)
+
+
 def test_validate_stochasticity_csr_bounds() -> None:
-    mat = csr_matrix([[1.5, -0.5], [0.2, 0.8]])
+    mat = csr_matrix([[INVALID_BOUNDS_VALUES[0], INVALID_BOUNDS_VALUES[1]], [0.2, 0.8]])
     with pytest.raises(ValidationError, match="between 0.0 and 1.0"):
         NemawashiUtils.validate_stochasticity(mat, expected_nodes=2)
 
@@ -251,7 +261,7 @@ def test_validate_stochasticity_ndarray_nan() -> None:
 
 
 def test_validate_stochasticity_ndarray_bounds() -> None:
-    mat = np.array([[1.5, -0.5], [0.2, 0.8]])
+    mat = np.array([[INVALID_BOUNDS_VALUES[0], INVALID_BOUNDS_VALUES[1]], [0.2, 0.8]])
     with pytest.raises(ValidationError, match="between 0.0 and 1.0"):
         NemawashiUtils.validate_stochasticity(mat)
 
@@ -280,7 +290,7 @@ def test_validate_stochasticity_list_nan() -> None:
 
 
 def test_validate_stochasticity_list_bounds() -> None:
-    mat = [[1.5, -0.5], [0.2, 0.8]]
+    mat = [[INVALID_BOUNDS_VALUES[0], INVALID_BOUNDS_VALUES[1]], [0.2, 0.8]]
     with pytest.raises(ValidationError, match="between 0.0 and 1.0"):
         NemawashiUtils.validate_stochasticity(mat)
 
@@ -297,11 +307,14 @@ class MockNetwork:
         self.is_dense = is_dense
 
 
+MAX_STAKEHOLDERS_FOR_TEST = 10
+
+
 def test_build_sparse_matrix_exceeds_max() -> None:
 
     get_settings.cache_clear()
     settings = get_settings()
-    settings.nemawashi.max_stakeholders = 10
+    settings.nemawashi.max_stakeholders = MAX_STAKEHOLDERS_FOR_TEST
     net = MockNetwork([], False)
     with pytest.raises(ValueError, match="exceeds limit"):
         NemawashiUtils.build_sparse_matrix(net, 11)

@@ -124,11 +124,14 @@ def test_global_state_phase_enum(mock_persona: Persona) -> None:
     assert isinstance(state.phase, Phase)
 
 
+INVALID_PHASE = "INVALID_PHASE"
+
+
 def test_state_validator_invalid_phase() -> None:
     """Test StateValidator handling invalid phase type."""
     state = GlobalState()
     # Mypy strictly enforces phase types, so we bypass to test the internal runtime validation check
-    state.__dict__["phase"] = "INVALID_PHASE"
+    state.__dict__["phase"] = INVALID_PHASE
 
     with pytest.raises(TypeError, match="Invalid phase enum value"):
         StateValidator.validate_phase_requirements(state)
