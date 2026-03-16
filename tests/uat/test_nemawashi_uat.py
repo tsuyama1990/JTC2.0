@@ -19,10 +19,11 @@ def test_identify_key_influencer_uat() -> None:
     s2 = Stakeholder(name="Sales Manager", initial_support=0.8, stubbornness=0.5)
     s3 = Stakeholder(name="CEO", initial_support=0.5, stubbornness=0.2)
 
-    # Finance listens to NO ONE (1.0 self), Sales listens entirely to Finance (1.0 Finance), CEO listens entirely to Finance (1.0 Finance).
+    # Finance listens to NO ONE (0.8 self, rest split), Sales listens entirely to Finance (0.9 Finance), CEO listens entirely to Finance (0.9 Finance).
     # This guarantees mathematically that Finance Manager is the most influential stakeholder.
+    # Rows sum exactly to 1.0.
 
-    matrix = [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
+    matrix = [[0.8, 0.1, 0.1], [0.9, 0.1, 0.0], [0.9, 0.0, 0.1]]
 
     net = DenseInfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
     state = GlobalState(influence_network=net)
@@ -91,7 +92,8 @@ def test_identify_influencers_edge_cases() -> None:
         stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)]
     )
 
-    # It should natively fallback to np.array([1.0]) for 1x1 sparse matrices and succeed
+    # It should natively handle 1x1 sparse matrices via the new eigs general fallback
+    # The normalized eigenvector is [1.0], which sorting will map to the single stakeholder.
     influencers = engine.identify_influencers(single_network)
     assert influencers == ["Loner"]
 

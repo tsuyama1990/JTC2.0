@@ -79,20 +79,21 @@ class AnalyticsService:
         """Compute centrality from pre-built CSR matrix."""
         mat_t = sparse_mat.T
 
-        if mat_t.shape[0] == 1:
-            return np.array([1.0], dtype=np.float64)
-
         try:
-            vals, vecs = eigs(mat_t, k=1, which="LM")
-            centrality = np.abs(vecs.flatten())
-            s = np.sum(centrality)
-            if s > 0:
-                centrality = centrality / s
-            return typing.cast(np.ndarray[Any, np.dtype[np.float64]], centrality)
+            if mat_t.shape[0] == 1:
+                centrality = np.array([1.0], dtype=np.float64)
+            else:
+                vals, vecs = eigs(mat_t, k=1, which="LM")
+                centrality = np.abs(vecs.flatten())
         except (LinAlgError, ValueError) as e:
             logger.warning(f"Sparse eig failed: {e}")
             msg = "Sparse eigen calculation failed"
             raise CalculationError(msg) from e
+        else:
+            s = np.sum(centrality)
+            if s > 0:
+                centrality = centrality / s
+            return centrality
 
     def _eigen_centrality_sparse_entries(
         self, entries: list[SparseMatrixEntry], n: int
@@ -100,9 +101,6 @@ class AnalyticsService:
         """
         Compute eigenvector centrality from sparse entries.
         """
-        if not entries:
-            return np.zeros(n)
-
         # Build sparse matrix
         rows = [e.row for e in entries]
         cols = [e.col for e in entries]
