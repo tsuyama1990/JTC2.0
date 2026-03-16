@@ -1,7 +1,6 @@
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
-from typing import Any
 from scipy.sparse import coo_matrix, csr_matrix
 
 from src.core.exceptions import ValidationError

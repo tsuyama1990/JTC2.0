@@ -1,8 +1,8 @@
 import logging
 import typing
+from typing import Any
 
 import numpy as np
-from typing import Any
 from scipy.sparse import coo_matrix, csgraph, csr_matrix
 from scipy.sparse.linalg import eigs
 
