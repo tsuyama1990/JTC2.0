@@ -3,7 +3,6 @@ UAT for Memory Safety and Scalability (Cycle 3 Check).
 """
 
 import itertools
-import os
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -14,7 +13,6 @@ from src.core.config import get_settings
 from src.data.rag import RAG
 from src.domain_models.common import LazyIdeaIterator
 from src.domain_models.lean_canvas import LeanCanvas
-from tests.conftest import DUMMY_ENV_VARS
 
 
 @pytest.fixture
@@ -25,7 +23,7 @@ def temp_rag_dir(tmp_path: Path) -> str:
     return str(d)
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 def test_lazy_iterator_safety_limit() -> None:
     """
     Verify that LazyIdeaIterator raises StopIteration if the safety limit is exceeded.
@@ -57,7 +55,7 @@ def test_lazy_iterator_safety_limit() -> None:
         next(lazy_iter)
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     """
     Verify RAG prevents loading an index that exceeds the size limit.
@@ -83,7 +81,7 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
         RAG(persist_dir=temp_rag_dir)
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 def test_rag_ingest_chunking(temp_rag_dir: str) -> None:
     """
     Verify that ingestion chunks large text.

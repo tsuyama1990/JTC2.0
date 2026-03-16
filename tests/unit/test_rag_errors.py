@@ -1,5 +1,5 @@
 import re
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pybreaker
 import pytest
@@ -7,10 +7,8 @@ import pytest
 from src.core.constants import ERR_CIRCUIT_OPEN, ERR_RAG_INDEX_SIZE, ERR_RAG_TEXT_TOO_LARGE
 from src.core.exceptions import NetworkError, ValidationError
 from src.data.rag import RAG
-from tests.conftest import DUMMY_ENV_VARS
 
 
-@patch.dict("os.environ", DUMMY_ENV_VARS)
 def test_rag_circuit_breaker() -> None:
     """Test that the circuit breaker opens and raises NetworkError."""
     rag = RAG(persist_dir="./tests/temp_rag_cb")
@@ -25,7 +23,7 @@ def test_rag_circuit_breaker() -> None:
         rag.query("Test query")
 
 
-@patch.dict("os.environ", DUMMY_ENV_VARS)
+
 def test_rag_memory_limit() -> None:
     """Test that MemoryError is raised when index size exceeds limit."""
     rag = RAG(persist_dir="./tests/temp_rag_mem")
@@ -51,7 +49,7 @@ def test_rag_memory_limit() -> None:
         rag.ingest_text("some text", "source")
 
 
-@patch.dict("os.environ", DUMMY_ENV_VARS)
+
 def test_rag_input_validation() -> None:
     """Test input validation for RAG methods."""
     rag = RAG(persist_dir="./tests/temp_rag_val")
@@ -75,7 +73,7 @@ def test_rag_input_validation() -> None:
         rag.query("   ")
 
 
-@patch.dict("os.environ", DUMMY_ENV_VARS)
+
 def test_error_formatting() -> None:
     """Verify error messages are formatted correctly."""
     # This checks the constants logic implicitly via usage

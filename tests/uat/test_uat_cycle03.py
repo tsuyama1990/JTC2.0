@@ -1,4 +1,3 @@
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,10 +6,8 @@ from src.core.config import get_settings
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
 from src.domain_models.transcript import Transcript
-from tests.conftest import DUMMY_ENV_VARS
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
 @patch("src.agents.cpo.RAG")
 @patch("src.agents.cpo.BaseChatModel")
 def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
@@ -78,7 +75,7 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     assert "pivot" in last_msg.content.lower()
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 @patch("src.agents.cpo.RAG")
 @patch("src.agents.cpo.BaseChatModel")
 def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:

@@ -4,16 +4,6 @@ from functools import lru_cache
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.core.theme import (
-    AGENT_POS_CPO,
-    AGENT_POS_FINANCE,
-    AGENT_POS_NEW_EMP,
-    AGENT_POS_SALES,
-    COLOR_CPO,
-    COLOR_FINANCE,
-    COLOR_NEW_EMP,
-    COLOR_SALES,
-)
 from src.core.validators import ConfigValidators
 
 
@@ -106,6 +96,7 @@ class AgentConfig(BaseModel):
 
 class NemawashiConfig(BaseSettings):
     max_stakeholders: int = Field(
+        default=10000,
         alias="NEMAWASHI_MAX_STAKEHOLDERS",
         description="Maximum allowed stakeholders in influence network",
     )
@@ -167,6 +158,12 @@ class V0Config(BaseSettings):
     )
 
 
+class TurnSequenceItem(BaseModel):
+    node_name: str
+    role: str
+    description: str
+
+
 class SimulationConfig(BaseSettings):
     """Configuration for the Pyxel Simulation UI."""
 
@@ -195,7 +192,10 @@ class SimulationConfig(BaseSettings):
     def turn_sequence(self) -> list[dict[str, str]]:
         import json
 
-        return json.loads(self.turn_sequence_str)  # type: ignore[no-any-return]
+        parsed = json.loads(self.turn_sequence_str)
+        # Validate against schema
+        validated = [TurnSequenceItem(**item) for item in parsed]
+        return [v.model_dump() for v in validated]
 
     console_sleep: float = Field(
         alias="SIMULATION_CONSOLE_SLEEP", description="Sleep time for console fallback"
@@ -204,40 +204,32 @@ class SimulationConfig(BaseSettings):
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp_pos: dict[str, int] = Field(
+        default_factory=lambda: {"x": 10, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_NEW_EMP",
-        default_factory=lambda: AGENT_POS_NEW_EMP,
         description="New Employee Agent layout settings",
     )
-    agent_new_emp_color: int = Field(
-        alias="COLOR_NEW_EMP", default=COLOR_NEW_EMP, description="New Employee Agent Color"
-    )
+    agent_new_emp_color: int = Field(default=8, alias="COLOR_NEW_EMP", description="New Employee Agent Color")
 
     agent_finance_pos: dict[str, int] = Field(
+        default_factory=lambda: {"x": 50, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_FINANCE",
-        default_factory=lambda: AGENT_POS_FINANCE,
         description="Finance Agent layout settings",
     )
-    agent_finance_color: int = Field(
-        alias="COLOR_FINANCE", default=COLOR_FINANCE, description="Finance Agent Color"
-    )
+    agent_finance_color: int = Field(default=9, alias="COLOR_FINANCE", description="Finance Agent Color")
 
     agent_sales_pos: dict[str, int] = Field(
+        default_factory=lambda: {"x": 90, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_SALES",
-        default_factory=lambda: AGENT_POS_SALES,
         description="Sales Agent layout settings",
     )
-    agent_sales_color: int = Field(
-        alias="COLOR_SALES", default=COLOR_SALES, description="Sales Agent Color"
-    )
+    agent_sales_color: int = Field(default=10, alias="COLOR_SALES", description="Sales Agent Color")
 
     agent_cpo_pos: dict[str, int] = Field(
+        default_factory=lambda: {"x": 130, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_CPO",
-        default_factory=lambda: AGENT_POS_CPO,
         description="CPO Agent layout settings",
     )
-    agent_cpo_color: int = Field(
-        alias="COLOR_CPO", default=COLOR_CPO, description="CPO Agent Color"
-    )
+    agent_cpo_color: int = Field(default=11, alias="COLOR_CPO", description="CPO Agent Color")
 
     @property
     def agent_new_emp(self) -> AgentConfig:
@@ -345,17 +337,19 @@ class Settings(BaseSettings):
 
     # Explicitly enforce required keys without defaults
     openai_api_key: SecretStr = Field(
-        alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=1
+        default=SecretStr(""), alias="OPENAI_API_KEY", description="OpenAI API Key"
     )
     tavily_api_key: SecretStr = Field(
-        alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=1
+        default=SecretStr(""), alias="TAVILY_API_KEY", description="Tavily Search API Key"
     )
-    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key", min_length=1)
+    v0_api_key: SecretStr = Field(default=SecretStr(""), alias="V0_API_KEY", description="V0.dev API Key")
 
     @field_validator("openai_api_key", mode="before")
     @classmethod
     def validate_openai_key_before(cls, v: str | SecretStr) -> SecretStr:
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        if not secret_str.get_secret_value():
+            raise ValueError("OPENAI_API_KEY is not set.")
         try:
             ConfigValidators.validate_openai_key(secret_str)
         except Exception as e:
@@ -368,6 +362,8 @@ class Settings(BaseSettings):
     @classmethod
     def validate_tavily_key_before(cls, v: str | SecretStr) -> SecretStr:
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
+        if not secret_str.get_secret_value():
+            raise ValueError("TAVILY_API_KEY is not set.")
         try:
             ConfigValidators.validate_tavily_key(secret_str)
         except Exception as e:
@@ -379,20 +375,15 @@ class Settings(BaseSettings):
     @field_validator("v0_api_key", mode="before")
     @classmethod
     def validate_v0_api_key_before(cls, v: str | SecretStr) -> SecretStr:
-        """Validate the format of the V0 API Key."""
-        import re
-
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
-        secret = secret_str.get_secret_value()
-        if not secret or not secret.strip():
-            msg = "API key cannot be empty or whitespace-only."
-            raise ValueError(msg)
-        if not (20 <= len(secret) <= 128):
-            msg = "v0_api_key must be between 20 and 128 characters long."
-            raise ValueError(msg)
-        if not re.match(r"^v0-[a-zA-Z0-9_\-]+$", secret):
-            msg = "v0_api_key must start with 'v0-' and contain only alphanumeric characters, dashes, or underscores."
-            raise ValueError(msg)
+        if not secret_str.get_secret_value():
+            return secret_str
+        try:
+            ConfigValidators.validate_v0_key(secret_str)
+        except Exception as e:
+            base_msg = ErrorMessages().invalid_api_key_format.format(key_name="v0.dev API Key")
+            msg = f"{base_msg} {e}"
+            raise ValueError(msg) from e
         return secret_str
 
     v0_api_url: str = Field(

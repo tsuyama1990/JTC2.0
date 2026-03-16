@@ -1,5 +1,4 @@
 import itertools
-import os
 from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
@@ -14,7 +13,6 @@ from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.persona import EmpathyMap, Persona
 from src.domain_models.sitemap import UserStory
 from src.domain_models.state import GlobalState, Phase
-from tests.conftest import DUMMY_ENV_VARS
 
 
 @pytest.fixture
@@ -40,7 +38,7 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
     return _gen()
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 @patch("src.core.factory.IdeatorAgent")
 @patch("src.core.factory.get_llm")
 def test_ideation_scalability(
@@ -82,7 +80,7 @@ def test_ideation_scalability(
     assert next_item.id == 5
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 @patch("src.core.factory.IdeatorAgent")
 @patch("src.core.factory.get_llm")
 def test_gate_transitions_data_integrity(
@@ -156,7 +154,7 @@ def test_gate_transitions_data_integrity(
 
 
 @patch("src.core.factory.get_settings")
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 def test_large_dataset_iterator_safety(mock_get_settings: MagicMock) -> None:
     """
     Verify memory safety with a mock infinite iterator (Cycle 3 Scalability Check).

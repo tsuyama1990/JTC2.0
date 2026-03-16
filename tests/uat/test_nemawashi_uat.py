@@ -67,3 +67,24 @@ def test_nomikai_effect_uat() -> None:
 
     except NotImplementedError:
         pytest.skip("NemawashiEngine not implemented yet")
+
+
+def test_identify_influencers_edge_cases() -> None:
+    """Test identify_influencers handles edge cases like empty networks, single stakeholder, etc."""
+    engine = AnalyticsService()
+
+    # Empty network
+    empty_network = SparseInfluenceNetwork(stakeholders=[], matrix=[])
+    assert engine.identify_influencers(empty_network) == []
+
+    # Single stakeholder network
+    s1 = Stakeholder(name="Loner", initial_support=0.5, stubbornness=0.5)
+    single_network = SparseInfluenceNetwork(stakeholders=[s1], matrix=[])
+    assert engine.identify_influencers(single_network) == ["Loner"]
+
+    # Invalid matrix testing
+    invalid_network = SparseInfluenceNetwork(stakeholders=[s1, Stakeholder(name="B", initial_support=0.5, stubbornness=0.5)], matrix=[SparseMatrixEntry(row=5, col=5, val=1.0)])
+    import pytest
+    from src.core.exceptions import CalculationError
+    with pytest.raises(CalculationError):
+        engine.identify_influencers(invalid_network)

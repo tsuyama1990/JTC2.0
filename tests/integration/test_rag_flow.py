@@ -15,7 +15,6 @@ from src.data.rag import RAG
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState
 from src.domain_models.transcript import Transcript
-from tests.conftest import DUMMY_ENV_VARS
 
 
 class MockEmbedding(BaseEmbedding):
@@ -51,7 +50,7 @@ def temp_vector_store() -> Generator[str, None, None]:
             base_dir.rmdir()
 
 
-@patch.dict("os.environ", DUMMY_ENV_VARS)
+
 def test_transcript_ingestion(temp_vector_store: str) -> None:
     """Test that ingest_transcript works correctly."""
     # Using LlamaIndex's MockLLM and MockEmbedding directly injected via Settings
@@ -89,7 +88,7 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
         assert rag_loaded.index is not None
 
 
-@patch.dict("os.environ", DUMMY_ENV_VARS)
+
 def test_rag_integration_flow(temp_vector_store: str) -> None:
     """
     Integration test for RAG: Ingest -> Persist -> Query.
@@ -129,7 +128,7 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
         assert isinstance(response, str)
 
 
-@patch.dict("os.environ", DUMMY_ENV_VARS)
+
 def test_cpo_agent_behavior() -> None:
     """Test CPO Agent behavior with mocked RAG."""
     get_settings.cache_clear()

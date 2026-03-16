@@ -1,4 +1,3 @@
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,10 +10,8 @@ from src.domain_models.politics import DenseInfluenceNetwork, Stakeholder
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 from src.domain_models.value_proposition import CustomerProfile, ValueMap, ValuePropositionCanvas
-from tests.conftest import DUMMY_ENV_VARS
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
 def test_cpo_agent_initialization_invalid_path() -> None:
     """Test CPO Agent path traversal rejection."""
     get_settings.cache_clear()
@@ -30,7 +27,7 @@ def test_cpo_agent_initialization_invalid_path() -> None:
         )
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 def test_cpo_agent_run_no_transcripts() -> None:
     """Test CPO agent run handles missing transcripts properly."""
     get_settings.cache_clear()
@@ -80,7 +77,7 @@ def test_cpo_agent_run_no_transcripts() -> None:
         )
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 def test_cpo_agent_run_with_nemawashi_and_canvas_models() -> None:
     """Test CPO agent run with influence network, VPC, and alternative analysis."""
     get_settings.cache_clear()
@@ -155,7 +152,7 @@ def test_cpo_agent_run_with_nemawashi_and_canvas_models() -> None:
         assert last_msg.role == Role.CPO
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 def test_cpo_agent_run_rag_error() -> None:
     """Test CPO agent run handles RAG error gracefully."""
     get_settings.cache_clear()
@@ -198,7 +195,7 @@ def test_cpo_agent_run_rag_error() -> None:
         assert last_msg.role == Role.CPO
 
 
-@patch.dict(os.environ, DUMMY_ENV_VARS)
+
 def test_cpo_agent_run_generation_error() -> None:
     """Test CPO agent handles generation/prompt formatting errors gracefully."""
     get_settings.cache_clear()
