@@ -121,10 +121,9 @@ class PathValidator:
                     raise PermissionError(f"Directory not owned by current user: {output_dir}")
 
         except Exception:
-            try:
+            import contextlib
+            with contextlib.suppress(OSError):
                 os.close(fd)
-            except OSError:
-                pass
             raise
 
         return fd

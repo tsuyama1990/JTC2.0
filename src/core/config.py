@@ -10,17 +10,17 @@ from src.core.validators import ConfigValidators
 class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
-    min_title_length: int = Field(default=3, description="Minimum length for titles")
-    max_title_length: int = Field(default=100, description="Maximum length for titles")
-    min_content_length: int = Field(default=3, description="Minimum length for content blocks")
-    max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
+    min_title_length: int = Field(description="Minimum length for titles")
+    max_title_length: int = Field(description="Maximum length for titles")
+    min_content_length: int = Field(description="Minimum length for content blocks")
+    max_content_length: int = Field(description="Maximum length for content blocks")
 
-    min_list_length: int = Field(default=1, description="Minimum items in lists")
-    max_list_length: int = Field(default=20, description="Maximum items in lists")
+    min_list_length: int = Field(description="Minimum items in lists")
+    max_list_length: int = Field(description="Maximum items in lists")
 
-    max_custom_metrics: int = Field(default=50, description="Maximum custom metrics allowed")
-    min_metric_value: float = Field(default=0.0, description="Minimum value for metrics")
-    max_percentage_value: float = Field(default=100.0, description="Maximum percentage value")
+    max_custom_metrics: int = Field(description="Maximum custom metrics allowed")
+    min_metric_value: float = Field(description="Minimum value for metrics")
+    max_percentage_value: float = Field(description="Maximum percentage value")
 
 
 class ErrorMessages(BaseSettings):
@@ -96,7 +96,6 @@ class AgentConfig(BaseModel):
 
 class NemawashiConfig(BaseSettings):
     max_stakeholders: int = Field(
-        default=10000,
         alias="NEMAWASHI_MAX_STAKEHOLDERS",
         description="Maximum allowed stakeholders in influence network",
     )
@@ -104,22 +103,18 @@ class NemawashiConfig(BaseSettings):
 
     max_steps: int = Field(
         alias="NEMAWASHI_MAX_STEPS",
-        default=50,
         description="Max iterations for consensus",
     )
     tolerance: float = Field(
         alias="NEMAWASHI_TOLERANCE",
-        default=1e-4,
         description="Convergence tolerance",
     )
     nomikai_boost: float = Field(
         alias="NEMAWASHI_NOMIKAI_BOOST",
-        default=0.2,
         description="Boost factor from Nomikai",
     )
     nomikai_reduction: float = Field(
         alias="NEMAWASHI_NOMIKAI_REDUCTION",
-        default=0.1,
         description="Stubbornness reduction from Nomikai",
     )
 
@@ -129,11 +124,10 @@ class FileConfig(BaseSettings):
 
     max_workers: int = Field(
         alias="FILE_MAX_WORKERS",
-        default=5,
         description="Max thread pool workers for async file operations",
     )
     output_directory: str = Field(
-        alias="OUTPUT_DIR", default="outputs", description="Directory to save final artifacts"
+        alias="OUTPUT_DIR", description="Directory to save final artifacts"
     )
 
 
@@ -142,7 +136,6 @@ class GraphConfig(BaseSettings):
 
     interrupt_points: list[str] = Field(
         alias="GRAPH_INTERRUPT_POINTS",
-        default=["ideator", "verification", "solution_proposal", "pmf"],
         description="List of node names where the graph should interrupt execution for HITL",
     )
 
@@ -150,10 +143,9 @@ class GraphConfig(BaseSettings):
 class V0Config(BaseSettings):
     """Configuration for v0.dev integration."""
 
-    retry_max: int = Field(alias="V0_RETRY_MAX", default=3, description="Max retries for API calls")
+    retry_max: int = Field(alias="V0_RETRY_MAX", description="Max retries for API calls")
     retry_backoff: float = Field(
         alias="V0_RETRY_BACKOFF",
-        default=2.0,
         description="Exponential backoff factor",
     )
 
@@ -208,32 +200,28 @@ class SimulationConfig(BaseSettings):
         alias="AGENT_POS_NEW_EMP",
         description="New Employee Agent layout settings",
     )
-    agent_new_emp_color: int = Field(
-        default=8, alias="COLOR_NEW_EMP", description="New Employee Agent Color"
-    )
+    agent_new_emp_color: int = Field(alias="COLOR_NEW_EMP", description="New Employee Agent Color")
 
     agent_finance_pos: dict[str, int] = Field(
         default_factory=lambda: {"x": 50, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_FINANCE",
         description="Finance Agent layout settings",
     )
-    agent_finance_color: int = Field(
-        default=9, alias="COLOR_FINANCE", description="Finance Agent Color"
-    )
+    agent_finance_color: int = Field(alias="COLOR_FINANCE", description="Finance Agent Color")
 
     agent_sales_pos: dict[str, int] = Field(
         default_factory=lambda: {"x": 90, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_SALES",
         description="Sales Agent layout settings",
     )
-    agent_sales_color: int = Field(default=10, alias="COLOR_SALES", description="Sales Agent Color")
+    agent_sales_color: int = Field(alias="COLOR_SALES", description="Sales Agent Color")
 
     agent_cpo_pos: dict[str, int] = Field(
         default_factory=lambda: {"x": 130, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_CPO",
         description="CPO Agent layout settings",
     )
-    agent_cpo_color: int = Field(default=11, alias="COLOR_CPO", description="CPO Agent Color")
+    agent_cpo_color: int = Field(alias="COLOR_CPO", description="CPO Agent Color")
 
     @property
     def agent_new_emp(self) -> AgentConfig:
@@ -306,12 +294,10 @@ class GovernanceConfig(BaseSettings):
     default_churn: float = Field(alias="DEFAULT_CHURN", description="Fallback Churn Rate")
     max_llm_response_size: int = Field(
         alias="MAX_LLM_RESPONSE_SIZE",
-        default=10_000,
         description="Max bytes for LLM JSON response",
     )
     max_content_multiplier: int = Field(
         alias="MAX_CONTENT_MULTIPLIER",
-        default=5,
         description="Multiplier applied to max_llm_response_size for validations",
     )
     output_path: str = Field(alias="RINGI_SHO_PATH", description="Path for Ringi-sho output")
@@ -321,7 +307,6 @@ class GovernanceConfig(BaseSettings):
     )
     max_search_result_size: int = Field(
         alias="MAX_SEARCH_RESULT_SIZE",
-        default=5000,
         description="Max chars for search result context",
     )
 
@@ -342,9 +327,7 @@ class Settings(BaseSettings):
     # Explicitly enforce required keys without defaults
     openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
     tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
-    v0_api_key: SecretStr | None = Field(
-        default=None, alias="V0_API_KEY", description="V0.dev API Key"
-    )
+    v0_api_key: SecretStr | None = Field(alias="V0_API_KEY", description="V0.dev API Key")
 
     @field_validator("openai_api_key", mode="before")
     @classmethod
@@ -428,22 +411,17 @@ class Settings(BaseSettings):
             raise ValueError(msg) from e
         return v
 
-    rag_chunk_size: int = Field(
-        alias="RAG_CHUNK_SIZE", default=1024, description="Chunk size for RAG"
-    )
+    rag_chunk_size: int = Field(alias="RAG_CHUNK_SIZE", description="Chunk size for RAG")
     rag_max_document_length: int = Field(
         alias="RAG_MAX_DOC_LENGTH",
-        default=1_000_000,
         description="Max document length",
     )
     rag_max_query_length: int = Field(
         alias="RAG_MAX_QUERY_LENGTH",
-        default=1000,
         description="Max query length",
     )
     rag_max_index_size_mb: int = Field(
         alias="RAG_MAX_INDEX_SIZE_MB",
-        default=500,
         description="Max index size in MB",
     )
     rag_allowed_paths: str | list[str] = Field(
@@ -452,12 +430,10 @@ class Settings(BaseSettings):
     )
     rag_rate_limit_interval: float = Field(
         alias="RAG_RATE_LIMIT_INTERVAL",
-        default=0.1,
         description="Min interval between RAG calls in seconds",
     )
     rag_scan_depth_limit: int = Field(
         alias="RAG_SCAN_DEPTH_LIMIT",
-        default=10,
         description="Max recursion depth for directory scanning",
     )
 
@@ -496,27 +472,23 @@ class Settings(BaseSettings):
 
     rag_batch_size: int = Field(
         alias="RAG_BATCH_SIZE",
-        default=100,
         description="Batch size for RAG ingestion",
     )
     rag_query_timeout: float = Field(
-        alias="RAG_QUERY_TIMEOUT", default=30.0, description="Timeout for RAG queries in seconds"
+        alias="RAG_QUERY_TIMEOUT", description="Timeout for RAG queries in seconds"
     )
 
     feature_chunk_size: int = Field(
         alias="FEATURE_CHUNK_SIZE",
-        default=5,
         description="Chunk size for feature extraction",
     )
 
     circuit_breaker_fail_max: int = Field(
         alias="CB_FAIL_MAX",
-        default=3,
         description="Circuit breaker fail threshold",
     )
     circuit_breaker_reset_timeout: int = Field(
         alias="CB_RESET_TIMEOUT",
-        default=300,
         description="Circuit breaker reset timeout",
     )
 
@@ -538,16 +510,11 @@ class Settings(BaseSettings):
 
     iterator_safety_limit: int = Field(
         alias="ITERATOR_SAFETY_LIMIT",
-        default=1000,
         description="Max items for iterators",
     )
 
-    search_max_results: int = Field(
-        alias="SEARCH_MAX_RESULTS", default=5, description="Max search results"
-    )
-    search_depth: str = Field(
-        alias="SEARCH_DEPTH", default="advanced", description="Search depth (basic/advanced)"
-    )
+    search_max_results: int = Field(alias="SEARCH_MAX_RESULTS", description="Max search results")
+    search_depth: str = Field(alias="SEARCH_DEPTH", description="Search depth (basic/advanced)")
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
         description="Template for search queries",
