@@ -3,7 +3,12 @@ import pytest
 from src.core.nemawashi.analytics import AnalyticsService
 from src.core.nemawashi.consensus import ConsensusService
 from src.core.nemawashi.nomikai import SimulationService
-from src.domain_models.politics import DenseInfluenceNetwork, Stakeholder
+from src.domain_models.politics import (
+    DenseInfluenceNetwork,
+    SparseInfluenceNetwork,
+    SparseMatrixEntry,
+    Stakeholder,
+)
 from src.domain_models.state import GlobalState
 
 
@@ -26,7 +31,7 @@ def test_identify_key_influencer_uat() -> None:
     engine = AnalyticsService()
 
     try:
-        influencers = engine.identify_influencers(state.influence_network)  # type: ignore
+        influencers = engine.identify_influencers(state.influence_network)
         # Verify Finance is top
         assert influencers[0] == "Finance Manager"
     except NotImplementedError:
@@ -67,3 +72,37 @@ def test_nomikai_effect_uat() -> None:
 
     except NotImplementedError:
         pytest.skip("NemawashiEngine not implemented yet")
+
+
+def test_identify_influencers_edge_cases() -> None:
+    """Test identify_influencers handles edge cases like empty networks, single stakeholder, etc."""
+    engine = AnalyticsService()
+
+    # Empty network
+    # stakeholders must have min_length=1 according to domain model, so this raises validation error instead of being a valid state
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        SparseInfluenceNetwork(stakeholders=[], matrix=[])
+
+    # Single stakeholder network
+    s1 = Stakeholder(name="Loner", initial_support=0.5, stubbornness=0.5)
+    single_network = SparseInfluenceNetwork(
+        stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)]
+    )
+    from src.core.exceptions import CalculationError
+
+    with pytest.raises(CalculationError):
+        engine.identify_influencers(single_network)
+
+    # Invalid matrix testing
+    s2 = Stakeholder(name="B", initial_support=0.5, stubbornness=0.5)
+    invalid_entry = SparseMatrixEntry(row=5, col=5, val=1.0)
+    invalid_network = SparseInfluenceNetwork(stakeholders=[s1, s2], matrix=[invalid_entry])
+    import pytest
+
+    from src.core.exceptions import CalculationError
+
+    with pytest.raises(CalculationError):
+        engine.identify_influencers(invalid_network)
