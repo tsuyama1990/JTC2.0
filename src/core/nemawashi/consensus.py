@@ -21,7 +21,7 @@ class ConsensusService:
         """
         self.settings = settings or get_settings().nemawashi
 
-    def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:
+    def calculate_consensus(self, network: InfluenceNetwork) -> list[float]:  # noqa: C901
         """
         Run the DeGroot model to calculate final opinion distribution.
         Always uses sparse matrices (CSR) for memory efficiency.
@@ -42,6 +42,13 @@ class ConsensusService:
         opinions = np.array([s.initial_support for s in network.stakeholders], dtype=float)
 
         from src.core.exceptions import ValidationError
+        from src.domain_models.politics import SparseInfluenceNetwork
+
+        if isinstance(network, SparseInfluenceNetwork):
+            for entry in network.matrix:
+                if not (0.0 <= entry.val <= 1.0):
+                    msg = f"Sparse matrix entry value {entry.val} out of bounds [0.0, 1.0]"
+                    raise ValidationError(msg)
 
         # Use settings for max_steps, no hardcoded default in logic
         max_steps = self.settings.max_steps

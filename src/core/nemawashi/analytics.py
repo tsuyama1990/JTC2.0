@@ -74,6 +74,8 @@ class AnalyticsService:
             msg = "Influence matrix contains NaN or Inf values."
             raise ValidationError(msg)
 
+        NemawashiUtils.validate_stochasticity(matrix)
+
         try:
             # Eig on transpose for left eigenvectors
             eigenvalues, eigenvectors = np.linalg.eig(matrix.T)

@@ -15,21 +15,33 @@ class NemawashiUtils:
 
     @staticmethod
     def validate_stochasticity(
-        matrix: csr_matrix | list[list[float]], tolerance: float = 1e-6
+        matrix: csr_matrix | list[list[float]] | np.ndarray, tolerance: float = 1e-6
     ) -> None:
         """
         Validate that matrix rows sum to approximately 1.0.
-        Supports both sparse (csr_matrix) and dense (list[list[float]]) inputs.
+        Supports both sparse (csr_matrix) and dense (list[list[float]] or ndarray) inputs.
+        Also validates that all values are in the range [0.0, 1.0].
         """
         try:
-            if hasattr(matrix, "sum"):
-                # Sparse or numpy matrix
+            if hasattr(matrix, "data") and isinstance(matrix, csr_matrix):
+                # Check value bounds for sparse matrix
+                if (matrix.data < 0.0).any() or (matrix.data > 1.0).any():
+                    msg = "Matrix values must be between 0.0 and 1.0"
+                    raise ValidationError(msg)  # noqa: TRY301
+                row_sums = matrix.sum(axis=1).A1
+            elif isinstance(matrix, np.ndarray):
+                if (matrix < 0.0).any() or (matrix > 1.0).any():
+                    msg = "Matrix values must be between 0.0 and 1.0"
+                    raise ValidationError(msg)  # noqa: TRY301
                 row_sums = matrix.sum(axis=1)
-                # Convert to 1D array
-                row_sums = row_sums.A1 if hasattr(row_sums, "A1") else np.array(row_sums).flatten()
             else:
                 # List of lists
                 dense = cast(list[list[float]], matrix)
+                for row in dense:
+                    for val in row:
+                        if not (0.0 <= val <= 1.0):
+                            msg = "Matrix values must be between 0.0 and 1.0"
+                            raise ValidationError(msg)  # noqa: TRY301
                 row_sums = np.array([sum(row) for row in dense])
         except Exception as e:
             msg = f"Stochasticity check failed: {e}"
@@ -64,6 +76,13 @@ class NemawashiUtils:
 
         # Sparse input
         entries = network.matrix
+
+        # Validate indices
+        for entry in entries:
+            if not (0 <= entry.row < n) or not (0 <= entry.col < n):
+                msg = f"Sparse entry indices out of bounds: row {entry.row}, col {entry.col} for network size {n}"
+                raise ValidationError(msg)
+
         count = len(entries)
 
         try:

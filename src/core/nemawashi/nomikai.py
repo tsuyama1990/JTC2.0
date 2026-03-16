@@ -24,6 +24,10 @@ class SimulationService:
         Simulate a 'Nomikai' event to boost support and reduce stubbornness.
         Returns a NEW InfluenceNetwork (immutable).
         """
+        if not target_name or not isinstance(target_name, str):
+            msg = "Target name must be a non-empty string."
+            raise ValidationError(msg)
+
         if len(network.stakeholders) > 10000:
             msg = f"Network size {len(network.stakeholders)} exceeds limit of 10,000 stakeholders."
             raise ValidationError(msg)
