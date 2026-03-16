@@ -1,3 +1,4 @@
+import contextlib
 from unittest.mock import MagicMock, patch
 
 import pybreaker
@@ -495,3 +496,85 @@ class TestBuilderAgent:
             pytest.raises(pybreaker.CircuitBreakerError),
         ):
             agent._generate_agent_prompt_spec("context", False)
+
+
+from typing import Any
+
+
+def test_builder_max_size_validation(mock_llm_factory: Any, mock_env_vars: Any) -> None:
+    from src.agents.builder import BuilderAgent
+    from src.core.config import get_settings
+
+    settings = get_settings()
+    original_size = settings.governance.max_llm_response_size
+    try:
+        settings.governance.max_llm_response_size = 999
+        with pytest.raises(ValueError, match="between 1000 and 1,000,000 bytes"):
+            BuilderAgent(mock_llm_factory())
+    finally:
+        settings.governance.max_llm_response_size = original_size
+
+
+def test_builder_open_breaker(mock_llm_factory: Any, mock_env_vars: Any, state_with_context: Any) -> None:
+
+    import pybreaker
+
+    from src.agents.builder import BuilderAgent
+
+    agent = BuilderAgent(mock_llm_factory())
+    # Create an actual CircuitBreaker and manually put it in Open state
+    breaker = pybreaker.CircuitBreaker(fail_max=1, reset_timeout=60)
+
+    def fail() -> None:
+        msg = "Fail"
+        raise ValueError(msg)
+
+    with contextlib.suppress(Exception):
+        breaker.call(fail)
+
+    agent._breaker = breaker
+    spec, plan, err = agent._generate_specs_with_retries("context", False)
+    assert err == "Circuit breaker is open. Aborting spec generation retries to conserve resources."
+
+
+def test_builder_circuit_breaker_error(mock_llm_factory: Any, mock_env_vars: Any, state_with_context: Any) -> None:
+    from unittest.mock import patch
+
+    import pybreaker
+
+    from src.agents.builder import BuilderAgent
+
+    agent = BuilderAgent(mock_llm_factory())
+    with patch.object(
+        agent,
+        "_generate_agent_prompt_spec",
+        side_effect=pybreaker.CircuitBreakerError("Test Error"),
+    ):
+        spec, plan, err = agent._generate_specs_with_retries("context", False)
+        assert err is not None
+        assert "System unavailable" in err
+
+
+def test_builder_generate_experiment_plan_validation_error(
+    mock_llm_factory: Any, mock_env_vars: Any, state_with_context: Any
+) -> None:
+    from unittest.mock import patch
+
+    from pydantic import ValidationError
+
+    from src.agents.builder import BuilderAgent
+
+    agent = BuilderAgent(mock_llm_factory())
+
+    with patch.object(agent, "_generate_agent_prompt_spec", return_value="spec"):
+        side_effects = [
+            ValidationError.from_exception_data("error", []),
+            ValidationError.from_exception_data("error", []),
+            "plan",
+        ]
+        with (
+            patch.object(agent, "_generate_experiment_plan", side_effect=side_effects),
+            patch("time.sleep"),
+        ):
+            spec, plan, err = agent._generate_specs_with_retries("context", False)
+            assert plan == "plan"  # type: ignore[comparison-overlap]
