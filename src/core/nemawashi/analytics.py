@@ -10,6 +10,8 @@ from scipy.sparse.linalg import eigs
 from src.core.exceptions import CalculationError, ValidationError
 from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import (
+    DenseInfluenceNetwork,
+    SparseInfluenceNetwork,
     SparseMatrixEntry,
 )
 
@@ -21,7 +23,9 @@ class AnalyticsService:
     Analyzes the structure and key influencers of the network.
     """
 
-    def identify_influencers(self, network: Any) -> list[str]:
+    def identify_influencers(
+        self, network: DenseInfluenceNetwork | SparseInfluenceNetwork
+    ) -> list[str]:
         """
         Identify key influencers based on eigenvector centrality.
         Always uses sparse matrices for efficiency and scalability.
@@ -47,7 +51,15 @@ class AnalyticsService:
             else:
                 # Sparse matrix
                 entries = network.matrix
-                centrality = self._eigen_centrality_sparse_entries(entries, n)
+                if not isinstance(entries, list):
+                    msg = "Expected sparse matrix entries to be a list"
+                    raise TypeError(msg)  # noqa: TRY301
+                if len(entries) > 0 and not isinstance(entries[0], SparseMatrixEntry):
+                    msg = "Expected list elements to be SparseMatrixEntry"
+                    raise TypeError(msg)  # noqa: TRY301
+                centrality = self._eigen_centrality_sparse_entries(
+                    typing.cast(list[SparseMatrixEntry], entries), n
+                )
 
             # Rank stakeholders
             indices = np.argsort(centrality)[::-1]  # Descending

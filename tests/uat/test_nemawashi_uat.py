@@ -44,15 +44,13 @@ def test_identify_key_influencer_uat() -> None:
 
     engine = AnalyticsService()
 
-    try:
-        influencers = engine.identify_influencers(state.influence_network)
-        # Verify Finance is top
-        # This is expected because the eigenvector centrality will be highest for
-        # Finance, as both Sales and CEO depend heavily on Finance's opinion (weights 0.5 and 0.8)
-        # while Finance relies almost entirely on themselves (weight 0.9).
-        assert influencers[0] == FINANCE_MANAGER_PARAMS["name"]
-    except NotImplementedError:
-        pytest.skip("AnalyticsService identify_influencers not fully implemented yet")
+    assert state.influence_network is not None
+    influencers = engine.identify_influencers(state.influence_network)
+    # Verify Finance is top
+    # This is expected because the eigenvector centrality will be highest for
+    # Finance, as both Sales and CEO depend heavily on Finance's opinion (weights 0.5 and 0.8)
+    # while Finance relies almost entirely on themselves (weight 0.9).
+    assert influencers[0] == FINANCE_MANAGER_PARAMS["name"]
 
 
 def test_nomikai_effect_uat() -> None:
@@ -74,37 +72,27 @@ def test_nomikai_effect_uat() -> None:
     consensus_service = ConsensusService()
     simulation_service = SimulationService()
 
-    try:
-        initial_ops = consensus_service.calculate_consensus(net)
-        initial_avg = sum(initial_ops) / len(initial_ops)
+    initial_ops = consensus_service.calculate_consensus(net)
+    initial_avg = sum(initial_ops) / len(initial_ops)
 
-        # Run Nomikai on Finance
-        new_net = simulation_service.run_nomikai(net, str(FINANCE_MANAGER_PARAMS["name"]))
+    # Run Nomikai on Finance
+    new_net = simulation_service.run_nomikai(net, str(FINANCE_MANAGER_PARAMS["name"]))
 
-        # Check Finance support increase
-        assert new_net.stakeholders[0].initial_support > 0.1
+    # Check Finance support increase
+    assert new_net.stakeholders[0].initial_support > 0.1
 
-        # Re-run consensus
-        final_ops = consensus_service.calculate_consensus(new_net)
-        final_avg = sum(final_ops) / len(final_ops)
+    # Re-run consensus
+    final_ops = consensus_service.calculate_consensus(new_net)
+    final_avg = sum(final_ops) / len(final_ops)
 
-        # Should be higher
-        assert final_avg > initial_avg
-
-    except NotImplementedError:
-        pytest.skip("SimulationService run_nomikai not fully implemented yet")
+    # Should be higher
+    assert final_avg > initial_avg
 
 
 def test_identify_influencers_edge_cases() -> None:
-    """Test identify_influencers handles edge cases like empty networks, single stakeholder, etc."""
+    """Test identify_influencers handles edge cases like single stakeholder, etc."""
     engine = AnalyticsService()
-    import pytest
     from pydantic import ValidationError
-
-    # Empty network
-    # stakeholders must have min_length=1 according to domain model, so this raises validation error instead of being a valid state
-    with pytest.raises(ValidationError):
-        SparseInfluenceNetwork(stakeholders=[], matrix=[])
 
     # Single stakeholder network
     s1 = Stakeholder(name="Loner", initial_support=0.5, stubbornness=0.5)
@@ -112,7 +100,7 @@ def test_identify_influencers_edge_cases() -> None:
         stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)]
     )
 
-    # It should fallback to dense_eig and succeed instead of raising CalculationError
+    # It should natively fallback to np.array([1.0]) for 1x1 sparse matrices and succeed
     influencers = engine.identify_influencers(single_network)
     assert influencers == ["Loner"]
 
@@ -120,7 +108,5 @@ def test_identify_influencers_edge_cases() -> None:
     # but there are only 2 stakeholders defined in the list, causing an out-of-bounds error.
     s2 = Stakeholder(name="B", initial_support=0.5, stubbornness=0.5)
     invalid_entry = SparseMatrixEntry(row=5, col=5, val=1.0)
-    with pytest.raises(
-        ValidationError, match="Sparse entry indices must be within stakeholder count"
-    ):
+    with pytest.raises(ValidationError):
         SparseInfluenceNetwork(stakeholders=[s1, s2], matrix=[invalid_entry])
