@@ -78,9 +78,11 @@ class AnalyticsService:
     ) -> np.ndarray[Any, np.dtype[np.float64]]:
         """Compute centrality from pre-built CSR matrix."""
         mat_t = sparse_mat.T
+
+        if mat_t.shape[0] == 1:
+            return np.array([1.0], dtype=np.float64)
+
         try:
-            if mat_t.shape[0] == 1:
-                return np.array([1.0], dtype=np.float64)
             vals, vecs = eigs(mat_t, k=1, which="LM")
             centrality = np.abs(vecs.flatten())
             s = np.sum(centrality)
@@ -88,7 +90,7 @@ class AnalyticsService:
                 centrality = centrality / s
             return typing.cast(np.ndarray[Any, np.dtype[np.float64]], centrality)
         except (LinAlgError, ValueError) as e:
-            logger.warning(f"Sparse eig failed, falling back? {e}")
+            logger.warning(f"Sparse eig failed: {e}")
             msg = "Sparse eigen calculation failed"
             raise CalculationError(msg) from e
 
@@ -116,7 +118,7 @@ class AnalyticsService:
     def is_connected(self, matrix: csr_matrix) -> bool:
         """Check if graph has a single component (weakly connected)."""
         if matrix.shape[0] == 0:
-            return False
+            return True
 
         adj = matrix > 0
         n_components, _ = csgraph.connected_components(adj, connection="weak")

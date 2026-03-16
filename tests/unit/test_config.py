@@ -50,7 +50,7 @@ def test_config_caching(dummy_env: dict[str, str]) -> None:
 
 
 def test_invalid_log_level(dummy_env: dict[str, str]) -> None:
-    """Test loading with invalid log level."""
+    """Test loading with invalid log level (although Pydantic might coerce it)."""
     env = dummy_env.copy()
     env["LOG_LEVEL"] = "INVALID_LEVEL"
     with patch.dict("os.environ", env, clear=True):
