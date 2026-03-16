@@ -91,18 +91,13 @@ def test_identify_influencers_edge_cases() -> None:
     single_network = SparseInfluenceNetwork(
         stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)]
     )
-    from src.core.exceptions import CalculationError
 
-    with pytest.raises(CalculationError):
-        engine.identify_influencers(single_network)
+    # It should fallback to dense_eig and succeed instead of raising CalculationError
+    influencers = engine.identify_influencers(single_network)
+    assert influencers == ["Loner"]
 
     # Invalid matrix testing
     s2 = Stakeholder(name="B", initial_support=0.5, stubbornness=0.5)
     invalid_entry = SparseMatrixEntry(row=5, col=5, val=1.0)
-    invalid_network = SparseInfluenceNetwork(stakeholders=[s1, s2], matrix=[invalid_entry])
-    import pytest
-
-    from src.core.exceptions import CalculationError
-
-    with pytest.raises(CalculationError):
-        engine.identify_influencers(invalid_network)
+    with pytest.raises(ValidationError):
+        SparseInfluenceNetwork(stakeholders=[s1, s2], matrix=[invalid_entry])

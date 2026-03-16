@@ -68,7 +68,12 @@ class AnalyticsService:
         """Compute centrality from pre-built CSR matrix."""
         mat_t = sparse_mat.T
         try:
-            vals, vecs = eigs(mat_t, k=1, which="LM")
+            if mat_t.shape[0] < 2:
+                from scipy.linalg import eig as dense_eig
+
+                vals, vecs = dense_eig(mat_t.toarray())
+            else:
+                vals, vecs = eigs(mat_t, k=1, which="LM")
             centrality = np.abs(vecs.flatten())
             s = np.sum(centrality)
             if s > 0:
