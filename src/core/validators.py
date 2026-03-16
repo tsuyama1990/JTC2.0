@@ -94,7 +94,7 @@ class ConfigValidators:
             target_path_resolved = Path(target_path).resolve()
 
             # Check for null bytes to prevent poisoning
-            if '\x00' in str(target_path):
+            if "\x00" in str(target_path):
                 return False
 
             # Explicit prefix check
@@ -106,7 +106,9 @@ class ConfigValidators:
             return False
 
     @staticmethod
-    def validate_allowed_directories(target_path: str | Path, allowed_paths: Iterable[str | Path]) -> bool:
+    def validate_allowed_directories(
+        target_path: str | Path, allowed_paths: Iterable[str | Path]
+    ) -> bool:
         """
         Validates if a target path is safely contained within ANY of the allowed directories.
         """

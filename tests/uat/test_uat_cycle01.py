@@ -38,7 +38,6 @@ def limited_lean_canvas_generator() -> Iterator[LeanCanvas]:
     return _gen()
 
 
-
 @patch("src.core.factory.IdeatorAgent")
 @patch("src.core.factory.get_llm")
 def test_ideation_scalability(
@@ -78,7 +77,6 @@ def test_ideation_scalability(
     # Check that we can continue consuming (it wasn't exhausted or closed)
     next_item = next(ideas_iter)
     assert next_item.id == 5
-
 
 
 @patch("src.core.factory.IdeatorAgent")
@@ -154,7 +152,6 @@ def test_gate_transitions_data_integrity(
 
 
 @patch("src.core.factory.get_settings")
-
 def test_large_dataset_iterator_safety(mock_get_settings: MagicMock) -> None:
     """
     Verify memory safety with a mock infinite iterator (Cycle 3 Scalability Check).

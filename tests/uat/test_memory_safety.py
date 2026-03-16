@@ -23,7 +23,6 @@ def temp_rag_dir(tmp_path: Path) -> str:
     return str(d)
 
 
-
 def test_lazy_iterator_safety_limit() -> None:
     """
     Verify that LazyIdeaIterator raises StopIteration if the safety limit is exceeded.
@@ -55,7 +54,6 @@ def test_lazy_iterator_safety_limit() -> None:
         next(lazy_iter)
 
 
-
 def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     """
     Verify RAG prevents loading an index that exceeds the size limit.
@@ -79,7 +77,6 @@ def test_rag_large_index_prevention(temp_rag_dir: str) -> None:
     ):
         # Expect MemoryError directly
         RAG(persist_dir=temp_rag_dir)
-
 
 
 def test_rag_ingest_chunking(temp_rag_dir: str) -> None:

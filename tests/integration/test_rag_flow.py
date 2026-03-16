@@ -50,7 +50,6 @@ def temp_vector_store() -> Generator[str, None, None]:
             base_dir.rmdir()
 
 
-
 def test_transcript_ingestion(temp_vector_store: str) -> None:
     """Test that ingest_transcript works correctly."""
     # Using LlamaIndex's MockLLM and MockEmbedding directly injected via Settings
@@ -86,7 +85,6 @@ def test_transcript_ingestion(temp_vector_store: str) -> None:
         # Reload and query
         rag_loaded = RAG(persist_dir=temp_vector_store)
         assert rag_loaded.index is not None
-
 
 
 def test_rag_integration_flow(temp_vector_store: str) -> None:
@@ -126,7 +124,6 @@ def test_rag_integration_flow(temp_vector_store: str) -> None:
 
         response = rag_loaded.query("What do customers prefer?")
         assert isinstance(response, str)
-
 
 
 def test_cpo_agent_behavior() -> None:

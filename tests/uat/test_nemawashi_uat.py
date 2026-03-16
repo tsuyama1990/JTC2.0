@@ -82,13 +82,17 @@ def test_identify_influencers_edge_cases() -> None:
     # stakeholders must have min_length=1 according to domain model, so this raises validation error instead of being a valid state
     import pytest
     from pydantic import ValidationError
+
     with pytest.raises(ValidationError):
         SparseInfluenceNetwork(stakeholders=[], matrix=[])
 
     # Single stakeholder network
     s1 = Stakeholder(name="Loner", initial_support=0.5, stubbornness=0.5)
-    single_network = SparseInfluenceNetwork(stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)])
+    single_network = SparseInfluenceNetwork(
+        stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)]
+    )
     from src.core.exceptions import CalculationError
+
     with pytest.raises(CalculationError):
         engine.identify_influencers(single_network)
 
@@ -99,6 +103,6 @@ def test_identify_influencers_edge_cases() -> None:
     import pytest
 
     from src.core.exceptions import CalculationError
-    from src.core.exceptions import CalculationError
+
     with pytest.raises(CalculationError):
         engine.identify_influencers(invalid_network)

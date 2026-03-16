@@ -23,7 +23,6 @@ def test_rag_circuit_breaker() -> None:
         rag.query("Test query")
 
 
-
 def test_rag_memory_limit() -> None:
     """Test that MemoryError is raised when index size exceeds limit."""
     rag = RAG(persist_dir="./tests/temp_rag_mem")
@@ -49,7 +48,6 @@ def test_rag_memory_limit() -> None:
         rag.ingest_text("some text", "source")
 
 
-
 def test_rag_input_validation() -> None:
     """Test input validation for RAG methods."""
     rag = RAG(persist_dir="./tests/temp_rag_val")
@@ -71,7 +69,6 @@ def test_rag_input_validation() -> None:
 
     with pytest.raises(ValueError, match="Query cannot be empty"):
         rag.query("   ")
-
 
 
 def test_error_formatting() -> None:

@@ -27,7 +27,6 @@ def test_cpo_agent_initialization_invalid_path() -> None:
         )
 
 
-
 def test_cpo_agent_run_no_transcripts() -> None:
     """Test CPO agent run handles missing transcripts properly."""
     get_settings.cache_clear()
@@ -75,7 +74,6 @@ def test_cpo_agent_run_no_transcripts() -> None:
         mock_rag_instance.query.assert_called_with(
             "Validate assumption: Generic Title against general knowledge"
         )
-
 
 
 def test_cpo_agent_run_with_nemawashi_and_canvas_models() -> None:
@@ -152,7 +150,6 @@ def test_cpo_agent_run_with_nemawashi_and_canvas_models() -> None:
         assert last_msg.role == Role.CPO
 
 
-
 def test_cpo_agent_run_rag_error() -> None:
     """Test CPO agent run handles RAG error gracefully."""
     get_settings.cache_clear()
@@ -193,7 +190,6 @@ def test_cpo_agent_run_rag_error() -> None:
         last_msg = res["debate_history"][-1]
         assert isinstance(last_msg, DialogueMessage)
         assert last_msg.role == Role.CPO
-
 
 
 def test_cpo_agent_run_generation_error() -> None:

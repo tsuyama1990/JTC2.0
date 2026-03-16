@@ -208,14 +208,18 @@ class SimulationConfig(BaseSettings):
         alias="AGENT_POS_NEW_EMP",
         description="New Employee Agent layout settings",
     )
-    agent_new_emp_color: int = Field(default=8, alias="COLOR_NEW_EMP", description="New Employee Agent Color")
+    agent_new_emp_color: int = Field(
+        default=8, alias="COLOR_NEW_EMP", description="New Employee Agent Color"
+    )
 
     agent_finance_pos: dict[str, int] = Field(
         default_factory=lambda: {"x": 50, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_FINANCE",
         description="Finance Agent layout settings",
     )
-    agent_finance_color: int = Field(default=9, alias="COLOR_FINANCE", description="Finance Agent Color")
+    agent_finance_color: int = Field(
+        default=9, alias="COLOR_FINANCE", description="Finance Agent Color"
+    )
 
     agent_sales_pos: dict[str, int] = Field(
         default_factory=lambda: {"x": 90, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
@@ -336,13 +340,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file_encoding="utf-8", extra="forbid")
 
     # Explicitly enforce required keys without defaults
-    openai_api_key: SecretStr = Field(
-        alias="OPENAI_API_KEY", description="OpenAI API Key"
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
+    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
+    v0_api_key: SecretStr | None = Field(
+        default=None, alias="V0_API_KEY", description="V0.dev API Key"
     )
-    tavily_api_key: SecretStr = Field(
-        alias="TAVILY_API_KEY", description="Tavily Search API Key"
-    )
-    v0_api_key: SecretStr | None = Field(default=None, alias="V0_API_KEY", description="V0.dev API Key")
 
     @field_validator("openai_api_key", mode="before")
     @classmethod
@@ -389,9 +391,43 @@ class Settings(BaseSettings):
         description="V0.dev API URL",
     )
 
+    @field_validator("v0_api_url")
+    @classmethod
+    def validate_v0_url(cls, v: str) -> str:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(v)
+        if parsed.scheme != "https":
+            msg = "V0 API URL must use HTTPS."
+            raise ValueError(msg)
+        if not parsed.netloc:
+            msg = "V0 API URL must contain a valid domain."
+            raise ValueError(msg)
+        return v
+
     llm_model: str = Field(alias="LLM_MODEL", description="LLM Model name")
 
     rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", description="Directory for RAG index")
+
+    @field_validator("rag_persist_dir")
+    @classmethod
+    def validate_rag_persist_dir(cls, v: str) -> str:
+        from pathlib import Path
+
+        try:
+            resolved = Path(v).resolve()
+            if "\x00" in str(resolved):
+                msg = "Path contains null bytes."
+                raise ValueError(msg)  # noqa: TRY301
+            # Basic validation to ensure it doesn't traverse to root unexpectedly
+            if str(resolved) == "/" or str(resolved) == "C:\\":
+                msg = "RAG persist dir cannot be root directory."
+                raise ValueError(msg)  # noqa: TRY301
+        except Exception as e:
+            msg = f"Invalid RAG persist directory: {e}"
+            raise ValueError(msg) from e
+        return v
+
     rag_chunk_size: int = Field(
         alias="RAG_CHUNK_SIZE", default=1024, description="Chunk size for RAG"
     )
@@ -428,9 +464,19 @@ class Settings(BaseSettings):
     @field_validator("rag_allowed_paths", mode="before")
     @classmethod
     def parse_allowed_paths(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str):
-            return [p.strip() for p in v.split(",") if p.strip()]
-        return v
+        paths = [p.strip() for p in v.split(",")] if isinstance(v, str) else v
+        valid_paths = []
+        for p in paths:
+            if not p:
+                continue
+            if "\x00" in str(p) or ".." in str(p):
+                msg = "Directory traversal or null byte detected in RAG allowed paths."
+                raise ValueError(msg)
+            valid_paths.append(p)
+        if not valid_paths:
+            msg = "RAG allowed paths cannot be empty."
+            raise ValueError(msg)
+        return valid_paths
 
     @field_validator("rag_max_index_size_mb")
     @classmethod
@@ -507,8 +553,20 @@ class Settings(BaseSettings):
         description="Template for search queries",
     )
 
-    log_level: str = Field(alias="LOG_LEVEL", description="Logging level")
-    ui_page_size: int = Field(alias="UI_PAGE_SIZE", description="Page size for UI")
+    @field_validator("search_query_template")
+    @classmethod
+    def validate_search_template(cls, v: str) -> str:
+        if "{topic}" not in v:
+            msg = "search_query_template must contain {topic} placeholder."
+            raise ValueError(msg)
+        return v
+
+    log_level: str = Field(
+        alias="LOG_LEVEL",
+        description="Logging level",
+        pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
+    )
+    ui_page_size: int = Field(alias="UI_PAGE_SIZE", description="Page size for UI", ge=1, le=100)
 
     # Nested configurations - Use Field to allow Pydantic to manage them
     validation: ValidationConfig = Field(default_factory=ValidationConfig)

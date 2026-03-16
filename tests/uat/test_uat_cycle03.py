@@ -75,7 +75,6 @@ def test_uat_c03_01_mom_test_failure(mock_llm: MagicMock, mock_rag_cls: MagicMoc
     assert "pivot" in last_msg.content.lower()
 
 
-
 @patch("src.agents.cpo.RAG")
 @patch("src.agents.cpo.BaseChatModel")
 def test_uat_c03_02_validation_success(mock_llm: MagicMock, mock_rag_cls: MagicMock) -> None:
