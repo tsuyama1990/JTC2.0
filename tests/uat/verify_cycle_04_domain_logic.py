@@ -10,8 +10,11 @@ __generated_with = "0.20.4"
 app = marimo.App()
 
 
+from typing import Any
+
+
 @app.cell
-def cell_1():
+def cell_1() -> tuple[Any, ...]:
     import os
     from unittest.mock import patch
 
@@ -40,7 +43,15 @@ def cell_1():
 
 
 @app.cell
-def cell_2(Stakeholder, DenseInfluenceNetwork, AnalyticsService, mo, patch, os, DUMMY_ENV_VARS):
+def cell_2(
+    Stakeholder: Any,
+    DenseInfluenceNetwork: Any,
+    AnalyticsService: Any,
+    mo: Any,
+    patch: Any,
+    os: Any,
+    DUMMY_ENV_VARS: Any,
+) -> tuple[Any, ...]:
     mo.md("## Scenario 1: Identify Key Influencer")
 
     s1 = Stakeholder(name="Finance Manager", initial_support=0.2, stubbornness=0.9)
@@ -59,7 +70,15 @@ def cell_2(Stakeholder, DenseInfluenceNetwork, AnalyticsService, mo, patch, os, 
 
 
 @app.cell
-def cell_3(net, ConsensusService, SimulationService, mo, patch, os, DUMMY_ENV_VARS):
+def cell_3(
+    net: Any,
+    ConsensusService: Any,
+    SimulationService: Any,
+    mo: Any,
+    patch: Any,
+    os: Any,
+    DUMMY_ENV_VARS: Any,
+) -> tuple[Any, ...]:
     mo.md("## Scenario 2: The 'Nomikai' Effect")
 
     with patch.dict(os.environ, DUMMY_ENV_VARS):
@@ -83,7 +102,16 @@ def cell_3(net, ConsensusService, SimulationService, mo, patch, os, DUMMY_ENV_VA
 
 
 @app.cell
-def cell_4(Stakeholder, DenseInfluenceNetwork, ConsensusService, np, mo, patch, os, DUMMY_ENV_VARS):
+def cell_4(
+    Stakeholder: Any,
+    DenseInfluenceNetwork: Any,
+    ConsensusService: Any,
+    np: Any,
+    mo: Any,
+    patch: Any,
+    os: Any,
+    DUMMY_ENV_VARS: Any,
+) -> tuple[Any, ...]:
     mo.md("## Scenario 3: Opinions converge over time")
 
     a1 = Stakeholder(name="Agent 1", initial_support=0.1, stubbornness=0.5)
@@ -120,7 +148,9 @@ def cell_4(Stakeholder, DenseInfluenceNetwork, ConsensusService, np, mo, patch, 
 
 
 @app.cell
-def cell_5(Stakeholder, DenseInfluenceNetwork, mo, patch, os, DUMMY_ENV_VARS):
+def cell_5(
+    Stakeholder: Any, DenseInfluenceNetwork: Any, mo: Any, patch: Any, os: Any, DUMMY_ENV_VARS: Any
+) -> tuple[Any, ...]:
     mo.md("## Scenario 4: Stubborn agents resist change")
 
     f1 = Stakeholder(name="Finance Manager", initial_support=0.1, stubbornness=0.9)

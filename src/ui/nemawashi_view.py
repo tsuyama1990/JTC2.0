@@ -1,4 +1,5 @@
 import math
+from typing import cast
 
 import pyxel
 
@@ -14,11 +15,7 @@ from src.core.theme import (
     COLOR_SUPPORT_BAR_FILL,
     COLOR_TEXT,
 )
-from src.domain_models.politics import (
-    DenseInfluenceNetwork,
-    InfluenceNetwork,
-    Stakeholder,
-)
+from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry, Stakeholder
 
 
 class NemawashiView:
@@ -41,16 +38,13 @@ class NemawashiView:
                 col = COLOR_EDGE_WEAK if weight < 0.5 else COLOR_EDGE_STRONG
                 pyxel.line(start[0], start[1], end[0], end[1], col)
 
-        if not network.matrix:
-            return
-
-        if isinstance(network, DenseInfluenceNetwork):
-            matrix_dense = network.matrix
+        if network.matrix and isinstance(network.matrix[0], list):
+            matrix_dense = cast(list[list[float]], network.matrix)
             for i in range(n):
                 for j in range(n):
                     draw_edge(i, j, matrix_dense[i][j])
         else:
-            entries = network.matrix
+            entries = cast(list[SparseMatrixEntry], network.matrix)
             for e in entries:
                 draw_edge(e.row, e.col, e.val)
 

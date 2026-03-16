@@ -123,6 +123,7 @@ def nemawashi_analysis_node(state: GlobalState) -> dict[str, Any]:
         logger.warning("No influence network found. Skipping Nemawashi analysis.")
         return {}
 
+    # Use separated services for SRP
     consensus_service = ConsensusService()
     analytics_service = AnalyticsService()
 

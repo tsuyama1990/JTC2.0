@@ -61,9 +61,9 @@ def test_consensus_stochasticity_check_failure() -> None:
     bad_matrix = csr_matrix([[0.9]])  # Sum is 0.9
 
     with patch(
-            "src.core.nemawashi.consensus.NemawashiUtils.build_sparse_matrix",
-            return_value=bad_matrix,
-        ):
+        "src.core.nemawashi.consensus.NemawashiUtils.build_sparse_matrix",
+        return_value=bad_matrix,
+    ):
         # We implemented a retry loop with auto-normalization fallback
         # It will resolve the stochasticity. So it should not raise, but instead output correctly.
         # But wait, our mock `bad_matrix` returns `0.9` as sum.
