@@ -14,6 +14,7 @@
 *   **Decoupled Orchestration:** Ensures separation of business logic running in LangGraph from local user validations via terminal and simulation nodes.
 *   **JTC Meeting Simulation:** Run realistic multi-agent "Gekizume" (harsh feedback) debates with specialized Persona Agents (Finance Manager, Sales Manager, etc.).
 *   **Gamified Retro UI:** Review the ongoing debates visually via a Pyxel-based Retro RPG interface, providing a psychological buffer through the Proxy Agent.
+*   **Nemawashi (Consensus Building):** Mathematically model and simulate the invisible layer of organizational politics using the French-DeGroot Model. Identify Key Influencers and simulate informal "Nomikai" events to strategically build support.
 
 ## 📋 Prerequisites
 
