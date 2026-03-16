@@ -1,6 +1,7 @@
 from typing import cast
 
 import numpy as np
+from typing import Any
 from scipy.sparse import coo_matrix, csr_matrix
 
 from src.core.exceptions import ValidationError
@@ -15,7 +16,7 @@ class NemawashiUtils:
 
     @staticmethod
     def validate_stochasticity(
-        matrix: csr_matrix | list[list[float]] | np.ndarray,
+        matrix: csr_matrix | list[list[float]] | np.ndarray[Any, Any],
         tolerance: float = 1e-6,
         expected_nodes: int | None = None,
     ) -> None:

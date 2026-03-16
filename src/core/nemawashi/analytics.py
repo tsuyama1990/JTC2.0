@@ -2,6 +2,7 @@ import logging
 import typing
 
 import numpy as np
+from typing import Any
 from scipy.sparse import coo_matrix, csgraph, csr_matrix
 from scipy.sparse.linalg import eigs
 
@@ -60,7 +61,7 @@ class AnalyticsService:
             error_msg = f"{msg}: {e}"
             raise CalculationError(error_msg) from e
 
-    def _eigen_centrality_sparse(self, sparse_mat: csr_matrix) -> np.ndarray:
+    def _eigen_centrality_sparse(self, sparse_mat: csr_matrix) -> np.ndarray[Any, Any]:
         """Compute centrality from pre-built CSR matrix."""
         mat_t = sparse_mat.T
         try:
@@ -69,7 +70,7 @@ class AnalyticsService:
             s = np.sum(centrality)
             if s > 0:
                 centrality = centrality / s
-            return typing.cast(np.ndarray, centrality)
+            return typing.cast(np.ndarray[Any, Any], centrality)
         except Exception as e:
             logger.warning(f"Sparse eig failed, falling back? {e}")
             msg = "Sparse eigen calculation failed"
@@ -77,7 +78,7 @@ class AnalyticsService:
 
     def _eigen_centrality_sparse_entries(
         self, entries: list[SparseMatrixEntry], n: int
-    ) -> np.ndarray:
+    ) -> np.ndarray[Any, Any]:
         """
         Compute eigenvector centrality from sparse entries.
         """
