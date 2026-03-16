@@ -122,6 +122,7 @@ class PathValidator:
 
         except Exception:
             import contextlib
+
             with contextlib.suppress(OSError):
                 os.close(fd)
             raise
