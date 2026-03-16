@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,35 +12,45 @@ from src.domain_models.simulation import Role
 from src.domain_models.state import GlobalState
 
 
-def test_config_values() -> None:
+@pytest.fixture
+def mock_openai_key() -> SecretStr:
+    return SecretStr("sk-12345678901234567890")
+
+
+@pytest.fixture
+def mock_tavily_key() -> SecretStr:
+    return SecretStr("tvly-12345678901234567890")
+
+
+def test_config_values(mock_openai_key: SecretStr, mock_tavily_key: SecretStr) -> None:
     """Test that default settings are loaded correctly."""
     from src.core.config import Settings
 
     # Use environment variable naming for Pydantic BaseSettings init
     s = Settings(
-        OPENAI_API_KEY=SecretStr("sk-12345678901234567890"),
-        TAVILY_API_KEY=SecretStr("tvly-12345678901234567890"),
+        OPENAI_API_KEY=mock_openai_key,
+        TAVILY_API_KEY=mock_tavily_key,
     )
     assert s.llm_model == "gpt-4o"
     assert s.search_max_results == 5
-    assert s.openai_api_key == SecretStr("sk-12345678901234567890")
+    assert s.openai_api_key == mock_openai_key
 
 
 @patch("src.core.llm.get_settings")
-def test_get_llm_success(mock_get_settings: MagicMock) -> None:
+def test_get_llm_success(mock_get_settings: MagicMock, mock_openai_key: SecretStr) -> None:
     mock_settings = mock_get_settings.return_value
-    mock_settings.openai_api_key = SecretStr("test-key")
+    mock_settings.openai_api_key = mock_openai_key
     mock_settings.llm_model = "gpt-4o"
 
     llm = get_llm()
     assert llm.model_name == "gpt-4o"
-    assert llm.openai_api_key == SecretStr("test-key")
+    assert llm.openai_api_key == mock_openai_key
 
 
 @patch("src.core.llm.get_settings")
-def test_get_llm_override(mock_get_settings: MagicMock) -> None:
+def test_get_llm_override(mock_get_settings: MagicMock, mock_openai_key: SecretStr) -> None:
     mock_settings = mock_get_settings.return_value
-    mock_settings.openai_api_key = SecretStr("test-key")
+    mock_settings.openai_api_key = mock_openai_key
 
     llm = get_llm(model="gpt-3.5-turbo")
     assert llm.model_name == "gpt-3.5-turbo"
@@ -73,19 +84,32 @@ def test_agent_factory_governance() -> None:
     assert governance is not None
 
 
+@pytest.fixture
+def mock_invalid_role() -> Role:
+    return "INVALID_ROLE"  # type: ignore[return-value]
+
+
 @patch("src.core.factory.get_llm")
 @patch("src.core.factory.get_settings")
-def test_agent_factory_persona(mock_get_settings: MagicMock, mock_get_llm: MagicMock) -> None:
+def test_agent_factory_persona(
+    mock_get_settings: MagicMock,
+    mock_get_llm: MagicMock,
+    mock_tavily_key: SecretStr,
+    mock_invalid_role: Role,
+    tmp_path: Path,
+) -> None:
     mock_llm = MagicMock()
     mock_get_llm.return_value = mock_llm
 
     mock_settings = MagicMock()
-    mock_settings.tavily_api_key.get_secret_value.return_value = "tvly-test"
-    from pathlib import Path
+    mock_settings.tavily_api_key.get_secret_value.return_value = mock_tavily_key.get_secret_value()
 
-    test_path = str((Path.cwd() / "test_path").resolve())
-    mock_settings.rag_persist_dir = test_path
-    mock_settings.rag_allowed_paths = [str(Path.cwd().resolve())]
+    test_path = tmp_path / "test_path"
+    test_path.mkdir(exist_ok=True)
+    test_path_str = str(test_path.resolve())
+
+    mock_settings.rag_persist_dir = test_path_str
+    mock_settings.rag_allowed_paths = [str(tmp_path.resolve())]
     mock_get_settings.return_value = mock_settings
 
     with patch("src.agents.cpo.RAG"):
@@ -95,7 +119,7 @@ def test_agent_factory_persona(mock_get_settings: MagicMock, mock_get_llm: Magic
 
         # CPO Agent with state
         state = GlobalState()
-        state.rag_index_path = test_path
+        state.rag_index_path = test_path_str
         cpo_state = AgentFactory.get_persona_agent(Role.CPO, state)
         assert cpo_state is not None
 
@@ -111,6 +135,4 @@ def test_agent_factory_persona(mock_get_settings: MagicMock, mock_get_llm: Magic
 
     # Invalid role
     with pytest.raises(ValueError, match="Unknown role"):
-        # We need an invalid enum member or string, but type system complains if we use a string.
-        # We can mock it or use an undefined role string
-        AgentFactory.get_persona_agent("INVALID_ROLE")  # type: ignore
+        AgentFactory.get_persona_agent(mock_invalid_role)

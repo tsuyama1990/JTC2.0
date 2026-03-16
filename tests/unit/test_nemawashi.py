@@ -17,63 +17,53 @@ from src.domain_models.politics import (
 )
 
 
-def test_consensus_conversion_failure() -> None:
-    """Test that matrix conversion failures are handled gracefully."""
-    # Create invalid sparse entries (out of bounds)
-    # This should be caught by domain model, but if we force it or mock it
-    # Ideally domain model catches it.
-    # Let's mock coo_matrix to raise an error
-
+@pytest.fixture
+def base_sparse_network() -> SparseInfluenceNetwork:
     s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
-    network = SparseInfluenceNetwork(
+    return SparseInfluenceNetwork(
         stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)]
     )
 
+
+@pytest.fixture
+def base_dense_network() -> DenseInfluenceNetwork:
+    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
+    return DenseInfluenceNetwork(stakeholders=[s1], matrix=[[1.0]])
+
+
+def test_consensus_conversion_failure(base_sparse_network: SparseInfluenceNetwork) -> None:
+    """Test that matrix conversion failures are handled gracefully."""
     engine = ConsensusService()
 
     with (
         patch("src.core.nemawashi.utils.coo_matrix", side_effect=Exception("Conversion Boom")),
         pytest.raises(ValidationError, match="Failed to build sparse matrix"),
     ):
-        engine.calculate_consensus(network)
+        engine.calculate_consensus(base_sparse_network)
 
 
-def test_consensus_dense_conversion_failure() -> None:
+def test_consensus_dense_conversion_failure(base_dense_network: DenseInfluenceNetwork) -> None:
     """Test dense matrix conversion failure."""
-    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
-    # Dense matrix
-    network = DenseInfluenceNetwork(stakeholders=[s1], matrix=[[1.0]])
-
     engine = ConsensusService()
 
     with (
         patch("src.core.nemawashi.utils.csr_matrix", side_effect=Exception("Dense Boom")),
         pytest.raises(ValidationError, match="Failed to convert dense matrix"),
     ):
-        engine.calculate_consensus(network)
+        engine.calculate_consensus(base_dense_network)
 
 
-def test_consensus_stochasticity_check_failure() -> None:
+def test_consensus_stochasticity_check_failure(base_dense_network: DenseInfluenceNetwork) -> None:
     """Test that runtime stochasticity check catches invalid matrices."""
-    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
-    network = DenseInfluenceNetwork(stakeholders=[s1], matrix=[[1.0]])
-
     engine = ConsensusService()
 
-    # Mock the built matrix to be invalid (row sum != 1.0)
-    # We can patch _build_sparse_matrix to return a bad matrix
     bad_matrix = csr_matrix([[0.9]])  # Sum is 0.9
 
     with patch(
         "src.core.nemawashi.consensus.NemawashiUtils.build_sparse_matrix",
         return_value=bad_matrix,
     ):
-        # We implemented a retry loop with auto-normalization fallback
-        # It will resolve the stochasticity. So it should not raise, but instead output correctly.
-        # But wait, our mock `bad_matrix` returns `0.9` as sum.
-        # When fallback triggers, it divides by 0.9, normalizing it to 1.0!
-        # So `calculate_consensus` will succeed! Let's assert it completes.
-        result = engine.calculate_consensus(network)
+        result = engine.calculate_consensus(base_dense_network)
         assert len(result) == 1
         assert pytest.approx(result[0]) == 0.5
 
@@ -93,22 +83,16 @@ def test_consensus_calculation() -> None:
     assert result[1] == 1.0
 
 
-def test_run_nomikai_invalid_target() -> None:
+def test_run_nomikai_invalid_target(base_dense_network: DenseInfluenceNetwork) -> None:
     service = SimulationService()
-    net = DenseInfluenceNetwork(
-        stakeholders=[Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)], matrix=[[1.0]]
-    )
     with pytest.raises(ValidationError, match="Target name must be a non-empty string."):
-        service.run_nomikai(net, "")
+        service.run_nomikai(base_dense_network, "")
 
 
-def test_run_nomikai_target_not_found() -> None:
+def test_run_nomikai_target_not_found(base_dense_network: DenseInfluenceNetwork) -> None:
     service = SimulationService()
-    net = DenseInfluenceNetwork(
-        stakeholders=[Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)], matrix=[[1.0]]
-    )
     with pytest.raises(ValidationError, match="Target B not found."):
-        service.run_nomikai(net, "B")
+        service.run_nomikai(base_dense_network, "B")
 
 
 def test_run_nomikai_exceeds_limit() -> None:
@@ -124,80 +108,75 @@ def test_run_nomikai_exceeds_limit() -> None:
         service.run_nomikai(net, "A0")
 
 
-def test_run_nomikai_dense_success() -> None:
+@pytest.fixture
+def sim_service() -> SimulationService:
     service = SimulationService()
     service.settings.nomikai_reduction = 0.1
     service.settings.nomikai_boost = 0.2
+    return service
 
-    net = DenseInfluenceNetwork(
+
+@pytest.fixture
+def dense_network_nomikai() -> DenseInfluenceNetwork:
+    return DenseInfluenceNetwork(
         stakeholders=[
             Stakeholder(name="A", initial_support=0.5, stubbornness=0.8),
             Stakeholder(name="B", initial_support=0.3, stubbornness=0.9),
         ],
         matrix=[[0.8, 0.2], [0.1, 0.9]],
     )
-    new_net = service.run_nomikai(net, "A")
+
+
+@pytest.fixture
+def sparse_network_nomikai() -> SparseInfluenceNetwork:
+    return SparseInfluenceNetwork(
+        stakeholders=[
+            Stakeholder(name="A", initial_support=0.5, stubbornness=0.8),
+            Stakeholder(name="B", initial_support=0.3, stubbornness=0.9),
+        ],
+        matrix=[
+            SparseMatrixEntry(row=0, col=0, val=0.8),
+            SparseMatrixEntry(row=0, col=1, val=0.2),
+            SparseMatrixEntry(row=1, col=1, val=1.0),
+        ],
+    )
+
+
+def test_run_nomikai_dense_success(
+    sim_service: SimulationService, dense_network_nomikai: DenseInfluenceNetwork
+) -> None:
+    new_net = sim_service.run_nomikai(dense_network_nomikai, "A")
     assert new_net.stakeholders[0].initial_support == 0.5 + 0.5 * 0.2
     assert abs(new_net.matrix[0][0] - 0.7) < 1e-9  # type: ignore
     assert abs(new_net.matrix[0][1] - 0.3) < 1e-9  # type: ignore
 
 
-def test_run_nomikai_dense_reduction_exceeds() -> None:
-    service = SimulationService()
-    service.settings.nomikai_reduction = 0.9
-    net = DenseInfluenceNetwork(
-        stakeholders=[
-            Stakeholder(name="A", initial_support=0.5, stubbornness=0.8),
-            Stakeholder(name="B", initial_support=0.5, stubbornness=0.8),
-        ],
-        matrix=[[0.8, 0.2], [0.1, 0.9]],
-    )
+def test_run_nomikai_dense_reduction_exceeds(
+    sim_service: SimulationService, dense_network_nomikai: DenseInfluenceNetwork
+) -> None:
+    sim_service.settings.nomikai_reduction = 0.9
     with pytest.raises(ValidationError, match="exceeds current self-weight"):
-        service.run_nomikai(net, "A")
+        sim_service.run_nomikai(dense_network_nomikai, "A")
 
 
-def test_run_nomikai_sparse_success() -> None:
-    service = SimulationService()
-    service.settings.nomikai_reduction = 0.1
-    service.settings.nomikai_boost = 0.2
-    net = SparseInfluenceNetwork(
-        stakeholders=[
-            Stakeholder(name="A", initial_support=0.5, stubbornness=0.8),
-            Stakeholder(name="B", initial_support=0.3, stubbornness=0.9),
-        ],
-        matrix=[
-            SparseMatrixEntry(row=0, col=0, val=0.8),
-            SparseMatrixEntry(row=0, col=1, val=0.2),
-            SparseMatrixEntry(row=1, col=1, val=1.0),
-        ],
-    )
-    new_net = service.run_nomikai(net, "A")
+def test_run_nomikai_sparse_success(
+    sim_service: SimulationService, sparse_network_nomikai: SparseInfluenceNetwork
+) -> None:
+    new_net = sim_service.run_nomikai(sparse_network_nomikai, "A")
     assert new_net.stakeholders[0].initial_support == 0.5 + 0.5 * 0.2
     assert abs(next(e.val for e in new_net.matrix if e.row == 0 and e.col == 0) - 0.7) < 1e-9  # type: ignore
     assert abs(next(e.val for e in new_net.matrix if e.row == 0 and e.col == 1) - 0.3) < 1e-9  # type: ignore
 
 
-def test_run_nomikai_sparse_reduction_exceeds() -> None:
-    service = SimulationService()
-    service.settings.nomikai_reduction = 0.9
-    net = SparseInfluenceNetwork(
-        stakeholders=[
-            Stakeholder(name="A", initial_support=0.5, stubbornness=0.8),
-            Stakeholder(name="B", initial_support=0.5, stubbornness=0.8),
-        ],
-        matrix=[
-            SparseMatrixEntry(row=0, col=0, val=0.8),
-            SparseMatrixEntry(row=0, col=1, val=0.2),
-            SparseMatrixEntry(row=1, col=1, val=1.0),
-        ],
-    )
+def test_run_nomikai_sparse_reduction_exceeds(
+    sim_service: SimulationService, sparse_network_nomikai: SparseInfluenceNetwork
+) -> None:
+    sim_service.settings.nomikai_reduction = 0.9
     with pytest.raises(ValidationError, match="exceeds current self-weight"):
-        service.run_nomikai(net, "A")
+        sim_service.run_nomikai(sparse_network_nomikai, "A")
 
 
-def test_run_nomikai_sparse_no_outgoing() -> None:
-    service = SimulationService()
-    service.settings.nomikai_reduction = 0.1
+def test_run_nomikai_sparse_no_outgoing(sim_service: SimulationService) -> None:
     net = SparseInfluenceNetwork(
         stakeholders=[
             Stakeholder(name="A", initial_support=0.5, stubbornness=0.8),
@@ -205,14 +184,12 @@ def test_run_nomikai_sparse_no_outgoing() -> None:
         ],
         matrix=[SparseMatrixEntry(row=0, col=0, val=1.0), SparseMatrixEntry(row=1, col=1, val=1.0)],
     )
-    new_net = service.run_nomikai(net, "A")
+    new_net = sim_service.run_nomikai(net, "A")
     # No other outgoing edges, so self_entry shouldn't change
     assert next(e.val for e in new_net.matrix if e.row == 0 and e.col == 0) == 1.0  # type: ignore
 
 
-def test_run_nomikai_sparse_no_self() -> None:
-    service = SimulationService()
-    service.settings.nomikai_reduction = 0.1
+def test_run_nomikai_sparse_no_self(sim_service: SimulationService) -> None:
     net = SparseInfluenceNetwork(
         stakeholders=[
             Stakeholder(name="A", initial_support=0.5, stubbornness=0.8),
@@ -220,7 +197,7 @@ def test_run_nomikai_sparse_no_self() -> None:
         ],
         matrix=[SparseMatrixEntry(row=0, col=1, val=1.0), SparseMatrixEntry(row=1, col=1, val=1.0)],
     )
-    new_net = service.run_nomikai(net, "A")
+    new_net = sim_service.run_nomikai(net, "A")
     assert new_net.stakeholders[0].stubbornness == 1.0
 
 
