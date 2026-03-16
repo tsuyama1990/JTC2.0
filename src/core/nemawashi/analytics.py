@@ -3,6 +3,7 @@ import typing
 from typing import Any
 
 import numpy as np
+from scipy.linalg import LinAlgError
 from scipy.sparse import coo_matrix, csgraph, csr_matrix
 from scipy.sparse.linalg import eigs
 
@@ -29,8 +30,6 @@ class AnalyticsService:
             return []
 
         n = len(network.stakeholders)
-        if n == 0:
-            return []
 
         try:
             if network.is_dense:
@@ -54,7 +53,7 @@ class AnalyticsService:
             indices = np.argsort(centrality)[::-1]  # Descending
 
             # Map indices back to names
-            return [network.stakeholders[i].name for i in indices if i < len(network.stakeholders)]
+            return [network.stakeholders[i].name for i in indices]
 
         except (ValueError, TypeError, ValidationError) as e:
             msg = "Eigenvector calculation failed"
@@ -66,8 +65,6 @@ class AnalyticsService:
         self, sparse_mat: csr_matrix
     ) -> np.ndarray[Any, np.dtype[np.float64]]:
         """Compute centrality from pre-built CSR matrix."""
-        from scipy.linalg import LinAlgError
-
         mat_t = sparse_mat.T
         try:
             if mat_t.shape[0] == 1:

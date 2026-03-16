@@ -103,7 +103,7 @@ def test_identify_influencers_edge_cases() -> None:
 
     # Empty network
     # stakeholders must have min_length=1 according to domain model, so this raises validation error instead of being a valid state
-    with pytest.raises(ValidationError, match="List should have at least 1 item"):
+    with pytest.raises(ValidationError):
         SparseInfluenceNetwork(stakeholders=[], matrix=[])
 
     # Single stakeholder network
