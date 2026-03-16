@@ -1,7 +1,14 @@
 import pytest
 
-from src.core.nemawashi import NemawashiEngine
-from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.core.nemawashi.analytics import AnalyticsService
+from src.core.nemawashi.consensus import ConsensusService
+from src.core.nemawashi.nomikai import SimulationService
+from src.domain_models.politics import (
+    DenseInfluenceNetwork,
+    SparseInfluenceNetwork,
+    SparseMatrixEntry,
+    Stakeholder,
+)
 from src.domain_models.state import GlobalState
 
 
@@ -12,23 +19,23 @@ def test_identify_key_influencer_uat() -> None:
     s2 = Stakeholder(name="Sales Manager", initial_support=0.8, stubbornness=0.5)
     s3 = Stakeholder(name="CEO", initial_support=0.5, stubbornness=0.2)
 
-    # Finance listens only to self (0.9) and CEO (0.1)
-    # Sales listens to Finance (0.5) and self (0.5)
-    # CEO listens to Finance (0.8) and self (0.2) -> Finance is KEY
+    # Finance listens to NO ONE (0.8 self, rest split), Sales listens entirely to Finance (0.9 Finance), CEO listens entirely to Finance (0.9 Finance).
+    # This guarantees mathematically that Finance Manager is the most influential stakeholder.
+    # Rows sum exactly to 1.0.
 
-    matrix = [[0.9, 0.0, 0.1], [0.5, 0.5, 0.0], [0.8, 0.0, 0.2]]
+    matrix = [[0.8, 0.1, 0.1], [0.9, 0.1, 0.0], [0.9, 0.0, 0.1]]
 
-    net = InfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
+    net = DenseInfluenceNetwork(stakeholders=[s1, s2, s3], matrix=matrix)
     state = GlobalState(influence_network=net)
 
-    engine = NemawashiEngine()
+    engine = AnalyticsService()
 
-    try:
-        influencers = engine.identify_influencers(state.influence_network)  # type: ignore
-        # Verify Finance is top
-        assert influencers[0] == "Finance Manager"
-    except NotImplementedError:
-        pytest.skip("NemawashiEngine not implemented yet")
+    assert state.influence_network is not None
+    influencers = engine.identify_influencers(state.influence_network)
+
+    # Verify Finance is top
+    # This is mathematically guaranteed due to the matrix weights
+    assert influencers[0] == "Finance Manager"
 
 
 def test_nomikai_effect_uat() -> None:
@@ -41,22 +48,23 @@ def test_nomikai_effect_uat() -> None:
     # CEO listens to Finance 0.8, self 0.2
     matrix = [[0.9, 0.1], [0.8, 0.2]]
 
-    net = InfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
+    net = DenseInfluenceNetwork(stakeholders=[s1, s2], matrix=matrix)
 
-    engine = NemawashiEngine()
+    consensus_service = ConsensusService()
+    simulation_service = SimulationService()
 
     try:
-        initial_ops = engine.calculate_consensus(net)
+        initial_ops = consensus_service.calculate_consensus(net)
         initial_avg = sum(initial_ops) / len(initial_ops)
 
         # Run Nomikai on Finance
-        new_net = engine.run_nomikai(net, "Finance Manager")
+        new_net = simulation_service.run_nomikai(net, "Finance Manager")
 
         # Check Finance support increase
         assert new_net.stakeholders[0].initial_support > 0.1
 
         # Re-run consensus
-        final_ops = engine.calculate_consensus(new_net)
+        final_ops = consensus_service.calculate_consensus(new_net)
         final_avg = sum(final_ops) / len(final_ops)
 
         # Should be higher
@@ -64,3 +72,33 @@ def test_nomikai_effect_uat() -> None:
 
     except NotImplementedError:
         pytest.skip("NemawashiEngine not implemented yet")
+
+
+def test_identify_influencers_edge_cases() -> None:
+    """Test identify_influencers handles edge cases like empty networks, single stakeholder, etc."""
+    engine = AnalyticsService()
+
+    # Empty network
+    # stakeholders must have min_length=1 according to domain model, so this raises validation error instead of being a valid state
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        SparseInfluenceNetwork(stakeholders=[], matrix=[])
+
+    # Single stakeholder network
+    s1 = Stakeholder(name="Loner", initial_support=0.5, stubbornness=0.5)
+    single_network = SparseInfluenceNetwork(
+        stakeholders=[s1], matrix=[SparseMatrixEntry(row=0, col=0, val=1.0)]
+    )
+
+    # It should natively handle 1x1 sparse matrices via the new eigs general fallback
+    # The normalized eigenvector is [1.0], which sorting will map to the single stakeholder.
+    influencers = engine.identify_influencers(single_network)
+    assert influencers == ["Loner"]
+
+    # Invalid matrix testing
+    s2 = Stakeholder(name="B", initial_support=0.5, stubbornness=0.5)
+    invalid_entry = SparseMatrixEntry(row=5, col=5, val=1.0)
+    with pytest.raises(ValidationError):
+        SparseInfluenceNetwork(stakeholders=[s1, s2], matrix=[invalid_entry])
