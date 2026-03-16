@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -191,3 +193,84 @@ def test_state_validator_sanitization() -> None:
 
     validated = StateValidator.validate_phase_requirements(state)
     assert validated.topic == "Clean alert(1)  Topic\n"
+
+
+from pydantic import SecretStr
+
+from src.core.validators import ConfigValidators
+
+
+def test_config_validators_openai_key() -> None:
+    ConfigValidators.validate_openai_key(SecretStr("sk-12345678901234567890"))
+    with pytest.raises(ValueError, match="cannot be empty or whitespace"):
+        ConfigValidators.validate_openai_key(SecretStr("   "))
+    with pytest.raises(ValueError, match="too short"):
+        ConfigValidators.validate_openai_key(SecretStr("sk-short"))
+    with pytest.raises(ValueError, match="too long"):
+        ConfigValidators.validate_openai_key(SecretStr("sk-" + "a" * 130))
+    with pytest.raises(ValueError, match="must start with 'sk-'"):
+        ConfigValidators.validate_openai_key(SecretStr("tv-12345678901234567890"))
+
+
+def test_config_validators_tavily_key() -> None:
+    ConfigValidators.validate_tavily_key(SecretStr("tvly-12345678901234567890"))
+    with pytest.raises(ValueError, match="cannot be empty or whitespace"):
+        ConfigValidators.validate_tavily_key(SecretStr("   "))
+    with pytest.raises(ValueError, match="too short"):
+        ConfigValidators.validate_tavily_key(SecretStr("tvly-short"))
+    with pytest.raises(ValueError, match="too long"):
+        ConfigValidators.validate_tavily_key(SecretStr("tvly-" + "a" * 130))
+    with pytest.raises(ValueError, match="must start with 'tvly-'"):
+        ConfigValidators.validate_tavily_key(SecretStr("sk-12345678901234567890"))
+
+
+def test_config_validators_v0_key() -> None:
+    ConfigValidators.validate_v0_key(SecretStr("v0-12345678901234567890"))
+    with pytest.raises(ValueError, match="cannot be empty or whitespace"):
+        ConfigValidators.validate_v0_key(SecretStr("   "))
+    with pytest.raises(ValueError, match="between 20 and 128 characters"):
+        ConfigValidators.validate_v0_key(SecretStr("v0-short"))
+    with pytest.raises(ValueError, match="between 20 and 128 characters"):
+        ConfigValidators.validate_v0_key(SecretStr("v0-" + "a" * 130))
+    with pytest.raises(ValueError, match="must start with 'v0-' and contain only alphanumeric"):
+        ConfigValidators.validate_v0_key(SecretStr("v0-1234567890123456789!"))
+
+
+def test_config_validators_numbers() -> None:
+    assert ConfigValidators.validate_resolution(10) == 10
+    with pytest.raises(ValueError, match="strictly positive"):
+        ConfigValidators.validate_resolution(0)
+
+    assert ConfigValidators.validate_fps(30) == 30
+    with pytest.raises(ValueError, match="strictly positive"):
+        ConfigValidators.validate_fps(-1)
+
+    assert ConfigValidators.validate_color(10) == 10
+    with pytest.raises(ValueError, match="between 0 and 15"):
+        ConfigValidators.validate_color(16)
+
+    assert ConfigValidators.validate_dimension(10) == 10
+    with pytest.raises(ValueError, match="positive"):
+        ConfigValidators.validate_dimension(0)
+
+
+def test_config_validators_safe_path(tmp_path: Path) -> None:
+    base_dir = tmp_path / "base"
+    base_dir.mkdir()
+    target = base_dir / "target"
+
+    assert ConfigValidators.is_safe_path(base_dir, target)
+    assert not ConfigValidators.is_safe_path(base_dir, tmp_path / "other")
+    assert not ConfigValidators.is_safe_path(base_dir, base_dir / "target\x00_poison")
+    assert not ConfigValidators.is_safe_path("non_existent_base_123456", target)
+
+
+def test_config_validators_allowed_directories(tmp_path: Path) -> None:
+    base1 = tmp_path / "base1"
+    base1.mkdir()
+    base2 = tmp_path / "base2"
+    base2.mkdir()
+
+    assert ConfigValidators.validate_allowed_directories(base1 / "target", [base1, base2])
+    assert ConfigValidators.validate_allowed_directories(base2 / "target", [base1, base2])
+    assert not ConfigValidators.validate_allowed_directories(tmp_path / "other", [base1, base2])

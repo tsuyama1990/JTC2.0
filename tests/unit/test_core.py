@@ -54,3 +54,67 @@ def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
 
     # Clear again for safety
     get_llm.cache_clear()
+
+
+from unittest.mock import MagicMock, patch
+
+from src.core.factory import AgentFactory
+from src.domain_models.simulation import Role
+from src.domain_models.state import GlobalState
+
+
+@patch("src.core.factory.get_llm")
+def test_agent_factory_ideator_builder(mock_get_llm: MagicMock) -> None:
+    mock_get_llm.return_value = MagicMock()
+    ideator = AgentFactory.get_ideator_agent()
+    assert ideator is not None
+    builder = AgentFactory.get_builder_agent()
+    assert builder is not None
+
+
+def test_agent_factory_governance() -> None:
+    governance = AgentFactory.get_governance_agent()
+    assert governance is not None
+
+
+@patch("src.core.factory.get_llm")
+@patch("src.core.factory.get_settings")
+def test_agent_factory_persona(mock_get_settings: MagicMock, mock_get_llm: MagicMock) -> None:
+    mock_llm = MagicMock()
+    mock_get_llm.return_value = mock_llm
+
+    mock_settings = MagicMock()
+    mock_settings.tavily_api_key.get_secret_value.return_value = "tvly-test"
+    from pathlib import Path
+
+    test_path = str((Path.cwd() / "test_path").resolve())
+    mock_settings.rag_persist_dir = test_path
+    mock_settings.rag_allowed_paths = [str(Path.cwd().resolve())]
+    mock_get_settings.return_value = mock_settings
+
+    with patch("src.agents.cpo.RAG"):
+        # CPO Agent without state
+        cpo = AgentFactory.get_persona_agent(Role.CPO)
+        assert cpo is not None
+
+        # CPO Agent with state
+        state = GlobalState()
+        state.rag_index_path = test_path
+        cpo_state = AgentFactory.get_persona_agent(Role.CPO, state)
+        assert cpo_state is not None
+
+    # Other personas
+    new_employee = AgentFactory.get_persona_agent(Role.NEW_EMPLOYEE)
+    assert new_employee is not None
+
+    finance = AgentFactory.get_persona_agent(Role.FINANCE)
+    assert finance is not None
+
+    sales = AgentFactory.get_persona_agent(Role.SALES)
+    assert sales is not None
+
+    # Invalid role
+    with pytest.raises(ValueError, match="Unknown role"):
+        # We need an invalid enum member or string, but type system complains if we use a string.
+        # We can mock it or use an undefined role string
+        AgentFactory.get_persona_agent("INVALID_ROLE")  # type: ignore
