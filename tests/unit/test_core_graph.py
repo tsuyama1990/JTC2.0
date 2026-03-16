@@ -89,14 +89,10 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     mock_rag.persist_index.assert_called_once()
 
 
-@patch("src.core.nodes.AnalyticsService")
-@patch("src.core.nodes.ConsensusService")
-def test_nemawashi_analysis_node(
-    mock_consensus_cls: MagicMock, mock_analytics_cls: MagicMock, mock_state: GlobalState
-) -> None:
+@patch("src.core.nodes.NemawashiEngine")
+def test_nemawashi_analysis_node(mock_engine_cls: MagicMock, mock_state: GlobalState) -> None:
     """Test Nemawashi analysis logic."""
-    mock_consensus = mock_consensus_cls.return_value
-    mock_analytics = mock_analytics_cls.return_value
+    mock_engine = mock_engine_cls.return_value
 
     # Setup influence network
     s1 = Stakeholder(name="A", initial_support=0.2, stubbornness=0.1)
@@ -105,8 +101,8 @@ def test_nemawashi_analysis_node(
     mock_state.influence_network = network
 
     # Mock engine consensus result
-    mock_consensus.calculate_consensus.return_value = [0.5, 0.5]
-    mock_analytics.identify_influencers.return_value = ["A"]
+    mock_engine.calculate_consensus.return_value = [0.5, 0.5]
+    mock_engine.identify_influencers.return_value = ["A"]
 
     result = nemawashi_analysis_node(mock_state)
 
@@ -117,7 +113,7 @@ def test_nemawashi_analysis_node(
     assert updated_network.stakeholders[0].initial_support == 0.5
     assert updated_network.stakeholders[1].initial_support == 0.5
 
-    mock_consensus.calculate_consensus.assert_called_once()
+    mock_engine.calculate_consensus.assert_called_once()
 
 
 @patch("src.core.nodes.AgentFactory.get_builder_agent")
