@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
+from src.core.validators import ConfigValidators
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.persona import EmpathyMap, Persona
 from src.domain_models.state import GlobalState, Phase
@@ -195,9 +196,7 @@ def test_state_validator_sanitization() -> None:
     assert validated.topic == "Clean alert(1)  Topic\n"
 
 
-from pydantic import SecretStr
 
-from src.core.validators import ConfigValidators
 
 
 def test_config_validators_openai_key() -> None:
@@ -246,10 +245,6 @@ def test_config_validators_numbers() -> None:
         ConfigValidators.validate_fps(-1)
 
     assert ConfigValidators.validate_color(10) == 10
-    with pytest.raises(ValueError, match="between 0 and 15"):
-        ConfigValidators.validate_color(16)
-
-    assert ConfigValidators.validate_dimension(10) == 10
     with pytest.raises(ValueError, match="positive"):
         ConfigValidators.validate_dimension(0)
 

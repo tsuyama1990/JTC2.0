@@ -3,8 +3,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import SecretStr
 
+from src.core.factory import AgentFactory
+
 # Note: We patch 'src.core.llm.settings' instead of 'OPENAI_API_KEY'
 from src.core.llm import get_llm
+from src.domain_models.simulation import Role
+from src.domain_models.state import GlobalState
 
 
 def test_config_values() -> None:
@@ -53,14 +57,6 @@ def test_get_llm_missing_key(mock_get_settings: MagicMock) -> None:
         get_llm()
 
     # Clear again for safety
-    get_llm.cache_clear()
-
-
-from unittest.mock import MagicMock, patch
-
-from src.core.factory import AgentFactory
-from src.domain_models.simulation import Role
-from src.domain_models.state import GlobalState
 
 
 @patch("src.core.factory.get_llm")

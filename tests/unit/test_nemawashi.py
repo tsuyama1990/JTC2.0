@@ -4,8 +4,11 @@ from unittest.mock import patch
 import pytest
 from scipy.sparse import csr_matrix
 
+from src.core.config import get_settings
 from src.core.exceptions import ValidationError
 from src.core.nemawashi.consensus import ConsensusService
+from src.core.nemawashi.nomikai import SimulationService
+from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import (
     DenseInfluenceNetwork,
     SparseInfluenceNetwork,
@@ -88,9 +91,6 @@ def test_consensus_calculation() -> None:
 
     assert result[0] > 0.9  # A should converge to B
     assert result[1] == 1.0
-
-
-from src.core.nemawashi.nomikai import SimulationService
 
 
 def test_run_nomikai_invalid_target() -> None:
@@ -226,8 +226,6 @@ def test_run_nomikai_sparse_no_self() -> None:
 
 import numpy as np
 
-from src.core.nemawashi.utils import NemawashiUtils
-
 
 def test_validate_stochasticity_csr_success() -> None:
     mat = csr_matrix([[0.5, 0.5], [0.2, 0.8]])
@@ -323,7 +321,6 @@ class MockNetwork:
 
 
 def test_build_sparse_matrix_exceeds_max() -> None:
-    from src.core.config import get_settings
 
     get_settings.cache_clear()
     settings = get_settings()
@@ -334,7 +331,6 @@ def test_build_sparse_matrix_exceeds_max() -> None:
 
 
 def test_build_sparse_matrix_empty() -> None:
-    from src.core.config import get_settings
 
     get_settings.cache_clear()
     net = MockNetwork([], False)
