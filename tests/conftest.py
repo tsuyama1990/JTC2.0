@@ -45,6 +45,7 @@ DUMMY_ENV_VARS = {
     "GOV_SEARCH_QUERY_TEMPLATE": "average CAC churn ARPU LTV for {industry} startups benchmarks",
     "SEARCH_QUERY_TEMPLATE": "emerging business trends and painful problems in {topic}",
     "UI_PAGE_SIZE": "3",
+    "NEMAWASHI_MAX_STAKEHOLDERS": "10000",
 }
 
 from collections.abc import Generator

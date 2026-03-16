@@ -9,8 +9,6 @@ from scipy.sparse.linalg import eigs
 from src.core.exceptions import CalculationError, ValidationError
 from src.core.nemawashi.utils import NemawashiUtils
 from src.domain_models.politics import (
-    DenseInfluenceNetwork,
-    InfluenceNetwork,
     SparseMatrixEntry,
 )
 
@@ -22,7 +20,7 @@ class AnalyticsService:
     Analyzes the structure and key influencers of the network.
     """
 
-    def identify_influencers(self, network: InfluenceNetwork) -> list[str]:
+    def identify_influencers(self, network: Any) -> list[str]:
         """
         Identify key influencers based on eigenvector centrality.
         Always uses sparse matrices for efficiency and scalability.
@@ -35,7 +33,7 @@ class AnalyticsService:
             return []
 
         try:
-            if isinstance(network, DenseInfluenceNetwork):
+            if network.is_dense:
                 # Dense matrix
                 matrix_dense = network.matrix
                 # Convert to numpy array and validate

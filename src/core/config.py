@@ -105,6 +105,10 @@ class AgentConfig(BaseModel):
 
 
 class NemawashiConfig(BaseSettings):
+    max_stakeholders: int = Field(
+        alias="NEMAWASHI_MAX_STAKEHOLDERS",
+        description="Maximum allowed stakeholders in influence network",
+    )
     """Configuration for Nemawashi Consensus Building."""
 
     max_steps: int = Field(

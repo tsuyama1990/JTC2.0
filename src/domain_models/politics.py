@@ -45,6 +45,10 @@ class SparseMatrixEntry(BaseModel):
 class DenseInfluenceNetwork(BaseModel):
     """Represents the influence graph between stakeholders using a dense matrix."""
 
+    @property
+    def is_dense(self) -> bool:
+        return True
+
     stakeholders: list[Stakeholder] = Field(..., min_length=1)
     matrix: list[list[float]]
 
@@ -93,6 +97,10 @@ class DenseInfluenceNetwork(BaseModel):
 
 class SparseInfluenceNetwork(BaseModel):
     """Represents the influence graph between stakeholders using a sparse matrix."""
+
+    @property
+    def is_dense(self) -> bool:
+        return False
 
     stakeholders: list[Stakeholder] = Field(..., min_length=1)
     matrix: list[SparseMatrixEntry]

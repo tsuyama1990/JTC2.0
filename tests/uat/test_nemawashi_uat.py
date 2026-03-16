@@ -26,7 +26,7 @@ def test_identify_key_influencer_uat() -> None:
     engine = AnalyticsService()
 
     try:
-        influencers = engine.identify_influencers(state.influence_network)  # type: ignore
+        influencers = engine.identify_influencers(state.influence_network)
         # Verify Finance is top
         assert influencers[0] == "Finance Manager"
     except NotImplementedError:
