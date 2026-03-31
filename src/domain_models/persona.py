@@ -6,7 +6,6 @@ and their empathy map (Says, Thinks, Does, Feels), critical for
 Customer-Problem Fit.
 """
 
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.config import get_settings
@@ -160,6 +159,7 @@ class Persona(BaseModel):
     def validate_insights_content(cls, v: list[str]) -> list[str]:
         """Validate and sanitize content of interview insights."""
         import re
+
         import bleach  # type: ignore[import-untyped]
 
         sanitized_insights = []

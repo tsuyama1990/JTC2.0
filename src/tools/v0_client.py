@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+from typing import Any
 
 import httpx
 import pybreaker
@@ -13,8 +14,19 @@ from src.core.constants import (
     ERR_V0_NO_URL,
 )
 from src.core.exceptions import V0GenerationError
+from src.core.interfaces import HttpClient
 
 logger = logging.getLogger(__name__)
+
+
+class HttpxClient(HttpClient):
+    """Concrete implementation of HttpClient using httpx."""
+
+    def post(
+        self, url: str, headers: dict[str, str], json: dict[str, Any], timeout: float = 60.0
+    ) -> Any:
+        with httpx.Client(timeout=timeout) as client:
+            return client.post(url, headers=headers, json=json)
 
 
 class V0Client:
@@ -22,12 +34,13 @@ class V0Client:
     Client for interacting with the v0.dev API to generate UIs.
     """
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, http_client: HttpClient | None = None) -> None:
         self.settings = get_settings()
         self.api_key = api_key or (
             self.settings.v0_api_key.get_secret_value() if self.settings.v0_api_key else None
         )
         self.base_url = self.settings.v0_api_url
+        self.http_client = http_client or HttpxClient()
 
         # Circuit Breaker
         self.breaker = pybreaker.CircuitBreaker(
@@ -92,32 +105,31 @@ class V0Client:
         backoff_factor = self.settings.v0.retry_backoff
 
         try:
-            with httpx.Client(timeout=60.0) as client:
-                for attempt in range(max_retries + 1):
-                    response = client.post(self.base_url, headers=headers, json=payload)
+            for attempt in range(max_retries + 1):
+                response = self.http_client.post(self.base_url, headers=headers, json=payload)
 
-                    if response.status_code == 200:
-                        data = response.json()
-                        if "url" in data:
-                            return str(data["url"])
-                        msg = ERR_V0_NO_URL.format(keys=list(data.keys()))
-                        logger.error(msg)
-                        raise V0GenerationError(msg)
-
-                    if response.status_code == 429:
-                        if attempt < max_retries:
-                            sleep_time = backoff_factor**attempt
-                            logger.warning(f"Rate limited by v0.dev. Retrying in {sleep_time}s...")
-                            time.sleep(sleep_time)
-                            continue
-                        msg = "v0.dev rate limit exceeded after retries."
-                        logger.error(msg)
-                        raise V0GenerationError(msg)
-
-                    # Other non-200 errors
-                    msg = ERR_V0_GENERATION_FAILED.format(status_code=response.status_code)
-                    logger.error(f"v0.dev API error: {response.status_code} - {response.text}")
+                if response.status_code == 200:
+                    data = response.json()
+                    if "url" in data:
+                        return str(data["url"])
+                    msg = ERR_V0_NO_URL.format(keys=list(data.keys()))
+                    logger.error(msg)
                     raise V0GenerationError(msg)
+
+                if response.status_code == 429:
+                    if attempt < max_retries:
+                        sleep_time = backoff_factor**attempt
+                        logger.warning(f"Rate limited by v0.dev. Retrying in {sleep_time}s...")
+                        time.sleep(sleep_time)
+                        continue
+                    msg = "v0.dev rate limit exceeded after retries."
+                    logger.error(msg)
+                    raise V0GenerationError(msg)
+
+                # Other non-200 errors
+                msg = ERR_V0_GENERATION_FAILED.format(status_code=response.status_code)
+                logger.error(f"v0.dev API error: {response.status_code} - {response.text}")
+                raise V0GenerationError(msg)
 
         except httpx.RequestError as e:
             msg = ERR_V0_NETWORK_ERROR.format(e=e)

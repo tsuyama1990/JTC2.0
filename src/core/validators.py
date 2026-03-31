@@ -70,8 +70,8 @@ class ConfigValidators:
     @staticmethod
     def validate_rag_path(raw_path: str | object) -> str:
         """Validate RAG persist directory path securely."""
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
 
         # Allow base dir to be current working directory or a specific temp dir.
         base_dir = Path.cwd().resolve(strict=True)
@@ -84,7 +84,9 @@ class ConfigValidators:
             resolved_path = Path(str(raw_path)).parent.resolve(strict=True)
 
         if not any(resolved_path.is_relative_to(base) for base in [base_dir, tmp_dir]):
-            msg = f"Invalid RAG path: {resolved_path}. Must be relative to allowed base directories."
+            msg = (
+                f"Invalid RAG path: {resolved_path}. Must be relative to allowed base directories."
+            )
             raise ValueError(msg)
 
         return str(Path(str(raw_path)).resolve())

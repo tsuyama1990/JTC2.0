@@ -1,5 +1,4 @@
 import logging
-from typing import Literal
 
 from tavily import InvalidAPIKeyError, MissingAPIKeyError, TavilyClient
 from tenacity import (
@@ -12,14 +11,15 @@ from tenacity import (
     wait_exponential,
 )
 
+from src.agents.base import SearchTool
 from src.core.config import get_settings
 from src.core.constants import ERR_SEARCH_CONFIG_MISSING, ERR_SEARCH_FAILED
 
 logger = logging.getLogger(__name__)
 
 
-class TavilySearch:
-    """Wrapper for Tavily Search API with retry logic."""
+class TavilySearch(SearchTool):
+    """Wrapper for Tavily Search API with retry logic. Implements SearchTool interface."""
 
     def __init__(self, api_key: str | None = None) -> None:
         """
@@ -52,7 +52,7 @@ class TavilySearch:
         self,
         query: str,
         max_results: int | None = None,
-        search_depth: Literal["basic", "advanced"] | None = None,
+        search_depth: str | None = None,
     ) -> str:
         """
         Execute a search query.
@@ -62,7 +62,7 @@ class TavilySearch:
         but ultimately we must return a single string for the prompt.
         """
         settings = get_settings()
-        depth: Literal["basic", "advanced"] = search_depth or settings.search_depth  # type: ignore[assignment]
+        depth = search_depth or settings.search_depth
 
         response = self.client.search(
             query=query,

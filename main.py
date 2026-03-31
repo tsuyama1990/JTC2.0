@@ -7,13 +7,14 @@ from collections.abc import Iterator
 from itertools import chain, islice
 from pathlib import Path
 
+from src.data.rag import LlamaIndexRAG
+
 # Add src to path if running from root
 sys.path.append(".")
 
 from src.core.config import UIConfig, get_settings
 from src.core.graph import create_app
 from src.core.simulation import create_simulation_graph
-from src.data.rag import RAG
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.state import GlobalState, Phase
 from src.ui.renderer import SimulationRenderer
@@ -274,7 +275,7 @@ def run_simulation_mode(topic: str, selected_idea: LeanCanvas) -> None:
 
 
 def ingest_transcript(filepath: str) -> None:
-    """Ingest a transcript file into the RAG engine."""
+    """Ingest a transcript file into the LlamaIndexRAG engine."""
     try:
         echo(f"Ingesting transcript from {filepath}...")
 
@@ -284,7 +285,7 @@ def ingest_transcript(filepath: str) -> None:
         with path.open(encoding="utf-8") as f:
             content = f.read()
 
-        rag = RAG()
+        rag = LlamaIndexRAG()
         rag.ingest_text(content, source=str(path))
         rag.persist_index()
         echo(f"Successfully ingested {filepath} into vector store.")

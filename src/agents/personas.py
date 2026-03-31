@@ -2,12 +2,10 @@ import logging
 import time
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
 from src.agents.base import BaseAgent, SearchTool
 from src.agents.mixins import RateLimitMixin
 from src.core.config import Settings, get_settings
+from src.core.interfaces import LLMClient
 from src.domain_models.simulation import DialogueMessage, Role
 from src.domain_models.state import GlobalState
 from src.tools.search import TavilySearch
@@ -20,7 +18,7 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMClient,
         role: Role,
         system_prompt: str,
         search_tool: SearchTool | None = None,
@@ -61,17 +59,15 @@ class PersonaAgent(BaseAgent, RateLimitMixin):
 
     def _generate_response(self, context: str, research_data: str = "") -> str:
         """Generate response using LLM."""
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", self.system_prompt),
-                (
-                    "user",
-                    f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:",
-                ),
-            ]
-        )
-        chain = prompt | self.llm
-        response = chain.invoke({})
+        prompt = [
+            ("system", self.system_prompt),
+            (
+                "user",
+                f"Context:\n{context}\n\nResearch Data:\n{research_data}\n\nYour turn to speak:",
+            ),
+        ]
+
+        response = self.llm.invoke(prompt)
         return str(response.content)
 
     def _cached_research(self, topic: str) -> str:
@@ -128,7 +124,7 @@ class FinanceAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMClient,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -151,7 +147,7 @@ class SalesAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMClient,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
@@ -168,7 +164,7 @@ class NewEmployeeAgent(PersonaAgent):
 
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: LLMClient,
         search_tool: SearchTool | None = None,
         app_settings: Settings | None = None,
     ) -> None:
