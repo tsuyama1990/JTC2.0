@@ -1,11 +1,9 @@
-from src.core.nemawashi.analytics import InfluenceAnalyzer
-from src.core.nemawashi.consensus import ConsensusEngine
-from src.core.nemawashi.engine import NemawashiEngine
-from src.core.nemawashi.nomikai import NomikaiSimulator
+"""
+Internal Nemawashi (Consensus Building) Package.
 
-__all__ = [
-    "ConsensusEngine",
-    "InfluenceAnalyzer",
-    "NemawashiEngine",
-    "NomikaiSimulator",
-]
+All domain models are exposed through `src.domain_models.politics`.
+Internal services should be instantiated individually:
+- `from src.core.nemawashi.analytics import AnalyticsService`
+- `from src.core.nemawashi.consensus import ConsensusService`
+- `from src.core.nemawashi.nomikai import SimulationService`
+"""

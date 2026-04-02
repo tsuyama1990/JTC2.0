@@ -15,7 +15,7 @@ from src.domain_models.experiment import ExperimentPlan, MetricTarget
 from src.domain_models.lean_canvas import LeanCanvas
 from src.domain_models.metrics import Financials, RingiSho
 from src.domain_models.persona import Persona
-from src.domain_models.politics import InfluenceNetwork, Stakeholder
+from src.domain_models.politics import DenseInfluenceNetwork, Stakeholder
 from src.domain_models.sitemap import UserStory
 from src.domain_models.state import GlobalState, Phase
 from src.domain_models.transcript import Transcript
@@ -89,31 +89,35 @@ def test_transcript_ingestion_node(mock_rag_cls: MagicMock, mock_state: GlobalSt
     mock_rag.persist_index.assert_called_once()
 
 
-@patch("src.core.nodes.NemawashiEngine")
-def test_nemawashi_analysis_node(mock_engine_cls: MagicMock, mock_state: GlobalState) -> None:
+@patch("src.core.nodes.AnalyticsService")
+@patch("src.core.nodes.ConsensusService")
+def test_nemawashi_analysis_node(
+    mock_consensus_cls: MagicMock, mock_analytics_cls: MagicMock, mock_state: GlobalState
+) -> None:
     """Test Nemawashi analysis logic."""
-    mock_engine = mock_engine_cls.return_value
+    mock_consensus = mock_consensus_cls.return_value
+    mock_analytics = mock_analytics_cls.return_value
 
     # Setup influence network
     s1 = Stakeholder(name="A", initial_support=0.2, stubbornness=0.1)
     s2 = Stakeholder(name="B", initial_support=0.8, stubbornness=0.1)
-    network = InfluenceNetwork(stakeholders=[s1, s2], matrix=[[1.0, 0.0], [0.0, 1.0]])
+    network = DenseInfluenceNetwork(stakeholders=[s1, s2], matrix=[[1.0, 0.0], [0.0, 1.0]])
     mock_state.influence_network = network
 
     # Mock engine consensus result
-    mock_engine.calculate_consensus.return_value = [0.5, 0.5]
-    mock_engine.identify_influencers.return_value = ["A"]
+    mock_consensus.calculate_consensus.return_value = [0.5, 0.5]
+    mock_analytics.identify_influencers.return_value = ["A"]
 
     result = nemawashi_analysis_node(mock_state)
 
     assert "influence_network" in result
     updated_network = result["influence_network"]
-    assert isinstance(updated_network, InfluenceNetwork)
+    assert isinstance(updated_network, DenseInfluenceNetwork)
     # Check if support was updated
     assert updated_network.stakeholders[0].initial_support == 0.5
     assert updated_network.stakeholders[1].initial_support == 0.5
 
-    mock_engine.calculate_consensus.assert_called_once()
+    mock_consensus.calculate_consensus.assert_called_once()
 
 
 @patch("src.core.nodes.AgentFactory.get_builder_agent")
@@ -194,6 +198,10 @@ def test_final_artifact_generation_node(
     assert any("ExperimentPlan.md" in str(arg) for arg in call_args)
     assert any("RingiSho.md" in str(arg) for arg in call_args)
 
-    # Verify PDF generation logic is called via FileService
-    mock_fs.save_pdf_sync.assert_called_once()
-    assert "outputs" in str(mock_fs.save_pdf_sync.call_args[0][1])
+    # Verify PDF generation logic is called via FileService using async method
+    mock_fs.save_pdf_async.assert_called_once()
+    assert "outputs" in str(mock_fs.save_pdf_async.call_args[0][1])
+
+    # Verify that we check the future result or done status according to implementation
+    # Implementation now uses concurrent.futures.wait, which doesn't directly call result() unless done() is True
+    # We just ensure save_pdf_async was invoked correctly and didn't crash.

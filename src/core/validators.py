@@ -1,128 +1,118 @@
-from pydantic import SecretStr
+import re
+from collections.abc import Iterable
+from pathlib import Path
 
-from src.core.constants import (
-    ERR_INVALID_COLOR,
-    ERR_INVALID_DIMENSIONS,
-    ERR_INVALID_FPS,
-    ERR_INVALID_RESOLUTION,
-)
+from pydantic import SecretStr
 
 
 class ConfigValidators:
-    """Encapsulates validation logic for configuration."""
+    """Centralized validation service for application configuration."""
 
     @staticmethod
-    def validate_color(v: int) -> int:
-        """Ensure color is within Pyxel palette (0-15)."""
-        if not (0 <= v <= 15):
-            raise ValueError(ERR_INVALID_COLOR)
-        return v
+    def validate_openai_key(key: SecretStr) -> None:
+        """Validate OpenAI API key format."""
+        val = key.get_secret_value()
+        if not val or not val.strip():
+            msg = "OpenAI API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
+        if len(val) < 20:
+            msg = "OpenAI API key is too short."
+            raise ValueError(msg)
+        if len(val) > 128:
+            msg = "OpenAI API key is too long."
+            raise ValueError(msg)
+        if not val.startswith("sk-"):
+            msg = "OpenAI API key must start with 'sk-'."
+            raise ValueError(msg)
 
     @staticmethod
-    def validate_dimension(v: int) -> int:
-        """Ensure dimension is positive."""
-        if v <= 0:
-            raise ValueError(ERR_INVALID_DIMENSIONS)
-        return v
+    def validate_tavily_key(key: SecretStr) -> None:
+        """Validate Tavily API key format."""
+        val = key.get_secret_value()
+        if not val or not val.strip():
+            msg = "Tavily API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
+        if len(val) < 20:
+            msg = "Tavily API key is too short."
+            raise ValueError(msg)
+        if len(val) > 128:
+            msg = "Tavily API key is too long."
+            raise ValueError(msg)
+        if not val.startswith("tvly-"):
+            msg = "Tavily API key must start with 'tvly-'."
+            raise ValueError(msg)
 
     @staticmethod
-    def validate_resolution(v: int) -> int:
-        """Ensure resolution is positive."""
-        if v <= 0:
-            raise ValueError(ERR_INVALID_RESOLUTION)
-        return v
+    def validate_v0_key(key: SecretStr) -> None:
+        val = key.get_secret_value()
+        if not val or not val.strip():
+            msg = "v0 API key cannot be empty or whitespace-only."
+            raise ValueError(msg)
+        if not (20 <= len(val) <= 128):
+            msg = "v0 API key must be between 20 and 128 characters long."
+            raise ValueError(msg)
+        if not re.match(r"^v0-[a-zA-Z0-9_\-]+$", val):
+            msg = "v0 API key must start with 'v0-' and contain only alphanumeric characters, dashes, or underscores."
+            raise ValueError(msg)
 
     @staticmethod
-    def validate_fps(v: int) -> int:
-        """Ensure FPS is valid."""
-        if not (1 <= v <= 60):
-            raise ValueError(ERR_INVALID_FPS)
-        return v
+    def validate_resolution(val: int) -> int:
+        if val <= 0:
+            msg = "Resolution must be strictly positive."
+            raise ValueError(msg)
+        return val
 
     @staticmethod
-    def validate_openai_key(v: SecretStr | None) -> SecretStr | None:
-        """Validate OpenAI API Key format."""
-        import re
-
-        from src.core.config import ErrorMessages
-
-        if v is None:
-            return None
-        secret = v.get_secret_value()
-        errors = ErrorMessages()
-        name = "OpenAI API Key"
-        if not secret or not secret.strip():
-            msg = errors.api_key_empty.format(key_name=name)
+    def validate_fps(val: int) -> int:
+        if val <= 0:
+            msg = "FPS must be strictly positive."
             raise ValueError(msg)
-        if len(secret) < 23:
-            msg = errors.api_key_too_short.format(key_name=name)
-            raise ValueError(msg)
-        if len(secret) > 131:
-            msg = errors.api_key_too_long.format(key_name=name)
-            raise ValueError(msg)
-        if not secret.startswith("sk-"):
-            msg = errors.api_key_invalid_prefix.format(key_name=name, prefix="sk-")
-            raise ValueError(msg)
-        # OpenAI keys can be `sk-[a-zA-Z0-9]{32,100}` or `sk-proj-[a-zA-Z0-9_-]+`
-        if not re.match(r"^sk-[a-zA-Z0-9_\-]{20,128}$", secret):
-            msg = errors.api_key_invalid_chars.format(key_name=name)
-            raise ValueError(msg)
-        return v
+        return val
 
     @staticmethod
-    def validate_tavily_key(v: SecretStr | None) -> SecretStr | None:
-        """Validate Tavily API Key format."""
-        import re
-
-        from src.core.config import ErrorMessages
-
-        if v is None:
-            return None
-        secret = v.get_secret_value()
-        errors = ErrorMessages()
-        name = "Tavily API Key"
-        if not secret or not secret.strip():
-            msg = errors.api_key_empty.format(key_name=name)
+    def validate_color(val: int) -> int:
+        if not (0 <= val <= 15):
+            msg = "Color must be between 0 and 15 (Pyxel palette)."
             raise ValueError(msg)
-        if len(secret) < 25:
-            msg = errors.api_key_too_short.format(key_name=name)
-            raise ValueError(msg)
-        if len(secret) > 133:
-            msg = errors.api_key_too_long.format(key_name=name)
-            raise ValueError(msg)
-        if not secret.startswith("tvly-"):
-            msg = errors.api_key_invalid_prefix.format(key_name=name, prefix="tvly-")
-            raise ValueError(msg)
-        if not re.match(r"^tvly-[a-zA-Z0-9_\-]{20,128}$", secret):
-            msg = errors.api_key_invalid_chars.format(key_name=name)
-            raise ValueError(msg)
-        return v
+        return val
 
     @staticmethod
-    def validate_v0_api_key(v: SecretStr | None) -> SecretStr | None:
-        """Validate the format of the V0 API Key."""
-        import re
+    def validate_dimension(val: int) -> int:
+        if val <= 0:
+            msg = "Dimension must be positive."
+            raise ValueError(msg)
+        return val
 
-        from src.core.config import ErrorMessages
+    @staticmethod
+    def is_safe_path(base_dir: str | Path, target_path: str | Path) -> bool:
+        """
+        Validates if a target path is safely contained within a base directory,
+        preventing directory traversal attacks (LFI).
+        """
+        try:
+            base_dir_resolved = Path(base_dir).resolve(strict=True)
+            target_path_resolved = Path(target_path).resolve()
 
-        if v is None:
-            return None
-        secret = v.get_secret_value()
-        errors = ErrorMessages()
-        name = "V0 API Key"
-        if not secret or not secret.strip():
-            msg = errors.api_key_empty.format(key_name=name)
-            raise ValueError(msg)
-        if len(secret) < 23:
-            msg = errors.api_key_too_short.format(key_name=name)
-            raise ValueError(msg)
-        if len(secret) > 131:
-            msg = errors.api_key_too_long.format(key_name=name)
-            raise ValueError(msg)
-        if not secret.startswith("v0_"):
-            msg = errors.api_key_invalid_prefix.format(key_name=name, prefix="v0_")
-            raise ValueError(msg)
-        if not re.match(r"^v0_[A-Za-z0-9_\-]{20,128}$", secret):
-            msg = errors.api_key_invalid_chars.format(key_name=name)
-            raise ValueError(msg)
-        return v
+            # Check for null bytes to prevent poisoning
+            if "\x00" in str(target_path):
+                return False
+
+            # Explicit prefix check
+            return str(target_path_resolved).startswith(str(base_dir_resolved))
+        except RuntimeError:
+            # Strict resolving failed meaning base_dir might not exist
+            return False
+        except Exception:
+            return False
+
+    @staticmethod
+    def validate_allowed_directories(
+        target_path: str | Path, allowed_paths: Iterable[str | Path]
+    ) -> bool:
+        """
+        Validates if a target path is safely contained within ANY of the allowed directories.
+        """
+        for allowed_dir in allowed_paths:
+            if ConfigValidators.is_safe_path(allowed_dir, target_path):
+                return True
+        return False

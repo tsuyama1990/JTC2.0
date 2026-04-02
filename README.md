@@ -11,19 +11,18 @@
 
 *   **Ideation Engine & Research Validation:** Transforms basic topics into structured 10 distinct Lean Canvas drafts using live search data.
 *   **Pydantic Schema Validation:** Employs strictly typed data models throughout the lifecycle to guarantee consistency and remove hallucinatory logic.
-*   **Decoupled Orchestration:** Ensures separation of business logic running in LangGraph from local user validations via terminal and simulation nodes.
 *   **JTC Meeting Simulation:** Run realistic multi-agent "Gekizume" (harsh feedback) debates with specialized Persona Agents (Finance Manager, Sales Manager, etc.).
 *   **Gamified Retro UI:** Review the ongoing debates visually via a Pyxel-based Retro RPG interface, providing a psychological buffer through the Proxy Agent.
-*   **Reality Injection via RAG and CPO Agent:** Ingests raw customer interview transcripts into a LlamaIndex Vector Database to ground the debate. The CPO agent uses this factual data to validate or invalidate assumptions directly against the Value Proposition Canvas and Alternative Analysis models.
-*   **Automated Specification Generation:** Transforms validated concepts into flawless, universally compatible `AgentPromptSpec.md` markdown specifications for AI coding tools.
-*   **Experiment Planning:** Rigorously generates `ExperimentPlan.md` outlining the MVP execution, AARRR metric targets, and pivot conditions based on your generated idea.
-*   **Governance & Financial Approval:** Mathematically simulates influence consensus building and financial viability (LTV, CAC, ROI) to automatically construct a Japanese-style corporate approval document ("Ringi-sho").
+*   **Reality Validation via RAG:** Ground decision-making in primary data using LlamaIndex by ingesting user interviews and transcripts to ensure the "Mom Test" is passed.
+*   **Nemawashi (Consensus Building):** Mathematically model and simulate the invisible layer of organizational politics using the French-DeGroot Model. Identify Key Influencers and simulate informal "Nomikai" events to strategically build support.
+*   **AI Coder Prompt Generation:** Automatically compiles your validated Lean Canvas, Customer Journey, and Mental Models into an `AgentPromptSpec` designed to be copy-pasted into Cursor or Windsurf to instantly generate your frontend MVP.
+*   **Governance & Ringi-sho Finalization:** Applies a business governance check utilizing AARRR metrics and real-time financial projections (LTV/CAC) to generate a formal Japanese Approval Document (Ringi-sho).
 
 ## 📋 Prerequisites
 
 -   **Python 3.12+**
 -   **uv** package manager
--   **API Keys**: `OPENAI_API_KEY`, `TAVILY_API_KEY`, `V0_API_KEY` configured in your `.env`.
+-   **API Keys**: `OPENAI_API_KEY`, `TAVILY_API_KEY` configured in your `.env`.
 
 ## 🛠 Installation & Setup
 
@@ -47,7 +46,7 @@
 
 ## 🚀 Usage
 
-Launch the ideation process by entering your core business topic. The orchestrator will research your topic and present 10 distinct validated lean canvas proposals for your review.
+Launch the ideation process by entering your core business topic. The orchestrator will research your topic and present validated lean canvas proposals for your review.
 
 ```bash
 uv run main.py "AI solutions for independent plumbers"
@@ -65,10 +64,10 @@ uv run marimo edit tutorials/UAT_AND_TUTORIAL.py
 ```ascii
 .
 ├── src/
-│   ├── agents/             # Persona definitions (Ideator, CPO, Hacker, etc.)
-│   ├── core/               # LangGraph orchestration, Config, and LLM wrappers
+│   ├── agents/             # Persona definitions (Ideator, CPO, Governance, etc.)
+│   ├── core/               # LangGraph orchestration, Config, Metrics, and LLM wrappers
 │   ├── data/               # LlamaIndex RAG implementation and parsers
-│   ├── domain_models/      # Strict Pydantic schemas (LeanCanvas, VPC, MentalModel)
+│   ├── domain_models/      # Strict Pydantic schemas (LeanCanvas, Metrics, VPC, MentalModel)
 │   ├── ui/                 # Pyxel "Retro RPG" rendering engine
 │   └── main.py             # CLI Entry Point
 ├── tests/                  # Unit, Integration, and Mock Mode E2E tests

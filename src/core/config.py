@@ -4,33 +4,23 @@ from functools import lru_cache
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.core.theme import (
-    AGENT_POS_CPO,
-    AGENT_POS_FINANCE,
-    AGENT_POS_NEW_EMP,
-    AGENT_POS_SALES,
-    COLOR_CPO,
-    COLOR_FINANCE,
-    COLOR_NEW_EMP,
-    COLOR_SALES,
-)
 from src.core.validators import ConfigValidators
 
 
 class ValidationConfig(BaseSettings):
     """Validation constraints for domain models."""
 
-    min_title_length: int = Field(default=3, description="Minimum length for titles")
-    max_title_length: int = Field(default=100, description="Maximum length for titles")
-    min_content_length: int = Field(default=3, description="Minimum length for content blocks")
-    max_content_length: int = Field(default=1000, description="Maximum length for content blocks")
+    min_title_length: int = Field(description="Minimum length for titles")
+    max_title_length: int = Field(description="Maximum length for titles")
+    min_content_length: int = Field(description="Minimum length for content blocks")
+    max_content_length: int = Field(description="Maximum length for content blocks")
 
-    min_list_length: int = Field(default=1, description="Minimum items in lists")
-    max_list_length: int = Field(default=20, description="Maximum items in lists")
+    min_list_length: int = Field(description="Minimum items in lists")
+    max_list_length: int = Field(description="Maximum items in lists")
 
-    max_custom_metrics: int = Field(default=50, description="Maximum custom metrics allowed")
-    min_metric_value: float = Field(default=0.0, description="Minimum value for metrics")
-    max_percentage_value: float = Field(default=100.0, description="Maximum percentage value")
+    max_custom_metrics: int = Field(description="Maximum custom metrics allowed")
+    min_metric_value: float = Field(description="Minimum value for metrics")
+    max_percentage_value: float = Field(description="Maximum percentage value")
 
 
 class ErrorMessages(BaseSettings):
@@ -105,26 +95,26 @@ class AgentConfig(BaseModel):
 
 
 class NemawashiConfig(BaseSettings):
+    max_stakeholders: int = Field(
+        alias="NEMAWASHI_MAX_STAKEHOLDERS",
+        description="Maximum allowed stakeholders in influence network",
+    )
     """Configuration for Nemawashi Consensus Building."""
 
     max_steps: int = Field(
         alias="NEMAWASHI_MAX_STEPS",
-        default=50,
         description="Max iterations for consensus",
     )
     tolerance: float = Field(
         alias="NEMAWASHI_TOLERANCE",
-        default=1e-4,
         description="Convergence tolerance",
     )
     nomikai_boost: float = Field(
         alias="NEMAWASHI_NOMIKAI_BOOST",
-        default=0.2,
         description="Boost factor from Nomikai",
     )
     nomikai_reduction: float = Field(
         alias="NEMAWASHI_NOMIKAI_REDUCTION",
-        default=0.1,
         description="Stubbornness reduction from Nomikai",
     )
 
@@ -134,11 +124,10 @@ class FileConfig(BaseSettings):
 
     max_workers: int = Field(
         alias="FILE_MAX_WORKERS",
-        default=5,
         description="Max thread pool workers for async file operations",
     )
     output_directory: str = Field(
-        alias="OUTPUT_DIR", default="outputs", description="Directory to save final artifacts"
+        alias="OUTPUT_DIR", description="Directory to save final artifacts"
     )
 
 
@@ -147,7 +136,6 @@ class GraphConfig(BaseSettings):
 
     interrupt_points: list[str] = Field(
         alias="GRAPH_INTERRUPT_POINTS",
-        default=["ideator", "verification", "solution_proposal", "pmf"],
         description="List of node names where the graph should interrupt execution for HITL",
     )
 
@@ -155,12 +143,17 @@ class GraphConfig(BaseSettings):
 class V0Config(BaseSettings):
     """Configuration for v0.dev integration."""
 
-    retry_max: int = Field(alias="V0_RETRY_MAX", default=3, description="Max retries for API calls")
+    retry_max: int = Field(alias="V0_RETRY_MAX", description="Max retries for API calls")
     retry_backoff: float = Field(
         alias="V0_RETRY_BACKOFF",
-        default=2.0,
         description="Exponential backoff factor",
     )
+
+
+class TurnSequenceItem(BaseModel):
+    node_name: str
+    role: str
+    description: str
 
 
 class SimulationConfig(BaseSettings):
@@ -191,7 +184,10 @@ class SimulationConfig(BaseSettings):
     def turn_sequence(self) -> list[dict[str, str]]:
         import json
 
-        return json.loads(self.turn_sequence_str)  # type: ignore[no-any-return]
+        parsed = json.loads(self.turn_sequence_str)
+        # Validate against schema
+        validated = [TurnSequenceItem(**item) for item in parsed]
+        return [v.model_dump() for v in validated]
 
     console_sleep: float = Field(
         alias="SIMULATION_CONSOLE_SLEEP", description="Sleep time for console fallback"
@@ -200,40 +196,32 @@ class SimulationConfig(BaseSettings):
 
     # Explicit fields for individual agents to allow env var overrides
     agent_new_emp_pos: dict[str, int] = Field(
+        default_factory=lambda: {"x": 10, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_NEW_EMP",
-        default_factory=lambda: AGENT_POS_NEW_EMP,
         description="New Employee Agent layout settings",
     )
-    agent_new_emp_color: int = Field(
-        alias="COLOR_NEW_EMP", default=COLOR_NEW_EMP, description="New Employee Agent Color"
-    )
+    agent_new_emp_color: int = Field(alias="COLOR_NEW_EMP", description="New Employee Agent Color")
 
     agent_finance_pos: dict[str, int] = Field(
+        default_factory=lambda: {"x": 50, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_FINANCE",
-        default_factory=lambda: AGENT_POS_FINANCE,
         description="Finance Agent layout settings",
     )
-    agent_finance_color: int = Field(
-        alias="COLOR_FINANCE", default=COLOR_FINANCE, description="Finance Agent Color"
-    )
+    agent_finance_color: int = Field(alias="COLOR_FINANCE", description="Finance Agent Color")
 
     agent_sales_pos: dict[str, int] = Field(
+        default_factory=lambda: {"x": 90, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_SALES",
-        default_factory=lambda: AGENT_POS_SALES,
         description="Sales Agent layout settings",
     )
-    agent_sales_color: int = Field(
-        alias="COLOR_SALES", default=COLOR_SALES, description="Sales Agent Color"
-    )
+    agent_sales_color: int = Field(alias="COLOR_SALES", description="Sales Agent Color")
 
     agent_cpo_pos: dict[str, int] = Field(
+        default_factory=lambda: {"x": 130, "y": 20, "w": 10, "h": 10, "text_x": 0, "text_y": 0},
         alias="AGENT_POS_CPO",
-        default_factory=lambda: AGENT_POS_CPO,
         description="CPO Agent layout settings",
     )
-    agent_cpo_color: int = Field(
-        alias="COLOR_CPO", default=COLOR_CPO, description="CPO Agent Color"
-    )
+    agent_cpo_color: int = Field(alias="COLOR_CPO", description="CPO Agent Color")
 
     @property
     def agent_new_emp(self) -> AgentConfig:
@@ -306,8 +294,11 @@ class GovernanceConfig(BaseSettings):
     default_churn: float = Field(alias="DEFAULT_CHURN", description="Fallback Churn Rate")
     max_llm_response_size: int = Field(
         alias="MAX_LLM_RESPONSE_SIZE",
-        default=10_000,
         description="Max bytes for LLM JSON response",
+    )
+    max_content_multiplier: int = Field(
+        alias="MAX_CONTENT_MULTIPLIER",
+        description="Multiplier applied to max_llm_response_size for validations",
     )
     output_path: str = Field(alias="RINGI_SHO_PATH", description="Path for Ringi-sho output")
     search_query_template: str = Field(
@@ -316,7 +307,6 @@ class GovernanceConfig(BaseSettings):
     )
     max_search_result_size: int = Field(
         alias="MAX_SEARCH_RESULT_SIZE",
-        default=5000,
         description="Max chars for search result context",
     )
 
@@ -335,13 +325,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file_encoding="utf-8", extra="forbid")
 
     # Explicitly enforce required keys without defaults
-    openai_api_key: SecretStr = Field(
-        alias="OPENAI_API_KEY", description="OpenAI API Key", min_length=1
-    )
-    tavily_api_key: SecretStr = Field(
-        alias="TAVILY_API_KEY", description="Tavily Search API Key", min_length=1
-    )
-    v0_api_key: SecretStr = Field(alias="V0_API_KEY", description="V0.dev API Key", min_length=1)
+    openai_api_key: SecretStr = Field(alias="OPENAI_API_KEY", description="OpenAI API Key")
+    tavily_api_key: SecretStr = Field(alias="TAVILY_API_KEY", description="Tavily Search API Key")
+    v0_api_key: SecretStr | None = Field(alias="V0_API_KEY", description="V0.dev API Key")
 
     @field_validator("openai_api_key", mode="before")
     @classmethod
@@ -369,21 +355,18 @@ class Settings(BaseSettings):
 
     @field_validator("v0_api_key", mode="before")
     @classmethod
-    def validate_v0_api_key_before(cls, v: str | SecretStr) -> SecretStr:
-        """Validate the format of the V0 API Key."""
-        import re
-
+    def validate_v0_api_key_before(cls, v: str | SecretStr | None) -> SecretStr | None:
+        if v is None:
+            return None
         secret_str = v if isinstance(v, SecretStr) else SecretStr(str(v))
-        secret = secret_str.get_secret_value()
-        if not secret or not secret.strip():
-            msg = "API key cannot be empty or whitespace-only."
-            raise ValueError(msg)
-        if len(secret) < 10:
-            msg = "v0_api_key must be at least 10 characters long."
-            raise ValueError(msg)
-        if not re.match(r"^v0-[a-zA-Z0-9_\\-]{20,128}$", secret):
-            msg = "v0_api_key must start with 'v0-' and be 20-128 valid characters."
-            raise ValueError(msg)
+        if not secret_str.get_secret_value():
+            return None
+        try:
+            ConfigValidators.validate_v0_key(secret_str)
+        except Exception as e:
+            base_msg = ErrorMessages().invalid_api_key_format.format(key_name="v0.dev API Key")
+            msg = f"{base_msg} {e}"
+            raise ValueError(msg) from e
         return secret_str
 
     v0_api_url: str = Field(
@@ -391,25 +374,54 @@ class Settings(BaseSettings):
         description="V0.dev API URL",
     )
 
+    @field_validator("v0_api_url")
+    @classmethod
+    def validate_v0_url(cls, v: str) -> str:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(v)
+        if parsed.scheme != "https":
+            msg = "V0 API URL must use HTTPS."
+            raise ValueError(msg)
+        if not parsed.netloc:
+            msg = "V0 API URL must contain a valid domain."
+            raise ValueError(msg)
+        return v
+
     llm_model: str = Field(alias="LLM_MODEL", description="LLM Model name")
 
     rag_persist_dir: str = Field(alias="RAG_PERSIST_DIR", description="Directory for RAG index")
-    rag_chunk_size: int = Field(
-        alias="RAG_CHUNK_SIZE", default=1024, description="Chunk size for RAG"
-    )
+
+    @field_validator("rag_persist_dir")
+    @classmethod
+    def validate_rag_persist_dir(cls, v: str) -> str:
+        from pathlib import Path
+
+        try:
+            resolved = Path(v).resolve()
+            if "\x00" in str(resolved):
+                msg = "Path contains null bytes."
+                raise ValueError(msg)  # noqa: TRY301
+            # Basic validation to ensure it doesn't traverse to root unexpectedly
+            if str(resolved) == "/" or str(resolved) == "C:\\":
+                msg = "RAG persist dir cannot be root directory."
+                raise ValueError(msg)  # noqa: TRY301
+        except Exception as e:
+            msg = f"Invalid RAG persist directory: {e}"
+            raise ValueError(msg) from e
+        return v
+
+    rag_chunk_size: int = Field(alias="RAG_CHUNK_SIZE", description="Chunk size for RAG")
     rag_max_document_length: int = Field(
         alias="RAG_MAX_DOC_LENGTH",
-        default=1_000_000,
         description="Max document length",
     )
     rag_max_query_length: int = Field(
         alias="RAG_MAX_QUERY_LENGTH",
-        default=1000,
         description="Max query length",
     )
     rag_max_index_size_mb: int = Field(
         alias="RAG_MAX_INDEX_SIZE_MB",
-        default=500,
         description="Max index size in MB",
     )
     rag_allowed_paths: str | list[str] = Field(
@@ -418,21 +430,29 @@ class Settings(BaseSettings):
     )
     rag_rate_limit_interval: float = Field(
         alias="RAG_RATE_LIMIT_INTERVAL",
-        default=0.1,
         description="Min interval between RAG calls in seconds",
     )
     rag_scan_depth_limit: int = Field(
         alias="RAG_SCAN_DEPTH_LIMIT",
-        default=10,
         description="Max recursion depth for directory scanning",
     )
 
     @field_validator("rag_allowed_paths", mode="before")
     @classmethod
     def parse_allowed_paths(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str):
-            return [p.strip() for p in v.split(",") if p.strip()]
-        return v
+        paths = [p.strip() for p in v.split(",")] if isinstance(v, str) else v
+        valid_paths = []
+        for p in paths:
+            if not p:
+                continue
+            if "\x00" in str(p) or ".." in str(p):
+                msg = "Directory traversal or null byte detected in RAG allowed paths."
+                raise ValueError(msg)
+            valid_paths.append(p)
+        if not valid_paths:
+            msg = "RAG allowed paths cannot be empty."
+            raise ValueError(msg)
+        return valid_paths
 
     @field_validator("rag_max_index_size_mb")
     @classmethod
@@ -452,49 +472,68 @@ class Settings(BaseSettings):
 
     rag_batch_size: int = Field(
         alias="RAG_BATCH_SIZE",
-        default=100,
         description="Batch size for RAG ingestion",
     )
     rag_query_timeout: float = Field(
-        alias="RAG_QUERY_TIMEOUT", default=30.0, description="Timeout for RAG queries in seconds"
+        alias="RAG_QUERY_TIMEOUT", description="Timeout for RAG queries in seconds"
     )
 
     feature_chunk_size: int = Field(
         alias="FEATURE_CHUNK_SIZE",
-        default=5,
         description="Chunk size for feature extraction",
     )
 
     circuit_breaker_fail_max: int = Field(
         alias="CB_FAIL_MAX",
-        default=3,
         description="Circuit breaker fail threshold",
     )
     circuit_breaker_reset_timeout: int = Field(
         alias="CB_RESET_TIMEOUT",
-        default=300,
         description="Circuit breaker reset timeout",
     )
 
+    @field_validator("circuit_breaker_fail_max")
+    @classmethod
+    def validate_circuit_breaker_fail_max(cls, v: int) -> int:
+        if not (1 <= v <= 100):
+            msg = "circuit_breaker_fail_max must be between 1 and 100."
+            raise ValueError(msg)
+        return v
+
+    @field_validator("circuit_breaker_reset_timeout")
+    @classmethod
+    def validate_circuit_breaker_reset_timeout(cls, v: int) -> int:
+        if not (10 <= v <= 3600):
+            msg = "circuit_breaker_reset_timeout must be between 10 and 3600."
+            raise ValueError(msg)
+        return v
+
     iterator_safety_limit: int = Field(
         alias="ITERATOR_SAFETY_LIMIT",
-        default=1000,
         description="Max items for iterators",
     )
 
-    search_max_results: int = Field(
-        alias="SEARCH_MAX_RESULTS", default=5, description="Max search results"
-    )
-    search_depth: str = Field(
-        alias="SEARCH_DEPTH", default="advanced", description="Search depth (basic/advanced)"
-    )
+    search_max_results: int = Field(alias="SEARCH_MAX_RESULTS", description="Max search results")
+    search_depth: str = Field(alias="SEARCH_DEPTH", description="Search depth (basic/advanced)")
     search_query_template: str = Field(
         alias="SEARCH_QUERY_TEMPLATE",
         description="Template for search queries",
     )
 
-    log_level: str = Field(alias="LOG_LEVEL", description="Logging level")
-    ui_page_size: int = Field(alias="UI_PAGE_SIZE", description="Page size for UI")
+    @field_validator("search_query_template")
+    @classmethod
+    def validate_search_template(cls, v: str) -> str:
+        if "{topic}" not in v:
+            msg = "search_query_template must contain {topic} placeholder."
+            raise ValueError(msg)
+        return v
+
+    log_level: str = Field(
+        alias="LOG_LEVEL",
+        description="Logging level",
+        pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
+    )
+    ui_page_size: int = Field(alias="UI_PAGE_SIZE", description="Page size for UI", ge=1, le=100)
 
     # Nested configurations - Use Field to allow Pydantic to manage them
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
