@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from src.agents.builder import BuilderAgent
 from src.agents.cpo import CPOAgent
 from src.agents.governance import GovernanceAgent
@@ -48,6 +46,7 @@ class AgentFactory:
             raw_path = state.rag_index_path if state else settings.rag_persist_dir
 
             from src.core.validators import ConfigValidators
+
             rag_path = ConfigValidators.validate_rag_path(raw_path)
 
             return CPOAgent(llm, app_settings=settings, rag_path=rag_path)

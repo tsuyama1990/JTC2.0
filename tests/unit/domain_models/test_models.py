@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 import pytest
 from pydantic import ValidationError
 
@@ -359,3 +361,326 @@ def test_agent_prompt_spec() -> None:
                 "extra": "bad",
             }
         )
+
+
+def test_lazy_idea_iterator_edges() -> None:
+    from src.core.config import get_settings
+    from src.domain_models.common import LazyIdeaIterator
+    from src.domain_models.lean_canvas import LeanCanvas
+
+    settings = get_settings()
+
+    def gen() -> Iterator[LeanCanvas]:
+        for i in range(settings.iterator_safety_limit + 5):
+            yield LeanCanvas(
+                id=i,
+                title="Test Idea",
+                problem="Too slow processes",
+                customer_segments="Devs",
+                unique_value_prop="Fast tools are great",
+                solution="Build fast things",
+            )
+
+    iterator = LazyIdeaIterator(gen())
+
+    # Test __iter__
+    assert iter(iterator) is iterator
+
+    # Consume exactly iterator_safety_limit items
+    for _ in range(settings.iterator_safety_limit):
+        item = next(iterator)
+        assert item.title == "Test Idea"
+
+    # The next call should raise StopIteration
+    with pytest.raises(StopIteration):
+        next(iterator)
+
+
+def test_lean_canvas_validation_edges() -> None:
+    from src.domain_models.lean_canvas import LeanCanvas
+
+    # Title too short
+    with pytest.raises(ValidationError) as exc:
+        LeanCanvas(
+            id=1,
+            title="ab",
+            problem="a b c",
+            customer_segments="devs",
+            unique_value_prop="a b c",
+            solution="a b c",
+        )
+    assert "Title must be at least 3 characters long" in str(exc.value)
+
+    # Content < 3 words
+    with pytest.raises(ValidationError) as exc:
+        LeanCanvas(
+            id=1,
+            title="abc",
+            problem="a b",
+            customer_segments="devs",
+            unique_value_prop="a b c",
+            solution="a b c",
+        )
+    assert "Content must contain at least 3 words" in str(exc.value)
+
+
+def test_metrics_custom_key_validation() -> None:
+    from src.domain_models.metrics import Metrics
+
+    # Invalid key
+    with pytest.raises(ValidationError) as exc:
+        Metrics(custom_metrics={"bad-key!": 5.0})
+    assert "Invalid metric key" in str(exc.value)
+
+    # Value too small
+    with pytest.raises(ValidationError) as exc:
+        Metrics(custom_metrics={"valid_key": -100.0})
+    assert "must be >=" in str(exc.value)
+
+    # Value too large
+    with pytest.raises(ValidationError) as exc:
+        Metrics(custom_metrics={"valid_key": 2000000.0})
+    assert "exceeds maximum allowed threshold" in str(exc.value)
+
+
+def test_mvpspec_v0_url_and_components_edges() -> None:
+    from src.domain_models.mvp import MVP, MVPType, Priority
+
+    # Invalid URL domain
+    with pytest.raises(ValidationError) as exc:
+        MVP.model_validate(
+            {
+                "type": MVPType.LANDING_PAGE,
+                "core_features": [
+                    {"name": "A" * 10, "description": "A" * 10, "priority": Priority.MUST_HAVE}
+                ],
+                "success_criteria": "A" * 10,
+                "v0_url": "https://evil.com",
+            }
+        )
+    assert "Only v0.dev is allowed" in str(exc.value)
+
+    # Invalid URL scheme
+    with pytest.raises(ValidationError) as exc:
+        MVP.model_validate(
+            {
+                "type": MVPType.LANDING_PAGE,
+                "core_features": [
+                    {"name": "A" * 10, "description": "A" * 10, "priority": Priority.MUST_HAVE}
+                ],
+                "success_criteria": "A" * 10,
+                "v0_url": "ftp://v0.dev",
+            }
+        )
+    assert "URL scheme" in str(exc.value)
+
+    # Path traversal
+    with pytest.raises(ValidationError) as exc:
+        MVP.model_validate(
+            {
+                "type": MVPType.LANDING_PAGE,
+                "core_features": [
+                    {"name": "A" * 10, "description": "A" * 10, "priority": Priority.MUST_HAVE}
+                ],
+                "success_criteria": "A" * 10,
+                "v0_url": "https://v0.dev/..//path",
+            }
+        )
+    assert "Path traversal detected" in str(exc.value)
+
+    from src.domain_models.mvp import MVPSpec
+
+    # Component name non-ascii
+    with pytest.raises(ValidationError) as exc:
+        MVPSpec(app_name="App", core_feature="A" * 10, components=["コンポーネント"])
+    assert "must be ASCII" in str(exc.value)
+
+    # Component name too long
+    with pytest.raises(ValidationError) as exc:
+        MVPSpec(app_name="App", core_feature="A" * 10, components=["A" * 51])
+    assert "too long" in str(exc.value)
+
+    # HTML tag in v0_prompt
+    with pytest.raises(ValidationError) as exc:
+        MVPSpec(app_name="App", core_feature="A" * 10, v0_prompt="<b>bold</b>")
+    assert "must not contain HTML" in str(exc.value)
+
+
+def test_persona_interview_insights_edges() -> None:
+    from src.domain_models.persona import Persona
+
+    # Insight too short
+    with pytest.raises(ValidationError) as exc:
+        Persona(
+            name="A" * 10,
+            occupation="A" * 10,
+            demographics="A" * 10,
+            goals=["A" * 10],
+            frustrations=["A" * 10],
+            bio="A" * 10,
+            interview_insights=["shrt"],
+        )
+    assert "is too short" in str(exc.value)
+
+    # Insight too long
+    with pytest.raises(ValidationError) as exc:
+        Persona(
+            name="A" * 10,
+            occupation="A" * 10,
+            demographics="A" * 10,
+            goals=["A" * 10],
+            frustrations=["A" * 10],
+            bio="A" * 10,
+            interview_insights=["A" * 501],
+        )
+    assert "is too long" in str(exc.value)
+
+    # Bad characters
+    with pytest.raises(ValidationError) as exc:
+        Persona(
+            name="A" * 10,
+            occupation="A" * 10,
+            demographics="A" * 10,
+            goals=["A" * 10],
+            frustrations=["A" * 10],
+            bio="A" * 10,
+            interview_insights=["Valid insight with a quote 'bad'"],
+        )
+    assert "contains invalid characters" in str(exc.value)
+
+
+def test_politics_matrix_edges() -> None:
+    from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry, Stakeholder
+
+    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
+    s2 = Stakeholder(name="B", initial_support=0.5, stubbornness=0.5)
+
+    # Matrix values out of bounds in dense matrix
+    with pytest.raises(ValidationError) as exc:
+        InfluenceNetwork(stakeholders=[s1, s2], matrix=[[1.5, -0.5], [0.5, 0.5]])
+    assert "Matrix values must be between 0.0 and 1.0" in str(
+        exc.value
+    ) or "Input should be less than or equal to 1" in str(exc.value)
+
+    # Non-square dense matrix
+    with pytest.raises(ValidationError) as exc:
+        InfluenceNetwork(stakeholders=[s1, s2], matrix=[[0.5, 0.5]])
+    assert "Matrix dimensions do not match stakeholder count" in str(exc.value)
+
+    with pytest.raises(ValidationError) as exc:
+        InfluenceNetwork(stakeholders=[s1, s2], matrix=[[0.5], [0.5]])
+    assert "Matrix shape is invalid" in str(exc.value)
+
+    # Sparse matrix shape mismatch
+    with pytest.raises(ValidationError) as exc:
+        InfluenceNetwork(stakeholders=[s1, s2], matrix=[SparseMatrixEntry(row=0, col=2, val=1.0)])
+    assert "Matrix shape is invalid" in str(exc.value)
+
+    # Sparse matrix stochasticity failure
+    with pytest.raises(ValidationError) as exc:
+        InfluenceNetwork(stakeholders=[s1, s2], matrix=[SparseMatrixEntry(row=0, col=0, val=0.5)])
+    assert "Influence matrix rows must sum to 1.0" in str(exc.value)
+
+
+def test_state_wrap_iterator_edges() -> None:
+    from src.domain_models.common import LazyIdeaIterator
+    from src.domain_models.lean_canvas import LeanCanvas
+    from src.domain_models.state import GlobalState
+
+    with pytest.raises(TypeError) as exc_type:
+        GlobalState(generated_ideas="not an iterator")
+    assert "must be an Iterator" in str(exc_type.value)
+
+    # Wrap an existing LazyIdeaIterator
+    def gen() -> Iterator[LeanCanvas]:
+        yield LeanCanvas(
+            id=1,
+            title="A" * 10,
+            problem="A b c",
+            customer_segments="devs",
+            unique_value_prop="A b c",
+            solution="A b c",
+        )
+
+    lazy_iter = LazyIdeaIterator(gen())
+    state = GlobalState(generated_ideas=lazy_iter)
+    assert state.generated_ideas is lazy_iter
+
+
+def test_transcript_date_edges() -> None:
+    from src.domain_models.transcript import Transcript
+
+    with pytest.raises(ValidationError) as exc:
+        Transcript(source="User", content="Valid content that is long enough", date="2024/01/01")
+    assert "Date must be in YYYY-MM-DD format" in str(exc.value)
+
+    with pytest.raises(ValidationError) as exc:
+        Transcript(source="User", content="too short", date="2024-01-01")
+    assert "Transcript content is too short" in str(exc.value)
+
+    # Duplicate sources
+    from src.domain_models.state import GlobalState
+
+    with pytest.raises(ValidationError) as exc:
+        GlobalState(
+            transcripts=[
+                Transcript(
+                    source="User", content="Valid content that is long enough", date="2024-01-01"
+                ),
+                Transcript(source="User", content="Another valid content here", date="2024-01-02"),
+            ]
+        )
+    assert "Duplicate transcript sources found" in str(exc.value)
+
+    # Transcript too long
+    with pytest.raises(ValidationError) as exc:
+        GlobalState(transcripts=[Transcript(source="User", content="A" * 50001, date="2024-01-01")])
+    assert "exceeds maximum length" in str(exc.value)
+
+
+def test_coverage_gap_fillers() -> None:
+    # MVP component ascii check
+    from src.domain_models.mvp import MVPSpec
+
+    with pytest.raises(ValidationError) as exc:
+        MVPSpec(app_name="App", core_feature="A" * 10, components=["非ASCII"])
+    assert "must be ASCII" in str(exc.value)
+
+    # common.py Iterator wrapping CoreSchema
+
+    from src.domain_models.common import LazyIdeaIterator
+
+    schema = LazyIdeaIterator.__get_pydantic_core_schema__(None, None)
+    assert schema["type"] == "is-instance"
+
+    # politics.py sparse matrix checks
+    from src.domain_models.politics import InfluenceNetwork, SparseMatrixEntry, Stakeholder
+
+    s1 = Stakeholder(name="A", initial_support=0.5, stubbornness=0.5)
+    s2 = Stakeholder(name="B", initial_support=0.5, stubbornness=0.5)
+
+    with pytest.raises(ValidationError) as exc:
+        InfluenceNetwork(stakeholders=[s1, s2], matrix=[SparseMatrixEntry(row=0, col=2, val=1.0)])
+    assert "Matrix shape is invalid" in str(exc.value)
+
+    with pytest.raises(ValidationError) as exc:
+        InfluenceNetwork(stakeholders=[s1, s2], matrix=[SparseMatrixEntry(row=0, col=0, val=0.5)])
+    assert "Influence matrix rows must sum to 1.0" in str(exc.value)
+
+    # State duplicate transcripts and invalid iterator wrapping
+    from src.domain_models.state import GlobalState
+
+    with pytest.raises(ValidationError) as exc:
+        GlobalState.model_validate(
+            {
+                "transcripts": [
+                    {"source": "X", "content": "Valid length content here", "date": "2024-01-01"},
+                    {"source": "X", "content": "Another valid length here", "date": "2024-01-02"},
+                ]
+            }
+        )
+    assert "Duplicate transcript sources found" in str(exc.value)
+
+    with pytest.raises(TypeError) as exc_type:
+        GlobalState(generated_ideas=123)
+    assert "must be an Iterator" in str(exc_type.value)

@@ -189,6 +189,7 @@ class MVP(BaseModel):
                 msg = "Invalid URL path: Path traversal detected."
                 raise ValueError(msg)
         return v
+
     deployment_status: DeploymentStatus = Field(
         default=DeploymentStatus.PENDING,
         description="Status of the MVP deployment (e.g., pending, deployed, failed)",
@@ -254,6 +255,7 @@ class MVPSpec(BaseModel):
                 msg = "v0_prompt must be a non-empty string if provided."
                 raise ValueError(msg)
             import bleach  # type: ignore[import-untyped]
+
             sanitized = bleach.clean(v, tags=[], attributes={}, strip=True)
             if sanitized != v:
                 msg = "v0_prompt must not contain HTML or script tags."
